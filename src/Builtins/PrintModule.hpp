@@ -5,7 +5,7 @@
 
 #include "BaseFunction.hpp"
 #include "ScriptExceptionMacros.h"
-#include "SScriptInterpreter.hpp"
+#include "ScriptInterpreter.hpp"
 #include "Token.hpp"
 #include "Value.hpp"
 

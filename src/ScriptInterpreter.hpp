@@ -12,7 +12,7 @@
 
 using FunctionValidator = std::function<void(const std::vector<Token> &, size_t &)>;
 
-class SScriptInterpreter {
+class ScriptInterpreter {
   public:
     void registerFunction(const std::string & name, std::shared_ptr<BaseFunction> fn);
     void executeScript(const std::string & source, const std::string & filenaneame, bool debug = false);
@@ -23,10 +23,10 @@ class SScriptInterpreter {
             "unexpected token: '" + token.lexeme + "' type: " + tokenTypeNames.at(token.type) +
             (expected.empty() ? "" : ", expected: '" + expected + "'") + " in file: " + token.file + ":" +
             std::to_string(token.lineNumber) + ":" + std::to_string(token.columnNumber);
-#if BUILD_TYPE == Debug
+#ifdef DEBUG_BUILD
         const std::string error_message = file + ":" + std::to_string(line) + "\n" + error_content;
 #else
-        const std::string error_message = error_content;
+        const std::string& error_message = error_content;
 #endif
         throw std::runtime_error(error_message);
     };
@@ -35,19 +35,19 @@ class SScriptInterpreter {
                                             const int & line = 0) {
         const std::string error_content = "undefined variable: '$" + name + "' in file: " + token.file + ":" +
                                           std::to_string(token.lineNumber) + ":" + std::to_string(token.columnNumber);
-#if BUILD_TYPE == Debug
+#ifdef DEBUG_BUILD
         const std::string error_message = file + ":" + std::to_string(line) + "\n" + error_content;
 #else
-        const std::string error_message = error_content;
+        const std::string& error_message = error_content;
 #endif
         throw std::runtime_error(error_message);
     }
 
     static void throwVariableTypeMissmatchError(const std::string & target_variable_name,
-                                               const std::string & target_type,
-                                               const std::string & source_variable_name,
-                                               const std::string & source_type, const Token & token,
-                                               const std::string & file = "", const int & line = 0) {
+                                                const std::string & target_type,
+                                                const std::string & source_variable_name,
+                                                const std::string & source_type, const Token & token,
+                                                const std::string & file = "", const int & line = 0) {
         std::string error_content =
             "variable type missmatch: '$" + target_variable_name + "' declared type: '" + target_type + "'";
         if (!source_variable_name.empty()) {
@@ -59,7 +59,7 @@ class SScriptInterpreter {
 
         error_content += " in file: " + token.file + ":" + std::to_string(token.lineNumber) + ":" +
                          std::to_string(token.columnNumber);
-#if BUILD_TYPE == Debug
+#ifdef DEBUG_BUILD
         const std::string error_message = file + ":" + std::to_string(line) + "\n" + error_content;
 #else
         const std::string error_message = error_content;
@@ -71,10 +71,10 @@ class SScriptInterpreter {
                                                const std::string & file = "", const int line = 0) {
         const std::string error_content = "variable alread defined: " + name + " in file: " + token.file + ":" +
                                           std::to_string(token.lineNumber) + ":" + std::to_string(token.columnNumber);
-#if BUILD_TYPE == Debug
+#ifdef DEBUG_BUILD
         const std::string error_message = file + ":" + std::to_string(line) + "\n" + error_content;
 #else
-        const std::string error_message = error_content;
+        const std::string& error_message = error_content;
 #endif
         throw std::runtime_error(error_message);
     }

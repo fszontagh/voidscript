@@ -1,5 +1,9 @@
-cmake_minimum_required(VERSION 3.16)
-project(sonyscript LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.5)
+project(
+    voidscript
+    LANGUAGES CXX
+    VERSION 0.0.1
+    )
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +31,7 @@ endif()
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+    set(DEBUG_BUILD ON)
 endif()
 
 configure_file("cmake/options.h.in" "include/options.h" @ONLY)
@@ -36,7 +41,7 @@ include_directories(src)
 
 file(GLOB_RECURSE SOURCES
     src/main.cpp
-    src/SScriptInterpreter.cpp
+    src/ScriptInterpreter.cpp
     src/Lexer.cpp
 )
 

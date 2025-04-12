@@ -1,4 +1,4 @@
-#include "SScriptInterpreter.hpp"
+#include "ScriptInterpreter.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -9,11 +9,11 @@
 #include "ScriptExceptionMacros.h"
 #include "Value.hpp"
 
-void SScriptInterpreter::registerFunction(const std::string & name, std::shared_ptr<BaseFunction> fn) {
+void ScriptInterpreter::registerFunction(const std::string & name, std::shared_ptr<BaseFunction> fn) {
     functionObjects[name] = std::move(fn);
 }
 
-Value SScriptInterpreter::evaluateExpression(const Token & token) const {
+Value ScriptInterpreter::evaluateExpression(const Token & token) const {
     if (token.type == TokenType::StringLiteral) {
         return Value::fromString(token.lexeme);
     }
@@ -46,7 +46,7 @@ Value SScriptInterpreter::evaluateExpression(const Token & token) const {
     return Value();
 }
 
-std::vector<Value> SScriptInterpreter::parseArguments(const std::vector<Token> & tokens,
+std::vector<Value> ScriptInterpreter::parseArguments(const std::vector<Token> & tokens,
                                                       std::size_t &              current_index) const {
     std::vector<Value> args;
 
@@ -82,7 +82,7 @@ std::vector<Value> SScriptInterpreter::parseArguments(const std::vector<Token> &
     return args;
 }
 
-void SScriptInterpreter::handleStringDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
+void ScriptInterpreter::handleStringDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
     const auto varName = tokens[i].lexeme;
     const auto varType = tokens[i].variableType;
 
@@ -116,7 +116,7 @@ void SScriptInterpreter::handleStringDeclaration(const std::vector<Token> & toke
     }
 }
 
-void SScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & tokens, std::size_t & i, TokenType type) {
+void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & tokens, std::size_t & i, TokenType type) {
     const auto varName = tokens[i].lexeme;
     const auto varType = tokens[i].variableType;
 
@@ -162,7 +162,7 @@ void SScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & toke
     }
 }
 
-void SScriptInterpreter::handleFunctionCall(const std::vector<Token> & tokens, std::size_t & i) {
+void ScriptInterpreter::handleFunctionCall(const std::vector<Token> & tokens, std::size_t & i) {
     std::string funcName = tokens[i].lexeme;
     auto        it       = functionObjects.find(funcName);
     if (it == functionObjects.end()) {
@@ -176,7 +176,7 @@ void SScriptInterpreter::handleFunctionCall(const std::vector<Token> & tokens, s
     }
 }
 
-void SScriptInterpreter::handleVariableReference(const std::vector<Token> & tokens, std::size_t & i) {
+void ScriptInterpreter::handleVariableReference(const std::vector<Token> & tokens, std::size_t & i) {
     //THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "function call or variable assignment (not yet implemented)");
     const auto varName = tokens[i].lexeme;
     const auto varType = tokens[i].variableType;
@@ -198,15 +198,15 @@ void SScriptInterpreter::handleVariableReference(const std::vector<Token> & toke
     }
 }
 
-void SScriptInterpreter::handleComment(std::size_t & i) {
+void ScriptInterpreter::handleComment(std::size_t & i) {
     i++;  // Skip comment token
 }
 
-void SScriptInterpreter::handleSemicolon(std::size_t & i) {
+void ScriptInterpreter::handleSemicolon(std::size_t & i) {
     i++;  // Skip semicolon token
 }
 
-void SScriptInterpreter::expectSemicolon(const std::vector<Token> & tokens, std::size_t & i,
+void ScriptInterpreter::expectSemicolon(const std::vector<Token> & tokens, std::size_t & i,
                                          const std::string & message) const {
     if (i >= tokens.size() || tokens[i].type != TokenType::Semicolon) {
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "; " + message);
@@ -215,7 +215,7 @@ void SScriptInterpreter::expectSemicolon(const std::vector<Token> & tokens, std:
     }
 }
 
-void SScriptInterpreter::executeScript(const std::string & source, const std::string & filename, bool debug) {
+void ScriptInterpreter::executeScript(const std::string & source, const std::string & filename, bool debug) {
     Lexer lexer(source, filename);
     auto  tokens = lexer.tokenize();
 

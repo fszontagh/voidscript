@@ -8,7 +8,7 @@
 #include "Value.hpp"
 
 
-class SScriptInterpreter;
+class ScriptInterpreter;
 
 class BaseFunction {
   protected:
@@ -18,7 +18,7 @@ class BaseFunction {
     virtual void  validate(const std::vector<Token> & tokens, size_t & i) const   = 0;
     virtual Value call(const std::vector<Value> & args, bool debug = false) const = 0;
 
-    template <typename FuncClass> void registerFunctionTo(SScriptInterpreter & interp) {
+    template <typename FuncClass> void registerFunctionTo(ScriptInterpreter & interp) {
         FuncClass::registerTo(interp);
     }
 };

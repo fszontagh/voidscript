@@ -9,4 +9,8 @@ const char EOL = '\n';
 const char   COMMENT_CHARACTER = '@COMMENT_CHARACTER@';
 const static char * PARSER_OPEN_TAG   = "<?void";
 const static char * PARSER_CLOSE_TAG  = "?>";
-#cmakedefine BUILD_TYPE @CMAKE_BUILD_TYPE @
+const static char * VERSION_MINOR     = "@CMAKE_PROJECT_VERSION_MINOR@";
+const static char * VERSION_MAJOR     = "@CMAKE_PROJECT_VERSION_MAJOR@";
+const static char * VERSION_PATCH     = "@CMAKE_PROJECT_VERSION_PATCH@";
+const static char * VERSION_STRING    = "@CMAKE_PROJECT_VERSION@-@CMAKE_BUILD_TYPE@-@CMAKE_SYSTEM@";
+#cmakedefine DEBUG_BUILD
