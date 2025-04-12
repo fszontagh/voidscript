@@ -1,0 +1,12 @@
+/*
+* THIS IS A GENERATED FILE. DO NOT EDIT.
+*/
+#ifdef WIN32
+const char EOL = '\r\n';
+#else
+const char EOL = '\n';
+#endif
+const char   COMMENT_CHARACTER = '@COMMENT_CHARACTER@';
+const static char * PARSER_OPEN_TAG   = "<?void";
+const static char * PARSER_CLOSE_TAG  = "?>";
+#cmakedefine BUILD_TYPE @CMAKE_BUILD_TYPE @
