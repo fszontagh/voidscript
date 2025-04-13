@@ -57,6 +57,7 @@ message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
     set(DEBUG_BUILD ON)
+    set(COMPILE_WARNING_AS_ERROR ON)
 endif()
 
 configure_file("cmake/options.h.in" "include/options.h" @ONLY)

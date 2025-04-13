@@ -38,6 +38,19 @@ class Lexer {
     Token variableDeclaration(Variables::Type type);
     void  matchAndConsume(const std::string & sequence, bool caseSensitive = true);
 
+    // create token methods
+    Token createToken(TokenType type, const std::string & lexeme) const;
+    Token createSingleCharToken(TokenType type, const std::string & lexeme);
+    Token createUnknownToken(const std::string & lexeme) const;
+    Token createErrorToken(const std::string & lexeme) const;
+    Token stringToken();
+    Token numberToken();
+    Token identifierToken();
+    Token variableToken();
+    Token commentToken();
+    Token keywordOrIdentifierToken();
+    Token variableDeclarationToken(Variables::Type type);
+
     // validate number types from string
     template <typename Numeric> static bool is_number(const std::string & s) {
         Numeric n;

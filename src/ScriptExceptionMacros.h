@@ -18,6 +18,9 @@
 #define THROW_UNDEFINED_VARIABLE_ERROR(name, token) \
     throw ScriptException::makeUndefinedVariableError(name, token, __FILE__, __LINE__)
 
+#define THROW_UNDEFINED_VARIABLE_ERROR_HELPER(name, token, file, line) \
+    throw ScriptException::makeUndefinedVariableError(name, token, file, line)
+
 // Unknown (undefined) function call
 #define THROW_UNDEFINED_FUNCTION_ERROR(name, token) \
     throw ScriptException::makeUndefinedFunctionError(name, token, __FILE__, __LINE__)
