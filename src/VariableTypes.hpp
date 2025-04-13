@@ -10,22 +10,25 @@ namespace Variables {
 
 using DataContainer = std::variant<int, double, std::string, bool>;
 
-enum class Type : std::uint8_t { VT_INT, VT_DOUBLE, VT_STRING, VT_BOOLEAN, VT_NULL, VT_NOT_DEFINED };
+enum class Type : std::uint8_t { VT_INT, VT_DOUBLE, VT_STRING, VT_BOOLEAN, VT_NULL, VT_FUNCTION, VT_NOT_DEFINED };
 
 const std::unordered_map<std::string, Type> StringToTypeMap = {
     { "int",         Type::VT_INT         },
     { "double",      Type::VT_DOUBLE      },
     { "string",      Type::VT_STRING      },
+    { "bool",        Type::VT_BOOLEAN     },
     { "boolean",     Type::VT_BOOLEAN     },
     { "null",        Type::VT_NULL        },
+    { "function",    Type::VT_FUNCTION    },
     { "not_defined", Type::VT_NOT_DEFINED },
 };
 const std::unordered_map<Type, std::string> StypeToStringMap = {
     { Type::VT_INT,         "int"         },
     { Type::VT_DOUBLE,      "double"      },
     { Type::VT_STRING,      "string"      },
-    { Type::VT_BOOLEAN,     "boolean"     },
+    { Type::VT_BOOLEAN,     "bool"        },
     { Type::VT_NULL,        "null"        },
+    { Type::VT_FUNCTION,    "function"    },
     { Type::VT_NOT_DEFINED, "not_defined" },
 };
 

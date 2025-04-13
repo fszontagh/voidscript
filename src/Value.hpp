@@ -4,34 +4,76 @@
 #include <string>
 #include <variant>
 
+#include "Token.hpp"
 #include "VariableTypes.hpp"
 
 class Value {
   public:
     Variables::Type          type = Variables::Type::VT_NULL;
     Variables::DataContainer data;
+    Token                    token;
 
     Value() : type(Variables::Type::VT_NULL) {}
 
-    Value(Variables::Type t, double val) : type(t), data(std::move(val)) {}
+    //Value(Variables::Type t, double val) : type(t), data(std::move(val)) {}
 
-    Value(Variables::Type t, int val) : type(t), data(std::move(val)) {}
+    //Value(Variables::Type t, int val) : type(t), data(std::move(val)) {}
 
-    Value(Variables::Type t, const std::string & val) : type(t), data(val) {}
+    //Value(Variables::Type t, const std::string & val) : type(t), data(val) {}
 
-    Value(Variables::Type t, bool val) : type(t), data(std::move(val)) {}
+    //Value(Variables::Type t, bool val) : type(t), data(std::move(val)) {}
 
-    static Value fromInt(int val) { return Value(Variables::Type::VT_INT, val); }
+    Value(Variables::Type variable_type, const Token & token) : type(variable_type), token(token) {
+        if (type == Variables::Type::VT_INT) {
+            data = std::stoi(token.lexeme);
+        } else if (type == Variables::Type::VT_DOUBLE) {
+            data = std::stod(token.lexeme);
+        } else if (type == Variables::Type::VT_BOOLEAN) {
+            data = token.lexeme == "true";
+        } else if (type == Variables::Type::VT_NULL) {
+            data = Variables::TypeToString(type);
+        } else if (type == Variables::Type::VT_NOT_DEFINED) {
+            data = Variables::TypeToString(type);
+        } else {
+            data = token.lexeme;
+        }
+    }
 
-    static Value fromDouble(double val) { return Value(Variables::Type::VT_DOUBLE, val); }
+    //Value(const Token & token) : token(token), type(token.variableType), data(token.lexeme) {}
 
-    static Value fromString(const std::string & val) { return { Variables::Type::VT_STRING, val }; }
+    //static Value fromInt(int val) { return Value(Variables::Type::VT_INT, val); }
 
-    static Value fromBoolean(bool val) { return { Variables::Type::VT_BOOLEAN, val }; }
+    //static Value fromDouble(double val) { return Value(Variables::Type::VT_DOUBLE, val); }
+
+    //static Value fromString(const std::string & val) { return { Variables::Type::VT_STRING, val }; }
+
+    //static Value fromBoolean(bool val) { return { Variables::Type::VT_BOOLEAN, val }; }
+
+    static Value fromInt(const Token & token) { return Value(Variables::Type::VT_INT, token); }
+
+    static Value fromDouble(const Token & token) { return Value(Variables::Type::VT_DOUBLE, token); }
+
+    static Value fromString(const Token & token) { return Value(Variables::Type::VT_STRING, token); }
+
+    static Value fromBoolean(const Token & token, bool state) {
+        auto result = Value(Variables::Type::VT_BOOLEAN, token);
+        result.data = state;
+        return result;
+    }
 
     std::string ToString() const { return decodeEscapes(Variables::ToString(data, type)); }
 
+    int ToInt() const { return std::get<int>(data); }
+
+    double ToDouble() const { return std::get<double>(data); }
+
+    bool ToBool() const { return std::get<bool>(data); }
+
     std::string TypeToString() const { return Variables::TypeToString(type); }
+
+    void SetToken(const Token & token) { this->token = token; }
+
+    const Token & GetToken() const { return token; }
 
   private:
     Value(Variables::Type t, std::variant<int, double, std::string, bool> && val) : type(t), data(std::move(val)) {}

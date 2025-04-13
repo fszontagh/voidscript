@@ -5,54 +5,37 @@
 
 #include "BaseFunction.hpp"
 #include "ScriptExceptionMacros.h"
-#include "ScriptInterpreter.hpp"
 #include "Token.hpp"
 #include "Value.hpp"
 
 class PrintFunction : public BaseFunction {
   private:
-    const std::string name = "print";
+    const std::string name       = "print";
+    bool              addNewLine = false;
   public:
-    void validate(const std::vector<Token> & tokens, size_t & i) const override {
-        auto index = i;
-        if (tokens[index].type != TokenType::Identifier) {
-            THROW_UNEXPECTED_TOKEN_ERROR(tokens[index], "identifier: " + name);
+    PrintFunction() : BaseFunction(name) {}
+
+    void validateArgs(const std::vector<Token> &                     args,
+                      const std::unordered_map<std::string, Value> & variables) override {
+        if (args.size() == 0) {
+            THROW_UNEXPECTED_TOKEN_ERROR(args[0], "at least one argument");
         }
-        index++;  // skip function name
-        if (tokens[index].type != TokenType::LeftParenthesis) {
-            THROW_UNEXPECTED_TOKEN_ERROR(tokens[index], "('");
-        }
-        index++;  // skip '('
-        if (tokens[index].type != TokenType::StringLiteral && tokens[index].type != TokenType::Variable &&
-            tokens[index].type != TokenType::IntLiteral && tokens[index].type != TokenType::DoubleLiteral) {
-            THROW_UNEXPECTED_TOKEN_ERROR(tokens[index], "string, int, double or variable as argument");
-        }
-        size_t count = 0;
-        while (tokens[index].type != TokenType::RightParenthesis) {
-            if (tokens[index].type == TokenType::StringLiteral || tokens[index].type == TokenType::Variable ||
-                tokens[index].type == TokenType::IntLiteral || tokens[index].type == TokenType::DoubleLiteral) {
-                count++;
-                index++;
-            } else if (tokens[index].type == TokenType::Comma) {
-                index++;
-            } else {
-                THROW_UNEXPECTED_TOKEN_ERROR(tokens[index], "string, int, double or variable as argument");
+
+        for (const auto & arg : args) {
+            if (arg.type == TokenType::Variable) {
+                if (!variables.contains(arg.lexeme)) {
+                    THROW_UNDEFINED_VARIABLE_ERROR(arg.lexeme, arg);
+                }
             }
         }
-        if (count == 0) {
-            throw std::runtime_error("print() requires at least one argument at");
-        }
-        index++;  // skip ')'
-        if (tokens[index].type == TokenType::Semicolon) {
-            index++;
-        } else {
-            THROW_UNEXPECTED_TOKEN_ERROR(tokens[index], ";");
+        if (args.end()->variableType == Variables::Type::VT_INT || args.end()->type == TokenType::IntLiteral) {
+            this->addNewLine = true;
         }
     }
 
     Value call(const std::vector<Value> & args, bool debug = false) const override {
         for (const auto & arg : args) {
-            std::cout << arg.ToString();
+            std::cout << arg.ToString(); // todo: add endline if the last parameter is bool
         }
         return Value();
     }

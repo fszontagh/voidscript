@@ -9,17 +9,17 @@
 #include "ScriptExceptionMacros.h"
 #include "Value.hpp"
 
-void ScriptInterpreter::registerFunction(const std::string & name, std::shared_ptr<BaseFunction> fn) {
+void ScriptInterpreter::registerModule(const std::string & name, std::shared_ptr<BaseFunction> fn) {
     functionObjects[name] = std::move(fn);
 }
 
 Value ScriptInterpreter::evaluateExpression(const Token & token) const {
     if (token.type == TokenType::StringLiteral) {
-        return Value::fromString(token.lexeme);
+        return Value::fromString(token);
     }
     if (token.type == TokenType::IntLiteral) {
         try {
-            return Value::fromInt(std::stoi(token.lexeme));
+            return Value::fromInt(token);
         } catch (const std::invalid_argument & e) {
             throw std::runtime_error("Invalid integer literal: " + token.lexeme);
         } catch (const std::out_of_range & e) {
@@ -28,7 +28,7 @@ Value ScriptInterpreter::evaluateExpression(const Token & token) const {
     }
     if (token.type == TokenType::DoubleLiteral) {
         try {
-            return Value::fromDouble(std::stod(token.lexeme));
+            return Value::fromDouble(token);
         } catch (const std::invalid_argument & e) {
             throw std::runtime_error("Invalid double literal: " + token.lexeme);
         } catch (const std::out_of_range & e) {
@@ -36,24 +36,22 @@ Value ScriptInterpreter::evaluateExpression(const Token & token) const {
         }
     }
     if (token.type == TokenType::Variable) {
-        if (variables.find(token.lexeme) != variables.end()) {
-            return variables.at(token.lexeme);
-        }
-        THROW_UNDEFINED_VARIABLE_ERROR(token.lexeme, token);
-    } else {
-        THROW_UNEXPECTED_TOKEN_ERROR(token, "string, integer, double, or variable");
+        return this->getVariable(token);
     }
+    THROW_UNEXPECTED_TOKEN_ERROR(token, "string, integer, double, or variable");
+
     return Value();
 }
 
-std::vector<Value> ScriptInterpreter::parseArguments(const std::vector<Token> & tokens,
-                                                      std::size_t &              current_index) const {
+std::vector<Value> ScriptInterpreter::parseFunctionArguments(const std::vector<Token> & tokens,
+                                                             std::size_t &              index) const {
     std::vector<Value> args;
+    size_t             current_index = index;
 
-    if (current_index >= tokens.size() || tokens[current_index].type != TokenType::Identifier) {
-        THROW_UNEXPECTED_TOKEN_ERROR(tokens[current_index], tokenTypeNames.at(TokenType::Identifier));
-    }
-    current_index++;  // Skip function name
+    //   if (current_index >= tokens.size() || tokens[current_index].type != TokenType::Identifier) {
+    //       THROW_UNEXPECTED_TOKEN_ERROR(tokens[current_index], tokenTypeNames.at(TokenType::Identifier));
+    //   }
+    //   current_index++;  // Skip function name
 
     if (current_index >= tokens.size() || tokens[current_index].type != TokenType::LeftParenthesis) {
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[current_index], tokenTypeNames.at(TokenType::LeftParenthesis));
@@ -77,10 +75,50 @@ std::vector<Value> ScriptInterpreter::parseArguments(const std::vector<Token> & 
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[current_index], "')'");
     }
     current_index++;  // Skip ')'
-    current_index = current_index;
+    index = current_index;
 
     return args;
 }
+
+void ScriptInterpreter::handleBooleanDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
+    const auto varName = tokens[i].lexeme;
+    const auto varType = tokens[i].variableType;
+    i++;      // Skip variable name
+    if (i < tokens.size() && tokens[i].type == TokenType::Equals) {
+        i++;  // Skip '='
+
+        if (i < tokens.size() && tokens[i].type == TokenType::Variable) {
+            const auto variable = this->getVariable(tokens[i]);
+
+            if (variable.type != Variables::Type::VT_BOOLEAN) {
+                THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varName, Variables::TypeToString(Variables::Type::VT_BOOLEAN),
+                                                    tokens[i].lexeme, variable.TypeToString(), tokens[i]);
+            }
+            this->setVariable(varName, variable);
+            i++;  // Skip variable name
+            EXPECT_SEMICOLON(tokens, i, "after bool variable declaration");
+
+        } else if (i < tokens.size() && tokens[i].type == TokenType::Identifier) {
+            std::string lowered = tokens[i].lexeme;
+            std::transform(lowered.begin(), lowered.end(), lowered.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+
+            if (lowered == "true") {
+                this->setVariable(varName, Value::fromBoolean(tokens[i], true));
+            } else if (lowered == "false") {
+                this->setVariable(varName, Value::fromBoolean(tokens[i], false));
+            } else {
+                THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "true or false after '='");
+            }
+            i++;  // Skip boolean literal
+            EXPECT_SEMICOLON(tokens, i, "after bool declaration");
+        } else {
+            THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "bool literal after '='");
+        }
+    } else {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "= after bool declaration");
+    }
+};
 
 void ScriptInterpreter::handleStringDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
     const auto varName = tokens[i].lexeme;
@@ -91,23 +129,21 @@ void ScriptInterpreter::handleStringDeclaration(const std::vector<Token> & token
         i++;  // Skip '='
 
         if (i < tokens.size() && tokens[i].type == TokenType::Variable) {
-            if (variables.find(tokens[i].lexeme) == variables.end()) {
-                THROW_UNDEFINED_VARIABLE_ERROR(tokens[i].lexeme, tokens[i]);
-            } else {
-                if (variables[tokens[i].lexeme].type != Variables::Type::VT_STRING) {
-                    THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varName, Variables::TypeToString(Variables::Type::VT_STRING),
-                                                        tokens[i].lexeme, variables[tokens[i].lexeme].TypeToString(),
-                                                        tokens[i]);
-                }
+            const auto variable = this->getVariable(tokens[i]);
 
-                variables[varName] = variables[tokens[i].lexeme];
-                i++;  // Skip variable name
-                expectSemicolon(tokens, i, "after string variable declaration");
+            if (variable.type != Variables::Type::VT_STRING) {
+                THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varName, Variables::TypeToString(Variables::Type::VT_STRING),
+                                                    tokens[i].lexeme, variable.TypeToString(), tokens[i]);
             }
+            this->setVariable(varName, variable);
+            //variables[varName] = variables[tokens[i].lexeme];
+            i++;  // Skip variable name
+            EXPECT_SEMICOLON(tokens, i, "after string variable declaration");
+
         } else if (i < tokens.size() && tokens[i].type == TokenType::StringLiteral) {
-            variables[varName] = Value::fromString(tokens[i].lexeme);
+            this->setVariable(varName, Value::fromString(tokens[i]));
             i++;  // Skip string literal
-            expectSemicolon(tokens, i, "after string declaration");
+            EXPECT_SEMICOLON(tokens, i, "after string declaration");
         } else {
             THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "string literal after '='");
         }
@@ -126,10 +162,12 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
         if (i < tokens.size()) {
             if (type == TokenType::IntDeclaration && tokens[i].type == TokenType::IntLiteral) {
                 try {
-                    if (variables.find(varName) != variables.end()) {
-                        THROW_VARIABLE_REDEFINITION_ERROR(varName, tokens[i]);
+                    const auto variable = this->getVariable(tokens[i]);
+                    if (variable.type != Variables::Type::VT_INT) {
+                        THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varName, Variables::TypeToString(Variables::Type::VT_INT),
+                                                            tokens[i].lexeme, variable.TypeToString(), tokens[i]);
                     }
-                    variables[varName] = Value::fromInt(std::stoi(tokens[i].lexeme));
+                    this->setVariable(varName, Value::fromInt(tokens[i]));
                     i++;  // Skip int literal
                 } catch (const std::invalid_argument & e) {
                     throw std::runtime_error("Invalid integer literal in declaration: " + tokens[i].lexeme);
@@ -138,10 +176,13 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
                 }
             } else if (type == TokenType::DoubleDeclaration && tokens[i].type == TokenType::DoubleLiteral) {
                 try {
-                    if (variables.find(varName) != variables.end()) {
-                        THROW_VARIABLE_REDEFINITION_ERROR(varName, tokens[i]);
+                    const auto variable = this->getVariable(tokens[i]);
+                    if (variable.type != Variables::Type::VT_DOUBLE) {
+                        THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varName,
+                                                            Variables::TypeToString(Variables::Type::VT_DOUBLE),
+                                                            tokens[i].lexeme, variable.TypeToString(), tokens[i]);
                     }
-                    variables[varName] = Value::fromDouble(std::stod(tokens[i].lexeme));
+                    this->setVariable(varName, Value::fromDouble(tokens[i]));
                     i++;  // Skip double literal
                 } catch (const std::invalid_argument & e) {
                     throw std::runtime_error("Invalid double literal in declaration: " + tokens[i].lexeme);
@@ -153,7 +194,7 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
                 THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varName, expectedType, "",
                                                     getVariableTypeFromTokenTypeAsString(tokens[i].type), tokens[i]);
             }
-            expectSemicolon(tokens, i, "after variable declaration");
+            EXPECT_SEMICOLON(tokens, i, "after variable declaration");
         } else {
             THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "literal after '='");
         }
@@ -162,34 +203,87 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
     }
 }
 
+void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
+    const auto varName = tokens[i].lexeme;
+    const auto varType = tokens[i].variableType;
+
+    i++;  // skip funct name
+
+    if (i < tokens.size() && tokens[i].type != TokenType::Equals) {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "= after function declaration");
+    }
+    i++;  // skip '='
+
+    if (this->functionParameters.find(varName) != this->functionParameters.end()) {
+        THROW_FUNCTION_REDEFINITION_ERROR(varName, tokens[i]);
+    }
+
+    if (i < tokens.size() && tokens[i].type != TokenType::LeftParenthesis) {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "");
+    }
+    i++;
+    // parse arg definitions
+
+    const auto args = ScriptInterpreterHelpers::parseFunctionDeclarationArguments(tokens, i);
+    std::cout << "args: " << args.size() << std::endl;
+    for (const auto & arg : args) {
+        std::cout << "arg name: " << arg.GetToken().lexeme << " type: " << arg.TypeToString() << std::endl;
+    }
+    this->functionParameters[varName].assign(args.begin(), args.end());
+    const std::string body        = ScriptInterpreterHelpers::getFunctionBody(tokens, i);
+    this->functionBodies[varName] = body;
+    // recheck the close curly brace
+    if (i >= tokens.size() || tokens[i].type != TokenType::RightCurlyBracket) {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "}");
+    }
+    i++;
+    //this->functionBodies[varName] = std::make_shared<ScriptInterpreter>();
+    //this->functionBodies[varName]->executeScript(body, this->filename, true);
+    //EXPECT_SEMICOLON(tokens, i, "after function declaration");
+    // there is no need semicolon to the end of the function declaration
+    std::cout << "function body: \n\"" << body << "\"" << std::endl;
+}
+
 void ScriptInterpreter::handleFunctionCall(const std::vector<Token> & tokens, std::size_t & i) {
+    auto        index    = i;
     std::string funcName = tokens[i].lexeme;
-    auto        it       = functionObjects.find(funcName);
+
+    index++;  // skip funct name
+    if (index < tokens.size() && tokens[index].type != TokenType::LeftParenthesis) {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[index - 1], "");
+    }
+
+    auto it = functionObjects.find(funcName);
     if (it == functionObjects.end()) {
-        throw std::runtime_error("Unknown function: " + funcName);
+        THROW_UNDEFINED_FUNCTION_ERROR(funcName, tokens[i]);
     }
-    it->second->validate(tokens, i);
-    std::vector<Value> args = parseArguments(tokens, i);
+
+    //    it->second->validate(tokens, i, this->variables);
+
+    std::vector<Value> args = parseFunctionArguments(tokens, index);
     it->second->call(args);
-    if (i < tokens.size() && tokens[i].type == TokenType::Semicolon) {
-        i++;  // Skip ';' after function call
-    }
+    i = index;
+
+    EXPECT_SEMICOLON(tokens, i, "after function call");
+
+    //    if (i < tokens.size() && tokens[i].type == TokenType::Semicolon) {
+    //        i++;  // Skip ';' after function call
+    //    }
 }
 
 void ScriptInterpreter::handleVariableReference(const std::vector<Token> & tokens, std::size_t & i) {
     //THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "function call or variable assignment (not yet implemented)");
-    const auto varName = tokens[i].lexeme;
-    const auto varType = tokens[i].variableType;
+//    const auto varName = tokens[i].lexeme;
+//    const auto varType = tokens[i].variableType;
+    const auto& varToken = tokens[i];
     i++;      // Skip variable token to avoid infinite loop
     if (i < tokens.size() && tokens[i].type == TokenType::Equals) {
         i++;  // Skip '='
         if (i < tokens.size()) {
-            if (variables.find(varName) == variables.end()) {
-                THROW_UNDEFINED_VARIABLE_ERROR(varName, tokens[i]);
-            }
-            variables[varName] = evaluateExpression(tokens[i]);
+            const auto variable = this->getVariable(varToken);
+            this->setVariable(varToken.lexeme, evaluateExpression(tokens[i]));
             i++;  // Skip value
-            expectSemicolon(tokens, i, "after variable assignment");
+            EXPECT_SEMICOLON(tokens, i, "after variable assignment");
         } else {
             THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "value after '='");
         }
@@ -206,16 +300,8 @@ void ScriptInterpreter::handleSemicolon(std::size_t & i) {
     i++;  // Skip semicolon token
 }
 
-void ScriptInterpreter::expectSemicolon(const std::vector<Token> & tokens, std::size_t & i,
-                                         const std::string & message) const {
-    if (i >= tokens.size() || tokens[i].type != TokenType::Semicolon) {
-        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "; " + message);
-    } else {
-        i++;  // Skip ';'
-    }
-}
-
-void ScriptInterpreter::executeScript(const std::string & source, const std::string & filename, bool debug) {
+void ScriptInterpreter::executeScript(const std::string & source, const std::string & filename, bool ignore_tags) {
+    this->filename = filename;
     Lexer lexer(source, filename);
     auto  tokens = lexer.tokenize();
 
@@ -240,17 +326,21 @@ void ScriptInterpreter::executeScript(const std::string & source, const std::str
             continue;
         }
 
-        if (!insideScript) {
-            // Csak kiíratás, ha nem vagyunk script tagben
-            std::cout << token.lexeme;
+        if (insideScript == false && ignore_tags == false) {
+            //std::cout << token.lexeme;
             i++;
             continue;
         }
 
-        // A szokásos feldolgozás csak ha belül vagyunk
         switch (token.type) {
             case TokenType::StringDeclaration:
                 handleStringDeclaration(tokens, i);
+                break;
+            case TokenType::BooleanDeclaration:
+                handleBooleanDeclaration(tokens, i);
+                break;
+            case TokenType::FunctionDeclaration:
+                handleFunctionDeclaration(tokens, i);
                 break;
             case TokenType::IntDeclaration:
             case TokenType::DoubleDeclaration:
@@ -269,7 +359,7 @@ void ScriptInterpreter::executeScript(const std::string & source, const std::str
                 handleSemicolon(i);
                 break;
             default:
-                throw std::runtime_error("Unexpected token inside script: " + token.lexeme);
+                THROW_UNEXPECTED_TOKEN_ERROR(token, "");
         }
     }
 }

@@ -1,13 +1,13 @@
 #ifndef LEXER_HPP
 #define LEXER_HPP
 
+#include <algorithm>
 #include <istream>
 #include <sstream>
 #include <vector>
 
-#include "VariableTypes.hpp"
-#include "options.h"
 #include "Token.hpp"
+#include "VariableTypes.hpp"
 
 class Lexer {
   public:
@@ -32,11 +32,11 @@ class Lexer {
     Token variable();
     Token comment();
     Token keywordOrIdentifier();
+    Token boolean();
     Token singleCharToken(TokenType type, const std::string & lexeme);
-    bool matchSequence(const std::string & sequence) const;
+    bool  matchSequence(const std::string & sequence, bool caseSensitive = true) const;
     Token variableDeclaration(Variables::Type type);
-    void matchAndConsume(const std::string & sequence);
-
+    void  matchAndConsume(const std::string & sequence, bool caseSensitive = true);
 
     // validate number types from string
     template <typename Numeric> static bool is_number(const std::string & s) {
@@ -44,7 +44,22 @@ class Lexer {
         return ((std::istringstream(s) >> n >> std::ws).eof());
     }
 
-    bool matchSequence(const std::string & sequence) { return src.substr(pos, sequence.length()) == sequence; }
+    bool matchSequence(const std::string & sequence, bool caseSensitive = true) {
+        if (caseSensitive) {
+            return src.substr(pos, sequence.length()) == sequence;
+        }
+
+        std::string srcSubstr = src.substr(pos, sequence.length());
+        std::string seqLower  = sequence;
+
+        std::transform(srcSubstr.begin(), srcSubstr.end(), srcSubstr.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        std::transform(seqLower.begin(), seqLower.end(), seqLower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        return srcSubstr == seqLower;
+    }
 };
 
 #endif  // LEXER_HPP
