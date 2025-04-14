@@ -54,11 +54,6 @@ std::vector<Value> ScriptInterpreter::parseFunctionArguments(const std::vector<T
     std::vector<Value> args;
     size_t             current_index = index;
 
-    //   if (current_index >= tokens.size() || tokens[current_index].type != TokenType::Identifier) {
-    //       THROW_UNEXPECTED_TOKEN_ERROR(tokens[current_index], tokenTypeNames.at(TokenType::Identifier));
-    //   }
-    //   current_index++;  // Skip function name
-
     if (current_index >= tokens.size() || tokens[current_index].type != TokenType::LeftParenthesis) {
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[current_index], tokenTypeNames.at(TokenType::LeftParenthesis));
     }
@@ -93,7 +88,7 @@ void ScriptInterpreter::handleBooleanDeclaration(const std::vector<Token> & toke
         i++;  // Skip '='
 
         if (i < tokens.size() && tokens[i].type == TokenType::Variable) {
-            const auto variable = this->getVariable(tokens[i], this->contextPrefix, __FILE__, __LINE__);
+            auto variable = this->getVariable(tokens[i], this->contextPrefix, __FILE__, __LINE__);
 
             if (variable.type != Variables::Type::VT_BOOLEAN) {
                 THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varToken.lexeme,
@@ -111,9 +106,11 @@ void ScriptInterpreter::handleBooleanDeclaration(const std::vector<Token> & toke
                            [](unsigned char c) { return std::tolower(c); });
 
             if (lowered == "true") {
-                this->setVariable(varToken.lexeme, Value::fromBoolean(tokens[i], true), this->contextPrefix, true);
+                auto value = Value::fromBoolean(tokens[i], true);
+                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
             } else if (lowered == "false") {
-                this->setVariable(varToken.lexeme, Value::fromBoolean(tokens[i], false), this->contextPrefix, true);
+                auto value = Value::fromBoolean(tokens[i], false);
+                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
             } else {
                 THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "true or false after '='");
             }
@@ -122,9 +119,11 @@ void ScriptInterpreter::handleBooleanDeclaration(const std::vector<Token> & toke
         } else if (i < tokens.size() && tokens[i].type == TokenType::IntLiteral) {
             const auto test = std::stoi(tokens[i].lexeme);
             if (test == 0) {
-                this->setVariable(varToken.lexeme, Value::fromBoolean(tokens[i], false), this->contextPrefix, true);
+                auto value = Value::fromBoolean(tokens[i], false);
+                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
             } else if (test > 0) {
-                this->setVariable(varToken.lexeme, Value::fromBoolean(tokens[i], true), this->contextPrefix, true);
+                auto value = Value::fromBoolean(tokens[i], false);
+                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
             } else {
                 THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "bool literal after '='");
             }
@@ -154,12 +153,14 @@ void ScriptInterpreter::handleStringDeclaration(const std::vector<Token> & token
                                                     Variables::TypeToString(Variables::Type::VT_STRING),
                                                     tokens[i].lexeme, variable.TypeToString(), tokens[i]);
             }
-            this->setVariable(varToken.lexeme, variable, this->contextPrefix, true);
+            auto value = variable;
+            this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
             i++;  // Skip variable name
             EXPECT_SEMICOLON(tokens, i, "after string variable declaration");
 
         } else if (i < tokens.size() && tokens[i].type == TokenType::StringLiteral) {
-            this->setVariable(varToken.lexeme, Value::fromString(tokens[i]), this->contextPrefix, true);
+            auto value = Value::fromString(tokens[i]);
+            this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
             i++;  // Skip string literal
             EXPECT_SEMICOLON(tokens, i, "after string declaration");
         } else {
@@ -179,7 +180,8 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
         if (i < tokens.size()) {
             if (type == TokenType::IntDeclaration && tokens[i].type == TokenType::IntLiteral) {
                 try {
-                    this->setVariable(varToken.lexeme, Value::fromInt(tokens[i]), this->contextPrefix, true);
+                    auto value = Value::fromInt(tokens[i]);
+                    this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
                     i++;  // Skip int literal
                 } catch (const std::invalid_argument & e) {
                     throw std::runtime_error("Invalid integer literal in declaration: " + tokens[i].lexeme);
@@ -188,7 +190,8 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
                 }
             } else if (type == TokenType::DoubleDeclaration && tokens[i].type == TokenType::DoubleLiteral) {
                 try {
-                    this->setVariable(varToken.lexeme, Value::fromDouble(tokens[i]), this->contextPrefix, true);
+                    auto value = Value::fromDouble(tokens[i]);
+                    this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
                     i++;  // Skip double literal
                 } catch (const std::invalid_argument & e) {
                     throw std::runtime_error("Invalid double literal in declaration: " + tokens[i].lexeme);
@@ -210,7 +213,7 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
 }
 
 void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
-    const auto varName = tokens[i].lexeme;
+    const auto & funcToken = tokens[i];
 
     i++;  // skip funct name
 
@@ -219,8 +222,8 @@ void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tok
     }
     i++;  // skip '='
 
-    if (this->functionParameters.find(varName) != this->functionParameters.end()) {
-        THROW_FUNCTION_REDEFINITION_ERROR(varName, tokens[i]);
+    if (this->functionBodies.find(funcToken.lexeme) != this->functionBodies.end()) {
+        THROW_FUNCTION_REDEFINITION_ERROR(funcToken.lexeme, tokens[i]);
     }
 
     if (i < tokens.size() && tokens[i].type != TokenType::LeftParenthesis) {
@@ -228,54 +231,67 @@ void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tok
     }
     i++;
     // parse arg definitions
-
-    const auto args = ScriptInterpreterHelpers::parseFunctionDeclarationArguments(tokens, i, __FILE__, __LINE__);
-    std::cout << "args: " << args.size() << '\n';
+    const std::string context_name = this->getContextName(funcToken.lexeme);
+    const auto        args = ScriptInterpreterHelpers::parseFunctionDeclarationArguments(tokens, i, __FILE__, __LINE__);
     for (const auto & arg : args) {
-        std::cout << "arg name: " << arg.GetToken().lexeme << " type: " << arg.TypeToString() << '\n';
+        auto value = arg;
+        this->setVariable(arg.GetToken().lexeme, value, context_name, true);
     }
-    this->functionParameters[varName].assign(args.begin(), args.end());
+
     size_t start;
     size_t end;
     ScriptInterpreterHelpers::getFunctionBody(tokens, i, start, end);
-    std::cout << "Body start:  " << start << " end: " << end << '\n';
+
     const std::string function_body = ScriptInterpreterHelpers::extractSubstring(this->source, start, end);
-    this->functionBodies[varName]   = function_body;
+    if (function_body.empty()) {
+        std::cout << this->source << '\n';
+        THROW_FUNCTION_BODY_EMPTY(funcToken.lexeme, tokens[i - 1]);
+    }
+    this->functionBodies[funcToken.lexeme] = function_body;
     // recheck the close curly brace
     if (i >= tokens.size() || tokens[i].type != TokenType::RightCurlyBracket) {
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "}");
     }
     i++;
-#if DEBUG_BUILD == 1
-    std::cout << "function body: \n\"" << function_body << "\"" << '\n';
-#endif
 }
 
 void ScriptInterpreter::handleFunctionCall(const std::vector<Token> & tokens, std::size_t & i) {
-    auto        index    = i;
-    std::string funcName = tokens[i].lexeme;
+    const auto & functiontoken = tokens[i];
 
-    index++;  // skip funct name
-    if (index < tokens.size() && tokens[index].type != TokenType::LeftParenthesis) {
-        THROW_UNEXPECTED_TOKEN_ERROR(tokens[index - 1], "");
+    i++;  // skip funct name
+    if (i < tokens.size() && tokens[i].type != TokenType::LeftParenthesis) {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "");
     }
 
-    auto it = functionObjects.find(funcName);
-    if (it == functionObjects.end()) {
-        THROW_UNDEFINED_FUNCTION_ERROR(funcName, tokens[i]);
+    std::vector<Value> args = parseFunctionArguments(tokens, i);
+
+    auto it1 = functionObjects.find(functiontoken.lexeme);
+    if (it1 != functionObjects.end()) {
+        it1->second->call(args);
+    } else {
+        auto it2 = functionBodies.find(functiontoken.lexeme);
+        if (it2 == functionBodies.end()) {
+            THROW_UNDEFINED_FUNCTION_ERROR(functiontoken.lexeme, tokens[i]);
+        }
+
+        if (args.size() > 0) {
+            auto varList = this->getcontextVariables(this->getContextName(functiontoken.lexeme));
+            if (varList.size() != args.size()) {
+                THROW_FUNCTION_ARG_COUNT_MISMATCH_ERROR(functiontoken.lexeme, varList.size(), args.size(), tokens[i]);
+            }
+            size_t counter = 0;
+            for (auto & var : varList) {
+                this->setVariable(var.first, args[counter], var.second.context, false, true);
+                counter++;
+            }
+        }
+
+        this->executeScript(it2->second, this->filename, functiontoken.lexeme, true);
     }
 
-    //    it->second->validate(tokens, i, this->variables);
-
-    std::vector<Value> args = parseFunctionArguments(tokens, index);
-    it->second->call(args);
-    i = index;
+    //i++;
 
     EXPECT_SEMICOLON(tokens, i, "after function call");
-
-    //    if (i < tokens.size() && tokens[i].type == TokenType::Semicolon) {
-    //        i++;  // Skip ';' after function call
-    //    }
 }
 
 void ScriptInterpreter::handleVariableReference(const std::vector<Token> & tokens, std::size_t & i) {
@@ -285,7 +301,8 @@ void ScriptInterpreter::handleVariableReference(const std::vector<Token> & token
         i++;  // Skip '='
         if (i < tokens.size()) {
             const auto variable = this->getVariable(varToken, this->contextPrefix, __FILE__, __LINE__);
-            this->setVariable(varToken.lexeme, evaluateExpression(tokens[i]), this->contextPrefix, false);
+            auto       value    = evaluateExpression(tokens[i]);
+            this->setVariable(varToken.lexeme, value, this->contextPrefix, false);
             i++;  // Skip value
             EXPECT_SEMICOLON(tokens, i, "after variable assignment");
         } else {
@@ -298,9 +315,19 @@ void ScriptInterpreter::handleVariableReference(const std::vector<Token> & token
 
 void ScriptInterpreter::executeScript(const std::string & source, const std::string & filename,
                                       const std::string & _namespace, bool ignore_tags) {
-    this->filename      = filename;
-    this->source        = source;
-    this->contextPrefix = filename + _namespace;
+    std::string oldContext;
+    std::string oldSource;
+
+    this->filename = filename;
+    if (!this->source.empty()) {
+        oldSource = this->source;
+    }
+    this->source = source;
+
+    if (!this->contextPrefix.empty()) {
+        oldContext = this->contextPrefix;
+    }
+    this->contextPrefix = this->getContextName(_namespace);
     Lexer lexer(source, filename);
     auto  tokens = lexer.tokenize();
 
@@ -345,7 +372,7 @@ void ScriptInterpreter::executeScript(const std::string & source, const std::str
             case TokenType::DoubleDeclaration:
                 handleNumberDeclaration(tokens, i, token.type);
                 break;
-            case TokenType::Identifier:
+            case TokenType::FunctionCall:
                 handleFunctionCall(tokens, i);
                 break;
             case TokenType::Variable:
@@ -360,5 +387,13 @@ void ScriptInterpreter::executeScript(const std::string & source, const std::str
             default:
                 THROW_UNEXPECTED_TOKEN_ERROR(token, "");
         }
+    }
+    if (!oldContext.empty()) {
+        this->contextPrefix = oldContext;
+        oldContext.clear();
+    }
+    if (!oldSource.empty()) {
+        this->source = oldSource;
+        oldSource.clear();
     }
 }

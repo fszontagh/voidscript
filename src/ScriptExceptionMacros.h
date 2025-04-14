@@ -6,6 +6,8 @@
 //
 // Purpose of macros: unified exception handling with extended error information (source file and line number)
 //
+#define THROW_UNEXPECTED_END_OF_FILE_ERROR(token) \
+    throw ScriptException::makeUnexpectedEndOfFileError(token, __FILE__, __LINE__)
 
 // Invalid token type - expected different type
 #define THROW_UNEXPECTED_TOKEN_ERROR(token, expected) \
@@ -42,5 +44,12 @@
 // Invalid or incorrect function argument
 #define THROW_INVALID_FUNCTION_ARGUMENT_ERROR(functionName, argName, token) \
     throw ScriptException::makeFunctionInvalidArgumentError(functionName, argName, token, __FILE__, __LINE__)
+
+#define THROW_FUNCTION_ARG_COUNT_MISMATCH_ERROR(functionName, expected, actual, token)                             \
+    throw ScriptException::makeFunctionArgumentCountMismatchError(functionName, expected, actual, token, __FILE__, \
+                                                                  __LINE__)
+
+#define THROW_FUNCTION_BODY_EMPTY(funcName, token) \
+    throw ScriptException::makeFunctionBodyEmptyError(funcName, token, __FILE__, __LINE__)
 
 #endif  // SCRIPT_EXCEPTION_MACROS_H

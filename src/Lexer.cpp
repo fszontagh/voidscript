@@ -12,6 +12,11 @@ Lexer::Lexer(const std::string & source, const std::string & filename) :
     colNumber(1),
     charNumber(0) {}
 
+/**
+ * Peek at the current character without advancing the lexer's position.
+ *
+ * @return The current character, or '\0' if at the end of the source.
+ */
 char Lexer::peek() const {
     return pos < src.size() ? src[pos] : '\0';
 }
@@ -177,18 +182,47 @@ Token Lexer::keywordOrIdentifierToken() {
     while (isalpha(peek())) {
         lexeme += advance();
     }
+    if (lexeme == IDENTIFIER_FUNCTION) {
+        return this->functionDeclarationToken();
+    }
+
+    if (lexeme == IDENTIFIER_RETURN) {
+        return createToken(TokenType::Return, lexeme);
+    }
+    if (lexeme == IDENTIFIER_IF) {
+        return createToken(TokenType::ParserIfStatement, lexeme);
+    }
+
+    if (peek() == '(') {  // Function call
+        return createToken(TokenType::FunctionCall, lexeme);
+    }
+
     auto it = Variables::StringToTypeMap.find(lexeme);
     if (it != Variables::StringToTypeMap.end()) {
         const auto & type = it->second;
         while (isspace(peek())) {
             advance();
         }
-        if (peek() == '$') {
+
+        if (peek() == IDENTIFIER_VARIABLE) {
             return this->variableDeclarationToken(type);
         }
         return createToken(TokenType::Identifier, lexeme);
     }
     return createToken(TokenType::Identifier, lexeme);
+}
+
+Token Lexer::functionDeclarationToken() {
+    advance();  // Skip function
+    std::string functionName;
+    if (isalpha(peek()) || peek() == '_') {
+        functionName += advance();
+        while (isalnum(peek()) || peek() == '_') {
+            functionName += advance();
+        }
+        return createToken(TokenType::FunctionDeclaration, functionName);
+    }
+    return createUnknownToken("function followed by invalid character");
 }
 
 Token Lexer::variableDeclarationToken(Variables::Type type) {
@@ -250,7 +284,7 @@ std::vector<Token> Lexer::tokenize() {
             tokens.push_back(createSingleCharToken(TokenType::EndOfLine, "\n"));
             continue;
         }
-        if (c == COMMENT_CHARACTER) {
+        if (c == IDENTIFIER_COMMENT) {
             tokens.push_back(commentToken());
             advance();  // Skip newline after comment
             continue;
@@ -265,18 +299,12 @@ std::vector<Token> Lexer::tokenize() {
             tokens.push_back(createToken(TokenType::ParserCloseTag, PARSER_CLOSE_TAG));
             continue;
         }
-        if (matchSequence("if")) {
-            matchAndConsume("if");
-            tokens.push_back(createToken(TokenType::ParserIfStatement, "if"));
-            continue;
-        }
-
         switch (c) {
             case 'a' ... 'z':
             case 'A' ... 'Z':
                 tokens.push_back(keywordOrIdentifierToken());
                 break;
-            case '$':
+            case IDENTIFIER_VARIABLE:
                 tokens.push_back(variableToken());
                 break;
             case '0' ... '9':

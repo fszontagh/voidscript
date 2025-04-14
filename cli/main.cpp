@@ -66,7 +66,7 @@ int main(int argc, char * argv[]) {
         ScriptInterpreter interp;
         interp.registerModule("print", std::make_shared<PrintFunction>());
         interp.registerModule("sleep", std::make_shared<SleepFunction>());
-        interp.executeScript(content, filename, "_default_", false);
+        interp.executeScript(content, filename, "DEFAULT", false);
     } catch (const std::exception & e) {
         std::cerr << "Parser error: " << e.what() << "\n";
         return 1;

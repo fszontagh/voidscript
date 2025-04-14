@@ -37,6 +37,15 @@ class ScriptException : public std::runtime_error {
 
     const Token & token() const { return token_; }
 
+    static ScriptException makeUnexpectedEndOfFileError(const Token & token, const std::string & file = "",
+                                                        int line = 0) {
+        std::string msg = "unexpected end of file";
+        if (!token.lexeme.empty()) {
+            msg += " near '" + token.lexeme + "'";
+        }
+        return ScriptException(ScriptErrorType::UnexpectedToken, msg, file, line, token);
+    }
+
     static ScriptException makeUnexpectedTokenError(const Token & token, const std::string & expected = "",
                                                     const std::string & file = "", int line = 0) {
         std::string msg = "unexpected token: '" + token.lexeme + "'";
@@ -46,7 +55,7 @@ class ScriptException : public std::runtime_error {
 #endif
 
         if (!expected.empty()) {
-            msg += ", expected: '" + expected + "'";
+            msg += ", expected " + expected;
         }
         return ScriptException(ScriptErrorType::UnexpectedToken, msg, file, line, token);
     }
@@ -61,7 +70,7 @@ class ScriptException : public std::runtime_error {
                                                       const std::string & file = "", int line = 0) {
         std::string msg = "undefined function: '" + name + "'";
 #if DEBUG_BUILD == 1
-        msg.append(", type: " + tokenTypeNames.at(token.type));
+        msg.append(", type: " + getTokenTypeAsString(token.type));
 #endif
         return ScriptException(ScriptErrorType::UndefinedFunction, msg, file, line, token);
     }
@@ -96,6 +105,21 @@ class ScriptException : public std::runtime_error {
                                                             const std::string & argName, const Token & token,
                                                             const std::string & file = "", int line = 0) {
         std::string msg = "invalid argument for function '" + functionName + "': '" + argName + "'";
+        return ScriptException(ScriptErrorType::Custom, msg, file, line, token);
+    }
+
+    static ScriptException makeFunctionArgumentCountMismatchError(const std::string & functionName,
+                                                                  const size_t & expected, size_t actual,
+                                                                  const Token & token, const std::string & file = "",
+                                                                  int line = 0) {
+        std::string msg = "invalid argument count for function '" + functionName + "', expected " +
+                          std::to_string(expected) + ", got " + std::to_string(actual);
+        return ScriptException(ScriptErrorType::Custom, msg, file, line, token);
+    }
+
+    static ScriptException makeFunctionBodyEmptyError(const std::string & functionName, const Token & token,
+                                                      const std::string & file = "", int line = 0) {
+        std::string msg = "function '" + functionName + "' has no body";
         return ScriptException(ScriptErrorType::Custom, msg, file, line, token);
     }
 

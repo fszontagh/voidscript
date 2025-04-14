@@ -1,6 +1,7 @@
 #ifndef SSCRIPTINTERPRETER_HPP
 #define SSCRIPTINTERPRETER_HPP
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -12,13 +13,13 @@
 
 using FunctionValidator =
     std::function<void(const std::vector<Token> &, size_t &, const std::unordered_map<std::string, Value> &)>;
-using VariableContext = std::unordered_map<std::string, Value>;
+using VariableContext = std::map<std::string, Value>;
 
 class ScriptInterpreter {
   public:
     void registerModule(const std::string & name, std::shared_ptr<BaseFunction> fn);
     void executeScript(const std::string & source, const std::string & filename,
-                       const std::string & _namespace = "_default_", bool ignore_tags = false);
+                       const std::string & _namespace = "DEFAULT", bool ignore_tags = false);
 
   private:
     std::unordered_map<std::string, FunctionValidator>             functionValidators;
@@ -37,11 +38,16 @@ class ScriptInterpreter {
     [[nodiscard]] Value              evaluateExpression(const Token & token) const;
 
     // type handlers
-    void setVariable(const std::string & name, const Value & value, const std::string & context = "default",
-                     bool exception_if_exists = false) {
+    void setVariable(const std::string & name, Value & value, const std::string & context = "default",
+                     bool exception_if_exists = false, bool exception_if_not_exists = false) {
         if (exception_if_exists && variables[context].find(name) != variables[context].end()) {
             THROW_VARIABLE_REDEFINITION_ERROR(name, value.token);
         }
+        if (exception_if_not_exists && variables[context].find(name) == variables[context].end()) {
+            THROW_UNDEFINED_VARIABLE_ERROR(name, value.token);
+        }
+        value.name                     = name;
+        value.context                  = context;
         this->variables[context][name] = value;
     }
 
@@ -69,6 +75,14 @@ class ScriptInterpreter {
         }
         THROW_UNDEFINED_VARIABLE_ERROR_HELPER(token.lexeme, token, file, line);
     };
+
+    [[nodiscard]] std::map<std::string, Value> getcontextVariables(const std::string & context) const {
+        auto it = variables.find(context);
+        if (it != variables.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Context not found: " + context);
+    }
 
     /**
          * Checks if a variable exists within the specified context.
@@ -110,12 +124,17 @@ class ScriptInterpreter {
 
     void handleFunctionCall(const std::vector<Token> & tokens, std::size_t & i);
     void handleVariableReference(const std::vector<Token> & tokens, std::size_t & i);
-    static void handleComment(std::size_t & i){ i++;}
-    static void handleSemicolon(std::size_t & i) {i++;};
+
+    static void handleComment(std::size_t & i) { i++; }
+
+    static void handleSemicolon(std::size_t & i) { i++; };
+
     void handleStringDeclaration(const std::vector<Token> & tokens, std::size_t & i);
     void handleBooleanDeclaration(const std::vector<Token> & tokens, std::size_t & i);
     void handleNumberDeclaration(const std::vector<Token> & tokens, std::size_t & i, TokenType type);
     void handleFunctionDeclaration(const std::vector<Token> & tokens, std::size_t & i);
+
+    std::string getContextName(const std::string & suffix) const { return this->filename + "::" + suffix; }
 };
 
 #endif  // SSCRIPTINTERPRETER_HPP

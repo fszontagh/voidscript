@@ -12,6 +12,8 @@ class Value {
     Variables::Type          type = Variables::Type::VT_NULL;
     Variables::DataContainer data;
     Token                    token;
+    std::string              name;
+    std::string              context;
 
     Value() : type(Variables::Type::VT_NULL) {}
 

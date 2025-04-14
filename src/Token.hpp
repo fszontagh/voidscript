@@ -1,6 +1,7 @@
 #ifndef TOKEN_HPP
 #define TOKEN_HPP
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <unordered_map>
 
@@ -26,7 +27,9 @@ enum class TokenType : std::uint8_t {
     IntDeclaration,       // int $variable
     DoubleDeclaration,    // double $variable
     BooleanDeclaration,   // bool $variable
-    FunctionDeclaration,  // function $variable
+    FunctionDeclaration,  // function fn_name
+    FunctionCall,         // fn_name(args)
+    Return,               // return
     Equals,               // =
     Plus,                 // +
     Minus,                // -
@@ -73,6 +76,8 @@ const static std::unordered_map<TokenType, std::string> tokenTypeNames = {
     { TokenType::DoubleDeclaration,   "DoubleDeclaration"   },
     { TokenType::BooleanDeclaration,  "BooleanDeclaration"  },
     { TokenType::FunctionDeclaration, "FunctionDeclaration" },
+    { TokenType::FunctionCall,        "FunctionCall"        },
+    { TokenType::Return,              "Return"              },
     { TokenType::Equals,              "Equals"              },
     { TokenType::Plus,                "Plus"                },
     { TokenType::Minus,               "Minus"               },
@@ -155,9 +160,10 @@ static const std::unordered_map<Variables::Type, TokenType> variableTypeToTokenT
     if (declaration == Variables::Type::VT_BOOLEAN) {
         return TokenType::BooleanDeclaration;
     }
-    if (declaration == Variables::Type::VT_FUNCTION) {
-        return TokenType::FunctionDeclaration;
-    }
+    // if (declaration == Variables::Type::VT_FUNCTION) {
+    //     return TokenType::FunctionDeclaration;
+    // }
+    std::cout << "Unknown variable type: " << Variables::TypeToString(declaration) << "\n";
     return TokenType::Unknown;
 }
 
@@ -174,9 +180,9 @@ static const std::unordered_map<Variables::Type, TokenType> variableTypeToTokenT
     if (type == TokenType::BooleanDeclaration) {
         return Variables::Type::VT_BOOLEAN;
     }
-    if (type == TokenType::FunctionDeclaration) {
-        return Variables::Type::VT_FUNCTION;
-    }
+    //if (type == TokenType::FunctionDeclaration) {
+    //    return Variables::Type::VT_FUNCTION;
+    //}
     return Variables::Type::VT_NULL;
 };
 

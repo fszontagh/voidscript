@@ -49,6 +49,7 @@ class Lexer {
     Token variableToken();
     Token commentToken();
     Token keywordOrIdentifierToken();
+    Token functionDeclarationToken();
     Token variableDeclarationToken(Variables::Type type);
 
     // validate number types from string
