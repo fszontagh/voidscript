@@ -10,13 +10,16 @@ const char EOL = '\r\n';
 #else
 const char EOL = '\n';
 #endif
-const char   COMMENT_CHARACTER = '@COMMENT_CHARACTER@';
-const static char * PARSER_OPEN_TAG   = "@PARSER_OPEN_TAG@";
-const static char * PARSER_CLOSE_TAG  = "@PARSER_CLOSE_TAG@";
-const static char * VERSION_MINOR     = "@CMAKE_PROJECT_VERSION_MINOR@";
-const static char * VERSION_MAJOR     = "@CMAKE_PROJECT_VERSION_MAJOR@";
-const static char * VERSION_PATCH     = "@CMAKE_PROJECT_VERSION_PATCH@";
-const static char * VERSION_STRING    = "@CMAKE_PROJECT_VERSION@-@CMAKE_BUILD_TYPE@-@CMAKE_SYSTEM@";
+const char          COMMENT_CHARACTER   = '@COMMENT_CHARACTER@';
+const static char * PARSER_OPEN_TAG     = "@PARSER_OPEN_TAG@";
+const static char * PARSER_CLOSE_TAG    = "@PARSER_CLOSE_TAG@";
+const static char * VERSION_MINOR       = "@CMAKE_PROJECT_VERSION_MINOR@";
+const static char * VERSION_MAJOR       = "@CMAKE_PROJECT_VERSION_MAJOR@";
+const static char * VERSION_PATCH       = "@CMAKE_PROJECT_VERSION_PATCH@";
+const static char * VERSION_ARCH        = "@ARCHITECTURE@";
+const static char * VERSION_SYSTEM_NAME = "@CMAKE_SYSTEM_NAME@";
+const static char * VERSION_GIT_HASH    = "@APP_GIT_VERSION@";
+const static char * VERSION_STRING      = "v@CMAKE_PROJECT_VERSION@-@CMAKE_SYSTEM_NAME@-@ARCHITECTURE@-@CMAKE_BUILD_TYPE@";
 #cmakedefine01 DEBUG_BUILD
 
-#endif // VOIDSCRIPT_OPTIONS_H
+#endif  // VOIDSCRIPT_OPTIONS_H

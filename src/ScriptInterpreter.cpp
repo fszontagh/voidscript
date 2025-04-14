@@ -140,7 +140,7 @@ void ScriptInterpreter::handleBooleanDeclaration(const std::vector<Token> & toke
 };
 
 void ScriptInterpreter::handleStringDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
-    const auto varToken = tokens[i];
+    const auto & varToken = tokens[i];
 
     i++;      // Skip variable name
     if (i < tokens.size() && tokens[i].type == TokenType::Equals) {
@@ -211,7 +211,6 @@ void ScriptInterpreter::handleNumberDeclaration(const std::vector<Token> & token
 
 void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
     const auto varName = tokens[i].lexeme;
-    const auto varType = tokens[i].variableType;
 
     i++;  // skip funct name
 
@@ -231,15 +230,15 @@ void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tok
     // parse arg definitions
 
     const auto args = ScriptInterpreterHelpers::parseFunctionDeclarationArguments(tokens, i, __FILE__, __LINE__);
-    std::cout << "args: " << args.size() << std::endl;
+    std::cout << "args: " << args.size() << '\n';
     for (const auto & arg : args) {
-        std::cout << "arg name: " << arg.GetToken().lexeme << " type: " << arg.TypeToString() << std::endl;
+        std::cout << "arg name: " << arg.GetToken().lexeme << " type: " << arg.TypeToString() << '\n';
     }
     this->functionParameters[varName].assign(args.begin(), args.end());
     size_t start;
     size_t end;
     ScriptInterpreterHelpers::getFunctionBody(tokens, i, start, end);
-    std::cout << "Body start:  " << start << " end: " << end << std::endl;
+    std::cout << "Body start:  " << start << " end: " << end << '\n';
     const std::string function_body = ScriptInterpreterHelpers::extractSubstring(this->source, start, end);
     this->functionBodies[varName]   = function_body;
     // recheck the close curly brace
@@ -248,7 +247,7 @@ void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tok
     }
     i++;
 #if DEBUG_BUILD == 1
-    std::cout << "function body: \n\"" << function_body << "\"" << std::endl;
+    std::cout << "function body: \n\"" << function_body << "\"" << '\n';
 #endif
 }
 
@@ -295,14 +294,6 @@ void ScriptInterpreter::handleVariableReference(const std::vector<Token> & token
     } else {
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "'=' for assignment");
     }
-}
-
-void ScriptInterpreter::handleComment(std::size_t & i) {
-    i++;  // Skip comment token
-}
-
-void ScriptInterpreter::handleSemicolon(std::size_t & i) {
-    i++;  // Skip semicolon token
 }
 
 void ScriptInterpreter::executeScript(const std::string & source, const std::string & filename,

@@ -1,0 +1,4 @@
+A simple scripting language in C++
+
+voidscript is a lightweight scripting language implementation written in C++.
+It provides a simple syntax for writing scripts and can be embedded in other applications.

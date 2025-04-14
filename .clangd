@@ -1,2 +1,5 @@
 CompileFlags:
   Add: [-Wunused]
+
+Index:
+  StandardLibrary: No

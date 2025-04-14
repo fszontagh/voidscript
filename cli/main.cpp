@@ -5,35 +5,48 @@
 #include "Builtins/SleepModule.hpp"
 #include "ScriptInterpreter.hpp"
 
-static bool DEBUG = false;
+const std::unordered_map<std::string, std::string> params = {
+    { "--help",    "Print this help message"          },
+    { "--version", "Print the version of the program" },
+};
 
 int main(int argc, char * argv[]) {
+    std::string usage = "Usage: " + std::string(argv[0]);
+    for (const auto & [key, value] : params) {
+        usage.append(" [" + key + "]");
+    }
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " [-d / --debug] <script_file>\n";
+        std::cerr << usage << "\n";
         return 1;
     }
 
     std::string file;
-    if (argc == 2) {
-        file = argv[1];
-    } else if (argc == 3) {
-        if (std::string(argv[1]) == "-d" || std::string(argv[1]) == "--debug") {
-            DEBUG = true;
-            file  = argv[2];
-        } else if (argv[1] == "-h" || argv[1] == "--help") {
-            std::cout << "Usage: " << argv[0] << " [-d / --debug] <script_file>\n";
+
+    const std::string arg = std::string(argv[1]);
+    if (arg.starts_with("-")) {
+        auto it = params.find(arg);
+        if (it != params.end()) {
+            if (arg == "--help") {
+                std::cout << usage << "\n";
+                for (const auto & [key, value] : params) {
+                    std::cout << "  " << key << ": " << value << "\n";
+                }
+                return 0;
+            }
+            if (arg == "--version") {
+                std::cout << "Version:      " << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_PATCH;
+                std::cout << " (" << VERSION_GIT_HASH << ")\n";
+                std::cout << "Architecture: " << VERSION_ARCH << "\n";
+                std::cout << "System:       " << VERSION_SYSTEM_NAME << "\n";
+                return 0;
+            }
             return 0;
-        } else if (argv[1] == "-v" || argv[1] == "--vrsion") {
-            std::cout << "VoidScript v" << VERSION_STRING << "\n";
-            return 0;
-        } else {
-            std::cerr << "Usage: " << argv[0] << " [-d / --debug] <script_file>\n";
-            return 1;
         }
-    } else {
-        std::cerr << "Usage: " << argv[0] << " [-d / --debug] <script_file>\n";
+        std::cerr << "Error: Unknown option " << arg << "\n";
+        std::cerr << usage << "\n";
         return 1;
     }
+    file = arg;
 
     if (!std::filesystem::exists(file)) {
         std::cerr << "Error: File " << file << " does not exist.\n";

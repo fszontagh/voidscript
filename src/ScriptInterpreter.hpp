@@ -110,8 +110,8 @@ class ScriptInterpreter {
 
     void handleFunctionCall(const std::vector<Token> & tokens, std::size_t & i);
     void handleVariableReference(const std::vector<Token> & tokens, std::size_t & i);
-    void handleComment(std::size_t & i);
-    void handleSemicolon(std::size_t & i);
+    static void handleComment(std::size_t & i){ i++;}
+    static void handleSemicolon(std::size_t & i) {i++;};
     void handleStringDeclaration(const std::vector<Token> & tokens, std::size_t & i);
     void handleBooleanDeclaration(const std::vector<Token> & tokens, std::size_t & i);
     void handleNumberDeclaration(const std::vector<Token> & tokens, std::size_t & i, TokenType type);

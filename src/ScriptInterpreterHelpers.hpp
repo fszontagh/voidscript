@@ -75,7 +75,7 @@ static void getFunctionBody(const std::vector<Token> & tokens, std::size_t & i, 
                             std::size_t & end) {
     start = tokens[i].pos.end;
     std::cout << "START Token: " << tokens[i].lexeme << " start pos: " << std::to_string(tokens[i].pos.start)
-              << " end pos: " << std::to_string(tokens[i].pos.end) << std::endl;
+              << " end pos: " << std::to_string(tokens[i].pos.end) << '\n';
 
     if (i >= tokens.size() || tokens[i].type != TokenType::LeftCurlyBracket) {
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "{");
@@ -96,7 +96,7 @@ static void getFunctionBody(const std::vector<Token> & tokens, std::size_t & i, 
     end = tokens[i].pos.start - 1;
 
     std::cout << "END Token: " << tokens[i].lexeme << " start pos: " << std::to_string(tokens[i].pos.start)
-              << " end pos: " << std::to_string(tokens[i].pos.end) << std::endl;
+              << " end pos: " << std::to_string(tokens[i].pos.end) << '\n';
 
     if (i >= tokens.size() || tokens[i].type != TokenType::RightCurlyBracket) {
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "}");
