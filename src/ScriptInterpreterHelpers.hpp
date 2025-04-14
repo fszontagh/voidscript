@@ -1,8 +1,7 @@
 #ifndef SCRIPTINTERPRETERHELPERS_HPP
 #define SCRIPTINTERPRETERHELPERS_HPP
 
-#include <iostream>
-#include <ostream>
+#include <algorithm>
 #include <vector>
 
 #include "ScriptExceptionMacros.h"
@@ -14,12 +13,7 @@
 
 namespace ScriptInterpreterHelpers {
 
-static std::string extractSubstring(const std::string & str, const size_t & start, const size_t & end) {
-    if (start >= 0 && start < str.length() && end >= start && end < str.length()) {
-        return str.substr(start, end - start + 1);
-    }
-    return "";
-}
+
 
 static void expectSemicolon(const std::vector<Token> & tokens, std::size_t & i, const std::string & message,
                             const std::string & file = __FILE__, int line = __LINE__) {
@@ -97,6 +91,7 @@ static void getFunctionBody(const std::vector<Token> & tokens, std::size_t & i, 
         THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "}");
     }
 };
+
 
 };  // namespace ScriptInterpreterHelpers
 

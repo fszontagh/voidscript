@@ -40,14 +40,14 @@ bool Lexer::isAtEnd() const {
     return pos >= src.size();
 }
 
-Token Lexer::createToken(TokenType type, const std::string & lexeme) const {
+Tokens::Token Lexer::createToken(Tokens::Type type, const std::string & lexeme) const {
     size_t startChar = charNumber - lexeme.length();
     return {
         type, lexeme, filename, lineNumber, colNumber - lexeme.length(), { startChar, charNumber }
     };
 }
 
-Token Lexer::createSingleCharToken(TokenType type, const std::string & lexeme) {
+Tokens::Token Lexer::createSingleCharToken(Tokens::Type type, const std::string & lexeme) {
     size_t startCol  = colNumber;
     size_t startChar = charNumber;
     advance();
@@ -56,14 +56,14 @@ Token Lexer::createSingleCharToken(TokenType type, const std::string & lexeme) {
     };
 }
 
-Token Lexer::createUnknownToken(const std::string & lexeme) const {
+Tokens::Token Lexer::createUnknownToken(const std::string & lexeme) const {
     size_t startChar = charNumber - lexeme.length();
     return {
-        TokenType::Unknown, lexeme, filename, lineNumber, colNumber - lexeme.length(), { startChar, charNumber }
+        Tokens::Type::Unknown, lexeme, filename, lineNumber, colNumber - lexeme.length(), { startChar, charNumber }
     };
 }
 
-Token Lexer::stringToken() {
+Tokens::Token Lexer::stringToken() {
     std::string result;
     size_t      startChar = charNumber;
     size_t      startCol  = colNumber;
@@ -73,28 +73,28 @@ Token Lexer::stringToken() {
     }
     if (isAtEnd() || peek() != '"') {
         return {
-            TokenType::Unknown, "Unterminated string", filename, lineNumber, startCol, { startChar, pos }
+            Tokens::Type::Unknown, "Unterminated string", filename, lineNumber, startCol, { startChar, pos }
         };
     }
     advance();  // Skip closing quote
     return {
-        TokenType::StringLiteral, result, filename, lineNumber, startCol, { startChar, pos }
+        Tokens::Type::StringLiteral, result, filename, lineNumber, startCol, { startChar, pos }
     };
 }
 
-Token Lexer::numberToken() {
-    std::string result;
-    std::string found;
-    TokenType   type             = TokenType::Unknown;
-    bool        decimalPointSeen = false;
-    size_t      startChar        = charNumber;
-    size_t      startCol         = colNumber;
+Tokens::Token Lexer::numberToken() {
+    std::string  result;
+    std::string  found;
+    Tokens::Type type             = Tokens::Type::Unknown;
+    bool         decimalPointSeen = false;
+    size_t       startChar        = charNumber;
+    size_t       startCol         = colNumber;
 
     while (std::isdigit(peek()) || peek() == '.') {
         if (peek() == '.') {
             if (decimalPointSeen) {
                 return {
-                    TokenType::Unknown, "Invalid number format", filename, lineNumber, startCol, { startChar, pos }
+                    Tokens::Type::Unknown, "Invalid number format", filename, lineNumber, startCol, { startChar, pos }
                 };
             }
             decimalPointSeen = true;
@@ -106,25 +106,25 @@ Token Lexer::numberToken() {
         if (found.find('.') == std::string::npos) {
             if (is_number<int>(found)) {
                 result = found;
-                type   = TokenType::IntLiteral;
+                type   = Tokens::Type::IntLiteral;
             } else {
                 return {
-                    TokenType::Unknown, "Invalid integer", filename, lineNumber, startCol, { startChar, pos }
+                    Tokens::Type::Unknown, "Invalid integer", filename, lineNumber, startCol, { startChar, pos }
                 };
             }
         } else {
             if (is_number<double>(found)) {
                 result = found;
-                type   = TokenType::DoubleLiteral;
+                type   = Tokens::Type::DoubleLiteral;
             } else {
                 return {
-                    TokenType::Unknown, "Invalid double", filename, lineNumber, startCol, { startChar, pos }
+                    Tokens::Type::Unknown, "Invalid double", filename, lineNumber, startCol, { startChar, pos }
                 };
             }
         }
     } else {
         return {
-            TokenType::Unknown, "Expected number", filename, lineNumber, startCol, { startChar, pos }
+            Tokens::Type::Unknown, "Expected number", filename, lineNumber, startCol, { startChar, pos }
         };
     }
 
@@ -133,7 +133,7 @@ Token Lexer::numberToken() {
     };
 }
 
-Token Lexer::identifierToken() {
+Tokens::Token Lexer::identifierToken() {
     std::string result;
     size_t      startChar = charNumber;
     size_t      startCol  = colNumber;
@@ -141,11 +141,11 @@ Token Lexer::identifierToken() {
         result += advance();
     }
     return {
-        TokenType::Identifier, result, filename, lineNumber, startCol, { startChar, pos }
+        Tokens::Type::Identifier, result, filename, lineNumber, startCol, { startChar, pos }
     };
 }
 
-Token Lexer::variableToken() {
+Tokens::Token Lexer::variableToken() {
     size_t startChar = charNumber;
     size_t startCol  = colNumber;
     advance();  // Skip $
@@ -156,15 +156,15 @@ Token Lexer::variableToken() {
             varName += advance();
         }
         return {
-            TokenType::Variable, varName, filename, lineNumber, startCol, { startChar, pos }
+            Tokens::Type::Variable, varName, filename, lineNumber, startCol, { startChar, pos }
         };
     }
     return {
-        TokenType::Unknown, "$ followed by invalid character", filename, lineNumber, startCol, { startChar, pos }
+        Tokens::Type::Unknown, "$ followed by invalid character", filename, lineNumber, startCol, { startChar, pos }
     };
 }
 
-Token Lexer::commentToken() {
+Tokens::Token Lexer::commentToken() {
     size_t startChar = charNumber;
     size_t startCol  = colNumber;
     advance();  // Skip #
@@ -173,11 +173,11 @@ Token Lexer::commentToken() {
         commentText += advance();
     }
     return {
-        TokenType::Comment, commentText, filename, lineNumber, startCol, { startChar, pos }
+        Tokens::Type::Comment, commentText, filename, lineNumber, startCol, { startChar, pos }
     };
 }
 
-Token Lexer::keywordOrIdentifierToken() {
+Tokens::Token Lexer::keywordOrIdentifierToken() {
     std::string lexeme;
     while (isalpha(peek())) {
         lexeme += advance();
@@ -187,14 +187,14 @@ Token Lexer::keywordOrIdentifierToken() {
     }
 
     if (lexeme == IDENTIFIER_RETURN) {
-        return createToken(TokenType::Return, lexeme);
+        return createToken(Tokens::Type::Return, lexeme);
     }
     if (lexeme == IDENTIFIER_IF) {
-        return createToken(TokenType::ParserIfStatement, lexeme);
+        return createToken(Tokens::Type::ParserIfStatement, lexeme);
     }
 
     if (peek() == '(') {  // Function call
-        return createToken(TokenType::FunctionCall, lexeme);
+        return createToken(Tokens::Type::FunctionCall, lexeme);
     }
 
     auto it = Variables::StringToTypeMap.find(lexeme);
@@ -207,12 +207,12 @@ Token Lexer::keywordOrIdentifierToken() {
         if (peek() == IDENTIFIER_VARIABLE) {
             return this->variableDeclarationToken(type);
         }
-        return createToken(TokenType::Identifier, lexeme);
+        return createToken(Tokens::Type::Identifier, lexeme);
     }
-    return createToken(TokenType::Identifier, lexeme);
+    return createToken(Tokens::Type::Identifier, lexeme);
 }
 
-Token Lexer::functionDeclarationToken() {
+Tokens::Token Lexer::functionDeclarationToken() {
     advance();  // Skip function
     std::string functionName;
     if (isalpha(peek()) || peek() == '_') {
@@ -220,12 +220,12 @@ Token Lexer::functionDeclarationToken() {
         while (isalnum(peek()) || peek() == '_') {
             functionName += advance();
         }
-        return createToken(TokenType::FunctionDeclaration, functionName);
+        return createToken(Tokens::Type::FunctionDeclaration, functionName);
     }
     return createUnknownToken("function followed by invalid character");
 }
 
-Token Lexer::variableDeclarationToken(Variables::Type type) {
+Tokens::Token Lexer::variableDeclarationToken(Variables::Type type) {
     advance();  // Skip $
     std::string varName;
     if (isalpha(peek()) || peek() == '_') {
@@ -269,8 +269,8 @@ void Lexer::matchAndConsume(const std::string & sequence, bool caseSensitive) {
     }
 }
 
-std::vector<Token> Lexer::tokenize() {
-    std::vector<Token> tokens;
+std::vector<Tokens::Token> Lexer::tokenize() {
+    std::vector<Tokens::Token> tokens;
     tokens.reserve(src.size() / 4);
 
     while (pos < src.size()) {
@@ -281,7 +281,7 @@ std::vector<Token> Lexer::tokenize() {
             continue;
         }
         if (c == '\n') {
-            tokens.push_back(createSingleCharToken(TokenType::EndOfLine, "\n"));
+            tokens.push_back(createSingleCharToken(Tokens::Type::EndOfLine, "\n"));
             continue;
         }
         if (c == IDENTIFIER_COMMENT) {
@@ -291,12 +291,12 @@ std::vector<Token> Lexer::tokenize() {
         }
         if (matchSequence(PARSER_OPEN_TAG)) {
             matchAndConsume(PARSER_OPEN_TAG);
-            tokens.push_back(createToken(TokenType::ParserOpenTag, PARSER_OPEN_TAG));
+            tokens.push_back(createToken(Tokens::Type::ParserOpenTag, PARSER_OPEN_TAG));
             continue;
         }
         if (matchSequence(PARSER_CLOSE_TAG)) {
             matchAndConsume(PARSER_CLOSE_TAG);
-            tokens.push_back(createToken(TokenType::ParserCloseTag, PARSER_CLOSE_TAG));
+            tokens.push_back(createToken(Tokens::Type::ParserCloseTag, PARSER_CLOSE_TAG));
             continue;
         }
         switch (c) {
@@ -315,28 +315,28 @@ std::vector<Token> Lexer::tokenize() {
                 tokens.push_back(stringToken());
                 break;
             case '(':
-                tokens.push_back(createSingleCharToken(TokenType::LeftParenthesis, "("));
+                tokens.push_back(createSingleCharToken(Tokens::Type::LeftParenthesis, "("));
                 break;
             case ')':
-                tokens.push_back(createSingleCharToken(TokenType::RightParenthesis, ")"));
+                tokens.push_back(createSingleCharToken(Tokens::Type::RightParenthesis, ")"));
                 break;
             case ',':
-                tokens.push_back(createSingleCharToken(TokenType::Comma, ","));
+                tokens.push_back(createSingleCharToken(Tokens::Type::Comma, ","));
                 break;
             case ';':
-                tokens.push_back(createSingleCharToken(TokenType::Semicolon, ";"));
+                tokens.push_back(createSingleCharToken(Tokens::Type::Semicolon, ";"));
                 break;
             case '=':
-                tokens.push_back(createSingleCharToken(TokenType::Equals, "="));
+                tokens.push_back(createSingleCharToken(Tokens::Type::Equals, "="));
                 break;
             case '+':
-                tokens.push_back(createSingleCharToken(TokenType::Plus, "+"));
+                tokens.push_back(createSingleCharToken(Tokens::Type::Plus, "+"));
                 break;
             case '{':
-                tokens.push_back(createSingleCharToken(TokenType::LeftCurlyBracket, "{"));
+                tokens.push_back(createSingleCharToken(Tokens::Type::LeftCurlyBracket, "{"));
                 break;
             case '}':
-                tokens.push_back(createSingleCharToken(TokenType::RightCurlyBracket, "}"));
+                tokens.push_back(createSingleCharToken(Tokens::Type::RightCurlyBracket, "}"));
                 break;
             default:
                 tokens.push_back(createUnknownToken(std::string(1, c)));
@@ -346,7 +346,7 @@ std::vector<Token> Lexer::tokenize() {
     }
 
     tokens.push_back({
-        TokenType::EndOfFile, "", filename, lineNumber, colNumber, { charNumber, charNumber }
+        Tokens::Type::EndOfFile, "", filename, lineNumber, colNumber, { charNumber, charNumber }
     });
     return tokens;
 }

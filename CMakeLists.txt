@@ -97,8 +97,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(ARCHITECTURE "amd64")
     elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
         set(ARCHITECTURE "i386")
-    else()
-        message(STATUS "Célarchitektúra: Nem meghatározható (CMAKE_SIZEOF_VOID_P: ${CMAKE_SIZEOF_VOID_P})")
     endif()
 endif()
 
@@ -115,7 +113,8 @@ configure_file("cmake/options.h.in" "include/options.h" @ONLY)
 configure_file("test_scripts/test1.vs" "test_scripts/test1.vs" @ONLY)
 configure_file("test_scripts/test2.vs" "test_scripts/test2.vs" @ONLY)
 
-include_directories(${CMAKE_BINARY_DIR}/include src)
+include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+
 
 # LIBRARY TARGET
 add_library(voidscript

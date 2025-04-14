@@ -2,7 +2,6 @@
 #define SCRIPT_FUNCTION_HPP
 
 #include <functional>
-#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 #include <vector>

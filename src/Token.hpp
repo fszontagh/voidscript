@@ -1,13 +1,11 @@
 #ifndef TOKEN_HPP
 #define TOKEN_HPP
 #include <cstdint>
-#include <iostream>
 #include <string>
 #include <unordered_map>
 
-#include "VariableTypes.hpp"
-
-enum class TokenType : std::uint8_t {
+namespace Tokens {
+enum class Type : std::uint8_t {
     ParserOpenTag,
     ParserCloseTag,
     ParserIfStatement,  // if
@@ -55,135 +53,52 @@ enum class TokenType : std::uint8_t {
     Unknown               // Unknown
 };
 
-const static std::unordered_map<TokenType, std::string> tokenTypeNames = {
-    { TokenType::ParserOpenTag,       "ParserOpenTag"       },
-    { TokenType::ParserCloseTag,      "ParserCloseTag"      },
-    { TokenType::ParserIfStatement,   "ParserIfStatement"   },
-    { TokenType::FileClose,           "FileClose"           },
-    { TokenType::Identifier,          "Identifier"          },
-    { TokenType::StringLiteral,       "StringLiteral"       },
-    { TokenType::IntLiteral,          "IntLiteral"          },
-    { TokenType::DoubleLiteral,       "DoubleLiteral"       },
-    { TokenType::BooleanLiteral,      "BooleanLiteral"      },
-    { TokenType::LeftParenthesis,     "LeftParenthesis"     },
-    { TokenType::RightParenthesis,    "RightParenthesis"    },
-    { TokenType::Comma,               "Comma"               },
-    { TokenType::Semicolon,           "Semicolon"           },
-    { TokenType::Variable,            "Variable"            },
-    { TokenType::VariableSign,        "VariableSign"        },
-    { TokenType::StringDeclaration,   "StringDeclaration"   },
-    { TokenType::IntDeclaration,      "IntDeclaration"      },
-    { TokenType::DoubleDeclaration,   "DoubleDeclaration"   },
-    { TokenType::BooleanDeclaration,  "BooleanDeclaration"  },
-    { TokenType::FunctionDeclaration, "FunctionDeclaration" },
-    { TokenType::FunctionCall,        "FunctionCall"        },
-    { TokenType::Return,              "Return"              },
-    { TokenType::Equals,              "Equals"              },
-    { TokenType::Plus,                "Plus"                },
-    { TokenType::Minus,               "Minus"               },
-    { TokenType::Multiply,            "Multiply"            },
-    { TokenType::Divide,              "Divide"              },
-    { TokenType::Modulo,              "Modulo"              },
-    { TokenType::GreaterThan,         "GreaterThan"         },
-    { TokenType::LessThan,            "LessThan"            },
-    { TokenType::GreaterThanOrEqual,  "GreaterThanOrEqual"  },
-    { TokenType::LessThanOrEqual,     "LessThanOrEqual"     },
-    { TokenType::NotEqual,            "NotEqual"            },
-    { TokenType::Equal,               "Equal"               },
-    { TokenType::Not,                 "Not"                 },
-    { TokenType::And,                 "And"                 },
-    { TokenType::Or,                  "Or"                  },
-    { TokenType::LeftBracket,         "LeftBracket"         },
-    { TokenType::RightBracket,        "RightBracket"        },
-    { TokenType::LeftCurlyBracket,    "LeftCurlyBracket"    },
-    { TokenType::RightCurlyBracket,   "RightCurlyBracket"   },
-    { TokenType::EndOfFile,           "EndOfFile"           },
-    { TokenType::EndOfLine,           "EndOfLine"           },
-    { TokenType::Comment,             "Comment"             },
-    { TokenType::Unknown,             "Unknown"             }
-};
-
-[[nodiscard]] static inline std::string getTokenTypeAsString(TokenType type) {
-    auto it = tokenTypeNames.find(type);
-    if (it != tokenTypeNames.end()) {
-        return it->second;
-    }
-    return "Unknown";
-    //throw std::runtime_error("Unknown token type");
-};
-
-static const std::unordered_map<TokenType, Variables::Type> tokenTypeToVariableType = {
-    { TokenType::StringLiteral,  Variables::Type::VT_STRING  },
-    { TokenType::IntLiteral,     Variables::Type::VT_INT     },
-    { TokenType::DoubleLiteral,  Variables::Type::VT_DOUBLE  },
-    { TokenType::BooleanLiteral, Variables::Type::VT_BOOLEAN }
-};
-
-static const std::unordered_map<Variables::Type, TokenType> variableTypeToTokenType = {
-    { Variables::Type::VT_STRING,  TokenType::StringLiteral  },
-    { Variables::Type::VT_INT,     TokenType::IntLiteral     },
-    { Variables::Type::VT_DOUBLE,  TokenType::DoubleLiteral  },
-    { Variables::Type::VT_BOOLEAN, TokenType::BooleanLiteral }
-};
-
-[[nodiscard]] static inline Variables::Type getVariableTypeFromTokenType(TokenType type) {
-    auto it = tokenTypeToVariableType.find(type);
-    if (it != tokenTypeToVariableType.end()) {
-        return it->second;
-    }
-
-    return Variables::Type::VT_NOT_DEFINED;
-}
-
-[[nodiscard]] static inline std::string getVariableTypeFromTokenTypeAsString(TokenType type) {
-    return Variables::TypeToString(getVariableTypeFromTokenType(type));
-}
-
-[[nodiscard]] static inline TokenType getTokenTypeFromVariableType(Variables::Type type) {
-    auto it = variableTypeToTokenType.find(type);
-    if (it != variableTypeToTokenType.end()) {
-        return it->second;
-    }
-    return TokenType::Unknown;
-};
-
-[[nodiscard]] static inline TokenType getTokenTypeFromValueDeclaration(const Variables::Type & declaration) {
-    if (declaration == Variables::Type::VT_STRING) {
-        return TokenType::StringDeclaration;
-    }
-    if (declaration == Variables::Type::VT_INT) {
-        return TokenType::IntDeclaration;
-    }
-    if (declaration == Variables::Type::VT_DOUBLE) {
-        return TokenType::DoubleDeclaration;
-    }
-    if (declaration == Variables::Type::VT_BOOLEAN) {
-        return TokenType::BooleanDeclaration;
-    }
-    // if (declaration == Variables::Type::VT_FUNCTION) {
-    //     return TokenType::FunctionDeclaration;
-    // }
-    std::cout << "Unknown variable type: " << Variables::TypeToString(declaration) << "\n";
-    return TokenType::Unknown;
-}
-
-[[nodiscard]] static inline Variables::Type getVariableTypeFromTokenTypeDeclaration(const TokenType & type) {
-    if (type == TokenType::StringDeclaration) {
-        return Variables::Type::VT_STRING;
-    }
-    if (type == TokenType::IntDeclaration) {
-        return Variables::Type::VT_INT;
-    }
-    if (type == TokenType::DoubleDeclaration) {
-        return Variables::Type::VT_DOUBLE;
-    }
-    if (type == TokenType::BooleanDeclaration) {
-        return Variables::Type::VT_BOOLEAN;
-    }
-    //if (type == TokenType::FunctionDeclaration) {
-    //    return Variables::Type::VT_FUNCTION;
-    //}
-    return Variables::Type::VT_NULL;
+const static std::unordered_map<Tokens::Type, std::string> tokenTypeNames = {
+    { Tokens::Type::ParserOpenTag,       "ParserOpenTag"       },
+    { Tokens::Type::ParserCloseTag,      "ParserCloseTag"      },
+    { Tokens::Type::ParserIfStatement,   "ParserIfStatement"   },
+    { Tokens::Type::FileClose,           "FileClose"           },
+    { Tokens::Type::Identifier,          "Identifier"          },
+    { Tokens::Type::StringLiteral,       "StringLiteral"       },
+    { Tokens::Type::IntLiteral,          "IntLiteral"          },
+    { Tokens::Type::DoubleLiteral,       "DoubleLiteral"       },
+    { Tokens::Type::BooleanLiteral,      "BooleanLiteral"      },
+    { Tokens::Type::LeftParenthesis,     "LeftParenthesis"     },
+    { Tokens::Type::RightParenthesis,    "RightParenthesis"    },
+    { Tokens::Type::Comma,               "Comma"               },
+    { Tokens::Type::Semicolon,           "Semicolon"           },
+    { Tokens::Type::Variable,            "Variable"            },
+    { Tokens::Type::VariableSign,        "VariableSign"        },
+    { Tokens::Type::StringDeclaration,   "StringDeclaration"   },
+    { Tokens::Type::IntDeclaration,      "IntDeclaration"      },
+    { Tokens::Type::DoubleDeclaration,   "DoubleDeclaration"   },
+    { Tokens::Type::BooleanDeclaration,  "BooleanDeclaration"  },
+    { Tokens::Type::FunctionDeclaration, "FunctionDeclaration" },
+    { Tokens::Type::FunctionCall,        "FunctionCall"        },
+    { Tokens::Type::Return,              "Return"              },
+    { Tokens::Type::Equals,              "Equals"              },
+    { Tokens::Type::Plus,                "Plus"                },
+    { Tokens::Type::Minus,               "Minus"               },
+    { Tokens::Type::Multiply,            "Multiply"            },
+    { Tokens::Type::Divide,              "Divide"              },
+    { Tokens::Type::Modulo,              "Modulo"              },
+    { Tokens::Type::GreaterThan,         "GreaterThan"         },
+    { Tokens::Type::LessThan,            "LessThan"            },
+    { Tokens::Type::GreaterThanOrEqual,  "GreaterThanOrEqual"  },
+    { Tokens::Type::LessThanOrEqual,     "LessThanOrEqual"     },
+    { Tokens::Type::NotEqual,            "NotEqual"            },
+    { Tokens::Type::Equal,               "Equal"               },
+    { Tokens::Type::Not,                 "Not"                 },
+    { Tokens::Type::And,                 "And"                 },
+    { Tokens::Type::Or,                  "Or"                  },
+    { Tokens::Type::LeftBracket,         "LeftBracket"         },
+    { Tokens::Type::RightBracket,        "RightBracket"        },
+    { Tokens::Type::LeftCurlyBracket,    "LeftCurlyBracket"    },
+    { Tokens::Type::RightCurlyBracket,   "RightCurlyBracket"   },
+    { Tokens::Type::EndOfFile,           "EndOfFile"           },
+    { Tokens::Type::EndOfLine,           "EndOfLine"           },
+    { Tokens::Type::Comment,             "Comment"             },
+    { Tokens::Type::Unknown,             "Unknown"             }
 };
 
 struct TokenPos {
@@ -192,17 +107,14 @@ struct TokenPos {
 };
 
 struct Token {
-    TokenType       type;
-    std::string     lexeme;
-    std::string     file;
-    int             lineNumber;
-    size_t          columnNumber;
-    TokenPos        pos;
-    Variables::Type variableType = Variables::Type::VT_NULL;
+    Tokens::Type type;
+    std::string  lexeme;
+    std::string  file;
+    int          lineNumber;
+    size_t       columnNumber;
+    TokenPos     pos;
 
-    [[nodiscard]] std::string getTypeName() const { return tokenTypeNames.at(type); }
-
-    [[nodiscard]] std::string getVariableTypeName() const { return Variables::TypeToString(variableType); }
+    [[nodiscard]] std::string getTokenName() const { return tokenTypeNames.at(type); }
 };
-
+}  // namespace Tokens
 #endif  // TOKEN_HPP

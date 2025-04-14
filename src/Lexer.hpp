@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 
+#include "StringHelpers.hpp"
 #include "Token.hpp"
 #include "VariableTypes.hpp"
 
@@ -66,11 +67,8 @@ class Lexer {
         std::string srcSubstr = src.substr(pos, sequence.length());
         std::string seqLower  = sequence;
 
-        std::transform(srcSubstr.begin(), srcSubstr.end(), srcSubstr.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-
-        std::transform(seqLower.begin(), seqLower.end(), seqLower.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+        StringHelpers::strtolower(srcSubstr);
+        StringHelpers::strtolower(seqLower);
 
         return srcSubstr == seqLower;
     }

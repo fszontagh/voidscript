@@ -14,37 +14,40 @@ void ScriptInterpreter::registerModule(const std::string & name, std::shared_ptr
 }
 
 Value ScriptInterpreter::evaluateExpression(const Token & token) const {
-    if (token.type == TokenType::StringLiteral) {
-        return Value::fromString(token);
+    switch (token.type) {
+        case TokenType::StringLiteral:
+            return Value::fromString(token);
+
+        case TokenType::IntLiteral:
+            try {
+                return Value::fromInt(token);
+            } catch (const std::invalid_argument & e) {
+                throw std::runtime_error("Invalid integer literal: " + token.lexeme);
+            } catch (const std::out_of_range & e) {
+                throw std::runtime_error("Integer literal out of range: " + token.lexeme);
+            }
+
+        case TokenType::DoubleLiteral:
+            try {
+                return Value::fromDouble(token);
+            } catch (const std::invalid_argument & e) {
+                throw std::runtime_error("Invalid double literal: " + token.lexeme);
+            } catch (const std::out_of_range & e) {
+                throw std::runtime_error("Double literal out of range: " + token.lexeme);
+            }
+
+        case TokenType::BooleanLiteral:
+        case TokenType::Identifier:
+            {
+                return Value::fromBoolean(token);
+            }
+
+        case TokenType::Variable:
+            return this->getVariable(token, this->contextPrefix, __FILE__, __LINE__);
+
+        default:
+            THROW_UNEXPECTED_TOKEN_ERROR(token, "string, integer, double, or variable");
     }
-    if (token.type == TokenType::IntLiteral) {
-        try {
-            return Value::fromInt(token);
-        } catch (const std::invalid_argument & e) {
-            throw std::runtime_error("Invalid integer literal: " + token.lexeme);
-        } catch (const std::out_of_range & e) {
-            throw std::runtime_error("Integer literal out of range: " + token.lexeme);
-        }
-    }
-    if (token.type == TokenType::DoubleLiteral) {
-        try {
-            return Value::fromDouble(token);
-        } catch (const std::invalid_argument & e) {
-            throw std::runtime_error("Invalid double literal: " + token.lexeme);
-        } catch (const std::out_of_range & e) {
-            throw std::runtime_error("Double literal out of range: " + token.lexeme);
-        }
-    }
-    if (token.type == TokenType::BooleanLiteral || token.type == TokenType::Identifier) {
-        std::string lowered = token.lexeme;
-        std::transform(lowered.begin(), lowered.end(), lowered.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        return Value::fromBoolean(token, (lowered == "true" ? true : false));
-    }
-    if (token.type == TokenType::Variable) {
-        return this->getVariable(token, this->contextPrefix, __FILE__, __LINE__);
-    }
-    THROW_UNEXPECTED_TOKEN_ERROR(token, "string, integer, double, or variable");
 
     return Value();
 }
@@ -81,62 +84,39 @@ std::vector<Value> ScriptInterpreter::parseFunctionArguments(const std::vector<T
     return args;
 }
 
-void ScriptInterpreter::handleBooleanDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
-    const auto & varToken = tokens[i];
-    i++;      // Skip variable name
-    if (i < tokens.size() && tokens[i].type == TokenType::Equals) {
-        i++;  // Skip '='
+void ScriptInterpreter::handleBooleanDeclaration(const std::vector<Token> & tokens, size_t & i) {
+    if (tokens.size() <= i || tokens[i].type != TokenType::Identifier) {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "variable name");
+    }
 
-        if (i < tokens.size() && tokens[i].type == TokenType::Variable) {
-            auto variable = this->getVariable(tokens[i], this->contextPrefix, __FILE__, __LINE__);
+    const Token & varToken = tokens[i++];
+    if (i >= tokens.size()) {
+        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i + 1], "semicolon or assignment after variable name");
+    }
 
-            if (variable.type != Variables::Type::VT_BOOLEAN) {
-                THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varToken.lexeme,
-                                                    Variables::TypeToString(Variables::Type::VT_BOOLEAN),
-                                                    tokens[i].lexeme, variable.TypeToString(), tokens[i]);
-            }
-            this->setVariable(varToken.lexeme, variable, this->contextPrefix, true);
-            i++;  // Skip variable name
-            EXPECT_SEMICOLON(tokens, i, "after bool variable declaration");
-
-        } else if (i < tokens.size() &&
-                   (tokens[i].type == TokenType::Identifier || tokens[i].type == TokenType::StringLiteral)) {
-            std::string lowered = tokens[i].lexeme;
-            std::transform(lowered.begin(), lowered.end(), lowered.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
-
-            if (lowered == "true") {
-                auto value = Value::fromBoolean(tokens[i], true);
-                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
-            } else if (lowered == "false") {
-                auto value = Value::fromBoolean(tokens[i], false);
-                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
-            } else {
-                THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "true or false after '='");
-            }
-            i++;  // Skip boolean literal
-            EXPECT_SEMICOLON(tokens, i, "after bool declaration");
-        } else if (i < tokens.size() && tokens[i].type == TokenType::IntLiteral) {
-            const auto test = std::stoi(tokens[i].lexeme);
-            if (test == 0) {
-                auto value = Value::fromBoolean(tokens[i], false);
-                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
-            } else if (test > 0) {
-                auto value = Value::fromBoolean(tokens[i], false);
-                this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
-            } else {
-                THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "bool literal after '='");
-            }
-            i++;
-            EXPECT_SEMICOLON(tokens, i, "after bool declaration");
-        } else {
-            THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "bool literal after '='");
+    if (tokens[i].type == TokenType::Semicolon) {
+        auto val = Value::fromBoolean(tokens[i]);
+        this->setVariable(varToken.lexeme, val, this->contextPrefix, true);
+        i++;
+    } else if (tokens[i].type == TokenType::Equal) {
+        i++;
+        if (i >= tokens.size()) {
+            //throw InterpreterException("Expected value after assignment.", tokens[i - 1]);
+            THROW_UNEXPECTED_TOKEN_ERROR(tokens[i - 1], "value after assignment");
         }
 
+        auto value = evaluateExpression(tokens[i]);
+        if (value.type != Variables::Type::VT_BOOLEAN) {
+            THROW_VARIABLE_TYPE_MISSMATCH_ERROR(varToken.lexeme, Variables::TypeToString(Variables::Type::VT_BOOLEAN),
+                                                tokens[i].lexeme, value.TypeToString(), tokens[i]);
+        }
+        this->setVariable(varToken.lexeme, value, this->contextPrefix, true);
+        i++;
+        EXPECT_SEMICOLON(tokens, i, "after bool declaration");
     } else {
-        THROW_UNEXPECTED_TOKEN_ERROR(tokens[i], "= after bool declaration");
+        EXPECT_SEMICOLON(tokens, i, "after bool declaration");
     }
-};
+}
 
 void ScriptInterpreter::handleStringDeclaration(const std::vector<Token> & tokens, std::size_t & i) {
     const auto & varToken = tokens[i];
@@ -242,7 +222,7 @@ void ScriptInterpreter::handleFunctionDeclaration(const std::vector<Token> & tok
     size_t end;
     ScriptInterpreterHelpers::getFunctionBody(tokens, i, start, end);
 
-    const std::string function_body = ScriptInterpreterHelpers::extractSubstring(this->source, start, end);
+    const std::string function_body = StringHelpers::extractSubstring(this->source, start, end);
     if (function_body.empty()) {
         std::cout << this->source << '\n';
         THROW_FUNCTION_BODY_EMPTY(funcToken.lexeme, tokens[i - 1]);
