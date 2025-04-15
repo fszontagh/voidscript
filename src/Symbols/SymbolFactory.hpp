@@ -24,32 +24,42 @@ class SymbolFactory {
     }
 
     static std::shared_ptr<Symbol> createFunction(const std::string & name, const std::string & context,
-                                                  const Symbols::ValueContainer & parameters = {}) {
+                                                  const Symbols::FunctionParameterInfo & parameters = {}) {
         return std::make_shared<FunctionSymbol>(name, context, parameters);
     }
 
     static std::shared_ptr<Symbol> createFunction(const std::string & name, const std::string & context,
-                                                  const Symbols::ValueContainer & parameters,
-                                                  const std::string &             plainBody) {
+                                                  const Symbols::FunctionParameterInfo & parameters,
+                                                  const std::string &                    plainBody) {
         return std::make_shared<FunctionSymbol>(name, context, parameters, plainBody);
+    }
+
+    static std::shared_ptr<Symbol> createFunction(const std::string & name, const std::string & context,
+                                                  const Symbols::FunctionParameterInfo & parameters,
+                                                  const std::string & plainBody, Symbols::Variables::Type returnType) {
+        return std::make_shared<FunctionSymbol>(name, context, parameters, plainBody, returnType);
     }
 
     // Overloadok
     static std::shared_ptr<Symbol> createVariable(const std::string & name, int value, const std::string & context) {
-        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::VT_INT);
+        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::INTEGER);
     }
 
     static std::shared_ptr<Symbol> createVariable(const std::string & name, double value, const std::string & context) {
-        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::VT_DOUBLE);
+        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::DOUBLE);
+    }
+
+    static std::shared_ptr<Symbol> createVariable(const std::string & name, float value, const std::string & context) {
+        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::FLOAT);
     }
 
     static std::shared_ptr<Symbol> createVariable(const std::string & name, const std::string & value,
                                                   const std::string & context) {
-        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::VT_STRING);
+        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::STRING);
     }
 
     static std::shared_ptr<Symbol> createVariable(const std::string & name, bool value, const std::string & context) {
-        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::VT_BOOLEAN);
+        return createVariable(name, Symbols::Value(value), context, Symbols::Variables::Type::BOOLEAN);
     }
 };
 

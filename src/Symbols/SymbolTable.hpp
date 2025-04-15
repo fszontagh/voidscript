@@ -3,7 +3,6 @@
 #define SYMBOL_TABLE_HPP
 
 #include <memory>
-#include <optional>
 #include <vector>
 
 #include "SymbolTypes.hpp"

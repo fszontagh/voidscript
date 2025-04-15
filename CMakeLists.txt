@@ -113,13 +113,13 @@ configure_file("cmake/options.h.in" "include/options.h" @ONLY)
 configure_file("test_scripts/test1.vs" "test_scripts/test1.vs" @ONLY)
 configure_file("test_scripts/test2.vs" "test_scripts/test2.vs" @ONLY)
 
-include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src)
 
 
 # LIBRARY TARGET
 add_library(voidscript
-            src/ScriptInterpreter.cpp
-            src/Lexer.cpp
+            src/Parser/Parser.cpp
+            src/Lexer/Lexer.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")

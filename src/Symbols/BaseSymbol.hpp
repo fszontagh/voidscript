@@ -3,13 +3,11 @@
 #define BASE_SYMBOL_HPP
 
 #include <string>
-#include <variant>
 
 #include "SymbolKind.hpp"
+#include "Value.hpp"
 
 namespace Symbols {
-
-using Value = std::variant<int, double, std::string, bool>;
 
 class Symbol {
   protected:

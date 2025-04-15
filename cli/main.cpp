@@ -1,9 +1,10 @@
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <unordered_map>
 
-#include "Builtins/PrintModule.hpp"
-#include "Builtins/SleepModule.hpp"
-#include "ScriptInterpreter.hpp"
+#include "options.h"
+#include "VoidScript.hpp"
 
 const std::unordered_map<std::string, std::string> params = {
     { "--help",    "Print this help message"          },
@@ -55,22 +56,8 @@ int main(int argc, char * argv[]) {
 
     const std::string filename = std::filesystem::canonical(file).string();
 
-    try {
-        std::ifstream input(filename);
-        if (!input.is_open()) {
-            std::cerr << "Error: Could not open file " << filename << "\n";
-            return 1;
-        }
-
-        std::string       content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-        ScriptInterpreter interp;
-        interp.registerModule("print", std::make_shared<PrintFunction>());
-        interp.registerModule("sleep", std::make_shared<SleepFunction>());
-        interp.executeScript(content, filename, "DEFAULT", false);
-    } catch (const std::exception & e) {
-        std::cerr << "Parser error: " << e.what() << "\n";
-        return 1;
-    }
+    VoidScript voidscript(filename);
+    return voidscript.run();
 
     return 0;
 }
