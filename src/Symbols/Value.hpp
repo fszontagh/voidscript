@@ -1,10 +1,13 @@
 #ifndef SYMBOL_VALUE_HPP
 #define SYMBOL_VALUE_HPP
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <variant>
+
+#include "Symbols/VariableTypes.hpp"
 
 namespace Symbols {
 
@@ -14,23 +17,32 @@ class Value {
 
     Value() = default;
 
-    Value(int v) : value_(v) {}
+    Value(int v) : value_(v) { type_ = Symbols::Variables::Type::INTEGER; }
 
-    Value(double v) : value_(v) {}
+    Value(double v) : value_(v) { type_ = Symbols::Variables::Type::DOUBLE; }
 
-    Value(float v) : value_(v) {}
+    Value(float v) : value_(v) { type_ = Symbols::Variables::Type::FLOAT; }
 
-    Value(const std::string & v) : value_(v) {}
+    Value(const std::string & v) : value_(v) { type_ = Symbols::Variables::Type::STRING; }
 
-    Value(const char * v) : value_(std::string(v)) {}
+    Value(const char * v) : value_(std::string(v)) { type_ = Symbols::Variables::Type::STRING; }
 
-    Value(bool v) : value_(v) {}
+    Value(bool v) : value_(v) { type_ = Symbols::Variables::Type::BOOLEAN; }
+
+    Value(const std::string & str, bool autoDetectType) { *this = fromString(str, autoDetectType); }
 
     const Variant & get() const { return value_; }
+
+    Symbols::Variables::Type getType() const { return type_; }
 
     Variant & get() { return value_; }
 
     template <typename T> T get() const { return std::get<T>(value_); }
+
+    static Symbols::Value makeNull() {
+        auto v = Value("null");
+        return v;
+    }
 
     // operator+
     friend Value operator+(const Value & lhs, const Value & rhs) {
@@ -68,8 +80,87 @@ class Value {
 
     static std::string to_string(const Value & val) { return to_string(val.value_); }
 
+    static Value fromString(const std::string & str, bool autoDetectType) {
+        if (!autoDetectType) {
+            return fromStringToString(str);
+        }
+
+        std::string trimmed = str;
+        trimmed.erase(0, trimmed.find_first_not_of(" \t\n\r"));
+        trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
+
+        // Check bool
+        std::string lower = trimmed;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        if (lower == "true" || lower == "false" || lower == "1" || lower == "0") {
+            try {
+                return fromStringToBool(trimmed);
+            } catch (...) {
+            }
+        }
+
+        // Check int
+        try {
+            size_t idx;
+            int    i = std::stoi(trimmed, &idx);
+            if (idx == trimmed.size()) {
+                return fromStringToInt(trimmed);
+            }
+        } catch (...) {
+        }
+
+        // Check double
+        try {
+            size_t idx;
+            double d = std::stod(trimmed, &idx);
+            if (idx == trimmed.size()) {
+                return fromStringToDouble(trimmed);
+            }
+        } catch (...) {
+        }
+
+        // Fallback
+        return fromStringToString(str);
+    }
+
+    static Value fromString(const std::string & str, Symbols::Variables::Type type) {
+        switch (type) {
+            case Symbols::Variables::Type::INTEGER:
+                return fromStringToInt(str);
+            case Symbols::Variables::Type::DOUBLE:
+                return fromStringToDouble(str);
+            case Symbols::Variables::Type::FLOAT:
+                return fromStringToFloat(str);
+            case Symbols::Variables::Type::BOOLEAN:
+                return fromStringToBool(str);
+            case Symbols::Variables::Type::STRING:
+            default:
+                return fromStringToString(str);
+        }
+    }
   private:
-    Variant value_;
+    Variant                  value_;
+    Symbols::Variables::Type type_;
+
+    static Value fromStringToInt(const std::string & str) { return Value(std::stoi(str)); }
+
+    static Value fromStringToDouble(const std::string & str) { return Value(std::stod(str)); }
+
+    static Value fromStringToFloat(const std::string & str) { return Value(std::stof(str)); }
+
+    static Value fromStringToBool(const std::string & str) {
+        std::string s = str;
+        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+        if (s == "true" || s == "1") {
+            return Value(true);
+        }
+        if (s == "false" || s == "0") {
+            return Value(false);
+        }
+        throw std::invalid_argument("Invalid bool string: " + str);
+    }
+
+    static Value fromStringToString(const std::string & str) { return Value(str); }
 };
 
 }  // namespace Symbols

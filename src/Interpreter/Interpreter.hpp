@@ -1,45 +1,65 @@
 #ifndef INTERPRETER_HPP
 #define INTERPRETER_HPP
+#include <iostream>
 #include <memory>
-#include <utility>
-#include <vector>
+#include <stdexcept>
 
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
-#include "Symbols/SymbolContainer.hpp"
 
 namespace Interpreter {
 
 class Interpreter {
   private:
-    std::shared_ptr<Symbols::SymbolContainer> symbol_container_;
-    const OperationContainer &                operations_conatiner_;
+    void runOperation(const Operations::Operation & op) {
+        std::cout << "Operation: " << op.toString() << "\n";
 
-    void setVariable(const std::string & name, int value) {
-        //symbol_container_->setVariable(name, value);
+        switch (op.type) {
+            case Operations::Type::Declaration:
+                if (op.statement) {
+                    op.statement->interpret(*this);
+                }
+                break;
+            case Operations::Type::FuncDeclaration:
+                {
+                    op.statement->interpret(*this);
+                }
+                break;
+
+            case Operations::Type::Assignment:
+                {
+                    op.statement->interpret(*this);
+                    break;
+                }
+
+            case Operations::Type::Expression:
+                {
+                    op.statement->interpret(*this);  // csak side effect miatt
+                    break;
+                }
+
+            case Operations::Type::FunctionCall:
+            case Operations::Type::Return:
+            case Operations::Type::Loop:
+            case Operations::Type::Break:
+            case Operations::Type::Continue:
+            case Operations::Type::Block:
+            case Operations::Type::Import:
+            case Operations::Type::Error:
+            case Operations::Type::Conditional:
+                // TODO: implementálható később
+                break;
+            default:
+                throw std::runtime_error("Not implemented operation type");
+        }
     }
+
   public:
-    // Constructor takes the populated symbol container from the parser
-    Interpreter(std::shared_ptr<Symbols::SymbolContainer> symbols, const OperationContainer & operations) :
-        symbol_container_(std::move(symbols)),
-        operations_conatiner_(operations) {}
+    Interpreter() {}
 
-    void run(const std::vector<Operation> & ops) {
-        for (const auto & op : ops) {
-            switch (op.type) {
-                case OperationType::Assignment:
-                    {
-                        int value = op.expression->evaluate(*this);
-                        setVariable(op.targetVariable, value);
-                        break;
-                    }
-
-                case OperationType::Expression:
-                    {
-                        op.expression->evaluate(*this);  // csak side effect miatt
-                        break;
-                    }
-            }
+    void run() {
+        for (const auto & operation : Operations::Container::instance()->getAll()) {
+            runOperation(*operation);
         }
     }
 

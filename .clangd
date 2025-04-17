@@ -1,5 +1,5 @@
 CompileFlags:
-  Add: [-Wunused]
+  Add: [-xc++, -Wall]
 
 Index:
   StandardLibrary: No

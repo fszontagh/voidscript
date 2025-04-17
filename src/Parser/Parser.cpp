@@ -9,7 +9,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "while",    Lexer::Tokens::Type::KEYWORD          },
     { "for",      Lexer::Tokens::Type::KEYWORD          },
     { "return",   Lexer::Tokens::Type::KEYWORD_RETURN   },
-    { "function", Lexer::Tokens::Type::KEYWORD_FUNCTION },
+    { "function", Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION },
     // Régebbiek:
     { "const",    Lexer::Tokens::Type::KEYWORD          },
     { "true",     Lexer::Tokens::Type::KEYWORD          },

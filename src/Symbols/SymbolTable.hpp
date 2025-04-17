@@ -1,4 +1,3 @@
-// SymbolTable.hpp
 #ifndef SYMBOL_TABLE_HPP
 #define SYMBOL_TABLE_HPP
 
@@ -10,12 +9,9 @@
 namespace Symbols {
 
 class SymbolTable {
-    NamespaceMap                 symbols_;
-    std::shared_ptr<SymbolTable> parent_ = nullptr;
+    NamespaceMap symbols_;
 
   public:
-    SymbolTable(std::shared_ptr<SymbolTable> parent = nullptr) : parent_(std::move(parent)) {}
-
     void define(const std::string & ns, const SymbolPtr & symbol) { symbols_[ns][symbol->name()] = symbol; }
 
     bool exists(const std::string & ns, const std::string & name) const { return get(ns, name) != nullptr; }
@@ -29,10 +25,6 @@ class SymbolTable {
                 return it->second;
             }
         }
-        // Rekurzívan keresünk a szülő scope-ban
-        if (parent_) {
-            return parent_->get(ns, name);
-        }
         return nullptr;
     }
 
@@ -43,12 +35,21 @@ class SymbolTable {
         }
     }
 
-    std::vector<SymbolPtr> listAll(const std::string & ns) const {
+    std::vector<std::string> listNSs() {
+        std::vector<std::string> result;
+        for (const auto & [ns, _] : symbols_) {
+            result.push_back(ns);
+        }
+        return result;
+    }
+
+    std::vector<SymbolPtr> listAll(const std::string & prefix = "") const {
         std::vector<SymbolPtr> result;
-        auto                   it = symbols_.find(ns);
-        if (it != symbols_.end()) {
-            for (const auto & [_, sym] : it->second) {
-                result.push_back(sym);
+        for (const auto & [ns, map] : symbols_) {
+            if (prefix.empty() || ns.starts_with(prefix)) {
+                for (const auto & [_, sym] : map) {
+                    result.push_back(sym);
+                }
             }
         }
         return result;
@@ -57,8 +58,6 @@ class SymbolTable {
     void clear(const std::string & ns) { symbols_.erase(ns); }
 
     void clearAll() { symbols_.clear(); }
-
-    std::shared_ptr<SymbolTable> getParent() const { return parent_; }
 };
 
 }  // namespace Symbols

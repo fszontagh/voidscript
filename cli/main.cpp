@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <unordered_map>
 
@@ -58,6 +57,4 @@ int main(int argc, char * argv[]) {
 
     VoidScript voidscript(filename);
     return voidscript.run();
-
-    return 0;
 }

@@ -1,14 +1,15 @@
 #ifndef LEXER_HPP
 #define LEXER_HPP
 
-#include <algorithm>    // std::find_if
-#include <cctype>       // <<< Hozzáadva
+#include <algorithm>
+#include <cctype>
 #include <string>
-#include <string_view>  // <<< Hozzáadva
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
-#include "Token.hpp"  // Feltételezzük, hogy ez a fenti Token.hpp
+#include "Symbols/SymbolContainer.hpp"
+#include "Token.hpp"
 
 namespace Lexer {
 class Lexer {
@@ -32,14 +33,13 @@ class Lexer {
         column_numbers_[ns] = 1;
     }
 
-    void setNamespace(const std::string & ns) { current_namespace_ = ns; }
-
     std::vector<Tokens::Token> tokenizeNamespace(const std::string & ns) {
         if (inputs_.find(ns) == inputs_.end()) {
             return {};
         }
 
-        setNamespace(ns);
+        Symbols::SymbolContainer::instance()->enter(ns);
+
         std::vector<Tokens::Token> tokens;
         Tokens::Token              token;
         do {
@@ -73,7 +73,7 @@ class Lexer {
         if (isalpha(c) || c == '_') {
             return matchIdentifierOrKeyword(start);
         }
-        if (isdigit(c) || (isdigit(c) && peek(1) == '.')|| (c == '.' && isdigit(peek(1)))) {
+        if (isdigit(c) || (isdigit(c) && peek(1) == '.') || (c == '.' && isdigit(peek(1)))) {
             return matchNumber(start);
         }
         if (c == '"' || c == '\'') {
@@ -96,7 +96,6 @@ class Lexer {
     std::unordered_map<std::string, int>                        column_numbers_;
 
     std::string                                   operators_;
-    std::string                                   current_namespace_;
     std::unordered_map<std::string, Tokens::Type> keywords;
 
     // two chars
@@ -109,13 +108,41 @@ class Lexer {
     static const std::vector<std::string> OPERATOR_ARITHMETIC;
     static const std::vector<std::string> PUNCTUATION;
 
-    const std::string & input() const { return inputs_.at(current_namespace_); }
+    const std::string & input() const {
+        const auto & ns = Symbols::SymbolContainer::instance()->currentScopeName();
+        auto         it = inputs_.find(ns);
+        if (it != inputs_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Input not found in namespace: " + ns);
+    }
 
-    size_t & pos() { return positions_[current_namespace_]; }
+    size_t & pos() {
+        const auto & ns = Symbols::SymbolContainer::instance()->currentScopeName();
+        auto         it = positions_.find(ns);
+        if (it != positions_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Unknown position in namespace: " + ns);
+    }
 
-    int & line() { return line_numbers_[current_namespace_]; }
+    int & line() {
+        const auto & ns = Symbols::SymbolContainer::instance()->currentScopeName();
+        auto         it = line_numbers_.find(ns);
+        if (it != line_numbers_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Unknown line number in namespace: " + ns);
+    }
 
-    int & col() { return column_numbers_[current_namespace_]; }
+    int & col() {
+        const auto & ns = Symbols::SymbolContainer::instance()->currentScopeName();
+        auto         it = column_numbers_.find(ns);
+        if (it != column_numbers_.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Unknown column number in namespace: " + ns);
+    }
 
     Tokens::Token createToken(Tokens::Type type, size_t start, size_t end, const std::string & value = "") {
         Tokens::Token token;
@@ -134,8 +161,9 @@ class Lexer {
     // --------------------------------------
 
     char peek(size_t offset = 0) const {
-        const auto & in = inputs_.at(current_namespace_);
-        size_t       cp = positions_.at(current_namespace_);
+        const auto & ns = Symbols::SymbolContainer::instance()->currentScopeName();
+        const auto & in = inputs_.at(ns);
+        size_t       cp = positions_.at(ns);
         if (cp + offset >= in.length()) {
             return '\0';
         }
@@ -154,10 +182,9 @@ class Lexer {
         return c;
     }
 
-    bool isAtEnd() const { return positions_.at(current_namespace_) >= inputs_.at(current_namespace_).length(); }
-
-    bool isComment(const char current_char) const {
-        return (current_char == '/' && peek(1) == '/' || current_char == '#');
+    bool isAtEnd() const {
+        const auto & ns = Symbols::SymbolContainer::instance()->currentScopeName();
+        return positions_.at(ns) >= inputs_.at(ns).length();
     }
 
     void skipWhitespaceAndComments() {

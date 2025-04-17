@@ -13,7 +13,7 @@ class Symbol {
   protected:
     std::string   name_;
     Value         value_;
-    std::string   context_;
+    std::string   context_; // ns
     Symbols::Kind kind_;
 
   public:
@@ -39,6 +39,15 @@ class Symbol {
     virtual const Value & getValue() const { return value_; }
 
     virtual void setValue(const Value & value) { value_ = value; }
+
+    std::string dump() const {
+        std::string r = "\t\t  "+ kindToString(this->kind_) + " name: '" + name_ + "' \n\t\t\tContext: " + context_;
+        r += " \n\t\t\tType: " + Symbols::Variables::TypeToString(value_.getType());
+        r += " \n\t\t\tValue: '" + Symbols::Value::to_string(value_) + "'";
+        return r;
+    }
+
+
 
     // Templated getter
     template <typename T> T getAs() const { return std::get<T>(value_); }

@@ -3,6 +3,8 @@
 #define SYMBOL_KIND_HPP
 
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 
 namespace Symbols {
 
@@ -13,6 +15,19 @@ enum class Kind : std::uint8_t {
     // Later: Module, Class, etc..
 };
 
-}; // namespace Symbols
+static std::string kindToString(Symbols::Kind kind) {
+    std::unordered_map<Symbols::Kind, std::string> KindToString = {
+        { Symbols::Kind::Variable, "Variable" },
+        { Symbols::Kind::Constant, "Constant" },
+        { Symbols::Kind::Function, "Function" },
+    };
+
+    auto it = KindToString.find(kind);
+    if (it != KindToString.end()) {
+        return it->second;
+    }
+    return "Unknown kind: " + std::to_string(static_cast<int>(kind));
+}
+};  // namespace Symbols
 
 #endif

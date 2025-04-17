@@ -1,16 +1,13 @@
 #ifndef INTERPRETER_FUNCTION_EXECUTOR_HPP
 #define INTERPRETER_FUNCTION_EXECUTOR_HPP
 
-namespace Interpreter {
-struct StatementNode {
-    virtual ~StatementNode()                                      = default;
-    virtual void interpret(class Interpreter & interpreter) const = 0;
-};
+#include "Symbols/Value.hpp"
 
-// Kifejezés (csak int literál most)
+namespace Interpreter {
 struct ExpressionNode {
-    virtual ~ExpressionNode()                                   = default;
-    virtual int evaluate(class Interpreter & interpreter) const = 0;
+    virtual ~ExpressionNode()                                              = default;
+    virtual Symbols::Value evaluate(class Interpreter & interpreter) const = 0;
+    virtual std::string    toString() const                                = 0;
 };
 
 }  // namespace Interpreter

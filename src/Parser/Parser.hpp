@@ -3,17 +3,19 @@
 
 #include <algorithm>
 #include <memory>
-#include <sstream>  // Hibaüzenetekhez
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-// Szükséges header-ök a Lexer és Symbol komponensekből
+#include "Interpreter/ExpressionBuilder.hpp"
+#include "Interpreter/OperationsFactory.hpp"
 #include "Lexer/Token.hpp"
-#include "Lexer/TokenType.hpp"  // Enum és TypeToString
+#include "Lexer/TokenType.hpp"
+#include "Parser/ParsedExpression.hpp"
+#include "Symbols/ParameterContainer.hpp"
 #include "Symbols/SymbolContainer.hpp"
-#include "Symbols/SymbolFactory.hpp"
-#include "Symbols/Value.hpp"  // Symbols::Value miatt
+#include "Symbols/Value.hpp"
 
 namespace Parser {
 
@@ -32,11 +34,13 @@ class Parser {
   public:
     Parser() {}
 
-    void parseProgram(const std::vector<Lexer::Tokens::Token> & tokens, std::string_view input_string) {
+    void parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::string_view input_string,
+                     const std::string & filename) {
         tokens_              = tokens;
         input_str_view_      = input_string;
         current_token_index_ = 0;
-        symbol_container_    = std::make_unique<Symbols::SymbolContainer>();
+        current_filename_    = filename;
+
         try {
             while (!isAtEnd() && currentToken().type != Lexer::Tokens::Type::END_OF_FILE) {
                 parseStatement();
@@ -52,21 +56,14 @@ class Parser {
         }
     }
 
-    const std::shared_ptr<Symbols::SymbolContainer> & getSymbolContainer() const {
-        if (!symbol_container_) {
-            throw std::runtime_error("Symbol container is not initialized.");
-        }
-        return symbol_container_;
-    }
-
     static const std::unordered_map<std::string, Lexer::Tokens::Type>              keywords;
     static const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> variable_types;
 
   private:
-    std::vector<Lexer::Tokens::Token>         tokens_;
-    std::string_view                          input_str_view_;
-    size_t                                    current_token_index_;
-    std::shared_ptr<Symbols::SymbolContainer> symbol_container_;
+    std::vector<Lexer::Tokens::Token> tokens_;
+    std::string_view                  input_str_view_;
+    size_t                            current_token_index_;
+    std::string                       current_filename_;
 
     // Token Stream Kezelő és Hibakezelő segédfüggvények (változatlanok)
     const Lexer::Tokens::Token & currentToken() const {
@@ -182,7 +179,7 @@ class Parser {
     void parseStatement() {
         const auto & token_type = currentToken().type;
 
-        if (token_type == Lexer::Tokens::Type::KEYWORD_FUNCTION) {
+        if (token_type == Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION) {
             parseFunctionDefinition();
             return;
         }
@@ -197,40 +194,33 @@ class Parser {
         reportError("Unexpected token at beginning of statement");
     }
 
-    // parseVariableDefinition (SymbolFactory használata már korrekt volt)
     void parseVariableDefinition() {
-        Symbols::Variables::Type var_type_enum = parseType();
-        // A típus stringjének tárolása csak a debug kiíráshoz kell
-        //std::string              var_type_str  = tokens_[current_token_index_ - 1].value;
-        std::cout << "var_name: " << currentToken().lexeme << std::endl;
+        Symbols::Variables::Type var_type = parseType();
+
         Lexer::Tokens::Token id_token = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
         std::string          var_name = id_token.value;
-        // Levágjuk a '$' jelet, ha a lexer mégis benne hagyta
+
         if (!var_name.empty() && var_name[0] == '$') {
             var_name = var_name.substr(1);
         }
+        const auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
 
         expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
-        Symbols::Value initial_value = parseValue(var_type_enum);
+        /*
+        Symbols::Value initial_value = parseValue(var_type);
+
+        Interpreter::OperationsFactory::defineSimpleVariable(var_name, initial_value, ns, this->current_filename_,
+                                                             id_token.line_number, id_token.column_number);
+*/
+
+        auto expr = parseParsedExpression(var_type);
+        Interpreter::OperationsFactory::defineVariableWithExpression(
+            var_name, var_type, std::move(expr), ns, current_filename_, id_token.line_number, id_token.column_number);
         expect(Lexer::Tokens::Type::PUNCTUATION, ";");
-
-        std::string context  = "global";  // Globális változó
-        // SymbolFactory használata a létrehozáshoz
-        auto variable_symbol = Symbols::SymbolFactory::createVariable(var_name, initial_value, context, var_type_enum);
-
-        // Ellenőrzés és definíció az *aktuális* scope-ban (ami itt a globális)
-        if (symbol_container_->exists("variables", var_name)) {
-            reportError("Variable '" + var_name + "' already defined in this scope");
-        }
-        symbol_container_->define("variables", variable_symbol);
-
-        // Debugging kiírás (változatlan)
-        // std::cout << "Parsed variable: " << var_type_str << " " << id_token.value << " = ... ;\n";
     }
 
-    // *** MÓDOSÍTOTT parseFunctionDefinition ***
     void parseFunctionDefinition() {
-        expect(Lexer::Tokens::Type::KEYWORD_FUNCTION);
+        expect(Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION);
         Lexer::Tokens::Token     id_token         = expect(Lexer::Tokens::Type::IDENTIFIER);
         std::string              func_name        = id_token.value;
         Symbols::Variables::Type func_return_type = Symbols::Variables::Type::NULL_TYPE;
@@ -242,7 +232,6 @@ class Parser {
         if (currentToken().type != Lexer::Tokens::Type::PUNCTUATION || currentToken().value != ")") {
             while (true) {
                 // Paraméter típusa
-                //size_t                   type_token_index = current_token_index_;  // Elmentjük a típus token indexét
                 Symbols::Variables::Type param_type = parseType();  // Ez elfogyasztja a type tokent
 
                 // Paraméter név ($variable)
@@ -275,50 +264,10 @@ class Parser {
             }
         }
 
-        auto function_symbol =
-            Symbols::SymbolFactory::createFunction(func_name, "global", param_infos, "", func_return_type);
-        if (symbol_container_->exists("functions", func_name)) {
-            reportError("Function '" + func_name + "' already defined in this scope");
-        }
-
         Lexer::Tokens::Token opening_brace = expect(Lexer::Tokens::Type::PUNCTUATION, "{");
 
-        symbol_container_->define("functions", function_symbol);
-
         // only parse the body if we checked out if not exists the function and created the symbol
-        Symbols::SymbolContainer func_symbols =
-            parseFunctionBody(opening_brace, func_return_type != Symbols::Variables::Type::NULL_TYPE);
-
-        // create new container for the function
-
-        std::cout << "Defined function symbol: " << func_name << " in global scope.\n";
-
-        // 3. Új scope nyitása a függvény paraméterei (és később lokális változói) számára
-        symbol_container_->enterScope();
-        //std::cout << "Entered scope for function: " << func_name << "\n";
-
-        // 4. Paraméterek definiálása mint változók az *új* (függvény) scope-ban
-        const std::string & param_context = func_name;  // Paraméter kontextusa a függvény neve
-        for (const auto & p_info : param_infos) {
-            auto param_symbol = Symbols::SymbolFactory::createVariable(p_info.name,       // Név '$' nélkül
-                                                                       Symbols::Value(),  // Alapértelmezett/üres érték
-                                                                       param_context,     // Kontextus
-                                                                       p_info.type        // Típus
-            );
-
-            if (symbol_container_->exists("variables", p_info.name)) {
-                reportError("Parameter name '" + p_info.name + "' conflicts with another symbol in function '" +
-                            func_name + "'");
-            }
-            symbol_container_->define("variables", param_symbol);
-        }
-
-        // 5. Függvény scope elhagyása
-        symbol_container_->leaveScope();
-        //std::cout << "Left scope for function: " << func_name << "\n";
-
-        // Debugging kiírás (változatlan)
-        // std::cout << "Parsed function: " << func_name << " (...) { ... } scope handled.\n";
+        parseFunctionBody(opening_brace, func_name, func_return_type, param_infos);
     }
 
     // --- Elemzési Segédfüggvények ---
@@ -337,118 +286,96 @@ class Parser {
         reportError("Expected type keyword (string, int, double, float)");
     }
 
-    // value : STRING_LITERAL | NUMBER
-    // Feldolgozza az értéket a várt típus alapján.
     Symbols::Value parseValue(Symbols::Variables::Type expected_var_type) {
-        Lexer::Tokens::Token token = currentToken();
+        Lexer::Tokens::Token token       = currentToken();
+        bool                 is_negative = false;
 
-        /// find if this is a function call
-        if (token.type == Lexer::Tokens::Type::IDENTIFIER && peekToken().lexeme == "(") {
-            for (const auto & symbol_ptr : this->symbol_container_->listNamespace("functions")) {
-                if (auto func_symbol = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(symbol_ptr)) {
-                    // TODO: A függvény hívását kellene feldolgozni, a func_symbol-ból kellene lekérni a paramétereket, func_symbol->plainBody() tartalmazza a függvény törzsét
-                    // A függvény hívásának feldolgozása
-                    std::cout << "Function call: " << token.value << "\n";
-                    while (consumeToken().lexeme != ")") {
-                        // Feltételezzük, hogy a függvény hívását a lexer már feldolgozta
-                    }
-                    return Symbols::Value("");  // TODO: Implementálni a függvény hívását
-                }
-            }
-        }
-
-        bool is_negative = false;
-        std::cout << "Peek: " << peekToken().lexeme << "\n";
-        if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC && peekToken().type == Lexer::Tokens::Type::NUMBER) {
-            is_negative = true;
+        // Előjel kezelése
+        if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC && (token.lexeme == "-" || token.lexeme == "+") &&
+            peekToken().type == Lexer::Tokens::Type::NUMBER) {
+            is_negative = (token.lexeme == "-");
             token       = peekToken();
-            consumeToken();
+            consumeToken();  // előjelet elfogyasztottuk
         }
 
+        // STRING típus
         if (expected_var_type == Symbols::Variables::Type::STRING) {
             if (token.type == Lexer::Tokens::Type::STRING_LITERAL) {
                 consumeToken();
-                return Symbols::Value(token.value);  // A lexer value-ja már a feldolgozott string
+                return Symbols::Value(token.value);
             }
             reportError("Expected string literal value");
-        } else if (expected_var_type == Symbols::Variables::Type::INTEGER) {
-            if (token.type == Lexer::Tokens::Type::NUMBER) {
-                // Konvertálás int-re, hibakezeléssel
-                try {
-                    // TODO: Ellenőrizni, hogy a szám valóban egész-e (nincs benne '.')
-                    // Most egyszerűen std::stoi-t használunk.
-                    int int_value = std::stoi(token.value);
-                    if (is_negative) {
-                        int_value = -int_value;
-                    }
-                    consumeToken();
-                    return Symbols::Value(int_value);
-                } catch (const std::invalid_argument & e) {
-                    reportError("Invalid integer literal: " + token.value);
-                } catch (const std::out_of_range & e) {
-                    reportError("Integer literal out of range: " + token.value);
-                }
-            }
-            reportError("Expected integer literal value");
-        } else if (expected_var_type == Symbols::Variables::Type::DOUBLE) {
-            if (token.type == Lexer::Tokens::Type::NUMBER) {
-                // Konvertálás double-re, hibakezeléssel
-                try {
-                    double double_value = std::stod(token.value);
-                    if (is_negative) {
-                        double_value = -double_value;
-                    }
-                    consumeToken();
-                    return Symbols::Value(double_value);
-                } catch (const std::invalid_argument & e) {
-                    reportError("Invalid double literal: " + token.value);
-                } catch (const std::out_of_range & e) {
-                    reportError("Double literal out of range: " + token.value);
-                }
-            }
-            reportError("Expected numeric literal value for double");
-        } else if (expected_var_type == Symbols::Variables::Type::FLOAT) {
-            if (token.type == Lexer::Tokens::Type::NUMBER) {
-                // Konvertálás double-re, hibakezeléssel
-                try {
-
-                    float float_value = std::atof(token.value.data());
-                    if (is_negative) {
-                        float_value = -float_value;
-                    }
-                    consumeToken();
-                    return Symbols::Value(float_value);
-                } catch (const std::invalid_argument & e) {
-                    reportError("Invalid float literal: " + token.value);
-                } catch (const std::out_of_range & e) {
-                    reportError("Float literal out of range: " + token.value);
-                }
-            }
-            reportError("Expected numeric literal value for double");
-        } else if (expected_var_type == Symbols::Variables::Type::BOOLEAN) {
-            if (token.type == Lexer::Tokens::Type::KEYWORD) {
-                consumeToken();
-                return Symbols::Value(token.value == "true");  // A lexer value-ja már a feldolgozott string
-            }
-            reportError("Expected boolean literal value");
-        } else {
-            // Más típusok (pl. boolean) itt kezelendők, ha lennének
-            reportError("Unsupported variable type encountered during value parsing");
         }
-        // Should not reach here due to reportError throwing
-        return Symbols::Value();  // Default return to satisfy compiler
+
+        // BOOLEAN típus
+        if (expected_var_type == Symbols::Variables::Type::BOOLEAN) {
+            if (token.type == Lexer::Tokens::Type::KEYWORD && (token.value == "true" || token.value == "false")) {
+                consumeToken();
+                return Symbols::Value(token.value == "true");
+            }
+            reportError("Expected boolean literal value (true or false)");
+        }
+
+        // NUMERIC típusok
+        if (expected_var_type == Symbols::Variables::Type::INTEGER ||
+            expected_var_type == Symbols::Variables::Type::DOUBLE ||
+            expected_var_type == Symbols::Variables::Type::FLOAT) {
+            if (token.type == Lexer::Tokens::Type::NUMBER) {
+                Symbols::Value val = parseNumericLiteral(token.value, is_negative, expected_var_type);
+                consumeToken();
+                return val;
+            }
+
+            reportError("Expected numeric literal value");
+        }
+
+        reportError("Unsupported variable type encountered during value parsing");
+        return Symbols::Value();  // compiler happy
     }
 
-    Symbols::SymbolContainer parseFunctionBody(const Lexer::Tokens::Token & opening_brace,
-                                               bool                         return_required = false) {
+    Symbols::Value parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type) {
+        try {
+            switch (type) {
+                case Symbols::Variables::Type::INTEGER:
+                    {
+                        if (value.find('.') != std::string::npos) {
+                            throw std::invalid_argument("Floating point value in integer context: " + value);
+                        }
+                        int v = std::stoi(value);
+                        return Symbols::Value(is_negative ? -v : v);
+                    }
+                case Symbols::Variables::Type::DOUBLE:
+                    {
+                        double v = std::stod(value);
+                        return Symbols::Value(is_negative ? -v : v);
+                    }
+                case Symbols::Variables::Type::FLOAT:
+                    {
+                        float v = std::stof(value);
+                        return Symbols::Value(is_negative ? -v : v);
+                    }
+                default:
+                    throw std::invalid_argument("Unsupported numeric type");
+            }
+        } catch (const std::invalid_argument & e) {
+            reportError("Invalid numeric literal: " + value + " (" + e.what() + ")");
+        } catch (const std::out_of_range & e) {
+            reportError("Numeric literal out of range: " + value + " (" + e.what() + ")");
+        }
+
+        return Symbols::Value();  // unreachable
+    }
+
+    void parseFunctionBody(const Lexer::Tokens::Token & opening_brace, const std::string & function_name,
+                           Symbols::Variables::Type return_type, const Symbols::FunctionParameterInfo & params) {
         size_t               braceDepth = 0;
+        int                  peek       = 0;
         int                  tokenIndex = current_token_index_;
         Lexer::Tokens::Token currentToken_;
         Lexer::Tokens::Token closing_brace;
 
         while (tokenIndex < tokens_.size()) {
-            currentToken_ = peekToken();
-
+            currentToken_ = peekToken(peek);
             if (currentToken_.type == Lexer::Tokens::Type::PUNCTUATION) {
                 if (currentToken_.value == "{") {
                     ++braceDepth;
@@ -460,6 +387,8 @@ class Parser {
                     --braceDepth;
                 }
             }
+            tokenIndex++;
+            peek++;
         }
         if (braceDepth != 0) {
             reportError("Unmatched braces in function body");
@@ -468,65 +397,190 @@ class Parser {
         auto                              startIt = std::find(tokens_.begin(), tokens_.end(), opening_brace);
         auto                              endIt   = std::find(tokens_.begin(), tokens_.end(), closing_brace);
 
-        // Ellenőrzés: mindkét token megtalálva és start_token megelőzi az end_token-t
         if (startIt != tokens_.end() && endIt != tokens_.end() && startIt < endIt) {
             filtered_tokens = std::vector<Lexer::Tokens::Token>(startIt + 1, endIt);
         }
         std::string_view input_string = input_str_view_.substr(opening_brace.end_pos, closing_brace.end_pos);
-        auto             parser       = Parser();
-        parser.parseProgram(filtered_tokens, input_string);
 
-        return *parser.getSymbolContainer();
+        current_token_index_ = tokenIndex;
+        expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+        const std::string newns = Symbols::SymbolContainer::instance()->currentScopeName() + "." + function_name;
+        Symbols::SymbolContainer::instance()->create(newns);
+        std::shared_ptr<Parser> parser = std::make_shared<Parser>();
+        parser->parseScript(filtered_tokens, input_string, this->current_filename_);
+        Symbols::SymbolContainer::instance()->enterPreviousScope();
+        // create function
+        Interpreter::OperationsFactory::defineFunction(
+            function_name, params, return_type, Symbols::SymbolContainer::instance()->currentScopeName(),
+            this->current_filename_, currentToken_.line_number, currentToken_.column_number);
     }
 
-    std::string parseFunctionBodyOld(size_t body_start_pos, bool return_required = false) {
-        std::stringstream body_ss;
-        int               brace_level        = 1;
-        size_t            last_token_end_pos = body_start_pos;
-        bool              has_return         = false;
+    ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type) {
+        std::stack<std::string>          operator_stack;
+        std::vector<ParsedExpressionPtr> output_queue;
+
+        auto getPrecedence = [](const std::string & op) -> int {
+            if (op == "+" || op == "-") {
+                return 1;
+            }
+            if (op == "*" || op == "/") {
+                return 2;
+            }
+            if (op == "u-" || op == "u+") {
+                return 3;
+            }
+            return 0;
+        };
+
+        auto isLeftAssociative = [](const std::string & op) -> bool {
+            return !(op == "u-" || op == "u+");
+        };
+
+        auto applyOperator = [](const std::string & op, ParsedExpressionPtr rhs, ParsedExpressionPtr lhs = nullptr) {
+            if (op == "u-" || op == "u+") {
+                std::string real_op = (op == "u-") ? "-" : "+";
+                return ParsedExpression::makeUnary(real_op, std::move(rhs));
+            } else {
+                return ParsedExpression::makeBinary(op, std::move(lhs), std::move(rhs));
+            }
+        };
+
+        auto pushOperand = [&](const Lexer::Tokens::Token & token) {
+            if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
+                token.type == Lexer::Tokens::Type::KEYWORD) {
+                output_queue.push_back(
+                    ParsedExpression::makeLiteral(Symbols::Value::fromString(token.value, expected_var_type)));
+            } else if (token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+                std::string name = token.value;
+                if (!name.empty() && name[0] == '$') {
+                    name = name.substr(1);
+                }
+                output_queue.push_back(ParsedExpression::makeVariable(name));
+            } else {
+                reportError("Expected literal or variable");
+            }
+        };
+
+        bool expect_unary = true;
 
         while (true) {
-            if (isAtEnd()) {
-                reportError("Unexpected end of file inside function body (missing '}')");
-            }
-            const auto & token = currentToken();
+            auto token = currentToken();
 
-            // Whitespace visszaállítása (ha volt) az 'input_str_view_' alapján
-            if (token.start_pos > last_token_end_pos) {
-                if (last_token_end_pos < input_str_view_.length() && token.start_pos <= input_str_view_.length()) {
-                    body_ss << input_str_view_.substr(last_token_end_pos, token.start_pos - last_token_end_pos);
-                } else {
-                    reportError("Invalid position range in body reconstruction");
+            if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "(") {
+                operator_stack.push("(");
+                consumeToken();
+                expect_unary = true;
+            } else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == ")") {
+                consumeToken();
+                while (!operator_stack.empty() && operator_stack.top() != "(") {
+                    std::string op = operator_stack.top();
+                    operator_stack.pop();
+
+                    if (op == "u-" || op == "u+") {
+                        if (output_queue.empty()) {
+                            reportError("Missing operand for unary operator");
+                        }
+                        auto rhs = std::move(output_queue.back());
+                        output_queue.pop_back();
+                        output_queue.push_back(applyOperator(op, std::move(rhs)));
+                    } else {
+                        if (output_queue.size() < 2) {
+                            reportError("Malformed expression");
+                        }
+                        auto rhs = std::move(output_queue.back());
+                        output_queue.pop_back();
+                        auto lhs = std::move(output_queue.back());
+                        output_queue.pop_back();
+                        output_queue.push_back(applyOperator(op, std::move(rhs), std::move(lhs)));
+                    }
                 }
-            }
 
-            if (token.type == Lexer::Tokens::Type::KEYWORD_RETURN) {
-                has_return = true;
-            }
-
-            if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "{") {
-                brace_level++;
-                body_ss << token.lexeme;
-            } else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "}") {
-                brace_level--;
-                if (brace_level == 0) {
-                    consumeToken();  // Záró '}' elfogyasztása
-                    break;
+                if (operator_stack.empty() || operator_stack.top() != "(") {
+                    reportError("Mismatched parentheses");
                 }
-                body_ss << token.lexeme;
+                operator_stack.pop();  // remove "("
+                expect_unary = false;
+            } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC) {
+                std::string op = std::string(token.lexeme);
+                if (expect_unary && (op == "-" || op == "+")) {
+                    op = "u" + op;  // pl. u-
+                }
+
+                while (!operator_stack.empty()) {
+                    const std::string & top = operator_stack.top();
+                    if ((isLeftAssociative(op) && getPrecedence(op) <= getPrecedence(top)) ||
+                        (!isLeftAssociative(op) && getPrecedence(op) < getPrecedence(top))) {
+                        operator_stack.pop();
+
+                        if (top == "u-" || top == "u+") {
+                            if (output_queue.empty()) {
+                                reportError("Missing operand for unary operator");
+                            }
+                            auto rhs = std::move(output_queue.back());
+                            output_queue.pop_back();
+                            output_queue.push_back(applyOperator(top, std::move(rhs)));
+                        } else {
+                            if (output_queue.size() < 2) {
+                                reportError("Malformed expression");
+                            }
+                            auto rhs = std::move(output_queue.back());
+                            output_queue.pop_back();
+                            auto lhs = std::move(output_queue.back());
+                            output_queue.pop_back();
+                            output_queue.push_back(applyOperator(top, std::move(rhs), std::move(lhs)));
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                operator_stack.push(op);
+                consumeToken();
+                expect_unary = true;
+            } else if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
+                       token.type == Lexer::Tokens::Type::KEYWORD ||
+                       token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+                pushOperand(token);
+                consumeToken();
+                expect_unary = false;
             } else {
-                body_ss << token.lexeme;
+                break;
+            }
+        }
+
+        // Kiürítjük az operator stack-et
+        while (!operator_stack.empty()) {
+            std::string op = operator_stack.top();
+            operator_stack.pop();
+
+            if (op == "(" || op == ")") {
+                reportError("Mismatched parentheses");
             }
 
-            last_token_end_pos = token.end_pos;
-            consumeToken();
+            if (op == "u-" || op == "u+") {
+                if (output_queue.empty()) {
+                    reportError("Missing operand for unary operator");
+                }
+                auto rhs = std::move(output_queue.back());
+                output_queue.pop_back();
+                output_queue.push_back(applyOperator(op, std::move(rhs)));
+            } else {
+                if (output_queue.size() < 2) {
+                    reportError("Malformed expression");
+                }
+                auto rhs = std::move(output_queue.back());
+                output_queue.pop_back();
+                auto lhs = std::move(output_queue.back());
+                output_queue.pop_back();
+                output_queue.push_back(applyOperator(op, std::move(rhs), std::move(lhs)));
+            }
         }
 
-        if (return_required && !has_return) {
-            return "";
+        if (output_queue.size() != 1) {
+            reportError("Expression could not be parsed cleanly");
         }
 
-        return body_ss.str();
+        return std::move(output_queue.back());
     }
 
 };  // class Parser
