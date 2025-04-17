@@ -50,6 +50,14 @@ class UnaryExpressionNode : public ExpressionNode {
             if (op_ == "!") {
                 return Symbols::Value(!v);
             }
+        } else if (type == Symbols::Variables::Type::STRING) {
+            std::string s = value.get<std::string>();
+            if (op_ == "-") {
+                return Symbols::Value(s);
+            }
+            if (op_ == "+") {
+                return Symbols::Value(s);
+            }
         }
 
         throw std::runtime_error("Unsupported unary operator '" + op_ +

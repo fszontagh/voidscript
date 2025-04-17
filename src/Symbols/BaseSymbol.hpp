@@ -33,7 +33,7 @@ class Symbol {
 
     const std::string & context() const { return context_; }
 
-    Symbols::Kind type() const { return kind_; }
+    Symbols::Kind getKind() const { return kind_; }
 
     // Virtuális getter/setter a value-hoz
     virtual const Value & getValue() const { return value_; }

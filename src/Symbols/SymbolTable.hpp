@@ -1,7 +1,6 @@
 #ifndef SYMBOL_TABLE_HPP
 #define SYMBOL_TABLE_HPP
 
-#include <memory>
 #include <vector>
 
 #include "SymbolTypes.hpp"

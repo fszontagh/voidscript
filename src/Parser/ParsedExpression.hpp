@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Parser {
@@ -58,6 +59,46 @@ struct ParsedExpression {
         expr->op   = std::move(op);
         expr->rhs  = std::move(operand);
         return expr;
+    }
+
+    Symbols::Variables::Type getType() const {
+        switch (kind) {
+            case Kind::Literal:
+                return value.getType();
+                break;
+
+            case Kind::Variable:
+                {
+                    const auto ns     = Symbols::SymbolContainer::instance()->currentScopeName() + ".variables";
+                    auto       symbol = Symbols::SymbolContainer::instance()->get(ns, name);
+                    if (!symbol) {
+                        throw std::runtime_error("Unknown variable: " + name + " in namespace: " + ns +
+                                                 " File: " + __FILE__ + ":" + std::to_string(__LINE__));
+                    }
+                    return symbol->getValue().getType();
+                }
+
+            case Kind::Binary:
+                {
+                    auto lhsType = lhs->value.getType();
+                    //auto rhsType = rhs->value.getType();
+                    return lhsType;  // Bináris kifejezésnél a típusok azonosak, tehát a bal oldali típust visszaadhatjuk
+                }
+
+            case Kind::Unary:
+                {
+                    //auto operandType = op.
+                    if (op == "!") {
+                        return Symbols::Variables::Type::BOOLEAN;  // Mivel a '!' operátor bool típust vár
+                    }
+                    break;
+                }
+
+            default:
+                throw std::runtime_error("Unknown expression kind");
+        }
+
+        throw std::runtime_error("Could not determine type for expression");
     }
 };
 

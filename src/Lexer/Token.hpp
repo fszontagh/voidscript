@@ -2,10 +2,10 @@
 #define TOKEN_HPP
 
 #include <iostream>
-#include <string>               // <<< Hozzáadva
-#include <string_view>          // <<< Hozzáadva
+#include <string>
+#include <string_view>
 
-#include "Lexer/TokenType.hpp"  // Feltételezzük, hogy ez definiálja Type-ot és TypeToString-ot
+#include "Lexer/TokenType.hpp"
 
 namespace Lexer::Tokens {
 
@@ -26,6 +26,14 @@ struct Token {
                   // Lexeme kiírása (stringgé konvertálva a biztonság kedvéért, ha pl. null lenne)
                   << ", Lexeme: \"" << std::string(lexeme) << "\""
                   << " }" << '\n';
+    }
+
+    std::string dump() const {
+        return + "Token { Type: " + Lexer::Tokens::TypeToString(type) + ", Value: \"" + value + "\""
+               + ", Pos: [" + std::to_string(start_pos) + ", " + std::to_string(end_pos)
+               + ")"
+               + ", Lexeme: \"" + std::string(lexeme) + "\""
+               + " }" + '\n';
     }
 };
 

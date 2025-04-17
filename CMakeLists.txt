@@ -120,6 +120,7 @@ include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src)
 add_library(voidscript
             src/Parser/Parser.cpp
             src/Lexer/Lexer.cpp
+            src/Lexer/Operators.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")

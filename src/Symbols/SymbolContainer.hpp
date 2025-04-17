@@ -123,7 +123,7 @@ class SymbolContainer {
     std::string getNamespaceForSymbol(const SymbolPtr & symbol) const {
         std::string base = symbol->context().empty() ? currentScope_ : symbol->context();
 
-        switch (symbol->type()) {
+        switch (symbol->getKind()) {
             case Symbols::Kind::Variable:
                 return base + ".variables";
             case Symbols::Kind::Function:

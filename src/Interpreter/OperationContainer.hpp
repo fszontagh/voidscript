@@ -117,7 +117,7 @@ class Container {
     auto end() const { return _operations.end(); }
 
     static std::string dump()  {
-        std::string result = "";
+        std::string result;
         for (const auto & [_, table] : Operations::Container::instance()->_operations) {
             result += "Namespace: " + _ + "\n";
             for (const auto & operation : table) {

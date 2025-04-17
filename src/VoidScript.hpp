@@ -1,6 +1,5 @@
 #ifndef VOIDSCRIPT_HPP
 #define VOIDSCRIPT_HPP
-
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -42,21 +41,24 @@ class VoidScript {
     int run() {
         try {
             while (!files.empty()) {
-                std::string file = files.back();
+                std::string       file         = files.back();
                 const std::string file_content = readFile(file);
                 files.pop_back();
-
 
                 std::string _default_namespace_ = file;
                 std::replace(_default_namespace_.begin(), _default_namespace_.end(), '.', '_');
 
                 Symbols::SymbolContainer::instance()->create(_default_namespace_);
 
-
                 const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
 
                 this->lexer->addNamespaceInput(ns, file_content);
                 const auto tokens = this->lexer->tokenizeNamespace(ns);
+                // dump tokens
+                std::cout << "--- Tokens ---\n";
+                for (const auto & token : tokens) {
+                    token.print();
+                }
 
                 std::cout << Operations::Container::dump() << "\n";
 
@@ -69,11 +71,8 @@ class VoidScript {
             }  // while (!files.empty())
 
             return 0;
-        } catch (const Parser::SyntaxError & e) {
-            std::cerr << "Syntax Error during parsing: " << e.what() << '\n';
-            return 1;
         } catch (const std::exception & e) {
-            std::cerr << "An error occurred: " << e.what() << '\n';
+            std::cerr  << e.what() << '\n';
             return 1;
         }
         return 1;

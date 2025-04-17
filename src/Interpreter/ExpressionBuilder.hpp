@@ -8,13 +8,13 @@
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/IdentifierExpressionNode.hpp"
 #include "Interpreter/LiteralExpressionNode.hpp"
-#include "Interpreter/UnaryExpressionNode.hpp" // <-- új include
+#include "Interpreter/UnaryExpressionNode.hpp"  // <-- új include
 #include "Parser/ParsedExpression.hpp"
 
 namespace Parser {
 static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
-    const Parser::ParsedExpressionPtr & expr) {
-    using Kind = Parser::ParsedExpression::Kind;
+    const ParsedExpressionPtr & expr) {
+    using Kind = ParsedExpression::Kind;
 
     switch (expr->kind) {
         case Kind::Literal:
@@ -23,20 +23,101 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
         case Kind::Variable:
             return std::make_unique<Interpreter::IdentifierExpressionNode>(expr->name);
 
-        case Kind::Binary: {
-            auto lhs = buildExpressionFromParsed(expr->lhs);
-            auto rhs = buildExpressionFromParsed(expr->rhs);
-            return std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), expr->op, std::move(rhs));
-        }
+        case Kind::Binary:
+            {
+                auto lhs = buildExpressionFromParsed(expr->lhs);
+                auto rhs = buildExpressionFromParsed(expr->rhs);
+                return std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), expr->op, std::move(rhs));
+            }
 
-        case Kind::Unary: {
-            auto operand = buildExpressionFromParsed(expr->rhs);  // rhs az operandus
-            return std::make_unique<Interpreter::UnaryExpressionNode>(expr->op, std::move(operand));
-        }
+        case Kind::Unary:
+            {
+                auto operand = buildExpressionFromParsed(expr->rhs);  // rhs az operandus
+                return std::make_unique<Interpreter::UnaryExpressionNode>(expr->op, std::move(operand));
+            }
     }
 
     throw std::runtime_error("Unknown ParsedExpression kind");
 }
+
+void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
+    using Kind = ParsedExpression::Kind;
+
+    switch (expr->kind) {
+        case Kind::Literal:
+            {
+                // Literál típusának ellenőrzése - a literál típusát a value.getType() adja vissza
+                // auto type = expr->value.getType();
+                // Nem szükséges semmilyen más típusellenőrzés a literálokhoz, mivel azok fix típusúak.
+                break;
+            }
+
+        case Kind::Variable:
+            {
+                const std::string ns     = Symbols::SymbolContainer::instance()->currentScopeName() + ".variables";
+                auto              symbol = Symbols::SymbolContainer::instance()->get(ns, expr->name);
+                if (!symbol) {
+                    throw std::runtime_error("Variable not found in symbol table: " + expr->name);
+                }
+
+                // Ha a szimbólum nem egy változó, akkor hibát dobunk
+                if (symbol->getKind() == Symbols::Kind::Function) {
+                    throw std::runtime_error("Cannot use function as variable: " + expr->name);
+                }
+                break;
+            }
+
+        case Kind::Binary:
+            {
+                // Bináris kifejezés operandusainak típusellenőrzése
+                typecheckParsedExpression(expr->lhs);
+                typecheckParsedExpression(expr->rhs);
+
+                auto lhsType = expr->lhs->getType();
+                auto rhsType = expr->rhs->getType();
+
+                if (lhsType != rhsType) {
+                    throw std::runtime_error(
+                        "Type mismatch in binary expression: " + Symbols::Variables::TypeToString(lhsType) + " and " +
+                        Symbols::Variables::TypeToString(rhsType));
+                }
+
+                // Bináris operátoroknál is elvégezhetjük a típusellenőrzést:
+                // Ha numerikus operátor, akkor az operandusoknak numerikusnak kell lenniük
+                if (expr->op == "+" || expr->op == "-" || expr->op == "*" || expr->op == "/") {
+                    if (lhsType != Symbols::Variables::Type::INTEGER && lhsType != Symbols::Variables::Type::FLOAT) {
+                        throw std::runtime_error("Operands must be numeric for operator: " + expr->op);
+                    }
+                }
+                // Ha logikai operátorok, akkor boolean típus szükséges
+                else if (expr->op == "&&" || expr->op == "||") {
+                    if (lhsType != Symbols::Variables::Type::BOOLEAN) {
+                        throw std::runtime_error("Operands must be boolean for operator: " + expr->op);
+                    }
+                }
+                break;
+            }
+
+        case Kind::Unary:
+            {
+                // Unáris kifejezés operandusának típusellenőrzése
+                typecheckParsedExpression(expr->rhs);  // 'rhs' tárolja az operandust az unáris kifejezésnél
+
+                auto operandType = expr->rhs->getType();
+
+                if (expr->op == "!") {
+                    if (operandType != Symbols::Variables::Type::BOOLEAN) {
+                        throw std::runtime_error("Operand must be boolean for unary operator '!'");
+                    }
+                }
+                break;
+            }
+
+        default:
+            throw std::runtime_error("Unknown expression kind");
+    }
+}
+
 }  // namespace Parser
 
 #endif  // PARSEREXPRESSION_BUILDER_HPP
