@@ -16,12 +16,20 @@ public:
     void registerModule() override;
     
     /**
-     * @brief Perform HTTP GET: curlGet(url)
+     * @brief Perform HTTP GET: curlGet(url [, options])
+     * options is an object with optional fields:
+     *   timeout (int or double seconds),
+     *   follow_redirects (bool),
+     *   headers (object mapping header names to values)
      */
     Symbols::Value curlGet(const std::vector<Symbols::Value>& args);
     
     /**
-     * @brief Perform HTTP POST: curlPost(url, data)
+     * @brief Perform HTTP POST: curlPost(url, data [, options])
+     * options is an object with optional fields:
+     *   timeout (int or double seconds),
+     *   follow_redirects (bool),
+     *   headers (object mapping header names to values)
      */
     Symbols::Value curlPost(const std::vector<Symbols::Value>& args);
 };

@@ -156,7 +156,7 @@ if (NEED_CLI)
 endif()
 
 # Plugin modules options
-option(BUILD_MODULE_CURL "Enable building CurlModule" OFF)
+option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
 
 if (BUILD_MODULE_CURL)
  add_subdirectory(Modules/CurlModule)

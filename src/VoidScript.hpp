@@ -11,6 +11,7 @@
 #include "Modules/PrintModule.hpp"
 #include "Modules/TypeofModule.hpp"
 #include "Modules/FileModule.hpp"
+#include "Modules/JsonModule.hpp"
 #include "Parser/Parser.hpp"
 
 class VoidScript {
@@ -60,6 +61,8 @@ class VoidScript {
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::TypeofModule>());
         // file I/O builtin
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::FileModule>());
+        // JSON encode/decode builtin
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::JsonModule>());
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
