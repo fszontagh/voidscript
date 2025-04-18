@@ -26,3 +26,4 @@ printnl("Person name: ", $person_name);
 
 printnl("Child1 old age: ",$person2->children->age);
 $person2->children->age = $person2->children->age + 2;
+printnl("Child1 new age: ",$person2->children->age);

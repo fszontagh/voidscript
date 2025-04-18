@@ -197,6 +197,19 @@ class Parser {
             parseCallStatement();
             return;
         }
+        // Assignment statement at top-level
+        if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+            size_t offset = 1;
+            // Skip member access chain
+            while (peekToken(offset).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(offset).value == "->") {
+                offset += 2;
+            }
+            const auto & look = peekToken(offset);
+            if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT && look.value == "=") {
+                parseAssignmentStatement();
+                return;
+            }
+        }
 
         reportError("Unexpected token at beginning of statement");
     }
@@ -205,6 +218,8 @@ class Parser {
     void parseFunctionDefinition();
     // Parse a top-level function call statement (e.g., foo(arg1, arg2);)
     void parseCallStatement();
+    // Parse a top-level assignment statement (variable or object member)
+    void parseAssignmentStatement();
     // Parse a return statement (e.g., return; or return expr;)
     void parseReturnStatement();
     // Parse an if-else conditional statement

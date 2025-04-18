@@ -8,6 +8,7 @@
 #include "Interpreter/ConditionalStatementNode.hpp"
 // #include "Interpreter/ForStatementNode.hpp"  // removed until for-in loops are implemented
 #include "Interpreter/CallStatementNode.hpp"
+#include "Interpreter/AssignmentStatementNode.hpp"
 #include "Interpreter/DeclareVariableStatementNode.hpp"
 #include "Interpreter/ReturnStatementNode.hpp"
 #include "Symbols/SymbolContainer.hpp"
@@ -68,6 +69,15 @@ void Parser::parseVariableDefinition() {
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
 
+// Parse a top-level assignment statement and record it
+void Parser::parseAssignmentStatement() {
+    auto stmt = parseStatementNode();
+    Operations::Container::instance()->add(
+        Symbols::SymbolContainer::instance()->currentScopeName(),
+        Operations::Operation{Operations::Type::Assignment, "", std::move(stmt)}
+    );
+}
+
 // Parse an if-else conditional statement
 void Parser::parseIfStatement() {
     // 'if'
@@ -115,6 +125,47 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         auto exprNode = expr ? buildExpressionFromParsed(expr) : nullptr;
         return std::make_unique<Interpreter::ReturnStatementNode>(
             std::move(exprNode), this->current_filename_, tok.line_number, tok.column_number);
+    }
+    // Assignment statement: variable or object member assignment
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+        // Lookahead to detect '=' after optional '->' chains
+        size_t offset = 1;
+        // Skip member access sequence
+        while (peekToken(offset).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(offset).value == "->") {
+            offset += 2;  // skip '->' and following identifier
+        }
+        const auto & look = peekToken(offset);
+        if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT && look.value == "=") {
+            // Consume base variable
+            auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+            std::string baseName = idTok.value;
+            if (!baseName.empty() && baseName[0] == '$') baseName = baseName.substr(1);
+            // Collect member path keys
+            std::vector<std::string> propertyPath;
+            while (match(Lexer::Tokens::Type::PUNCTUATION, "->")) {
+                // Next token must be identifier or variable identifier
+                Lexer::Tokens::Token propTok;
+                if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                    currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+                    propTok = consumeToken();
+                } else {
+                    reportError("Expected property name after '->'");
+                }
+                std::string propName = propTok.value;
+                if (!propName.empty() && propName[0] == '$') propName = propName.substr(1);
+                propertyPath.push_back(propName);
+            }
+            // Consume '='
+            auto eqTok = expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
+            // Parse RHS expression
+            auto rhsExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+            expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+            // Build RHS node
+            auto rhsNode = buildExpressionFromParsed(rhsExpr);
+            return std::make_unique<Interpreter::AssignmentStatementNode>(
+                baseName, std::move(propertyPath), std::move(rhsNode),
+                this->current_filename_, eqTok.line_number, eqTok.column_number);
+        }
     }
     // Function call statement
     if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
