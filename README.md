@@ -30,7 +30,7 @@ int x = 42;
 string name = "VoidScript";
 
 // Functions
-function $add(int $a, double $b, string $help) {
+function add = (int $a, double $b, string $help) {
     int $result = $a + $b;
     print("The sum is: ", $result, "\n");
     print("Help: ", $help, "\n");

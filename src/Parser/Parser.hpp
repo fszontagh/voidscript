@@ -22,15 +22,21 @@ class Parser {
       public:
         using BaseException::BaseException;
 
-        Exception(const std::string & msg, const Lexer::Tokens::Token & token) {
+        Exception(const std::string & msg, const std::string & expected, const Lexer::Tokens::Token & token) {
             rawMessage_ = msg + ": " + token.dump();
             context_ =
                 " at line: " + std::to_string(token.line_number) + ", column: " + std::to_string(token.column_number);
+            if (expected.empty() == false) {
+                rawMessage_ += " (expected: " + expected + ")";
+            }
             formattedMessage_ = formatMessage();
         }
 
-        Exception(const std::string & msg, int line, int col) {
-            rawMessage_       = msg;
+        Exception(const std::string & msg, std::string & expected, int line, int col) {
+            rawMessage_ = msg;
+            if (expected.empty() == false) {
+                rawMessage_ += " (expected: " + expected + ")";
+            }
             context_          = " at line: " + std::to_string(line) + ", column: " + std::to_string(col);
             formattedMessage_ = formatMessage();
         }
@@ -146,13 +152,13 @@ class Parser {
                (current_token_index_ == tokens_.size() - 1 && tokens_.back().type == Lexer::Tokens::Type::END_OF_FILE);
     }
 
-    [[noreturn]] void reportError(const std::string & message) {
+    [[noreturn]] void reportError(const std::string & message, const std::string expected = "") {
         if (current_token_index_ < tokens_.size()) {
-            throw Exception(message, tokens_[current_token_index_]);
+            throw Exception(message, expected, tokens_[current_token_index_]);
         }
         int line = tokens_.empty() ? 0 : tokens_.back().line_number;
         int col  = tokens_.empty() ? 0 : tokens_.back().column_number;
-        throw Exception(message, line, col);
+        throw Exception(message, expected, line, col);
     }
 
     // parseStatement (változatlan)

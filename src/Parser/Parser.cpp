@@ -175,7 +175,8 @@ void Parser::parseFunctionBody(const Lexer::Tokens::Token & opening_brace, const
     if (startIt != tokens_.end() && endIt != tokens_.end() && startIt < endIt) {
         filtered_tokens = std::vector<Lexer::Tokens::Token>(startIt + 1, endIt);
     }
-    std::string_view input_string = input_str_view_.substr(opening_brace.end_pos, closing_brace.end_pos);
+    auto len = closing_brace.start_pos - opening_brace.end_pos;
+    std::string_view input_string = input_str_view_.substr(opening_brace.end_pos, len);
 
     current_token_index_ = tokenIndex;
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
