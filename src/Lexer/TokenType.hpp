@@ -25,6 +25,7 @@ enum class Type : std::uint8_t {
     KEYWORD_DOUBLE,
     KEYWORD_FLOAT,
     KEYWORD_BOOLEAN,
+    KEYWORD_OBJECT,
     KEYWORD_FUNCTION_DECLARATION,
     KEYWORD_RETURN,
     KEYWORD_NULL,
@@ -69,6 +70,8 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_FLOAT";
         case Lexer::Tokens::Type::KEYWORD_BOOLEAN:
             return "KEYWORD_BOOLEAN";
+        case Lexer::Tokens::Type::KEYWORD_OBJECT:
+            return "KEYWORD_OBJECT";
         case Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION:
             return "KEYWORD_FUNCTION";
         case Lexer::Tokens::Type::KEYWORD_RETURN:

@@ -10,6 +10,7 @@
 #include "Interpreter/LiteralExpressionNode.hpp"
 #include "Interpreter/UnaryExpressionNode.hpp"  // <-- új include
 #include "Interpreter/CallExpressionNode.hpp"
+#include "Interpreter/ObjectExpressionNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 
 namespace Parser {
@@ -45,6 +46,15 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
                     callArgs.push_back(buildExpressionFromParsed(arg));
                 }
                 return std::make_unique<Interpreter::CallExpressionNode>(expr->name, std::move(callArgs));
+            }
+        case Kind::Object:
+            {
+                std::vector<std::pair<std::string, std::unique_ptr<Interpreter::ExpressionNode>>> members;
+                members.reserve(expr->objectMembers.size());
+                for (const auto &p : expr->objectMembers) {
+                    members.emplace_back(p.first, buildExpressionFromParsed(p.second));
+                }
+                return std::make_unique<Interpreter::ObjectExpressionNode>(std::move(members));
             }
     }
 

@@ -16,7 +16,7 @@ struct ParsedExpression;
 using ParsedExpressionPtr = std::unique_ptr<ParsedExpression>;
 
 struct ParsedExpression {
-    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call };
+    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, Object };
 
     Kind kind;
 
@@ -29,6 +29,7 @@ struct ParsedExpression {
     ParsedExpressionPtr rhs;
     // For function call arguments
     std::vector<ParsedExpressionPtr> args;
+    std::vector<std::pair<std::string, ParsedExpressionPtr>> objectMembers;
 
     // Constructor for literal
     static ParsedExpressionPtr makeLiteral(const Symbols::Value & val) {
@@ -70,6 +71,13 @@ struct ParsedExpression {
         expr->kind       = Kind::Call;
         expr->name       = name;
         expr->args       = std::move(arguments);
+        return expr;
+    }
+    // Constructor for object literal
+    static ParsedExpressionPtr makeObject(std::vector<std::pair<std::string, ParsedExpressionPtr>> members) {
+        auto expr = std::make_unique<ParsedExpression>();
+        expr->kind = Kind::Object;
+        expr->objectMembers = std::move(members);
         return expr;
     }
 
@@ -116,6 +124,8 @@ struct ParsedExpression {
                     auto funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(symbol);
                     return funcSym->returnType();
                 }
+            case Kind::Object:
+                return Symbols::Variables::Type::OBJECT;
 
             default:
                 throw std::runtime_error("Unknown expression kind");

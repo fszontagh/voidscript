@@ -6,6 +6,7 @@
 #include "Lexer/Operators.hpp"
 // Statements and expression building for conditional and block parsing
 #include "Interpreter/ConditionalStatementNode.hpp"
+// #include "Interpreter/ForStatementNode.hpp"  // removed until for-in loops are implemented
 #include "Interpreter/CallStatementNode.hpp"
 #include "Interpreter/DeclareVariableStatementNode.hpp"
 #include "Interpreter/ReturnStatementNode.hpp"
@@ -34,6 +35,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "string",   Lexer::Tokens::Type::KEYWORD_STRING               },
     { "boolean",  Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
     { "bool",     Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
+    { "object",   Lexer::Tokens::Type::KEYWORD_OBJECT               },
     // ... other keywords ...
 };
 
@@ -44,6 +46,7 @@ const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::
     { Lexer::Tokens::Type::KEYWORD_STRING,  Symbols::Variables::Type::STRING    },
     { Lexer::Tokens::Type::KEYWORD_NULL,    Symbols::Variables::Type::NULL_TYPE },
     { Lexer::Tokens::Type::KEYWORD_BOOLEAN, Symbols::Variables::Type::BOOLEAN   },
+    { Lexer::Tokens::Type::KEYWORD_OBJECT,  Symbols::Variables::Type::OBJECT    },
 };
 
 void Parser::parseVariableDefinition() {
@@ -357,6 +360,51 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
 
     while (true) {
         auto token = currentToken();
+        // Object literal: { key: value, ... }
+        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "{") {
+            // Consume '{'
+            consumeToken();
+            std::vector<std::pair<std::string, ParsedExpressionPtr>> members;
+            // Parse members until '}'
+            if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+                while (true) {
+                    // Optional type tag before key
+                    Symbols::Variables::Type memberType = Symbols::Variables::Type::UNDEFINED_TYPE;
+                    if (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) {
+                        memberType = parseType();
+                    }
+                    // Key must be an identifier or variable identifier
+                    if (currentToken().type != Lexer::Tokens::Type::IDENTIFIER &&
+                        currentToken().type != Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+                        reportError("Expected identifier for object key");
+                    }
+                    std::string key = currentToken().value;
+                    // Strip '$' if present
+                    if (!key.empty() && key[0] == '$') {
+                        key = key.substr(1);
+                    }
+                    consumeToken();
+                    // Expect ':' delimiter
+                    expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+                    // Parse value expression (pass tag type if provided)
+                    Symbols::Variables::Type expectType = (memberType == Symbols::Variables::Type::UNDEFINED_TYPE)
+                                                            ? Symbols::Variables::Type::NULL_TYPE
+                                                            : memberType;
+                    auto valueExpr = parseParsedExpression(expectType);
+                    members.emplace_back(key, std::move(valueExpr));
+                    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                        continue;
+                    }
+                    break;
+                }
+            }
+            // Expect closing '}'
+            expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+            // Create object literal parsed expression
+            output_queue.push_back(ParsedExpression::makeObject(std::move(members)));
+            expect_unary = false;
+            continue;
+        }
 
         if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "(") {
             operator_stack.push("(");

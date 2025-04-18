@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+#include <map>
 #include <variant>
 
 #include "VariableTypes.hpp"
@@ -12,7 +13,8 @@ namespace Symbols {
 
 class Value {
   public:
-    using Variant = std::variant<int, double, float, std::string, bool>;
+    using ObjectMap = std::map<std::string, Value>;
+    using Variant = std::variant<int, double, float, std::string, bool, ObjectMap>;
 
     Value() = default;
 
@@ -27,6 +29,10 @@ class Value {
     Value(const char * v) : value_(std::string(v)) { type_ = Symbols::Variables::Type::STRING; }
 
     Value(bool v) : value_(v) { type_ = Symbols::Variables::Type::BOOLEAN; }
+    /**
+     * @brief Construct an object value from a map of member names to Values.
+     */
+    Value(const ObjectMap & v) : value_(v) { type_ = Symbols::Variables::Type::OBJECT; }
 
     Value(const std::string & str, bool autoDetectType) { *this = fromString(str, autoDetectType); }
 
@@ -70,6 +76,8 @@ class Value {
                     return val ? "true" : "false";
                 } else if constexpr (std::is_same_v<T, std::string>) {
                     return val;
+                } else if constexpr (std::is_same_v<T, ObjectMap>) {
+                    return "[object]";
                 } else {
                     return std::to_string(val);
                 }

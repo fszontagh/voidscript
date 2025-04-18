@@ -7,7 +7,7 @@
 
 namespace Symbols::Variables {
 
-enum class Type : std::uint8_t { INTEGER, DOUBLE, FLOAT, STRING, BOOLEAN, NULL_TYPE, UNDEFINED_TYPE };
+enum class Type : std::uint8_t { INTEGER, DOUBLE, FLOAT, STRING, BOOLEAN, OBJECT, NULL_TYPE, UNDEFINED_TYPE };
 
 const std::unordered_map<std::string, Type> StringToTypeMap = {
     { "int",       Type::INTEGER        },
@@ -17,6 +17,7 @@ const std::unordered_map<std::string, Type> StringToTypeMap = {
     { "bool",      Type::BOOLEAN        },
     { "boolean",   Type::BOOLEAN        },
     { "null",      Type::NULL_TYPE      },
+    { "object",    Type::OBJECT         },
 
     { "undefined", Type::UNDEFINED_TYPE },
 };
@@ -26,8 +27,9 @@ const std::unordered_map<Type, std::string> StypeToStringMap = {
     { Type::FLOAT,          "float"      },
     { Type::STRING,         "string"     },
     { Type::BOOLEAN,        "bool"       },
+    { Type::OBJECT,         "object"     },
     { Type::NULL_TYPE,      "null"       },
-    { Type::UNDEFINED_TYPE, "undeffined" },
+    { Type::UNDEFINED_TYPE, "undefined"  },
 };
 
 inline static std::string TypeToString(Symbols::Variables::Type type) {

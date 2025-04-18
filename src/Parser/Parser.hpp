@@ -209,6 +209,8 @@ class Parser {
     void parseReturnStatement();
     // Parse an if-else conditional statement
     void parseIfStatement();
+    // Parse a for-in loop over object members
+    void parseForStatement();
     // Parse a statement node for use inside blocks (not added to operation container)
     std::unique_ptr<Interpreter::StatementNode> parseStatementNode();
 
