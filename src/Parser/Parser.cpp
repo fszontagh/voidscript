@@ -4,6 +4,13 @@
 
 #include "Interpreter/OperationsFactory.hpp"
 #include "Lexer/Operators.hpp"
+// Statements and expression building for conditional and block parsing
+#include "Interpreter/ConditionalStatementNode.hpp"
+#include "Interpreter/CallStatementNode.hpp"
+#include "Interpreter/DeclareVariableStatementNode.hpp"
+#include "Interpreter/ReturnStatementNode.hpp"
+#include "Symbols/SymbolContainer.hpp"
+#include "Interpreter/ExpressionBuilder.hpp"
 
 // Additional necessary includes, if needed
 namespace Parser {
@@ -56,6 +63,96 @@ void Parser::parseVariableDefinition() {
     Interpreter::OperationsFactory::defineVariableWithExpression(
         var_name, var_type, std::move(expr), ns, current_filename_, id_token.line_number, id_token.column_number);
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+}
+
+// Parse an if-else conditional statement
+void Parser::parseIfStatement() {
+    // 'if'
+    auto ifToken = expect(Lexer::Tokens::Type::KEYWORD, "if");
+    expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+    auto condExpr = parseParsedExpression(Symbols::Variables::Type::BOOLEAN);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+    expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+    // then branch
+    std::vector<std::unique_ptr<Interpreter::StatementNode>> thenBranch;
+    while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+        thenBranch.push_back(parseStatementNode());
+    }
+    expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+    // else branch
+    std::vector<std::unique_ptr<Interpreter::StatementNode>> elseBranch;
+    if (match(Lexer::Tokens::Type::KEYWORD, "else")) {
+        expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+        while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+            elseBranch.push_back(parseStatementNode());
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+    }
+    // build condition node
+    auto condNode = buildExpressionFromParsed(condExpr);
+    auto stmt = std::make_unique<Interpreter::ConditionalStatementNode>(
+        std::move(condNode), std::move(thenBranch), std::move(elseBranch),
+        this->current_filename_, ifToken.line_number, ifToken.column_number);
+    // add conditional operation
+    Operations::Container::instance()->add(
+        Symbols::SymbolContainer::instance()->currentScopeName(),
+        Operations::Operation{Operations::Type::Conditional, "", std::move(stmt)});
+}
+
+// Parse a single statement and return its StatementNode (for use in blocks)
+std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
+    // Return statement
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_RETURN) {
+        auto tok = expect(Lexer::Tokens::Type::KEYWORD_RETURN);
+        ParsedExpressionPtr expr = nullptr;
+        if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ";")) {
+            expr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        auto exprNode = expr ? buildExpressionFromParsed(expr) : nullptr;
+        return std::make_unique<Interpreter::ReturnStatementNode>(
+            std::move(exprNode), this->current_filename_, tok.line_number, tok.column_number);
+    }
+    // Function call statement
+    if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
+        peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
+        auto idTok = expect(Lexer::Tokens::Type::IDENTIFIER);
+        std::string funcName = idTok.value;
+        expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+        std::vector<ParsedExpressionPtr> args;
+        if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
+            while (true) {
+                args.push_back(parseParsedExpression(Symbols::Variables::Type::NULL_TYPE));
+                if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) continue;
+                break;
+            }
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        std::vector<std::unique_ptr<Interpreter::ExpressionNode>> exprs;
+        exprs.reserve(args.size());
+        for (auto &p : args) {
+            exprs.push_back(buildExpressionFromParsed(p));
+        }
+        return std::make_unique<Interpreter::CallStatementNode>(
+            funcName, std::move(exprs), this->current_filename_, idTok.line_number, idTok.column_number);
+    }
+    // Variable declaration
+    if (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) {
+        auto type = parseType();
+        auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        std::string name = idTok.value;
+        if (!name.empty() && name[0] == '$') name = name.substr(1);
+        expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
+        auto valExpr = parseParsedExpression(type);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        auto exprNode = buildExpressionFromParsed(valExpr);
+        return std::make_unique<Interpreter::DeclareVariableStatementNode>(
+            name, Symbols::SymbolContainer::instance()->currentScopeName(), type,
+            std::move(exprNode), this->current_filename_, idTok.line_number, idTok.column_number);
+    }
+    reportError("Unexpected token in block");
+    return nullptr;
 }
 
 void Parser::parseFunctionDefinition() {

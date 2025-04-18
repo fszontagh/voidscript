@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "BaseException.hpp"
+#include "Interpreter/StatementNode.hpp"
 #include "Lexer/Token.hpp"
 #include "Lexer/TokenType.hpp"
 #include "Parser/ParsedExpression.hpp"
@@ -169,6 +170,11 @@ class Parser {
     // parseStatement (updated to handle return)
     void parseStatement() {
         const auto & token_type = currentToken().type;
+        // if-else conditional
+        if (token_type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "if") {
+            parseIfStatement();
+            return;
+        }
 
         if (token_type == Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION) {
             parseFunctionDefinition();
@@ -201,6 +207,10 @@ class Parser {
     void parseCallStatement();
     // Parse a return statement (e.g., return; or return expr;)
     void parseReturnStatement();
+    // Parse an if-else conditional statement
+    void parseIfStatement();
+    // Parse a statement node for use inside blocks (not added to operation container)
+    std::unique_ptr<Interpreter::StatementNode> parseStatementNode();
 
     // --- Parsing helper functions ---
 

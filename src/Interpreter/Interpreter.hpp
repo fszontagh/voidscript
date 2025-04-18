@@ -65,6 +65,12 @@ class Interpreter {
                     op.statement->interpret(*this);
                 }
                 break;
+            case Operations::Type::Conditional:
+                // if-else conditional block
+                if (op.statement) {
+                    op.statement->interpret(*this);
+                }
+                break;
             case Operations::Type::Return:
             case Operations::Type::Loop:
             case Operations::Type::Break:
@@ -72,7 +78,6 @@ class Interpreter {
             case Operations::Type::Block:
             case Operations::Type::Import:
             case Operations::Type::Error:
-            case Operations::Type::Conditional:
                 // TODO: implement these operations later
                 break;
             default:

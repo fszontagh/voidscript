@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.hpp"
 #include "Modules/PrintNlModule.hpp"
 #include "Modules/PrintModule.hpp"
+#include "Modules/TypeofModule.hpp"
 #include "Parser/Parser.hpp"
 
 class VoidScript {
@@ -54,6 +55,8 @@ class VoidScript {
         // Register built-in modules (print, etc.)
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintNlModule>());
+        // typeof() builtin
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::TypeofModule>());
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);

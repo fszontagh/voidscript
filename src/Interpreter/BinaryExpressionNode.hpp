@@ -94,7 +94,12 @@ class BinaryExpressionNode : public ExpressionNode {
             if (op_ == "+") {
                 return Symbols::Value(l + r);
             }
-
+            if (op_ == "==") {
+                return Symbols::Value(l == r);
+            }
+            if (op_ == "!=") {
+                return Symbols::Value(l != r);
+            }
             throw std::runtime_error("Unknown operator: " + op_);
         }
 
