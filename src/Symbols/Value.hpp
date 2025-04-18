@@ -2,12 +2,11 @@
 #define SYMBOL_VALUE_HPP
 
 #include <algorithm>
-#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <variant>
 
-#include "Symbols/VariableTypes.hpp"
+#include "VariableTypes.hpp"
 
 namespace Symbols {
 

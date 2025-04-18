@@ -6,6 +6,7 @@
 
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 namespace Interpreter {
 
@@ -38,7 +39,13 @@ class Interpreter {
                     break;
                 }
 
-            case Operations::Type::FunctionCall:
+            case Operations::Type::FunctionCall: {
+                // Check that the called function is defined in the symbol table
+                if (!Symbols::SymbolContainer::instance()->exists(op.targetName)) {
+                    throw std::runtime_error("Function not declared: " + op.targetName);
+                }
+                break;
+            }
             case Operations::Type::Return:
             case Operations::Type::Loop:
             case Operations::Type::Break:
@@ -47,7 +54,7 @@ class Interpreter {
             case Operations::Type::Import:
             case Operations::Type::Error:
             case Operations::Type::Conditional:
-                // TODO: implementálható később
+                // TODO: implement these operations later
                 break;
             default:
                 throw std::runtime_error("Not implemented operation type");

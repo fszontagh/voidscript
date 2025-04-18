@@ -52,6 +52,25 @@ class OperationsFactory {
                                               Operations::Container::instance()->add(
                                                   ns, Operations::Operation{Operations::Type::Declaration, varName, std::move(stmt)});
                                           }
+    
+    /**
+     * @brief Record a function call operation for later detection.
+     * @param functionName Name of the function being called.
+     * @param ns Current namespace scope.
+     * @param fileName Source filename.
+     * @param line Line number of call.
+     * @param column Column number of call.
+     */
+    static void callFunction(const std::string & functionName,
+                             const std::string & ns,
+                             const std::string & fileName,
+                             int line,
+                             size_t column) {
+        // No associated StatementNode; this is for detection only
+        Operations::Container::instance()->add(
+            ns,
+            Operations::Operation{Operations::Type::FunctionCall, functionName, nullptr});
+    }
 };
 
 }  // namespace Interpreter

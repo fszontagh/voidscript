@@ -62,7 +62,7 @@ class Parser {
             // Technically we should never reach this if parseScript's loop is correct
             // But it's useful as a safety check
             if (!tokens_.empty() && tokens_.back().type == Lexer::Tokens::Type::END_OF_FILE) {
-            return tokens_.back();  // return the EOF token
+                return tokens_.back();  // return the EOF token
             }
             throw std::runtime_error("Unexpected end of token stream reached.");
         }
@@ -152,13 +152,18 @@ class Parser {
                (current_token_index_ == tokens_.size() - 1 && tokens_.back().type == Lexer::Tokens::Type::END_OF_FILE);
     }
 
-    [[noreturn]] void reportError(const std::string & message, const std::string& expected = "") {
+    [[noreturn]] void reportError(const std::string & message, const std::string & expected = "") {
         if (current_token_index_ < tokens_.size()) {
             throw Exception(message, expected, tokens_[current_token_index_]);
         }
         int line = tokens_.empty() ? 0 : tokens_.back().line_number;
         int col  = tokens_.empty() ? 0 : tokens_.back().column_number;
         throw Exception(message, expected, line, col);
+    }
+
+    [[noreturn]] static void reportError(const std::string & message, const Lexer::Tokens::Token & token,
+                                         const std::string & expected = "") {
+        throw Exception(message, expected, token);
     }
 
     // parseStatement (unchanged)
@@ -175,12 +180,20 @@ class Parser {
             parseVariableDefinition();
             return;
         }
+        // Function call if identifier followed by '('
+        if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
+            peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
+            parseCallStatement();
+            return;
+        }
 
         reportError("Unexpected token at beginning of statement");
     }
 
     void parseVariableDefinition();
     void parseFunctionDefinition();
+    // Parse a top-level function call statement (e.g., foo(arg1, arg2);)
+    void parseCallStatement();
 
     // --- Parsing helper functions ---
 
@@ -189,7 +202,7 @@ class Parser {
     Symbols::Variables::Type parseType() {
         const auto & token = currentToken();
         // Direct lookup for type keyword
-        auto it = Parser::variable_types.find(token.type);
+        auto         it    = Parser::variable_types.find(token.type);
         if (it != Parser::variable_types.end()) {
             consumeToken();
             return it->second;
@@ -201,7 +214,7 @@ class Parser {
         Lexer::Tokens::Token token       = currentToken();
         bool                 is_negative = false;
 
-    // Handle unary sign
+        // Handle unary sign
         if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC && (token.lexeme == "-" || token.lexeme == "+") &&
             peekToken().type == Lexer::Tokens::Type::NUMBER) {
             is_negative = (token.lexeme == "-");

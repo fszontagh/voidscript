@@ -1,4 +1,5 @@
 #include "Parser/Parser.hpp"
+
 #include <stack>
 
 #include "Interpreter/OperationsFactory.hpp"
@@ -108,6 +109,34 @@ void Parser::parseFunctionDefinition() {
     parseFunctionBody(opening_brace, func_name, func_return_type, param_infos);
 }
 
+// Parse a top-level function call, e.g., foo(arg1, arg2);
+void Parser::parseCallStatement() {
+    // Function name
+    auto        id_token  = expect(Lexer::Tokens::Type::IDENTIFIER);
+    std::string func_name = id_token.value;
+    // Opening parenthesis
+    expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+    // Parse comma-separated argument expressions
+    std::vector<ParsedExpressionPtr> args;
+    if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
+        while (true) {
+            // Parse expression with no expected type
+            auto expr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+            args.push_back(std::move(expr));
+            if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                continue;
+            }
+            break;
+        }
+    }
+    // Closing parenthesis and semicolon
+    expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+    // Record the function call operation
+    Interpreter::OperationsFactory::callFunction(func_name, Symbols::SymbolContainer::instance()->currentScopeName(),
+                                                 this->current_filename_, id_token.line_number, id_token.column_number);
+}
+
 Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type) {
     try {
         switch (type) {
@@ -175,7 +204,7 @@ void Parser::parseFunctionBody(const Lexer::Tokens::Token & opening_brace, const
     if (startIt != tokens_.end() && endIt != tokens_.end() && startIt < endIt) {
         filtered_tokens = std::vector<Lexer::Tokens::Token>(startIt + 1, endIt);
     }
-    auto len = closing_brace.start_pos - opening_brace.end_pos;
+    auto             len          = closing_brace.start_pos - opening_brace.end_pos;
     std::string_view input_string = input_str_view_.substr(opening_brace.end_pos, len);
 
     current_token_index_ = tokenIndex;
@@ -210,7 +239,23 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             consumeToken();
             expect_unary = true;
         } else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == ")") {
+            // Only handle grouping parentheses if a matching "(" exists on the operator stack
+            std::stack<std::string> temp_stack = operator_stack;
+            bool has_paren = false;
+            while (!temp_stack.empty()) {
+                if (temp_stack.top() == "(") {
+                    has_paren = true;
+                    break;
+                }
+                temp_stack.pop();
+            }
+            if (!has_paren) {
+                // End of this expression context; do not consume call-closing parenthesis here
+                break;
+            }
+            // Consume the grouping closing parenthesis
             consumeToken();
+            // Unwind operators until the matching "(" is found
             while (!operator_stack.empty() && operator_stack.top() != "(") {
                 std::string op = operator_stack.top();
                 operator_stack.pop();
@@ -233,11 +278,11 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
                 }
             }
-
             if (operator_stack.empty() || operator_stack.top() != "(") {
-                reportError("Mismatched parentheses");
+                Parser::reportError("Mismatched parentheses", token);
             }
-            operator_stack.pop();  // remove "("
+            // Pop the matching "("
+            operator_stack.pop();
             expect_unary = false;
         } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC) {
             std::string op = std::string(token.lexeme);
@@ -254,14 +299,14 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
 
                     if (top == "u-" || top == "u+") {
                         if (output_queue.empty()) {
-                            reportError("Missing operand for unary operator");
+                            Parser::reportError("Missing operand for unary operator", token);
                         }
                         auto rhs = std::move(output_queue.back());
                         output_queue.pop_back();
                         output_queue.push_back(Lexer::applyOperator(top, std::move(rhs)));
                     } else {
                         if (output_queue.size() < 2) {
-                            reportError("Malformed expression");
+                            Parser::reportError("Malformed expression", token);
                         }
                         auto rhs = std::move(output_queue.back());
                         output_queue.pop_back();
@@ -281,7 +326,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                    token.type == Lexer::Tokens::Type::KEYWORD ||
                    token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
             if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
-                reportError("Expected literal or variable");
+                Parser::reportError("Invalid type", token, "literal or variable");
             }
             consumeToken();
             expect_unary = false;
@@ -296,12 +341,13 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         operator_stack.pop();
 
         if (op == "(" || op == ")") {
-            reportError("Mismatched parentheses");
+            Parser::reportError("Mismatched parentheses", tokens_[current_token_index_]);
         }
 
         if (op == "u-" || op == "u+") {
             if (output_queue.empty()) {
                 reportError("Missing operand for unary operator");
+                Parser::reportError("Invalid type", tokens_[current_token_index_], "literal or variable");
             }
             auto rhs = std::move(output_queue.back());
             output_queue.pop_back();
@@ -309,6 +355,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         } else {
             if (output_queue.size() < 2) {
                 reportError("Malformed expression");
+                Parser::reportError("Mailformed expression", tokens_[current_token_index_]);
             }
             auto rhs = std::move(output_queue.back());
             output_queue.pop_back();

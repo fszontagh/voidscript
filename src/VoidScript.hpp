@@ -54,13 +54,6 @@ class VoidScript {
 
                 this->lexer->addNamespaceInput(ns, file_content);
                 const auto tokens = this->lexer->tokenizeNamespace(ns);
-                // dump tokens
-                std::cout << "--- Tokens ---\n";
-                for (const auto & token : tokens) {
-                    token.print();
-                }
-
-                std::cout << Operations::Container::dump() << "\n";
 
                 parser->parseScript(tokens, file_content, file);
 

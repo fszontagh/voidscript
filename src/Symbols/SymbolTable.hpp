@@ -2,7 +2,7 @@
 #define SYMBOL_TABLE_HPP
 
 #include <vector>
-
+#include <string>
 #include "SymbolTypes.hpp"
 
 namespace Symbols {
@@ -45,7 +45,7 @@ class SymbolTable {
     std::vector<SymbolPtr> listAll(const std::string & prefix = "") const {
         std::vector<SymbolPtr> result;
         for (const auto & [ns, map] : symbols_) {
-            if (prefix.empty() || ns.starts_with(prefix)) {
+            if (prefix.empty() || ns.substr(0,prefix.length()) == prefix) {
                 for (const auto & [_, sym] : map) {
                     result.push_back(sym);
                 }

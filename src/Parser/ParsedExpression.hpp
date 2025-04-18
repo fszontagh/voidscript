@@ -4,8 +4,8 @@
 #include <memory>
 #include <string>
 
-#include "Symbols/SymbolContainer.hpp"
-#include "Symbols/Value.hpp"
+#include "../Symbols/SymbolContainer.hpp"
+#include "../Symbols/Value.hpp"
 
 namespace Parser {
 

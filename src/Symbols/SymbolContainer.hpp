@@ -1,6 +1,7 @@
 #ifndef SYMBOL_CONTAINER_HPP
 #define SYMBOL_CONTAINER_HPP
 
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <unordered_map>
@@ -33,7 +34,8 @@ class SymbolContainer {
     }
 
     void enter(const std::string & name) {
-        if (scopes_.contains(name)) {
+        auto it = scopes_.find(name);
+        if (it != scopes_.end()) {
             previousScope_ = currentScope_;
             currentScope_  = name;
         } else {
@@ -104,7 +106,7 @@ class SymbolContainer {
     }
 
     static std::string dump() {
-        std::string result = "";
+        std::string result;
 
         std::cout << "\n--- Defined Scopes ---" << '\n';
         for (const auto & scope_name : instance()->getScopeNames()) {

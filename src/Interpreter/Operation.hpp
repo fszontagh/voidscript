@@ -6,7 +6,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "Interpreter/StatementNode.hpp"
+#include "StatementNode.hpp"
 
 namespace Operations {
 enum class Type : std::uint8_t {
@@ -62,8 +62,9 @@ struct Operation {
     }
 
     std::string toString() const {
-        return "Target: " + targetName + " Type: " + this->typeToString() + " Statement: " + statement->toString();
-     }
+        return "Target: " + targetName + " Type: " + this->typeToString() +
+               " Statement: " + ((statement == nullptr) ? "no statement" : statement->toString());
+    }
 };
 };  // namespace Operations
 #endif
