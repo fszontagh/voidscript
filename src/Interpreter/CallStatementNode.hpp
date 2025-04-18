@@ -13,6 +13,7 @@
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 #include "Symbols/Value.hpp"
+#include "Modules/ModuleManager.hpp"
 
 namespace Interpreter {
 
@@ -39,6 +40,14 @@ class CallStatementNode : public StatementNode {
             argValues.push_back(expr->evaluate(interpreter));
         }
 
+        // Handle built-in function callbacks
+        {
+            auto &mgr = Modules::ModuleManager::instance();
+            if (mgr.hasFunction(functionName_)) {
+                mgr.callFunction(functionName_, argValues);
+                return;
+            }
+        }
         // Lookup function symbol in functions namespace
         SymbolContainer * sc        = SymbolContainer::instance();
         const std::string currentNs = sc->currentScopeName();

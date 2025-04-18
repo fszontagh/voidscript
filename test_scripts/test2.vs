@@ -8,5 +8,9 @@ function test = (int $i) {
     int $result = $i + 1;
 }
 
+function increment = (int $i) int {
+    return $i + 1;
+}
 
-test(5);
+
+test(1);

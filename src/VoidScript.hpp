@@ -7,6 +7,8 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
 #include "Parser/Parser.hpp"
+#include "Modules/ModuleManager.hpp"
+#include "Modules/PrintModule.hpp"
 
 class VoidScript {
   private:
@@ -33,6 +35,8 @@ class VoidScript {
 
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
+        // Register built-in modules (print, etc.)
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
@@ -40,6 +44,8 @@ class VoidScript {
 
     int run() {
         try {
+            // Register all built-in modules before execution
+            Modules::ModuleManager::instance().registerAll();
             while (!files.empty()) {
                 std::string       file         = files.back();
                 const std::string file_content = readFile(file);
