@@ -83,7 +83,9 @@ void Parser::parseIfStatement() {
     // 'if'
     auto ifToken = expect(Lexer::Tokens::Type::KEYWORD, "if");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
-    auto condExpr = parseParsedExpression(Symbols::Variables::Type::BOOLEAN);
+    // Parse the condition expression without restricting literal types,
+    // dynamic evaluation will enforce boolean type at runtime
+    auto condExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
     expect(Lexer::Tokens::Type::PUNCTUATION, "{");
     // then branch

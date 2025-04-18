@@ -27,3 +27,10 @@ printnl("Person name: ", $person_name);
 printnl("Child1 old age: ",$person2->children->age);
 $person2->children->age = $person2->children->age + 2;
 printnl("Child1 new age: ",$person2->children->age);
+
+int $age = 10;
+if ($person2->children->age > 18) {
+    printnl("Child1 is old enough to go to school.");
+} else {
+    printnl("Child1 is too young to go to school.");
+}
