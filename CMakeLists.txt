@@ -112,6 +112,11 @@ include(GNUInstallDirs)
 configure_file("cmake/options.h.in" "include/options.h" @ONLY)
 configure_file("test_scripts/test1.vs" "test_scripts/test1.vs" @ONLY)
 configure_file("test_scripts/test2.vs" "test_scripts/test2.vs" @ONLY)
+configure_file("test_scripts/test2.vs" "test_scripts/test2.vs" @ONLY)
+configure_file("test_scripts/function_test.vs" "test_scripts/function_test.vs" @ONLY)
+
+
+
 
 include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src)
 
