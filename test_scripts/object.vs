@@ -34,3 +34,12 @@ if ($person2->children->age > 18) {
 } else {
     printnl("Child1 is too young to go to school.");
 }
+
+for (string $key, auto $value : $person2) {
+
+    if (typeof($value,"object") == false) {
+        printnl("Key: ", $key, " Value: ", $value);
+    }else {
+        printnl("Key: ", $key, " is an object");
+    }
+}

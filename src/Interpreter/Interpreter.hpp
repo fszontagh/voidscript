@@ -72,7 +72,17 @@ class Interpreter {
                 }
                 break;
             case Operations::Type::Return:
+                // return statement
+                if (op.statement) {
+                    op.statement->interpret(*this);
+                }
+                break;
             case Operations::Type::Loop:
+                // for-in or while loop
+                if (op.statement) {
+                    op.statement->interpret(*this);
+                }
+                break;
             case Operations::Type::Break:
             case Operations::Type::Continue:
             case Operations::Type::Block:
