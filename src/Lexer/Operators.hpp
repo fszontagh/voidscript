@@ -57,18 +57,27 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
 
 [[nodiscard]] inline bool pushOperand(const Tokens::Token & token, const Symbols::Variables::Type & expected_var_type,
                                       std::vector<Parser::ParsedExpressionPtr> & output_queue) {
-    if (token.type == Tokens::Type::NUMBER || token.type == Tokens::Type::STRING_LITERAL ||
-        token.type == Tokens::Type::KEYWORD) {
-        // Parse literal: use expected type if provided, otherwise auto-detect
-        if (expected_var_type == Symbols::Variables::Type::NULL_TYPE) {
-            output_queue.push_back(
-                Parser::ParsedExpression::makeLiteral(
-                    Symbols::Value::fromString(token.value, /*autoDetectType*/ true)));
-        } else {
-            output_queue.push_back(
-                Parser::ParsedExpression::makeLiteral(
-                    Symbols::Value::fromString(token.value, expected_var_type)));
-        }
+    // Literal operands: number, string, or keyword literals (e.g., true/false/null)
+    if (token.type == Tokens::Type::NUMBER) {
+        // Numeric literal: auto-detect integer/double/float
+        output_queue.push_back(
+            Parser::ParsedExpression::makeLiteral(
+                Symbols::Value::fromString(token.value, /*autoDetectType*/ true)));
+        return true;
+    }
+    if (token.type == Tokens::Type::STRING_LITERAL) {
+        // String literal: use literal value
+        output_queue.push_back(
+            Parser::ParsedExpression::makeLiteral(
+                Symbols::Value(token.value)));
+        return true;
+    }
+    if (token.type == Tokens::Type::KEYWORD) {
+        // Keyword literal: e.g., true, false, null
+        // Auto-detect boolean or null as needed
+        output_queue.push_back(
+            Parser::ParsedExpression::makeLiteral(
+                Symbols::Value::fromString(token.value, /*autoDetectType*/ true)));
         return true;
     }
     if (token.type == Tokens::Type::VARIABLE_IDENTIFIER) {

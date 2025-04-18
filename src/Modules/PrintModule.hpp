@@ -20,7 +20,6 @@ class PrintModule : public BaseModule {
             for (const auto &v : args) {
                 std::cout << Symbols::Value::to_string(v);
             }
-            std::cout << std::endl;
             return Symbols::Value();
         });
     }

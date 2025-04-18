@@ -110,10 +110,8 @@ include(GNUInstallDirs)
 # PACKAGING PROPERTIES END
 
 configure_file("cmake/options.h.in" "include/options.h" @ONLY)
-configure_file("test_scripts/test1.vs" "test_scripts/test1.vs" @ONLY)
-configure_file("test_scripts/test2.vs" "test_scripts/test2.vs" @ONLY)
-configure_file("test_scripts/test2.vs" "test_scripts/test2.vs" @ONLY)
-configure_file("test_scripts/function_test.vs" "test_scripts/function_test.vs" @ONLY)
+    configure_file("test_scripts/variables.vs" "test_scripts/variables.vs" @ONLY)
+    configure_file("test_scripts/expressions.vs" "test_scripts/expressions.vs" @ONLY)
 
 
 
@@ -155,6 +153,13 @@ if (NEED_CLI)
     set(CPACK_DEBIAN_BIN_PACKAGE_SECTION "interpreters")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS ${CMAKE_BINARY_DIR})
     set(CPACK_DEBIAN_BIN_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
+endif()
+
+# Plugin modules options
+option(BUILD_MODULE_CURL "Enable building CurlModule" OFF)
+
+if (BUILD_MODULE_CURL)
+ add_subdirectory(Modules/CurlModule)
 endif()
 
 # CPACK CONFIGURATION

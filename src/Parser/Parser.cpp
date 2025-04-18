@@ -335,7 +335,9 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             // Create call expression node
             output_queue.push_back(ParsedExpression::makeCall(func_name, std::move(call_args)));
             expect_unary = false;
-        } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC) {
+        } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC
+                   || token.type == Lexer::Tokens::Type::OPERATOR_RELATIONAL
+                   || token.type == Lexer::Tokens::Type::OPERATOR_LOGICAL) {
             std::string op = std::string(token.lexeme);
 
             if (expect_unary && Lexer::isUnaryOperator(op)) {
@@ -395,18 +397,18 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             Parser::reportError("Mismatched parentheses", tokens_[current_token_index_]);
         }
 
-        if (op == "u-" || op == "u+") {
+        // Handle unary operators (plus, minus, logical NOT)
+        if (op == "u-" || op == "u+" || op == "u!") {
             if (output_queue.empty()) {
-                reportError("Missing operand for unary operator");
-                Parser::reportError("Invalid type", tokens_[current_token_index_], "literal or variable");
+                Parser::reportError("Missing operand for unary operator", tokens_[current_token_index_]);
             }
             auto rhs = std::move(output_queue.back());
             output_queue.pop_back();
             output_queue.push_back(Lexer::applyOperator(op, std::move(rhs)));
         } else {
+            // Binary operators
             if (output_queue.size() < 2) {
-                reportError("Malformed expression");
-                Parser::reportError("Mailformed expression", tokens_[current_token_index_]);
+                Parser::reportError("Malformed expression", tokens_[current_token_index_]);
             }
             auto rhs = std::move(output_queue.back());
             output_queue.pop_back();

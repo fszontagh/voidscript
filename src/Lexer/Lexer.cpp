@@ -218,8 +218,29 @@ Lexer::Tokens::Token Lexer::Lexer::matchStringLiteral(size_t start_pos) {
                 case 't':
                     value += '\t';
                     break;
+                case 'r':
+                    value += '\r';
+                    break;
+                case 'b':
+                    value += '\b';
+                    break;
+                case 'f':
+                    value += '\f';
+                    break;
+                case 'v':
+                    value += '\v';
+                    break;
+                case 'a':
+                    value += '\a';
+                    break;
+                case '0':
+                    value += '\0';
+                    break;
                 case '"':
-                    value += opening_quote;
+                    value += '"';
+                    break;
+                case '\'':
+                    value += '\'';
                     break;
                 case '\\':
                     value += '\\';
@@ -271,8 +292,10 @@ Lexer::Tokens::Token Lexer::Lexer::matchOperatorOrPunctuation(size_t start_pos) 
         }
     }
 
+    // Single-character operator or punctuation tokens
     const std::vector<std::pair<const std::vector<std::string> *, Tokens::Type>> one_char_op_types = {
         { &OPERATOR_ARITHMETIC, Tokens::Type::OPERATOR_ARITHMETIC },
+        { &OPERATOR_RELATIONAL, Tokens::Type::OPERATOR_RELATIONAL },
         { &OPERATOR_ASSIGNMENT, Tokens::Type::OPERATOR_ASSIGNMENT },
         { &PUNCTUATION,         Tokens::Type::PUNCTUATION         }
     };

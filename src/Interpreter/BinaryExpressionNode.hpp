@@ -23,6 +23,26 @@ class BinaryExpressionNode : public ExpressionNode {
                 "Unsupported types in binary expression: " + Symbols::Variables::TypeToString(leftVal.getType()) +
                 " and " + Symbols::Variables::TypeToString(rightVal.getType()) + " " + toString());
         }
+        if (leftVal.getType() == Symbols::Variables::Type::BOOLEAN &&
+            rightVal.getType() == Symbols::Variables::Type::BOOLEAN) {
+            bool l = leftVal.get<bool>();
+            bool r = rightVal.get<bool>();
+
+            if (op_ == "&&") {
+                return Symbols::Value(l && r);
+            }
+            if (op_ == "||") {
+                return Symbols::Value(l || r);
+            }
+            if (op_ == "==") {
+                return Symbols::Value(l == r);
+            }
+            if (op_ == "!=") {
+                return Symbols::Value(l != r);
+            }
+
+            throw std::runtime_error("Unknown operator: " + op_);
+        }
 
         if (leftVal.getType() == Symbols::Variables::Type::INTEGER &&
             rightVal.getType() == Symbols::Variables::Type::INTEGER) {
@@ -40,6 +60,27 @@ class BinaryExpressionNode : public ExpressionNode {
             }
             if (op_ == "/") {
                 return Symbols::Value(l / r);  // TODO: 0 div
+            }
+            if (op_ == "%") {
+                return Symbols::Value(l % r);
+            }
+            if (op_ == "==") {
+                return Symbols::Value(l == r);
+            }
+            if (op_ == "!=") {
+                return Symbols::Value(l != r);
+            }
+            if (op_ == "<") {
+                return Symbols::Value(l < r);
+            }
+            if (op_ == ">") {
+                return Symbols::Value(l > r);
+            }
+            if (op_ == "<=") {
+                return Symbols::Value(l <= r);
+            }
+            if (op_ == ">=") {
+                return Symbols::Value(l >= r);
             }
 
             throw std::runtime_error("Unknown operator: " + op_);

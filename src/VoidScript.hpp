@@ -6,12 +6,18 @@
 
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
-#include "Parser/Parser.hpp"
 #include "Modules/ModuleManager.hpp"
+#include "Modules/PrintNlModule.hpp"
 #include "Modules/PrintModule.hpp"
+#include "Parser/Parser.hpp"
 
 class VoidScript {
   private:
+    // Debug flags for various components
+    bool                            debugLexer_       = false;
+    bool                            debugParser_      = false;
+    bool                            debugInterpreter_ = false;
+    bool                            debugSymbolTable_ = false;
     std::vector<std::string>        files;
     std::shared_ptr<Lexer::Lexer>   lexer  = nullptr;
     std::shared_ptr<Parser::Parser> parser = nullptr;
@@ -31,12 +37,23 @@ class VoidScript {
     }
 
   public:
-    VoidScript(const std::string & file) :
-
+    /**
+     * @param file               initial script file
+     * @param debugLexer         enable lexer debug output
+     * @param debugParser        enable parser debug output
+     * @param debugInterpreter   enable interpreter debug output
+     */
+    VoidScript(const std::string & file, bool debugLexer = false, bool debugParser = false,
+               bool debugInterpreter = false, bool debugSymbolTable = false) :
+        debugLexer_(debugLexer),
+        debugParser_(debugParser),
+        debugInterpreter_(debugInterpreter),
+        debugSymbolTable_(debugSymbolTable),
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
         // Register built-in modules (print, etc.)
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintNlModule>());
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
@@ -44,7 +61,10 @@ class VoidScript {
 
     int run() {
         try {
-            // Register all built-in modules before execution
+            // Load plugin modules from 'modules' directory (case-insensitive)
+            Modules::ModuleManager::instance().loadPlugins("modules");
+            Modules::ModuleManager::instance().loadPlugins("Modules");
+            // Register all built-in and plugin modules before execution
             Modules::ModuleManager::instance().registerAll();
             while (!files.empty()) {
                 std::string       file         = files.back();
@@ -60,18 +80,32 @@ class VoidScript {
 
                 this->lexer->addNamespaceInput(ns, file_content);
                 const auto tokens = this->lexer->tokenizeNamespace(ns);
+                if (debugLexer_) {
+                    std::cerr << "[Debug][Lexer] Tokens for namespace '" << ns << "':\n";
+                    for (const auto & tok : tokens) {
+                        std::cerr << tok.dump();
+                    }
+                }
 
                 parser->parseScript(tokens, file_content, file);
+                if (debugParser_) {
+                    std::cerr << "[Debug][Parser] Operations for namespace '" << ns << "':\n";
+                    for (const auto & op : Operations::Container::instance()->getAll(ns)) {
+                        std::cerr << op->toString() << "\n";
+                    }
+                }
 
-                Interpreter::Interpreter interpreter;
+                // Execute interpreter with optional debug output
+                Interpreter::Interpreter interpreter(debugInterpreter_);
                 interpreter.run();
-
-                std::cout << Symbols::SymbolContainer::dump() << "\n";
+                if (debugSymbolTable_) {
+                    std::cout << Symbols::SymbolContainer::dump() << "\n";
+                }
             }  // while (!files.empty())
 
             return 0;
         } catch (const std::exception & e) {
-            std::cerr  << e.what() << '\n';
+            std::cerr << e.what() << '\n';
             return 1;
         }
         return 1;

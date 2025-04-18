@@ -12,10 +12,13 @@ namespace Interpreter {
 
 class Interpreter {
   private:
-
-
+    bool debug_ = false;
   public:
-    Interpreter() {}
+    /**
+     * @brief Construct interpreter with optional debug output
+     * @param debug enable interpreter debug output
+     */
+    Interpreter(bool debug = false) : debug_(debug) {}
 
     /**
      * @brief Execute all operations in the current namespace (e.g., file-level or function-level).
@@ -29,7 +32,9 @@ class Interpreter {
     }
 
     void runOperation(const Operations::Operation & op) {
-        std::cout << "Operation: " << op.toString() << "\n";
+        if (debug_) {
+            std::cerr << "[Debug][Interpreter] Operation: " << op.toString() << "\n";
+        }
 
         switch (op.type) {
             case Operations::Type::Declaration:
