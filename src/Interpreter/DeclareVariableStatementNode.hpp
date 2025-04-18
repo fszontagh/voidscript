@@ -31,13 +31,25 @@ class DeclareVariableStatementNode : public StatementNode {
         ns(ns) {}
 
     void interpret(Interpreter & interpreter) const override {
+        // Evaluate the expression and enforce declared type matches actual value type
         Symbols::Value value = expression_->evaluate(interpreter);
+        // Check for duplicate declaration
         if (Symbols::SymbolContainer::instance()->exists(variableName_)) {
             throw std::runtime_error("Variable already declared: " + variableName_ + " File: " + filename_ +
                                      ", Line: " + std::to_string(line_) + ", Column: " + std::to_string(column_));
         }
+        // Enforce type correctness: the evaluated value must match the declared type
+        if (value.getType() != variableType_) {
+            using namespace Symbols::Variables;
+            std::string expected = TypeToString(variableType_);
+            std::string actual   = TypeToString(value.getType());
+            throw std::runtime_error("Type mismatch for variable '" + variableName_ +
+                                     "': expected '" + expected + "' but got '" + actual +
+                                     "' File: " + filename_ + ", Line: " + std::to_string(line_) +
+                                     ", Column: " + std::to_string(column_));
+        }
+        // Create and add the variable symbol
         const auto variable = Symbols::SymbolFactory::createVariable(variableName_, value, ns, variableType_);
-
         Symbols::SymbolContainer::instance()->add(variable);
     }
 

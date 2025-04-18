@@ -24,6 +24,9 @@ bool isUnaryOperator(const std::string & op);
 bool isBinaryOperator(const std::string & op);
 
 inline int getPrecedence(const std::string & op) {
+    if (op == "->") {
+        return 5;  // Member access has highest precedence
+    }
     if (op == "u-" || op == "u+" || op == "u!") {
         return 4;
     }
@@ -59,25 +62,36 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
                                       std::vector<Parser::ParsedExpressionPtr> & output_queue) {
     // Literal operands: number, string, or keyword literals (e.g., true/false/null)
     if (token.type == Tokens::Type::NUMBER) {
-        // Numeric literal: auto-detect integer/double/float
-        output_queue.push_back(
-            Parser::ParsedExpression::makeLiteral(
-                Symbols::Value::fromString(token.value, /*autoDetectType*/ true)));
+        // Numeric literal: only allowed if expected is numeric or unspecified
+        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE &&
+            expected_var_type != Symbols::Variables::Type::INTEGER &&
+            expected_var_type != Symbols::Variables::Type::DOUBLE &&
+            expected_var_type != Symbols::Variables::Type::FLOAT) {
+            return false;
+        }
+        // Auto-detect or cast to expected numeric type
+        auto val = Symbols::Value::fromString(token.value, /*autoDetectType*/ true);
+        output_queue.push_back(Parser::ParsedExpression::makeLiteral(val));
         return true;
     }
     if (token.type == Tokens::Type::STRING_LITERAL) {
-        // String literal: use literal value
-        output_queue.push_back(
-            Parser::ParsedExpression::makeLiteral(
-                Symbols::Value(token.value)));
+        // String literal: only allowed if expected is string or unspecified
+        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE &&
+            expected_var_type != Symbols::Variables::Type::STRING) {
+            return false;
+        }
+        output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::Value(token.value)));
         return true;
     }
     if (token.type == Tokens::Type::KEYWORD) {
         // Keyword literal: e.g., true, false, null
-        // Auto-detect boolean or null as needed
-        output_queue.push_back(
-            Parser::ParsedExpression::makeLiteral(
-                Symbols::Value::fromString(token.value, /*autoDetectType*/ true)));
+        auto val = Symbols::Value::fromString(token.value, /*autoDetectType*/ true);
+        auto vtype = val.getType();
+        // only allowed if expected matches or unspecified
+        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE && expected_var_type != vtype) {
+            return false;
+        }
+        output_queue.push_back(Parser::ParsedExpression::makeLiteral(val));
         return true;
     }
     if (token.type == Tokens::Type::VARIABLE_IDENTIFIER) {

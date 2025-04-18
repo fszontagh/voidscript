@@ -406,7 +406,32 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             continue;
         }
 
-        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "(") {
+        // Member access: '->'
+        else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "->") {
+            std::string op(token.lexeme);
+            // Shunting-yard: handle operator precedence
+            while (!operator_stack.empty()) {
+                const std::string & top = operator_stack.top();
+                if ((Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) <= Lexer::getPrecedence(top)) ||
+                    (!Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) < Lexer::getPrecedence(top))) {
+                    operator_stack.pop();
+                    // Binary operator: pop two operands
+                    if (output_queue.size() < 2) {
+                        Parser::reportError("Malformed expression", token);
+                    }
+                    auto rhs = std::move(output_queue.back()); output_queue.pop_back();
+                    auto lhs = std::move(output_queue.back()); output_queue.pop_back();
+                    output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
+                } else {
+                    break;
+                }
+            }
+            operator_stack.push(op);
+            consumeToken();
+            expect_unary = true;
+        }
+        // Grouping parentheses
+        else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "(") {
             operator_stack.push("(");
             consumeToken();
             expect_unary = true;
@@ -520,11 +545,18 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             operator_stack.push(op);
             consumeToken();
             expect_unary = true;
-        } else if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
-                   token.type == Lexer::Tokens::Type::KEYWORD ||
-                   token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
-            if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
-                Parser::reportError("Invalid type", token, "literal or variable");
+        } else if (token.type == Lexer::Tokens::Type::NUMBER
+                   || token.type == Lexer::Tokens::Type::STRING_LITERAL
+                   || token.type == Lexer::Tokens::Type::KEYWORD
+                   || token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER
+                   || token.type == Lexer::Tokens::Type::IDENTIFIER) {
+            if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
+                // Treat bare identifiers as variable references for member access
+                output_queue.push_back(ParsedExpression::makeVariable(token.value));
+            } else {
+                if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
+                    Parser::reportError("Invalid type", token, "literal or variable");
+                }
             }
             consumeToken();
             expect_unary = false;

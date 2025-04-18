@@ -8,7 +8,7 @@ const std::vector<std::string> OPERATOR_ASSIGNMENT = { "=", "+=", "-=", "*=", "/
 const std::vector<std::string> OPERATOR_LOGICAL    = { "&&", "||" };
 
 const std::vector<std::string> OPERATOR_ARITHMETIC = { "+", "-", "*", "/", "%", "!" };
-const std::vector<std::string> PUNCTUATION         = { "(", ")", "{", "}", "[", "]", ",", ";", ":" };
+const std::vector<std::string> PUNCTUATION         = { "(", ")", "{", "}", "[", "]", ",", ";", ":", "->" };
 
 bool contains(const std::vector<std::string> & vec, const std::string & value) {
     return std::find(vec.begin(), vec.end(), value) != vec.end();

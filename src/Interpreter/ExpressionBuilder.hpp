@@ -10,6 +10,8 @@
 #include "Interpreter/LiteralExpressionNode.hpp"
 #include "Interpreter/UnaryExpressionNode.hpp"  // <-- új include
 #include "Interpreter/CallExpressionNode.hpp"
+#include "Interpreter/MemberExpressionNode.hpp"
+#include "Interpreter/ObjectExpressionNode.hpp"
 #include "Interpreter/ObjectExpressionNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 
@@ -27,6 +29,20 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
 
         case Kind::Binary:
             {
+                if (expr->op == "->") {
+                    auto objExpr = buildExpressionFromParsed(expr->lhs);
+                    std::string propName;
+                    // RHS parsed expression should be a literal string or variable parser node
+                    if (expr->rhs->kind == ParsedExpression::Kind::Literal &&
+                        expr->rhs->value.getType() == Symbols::Variables::Type::STRING) {
+                        propName = expr->rhs->value.get<std::string>();
+                    } else if (expr->rhs->kind == ParsedExpression::Kind::Variable) {
+                        propName = expr->rhs->name;
+                    } else {
+                        throw std::runtime_error("Invalid property name in member access");
+                    }
+                    return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objExpr), propName);
+                }
                 auto lhs = buildExpressionFromParsed(expr->lhs);
                 auto rhs = buildExpressionFromParsed(expr->rhs);
                 return std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), expr->op, std::move(rhs));

@@ -1,36 +1,28 @@
 
 object $person = {
-    name: "Szoni",
-    double age: 37.6
+    string name: "Szoni",
+    int age: 37
 };
+
+printnl("Hello, ", $person->name, " your age is: ", $person->age);
 
 
 object $person2 = {
     string name: "Not Szoni",
     int age: 37,
-    object $children: {
+    object children: {
         string name: "Child1",
         int age: 10
     }
 };
+printnl("Person2: ", $person2->name, " age: ", $person2->age, " child: ", $person2->children->name, " age: ", $person2->children->age);
 
-object $children2 = {
-     string name: "Child2",
-        int age: 15
-};
+object $test = $person2;
+printnl("Person2: ", $test->name, " age: ", $test->age, " child: ", $test->children->name, " age: ", $test->children->age);
 
-object $family = {
-           $children: $children, // this is valid too
-    object $children: $children2
-};
-
-object $family3 = {
-    string age: 10  // this is invalid, drops error
-};
+string $person_name = $person->name;
+printnl("Person name: ", $person_name);
 
 
-
-printnl("Hello, ", $person->name);              // prints out: Hello, Szoni
-println("Type: ", typeof($person);              // prints out: Type: object
-println("Type: ", typeof($person2->name));      // prints out: Type: string
-println("Type: ", typeof($person2->age));       // prints out: Type: double
+printnl("Child1 old age: ",$person2->children->age);
+$person2->children->age = $person2->children->age + 2;

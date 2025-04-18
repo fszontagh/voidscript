@@ -272,7 +272,8 @@ Lexer::Tokens::Token Lexer::Lexer::matchOperatorOrPunctuation(size_t start_pos) 
             { &OPERATOR_RELATIONAL, Tokens::Type::OPERATOR_RELATIONAL },
             { &OPERATOR_INCREMENT,  Tokens::Type::OPERATOR_INCREMENT  },
             { &OPERATOR_ASSIGNMENT, Tokens::Type::OPERATOR_ASSIGNMENT },
-            { &OPERATOR_LOGICAL,    Tokens::Type::OPERATOR_LOGICAL    }
+            { &OPERATOR_LOGICAL,    Tokens::Type::OPERATOR_LOGICAL    },
+            { &PUNCTUATION,         Tokens::Type::PUNCTUATION         }
         };
 
         for (const auto & [vec_ptr, type] : two_char_op_types) {
