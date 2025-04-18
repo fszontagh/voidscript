@@ -32,7 +32,7 @@ class Parser {
             formattedMessage_ = formatMessage();
         }
 
-        Exception(const std::string & msg, std::string & expected, int line, int col) {
+        Exception(const std::string & msg, const std::string & expected, int line, int col) {
             rawMessage_ = msg;
             if (expected.empty() == false) {
                 rawMessage_ += " (expected: " + expected + ")";
@@ -56,23 +56,23 @@ class Parser {
     size_t                            current_token_index_;
     std::string                       current_filename_;
 
-    // Token Stream Kezelő és Hibakezelő segédfüggvények (változatlanok)
+    // Token stream handling and error-reporting helper functions (unchanged)
     const Lexer::Tokens::Token & currentToken() const {
         if (isAtEnd()) {
-            // Technikailag itt már nem kellene lennünk, ha a parseProgram ciklus jól van megírva
-            // De biztonsági ellenőrzésként jó lehet
+            // Technically we should never reach this if parseScript's loop is correct
+            // But it's useful as a safety check
             if (!tokens_.empty() && tokens_.back().type == Lexer::Tokens::Type::END_OF_FILE) {
-                return tokens_.back();  // Visszaadjuk az EOF tokent
+            return tokens_.back();  // return the EOF token
             }
             throw std::runtime_error("Unexpected end of token stream reached.");
         }
         return tokens_[current_token_index_];
     }
 
-    // Előre néz a token stream-ben
+    // Look ahead in the token stream
     const Lexer::Tokens::Token & peekToken(size_t offset = 1) const {
         if (current_token_index_ + offset >= tokens_.size()) {
-            // EOF vagy azon túl vagyunk, adjuk vissza az utolsó tokent (ami EOF kell legyen)
+            // If at or beyond EOF, return the last token (should be EOF)
             if (!tokens_.empty()) {
                 return tokens_.back();
             }
@@ -81,7 +81,7 @@ class Parser {
         return tokens_[current_token_index_ + offset];
     }
 
-    // Elfogyasztja (lépteti az indexet) az aktuális tokent és visszaadja azt
+    // Consume (advance past) the current token and return it
     Lexer::Tokens::Token consumeToken() {
         if (isAtEnd()) {
             throw std::runtime_error("Cannot consume token at end of stream.");
@@ -89,8 +89,8 @@ class Parser {
         return tokens_[current_token_index_++];
     }
 
-    // Ellenőrzi, hogy az aktuális token típusa megegyezik-e a várttal.
-    // Ha igen, elfogyasztja és true-t ad vissza. Ha nem, false-t ad vissza.
+    // Check if current token type matches the expected type
+    // If so, consume it and return true; otherwise return false
     bool match(Lexer::Tokens::Type expected_type) {
         if (isAtEnd()) {
             return false;
@@ -102,8 +102,8 @@ class Parser {
         return false;
     }
 
-    // Ellenőrzi, hogy az aktuális token típusa és értéke megegyezik-e a várttal.
-    // Csak OPERATOR és PUNCTUATION esetén érdemes használni az érték ellenőrzést.
+    // Check if current token type and value match the expected ones
+    // Only use value checking for operators and punctuation
     bool match(Lexer::Tokens::Type expected_type, const std::string & expected_value) {
         if (isAtEnd()) {
             return false;
@@ -125,11 +125,11 @@ class Parser {
             return consumeToken();
         }
         reportError("Expected token type " + Lexer::Tokens::TypeToString(expected_type));
-        // A reportError dob, ez a return sosem fut le, de a fordító kedvéért kellhet:
-        return token;  // Vagy dobjon a reportError
+        // reportError throws; this return is never reached, but may satisfy the compiler
+        return token;  // or let reportError throw
     }
 
-    // Mint az expect, de az értékét is ellenőrzi.
+    // Like expect, but also checks the token's value
     Lexer::Tokens::Token expect(Lexer::Tokens::Type expected_type, const std::string & expected_value) {
         if (isAtEnd()) {
             reportError("Unexpected end of file, expected token: " + Lexer::Tokens::TypeToString(expected_type) +
@@ -141,18 +141,18 @@ class Parser {
         }
         reportError("Expected token " + Lexer::Tokens::TypeToString(expected_type) + " with value '" + expected_value +
                     "'");
-        return token;  // reportError dob
+        return token;  // reportError throws
     }
 
-    // Ellenőrzi, hogy a releváns tokenek végére értünk-e (az EOF előtti utolsó tokenen vagyunk-e)
+    // Check if we've reached the end of relevant tokens (just before EOF)
     bool isAtEnd() const {
-        // Akkor vagyunk a végén, ha az index a tokenek méretével egyenlő,
-        // vagy ha már csak az EOF token van hátra (ha az a lista utolsó eleme).
+        // We're at the end if the index equals the number of tokens,
+        // or if only the EOF token remains (as the last element)
         return current_token_index_ >= tokens_.size() ||
                (current_token_index_ == tokens_.size() - 1 && tokens_.back().type == Lexer::Tokens::Type::END_OF_FILE);
     }
 
-    [[noreturn]] void reportError(const std::string & message, const std::string expected = "") {
+    [[noreturn]] void reportError(const std::string & message, const std::string& expected = "") {
         if (current_token_index_ < tokens_.size()) {
             throw Exception(message, expected, tokens_[current_token_index_]);
         }
@@ -161,7 +161,7 @@ class Parser {
         throw Exception(message, expected, line, col);
     }
 
-    // parseStatement (változatlan)
+    // parseStatement (unchanged)
     void parseStatement() {
         const auto & token_type = currentToken().type;
 
@@ -170,11 +170,10 @@ class Parser {
             return;
         }
 
-        for (const auto & _type : Parser::Parser::variable_types) {
-            if (token_type == _type.first) {
-                parseVariableDefinition();
-                return;
-            }
+        // Variable definition if leading token matches a type keyword
+        if (Parser::variable_types.find(token_type) != Parser::variable_types.end()) {
+            parseVariableDefinition();
+            return;
         }
 
         reportError("Unexpected token at beginning of statement");
@@ -183,19 +182,18 @@ class Parser {
     void parseVariableDefinition();
     void parseFunctionDefinition();
 
-    // --- Elemzési Segédfüggvények ---
+    // --- Parsing helper functions ---
 
     // type : KEYWORD_STRING | KEYWORD_INT | KEYWORD_DOUBLE
-    // Visszaadja a megfelelő Symbols::Variables::Type enum értéket és elfogyasztja a tokent.
+    // Returns the corresponding Symbols::Variables::Type enum and consumes the token
     Symbols::Variables::Type parseType() {
         const auto & token = currentToken();
-        for (const auto & _type : Parser::variable_types) {
-            if (token.type == _type.first) {
-                consumeToken();
-                return _type.second;
-            }
+        // Direct lookup for type keyword
+        auto it = Parser::variable_types.find(token.type);
+        if (it != Parser::variable_types.end()) {
+            consumeToken();
+            return it->second;
         }
-
         reportError("Expected type keyword (string, int, double, float)");
     }
 
@@ -203,15 +201,15 @@ class Parser {
         Lexer::Tokens::Token token       = currentToken();
         bool                 is_negative = false;
 
-        // Előjel kezelése
+    // Handle unary sign
         if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC && (token.lexeme == "-" || token.lexeme == "+") &&
             peekToken().type == Lexer::Tokens::Type::NUMBER) {
             is_negative = (token.lexeme == "-");
             token       = peekToken();
-            consumeToken();  // előjelet elfogyasztottuk
+            consumeToken();  // consumed the sign
         }
 
-        // STRING típus
+        // STRING type
         if (expected_var_type == Symbols::Variables::Type::STRING) {
             if (token.type == Lexer::Tokens::Type::STRING_LITERAL) {
                 consumeToken();
@@ -220,7 +218,7 @@ class Parser {
             reportError("Expected string literal value");
         }
 
-        // BOOLEAN típus
+        // BOOLEAN type
         if (expected_var_type == Symbols::Variables::Type::BOOLEAN) {
             if (token.type == Lexer::Tokens::Type::KEYWORD && (token.value == "true" || token.value == "false")) {
                 consumeToken();
@@ -229,7 +227,7 @@ class Parser {
             reportError("Expected boolean literal value (true or false)");
         }
 
-        // NUMERIC típusok
+        // NUMERIC types
         if (expected_var_type == Symbols::Variables::Type::INTEGER ||
             expected_var_type == Symbols::Variables::Type::DOUBLE ||
             expected_var_type == Symbols::Variables::Type::FLOAT) {

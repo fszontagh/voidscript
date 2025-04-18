@@ -4,7 +4,7 @@
 #include "Interpreter/OperationsFactory.hpp"
 #include "Lexer/Operators.hpp"
 
-// Más szükséges include-ok, ha kellenek
+// Additional necessary includes, if needed
 namespace Parser {
 
 const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
@@ -14,11 +14,11 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "for",      Lexer::Tokens::Type::KEYWORD                      },
     { "return",   Lexer::Tokens::Type::KEYWORD_RETURN               },
     { "function", Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION },
-    // Régebbiek:
+    // Older keywords:
     { "const",    Lexer::Tokens::Type::KEYWORD                      },
     { "true",     Lexer::Tokens::Type::KEYWORD                      },
     { "false",    Lexer::Tokens::Type::KEYWORD                      },
-    // változó típusok
+    // variable types
     { "null",     Lexer::Tokens::Type::KEYWORD_NULL                 },
     { "int",      Lexer::Tokens::Type::KEYWORD_INT                  },
     { "double",   Lexer::Tokens::Type::KEYWORD_DOUBLE               },
@@ -26,7 +26,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "string",   Lexer::Tokens::Type::KEYWORD_STRING               },
     { "boolean",  Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
     { "bool",     Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
-    // ... egyéb kulcsszavak ...
+    // ... other keywords ...
 };
 
 const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::variable_types = {
@@ -69,29 +69,29 @@ void Parser::parseFunctionDefinition() {
 
     if (currentToken().type != Lexer::Tokens::Type::PUNCTUATION || currentToken().value != ")") {
         while (true) {
-            // Paraméter típusa
-            Symbols::Variables::Type param_type = parseType();  // Ez elfogyasztja a type tokent
+            // Parameter type
+            Symbols::Variables::Type param_type = parseType();  // This consumes the type token
 
-            // Paraméter név ($variable)
+            // Parameter name ($variable)
             Lexer::Tokens::Token param_id_token = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
             std::string          param_name     = param_id_token.value;
-            if (!param_name.empty() && param_name[0] == '$') {  // '$' eltávolítása
+            if (!param_name.empty() && param_name[0] == '$') {  // remove '$'
                 param_name = param_name.substr(1);
             }
 
             param_infos.push_back({ param_name, param_type });
 
-            // Vessző vagy zárójel következik?
+            // Expecting comma or closing parenthesis?
             if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
                 continue;
             }
             if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")") {
-                break;  // Lista vége
+                break;  // end of list
             }
             reportError("Expected ',' or ')' in parameter list");
         }
     }
-    // Most a ')' következik
+    // Now expect ')'
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
 
     // check if we have a option return type: function name() type { ... }
@@ -182,8 +182,9 @@ void Parser::parseFunctionBody(const Lexer::Tokens::Token & opening_brace, const
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
     const std::string newns = Symbols::SymbolContainer::instance()->currentScopeName() + "." + function_name;
     Symbols::SymbolContainer::instance()->create(newns);
-    std::shared_ptr<Parser> parser = std::make_shared<Parser>();
-    parser->parseScript(filtered_tokens, input_string, this->current_filename_);
+    // Parse function body using a stack‑allocated Parser (avoid heap allocations)
+    Parser innerParser;
+    innerParser.parseScript(filtered_tokens, input_string, this->current_filename_);
     Symbols::SymbolContainer::instance()->enterPreviousScope();
     // create function
     Interpreter::OperationsFactory::defineFunction(
@@ -194,6 +195,10 @@ void Parser::parseFunctionBody(const Lexer::Tokens::Token & opening_brace, const
 ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type & expected_var_type) {
     std::stack<std::string>          operator_stack;
     std::vector<ParsedExpressionPtr> output_queue;
+    // Reserve output queue to reduce reallocations
+    if (tokens_.size() > current_token_index_) {
+        output_queue.reserve(tokens_.size() - current_token_index_);
+    }
 
     bool expect_unary = true;
 
@@ -238,7 +243,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             std::string op = std::string(token.lexeme);
 
             if (expect_unary && Lexer::isUnaryOperator(op)) {
-                op = "u" + op;  // pl. u-, u+ vagy u!
+                op = "u" + op;  // e.g. u-, u+ or u!
             }
 
             while (!operator_stack.empty()) {
@@ -285,7 +290,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         }
     }
 
-    // Kiürítjük az operator stack-et
+    // Empty the operator stack
     while (!operator_stack.empty()) {
         std::string op = operator_stack.top();
         operator_stack.pop();

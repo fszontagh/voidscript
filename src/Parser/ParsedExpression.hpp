@@ -21,12 +21,12 @@ struct ParsedExpression {
     Symbols::Value value;
     std::string    name;
 
-    // Műveletekhez
+    // For operations
     std::string         op;
     ParsedExpressionPtr lhs;
     ParsedExpressionPtr rhs;
 
-    // Konstruktor literálhoz
+    // Constructor for literal
     static ParsedExpressionPtr makeLiteral(const Symbols::Value & val) {
         auto expr   = std::make_unique<ParsedExpression>();
         expr->kind  = Kind::Literal;
@@ -34,7 +34,7 @@ struct ParsedExpression {
         return expr;
     }
 
-    // Konstruktor változóhoz
+    // Constructor for variable
     static ParsedExpressionPtr makeVariable(const std::string & name) {
         auto expr  = std::make_unique<ParsedExpression>();
         expr->kind = Kind::Variable;
@@ -42,7 +42,7 @@ struct ParsedExpression {
         return expr;
     }
 
-    // Konstruktor binárishoz
+    // Constructor for binary operation
     static ParsedExpressionPtr makeBinary(std::string op, ParsedExpressionPtr left, ParsedExpressionPtr right) {
         auto expr  = std::make_unique<ParsedExpression>();
         expr->kind = Kind::Binary;
@@ -52,7 +52,7 @@ struct ParsedExpression {
         return expr;
     }
 
-    // Konstruktor unárishoz
+    // Constructor for unary operation
     static ParsedExpressionPtr makeUnary(std::string op, ParsedExpressionPtr operand) {
         auto expr  = std::make_unique<ParsedExpression>();
         expr->kind = Kind::Unary;
@@ -82,14 +82,14 @@ struct ParsedExpression {
                 {
                     auto lhsType = lhs->value.getType();
                     //auto rhsType = rhs->value.getType();
-                    return lhsType;  // Bináris kifejezésnél a típusok azonosak, tehát a bal oldali típust visszaadhatjuk
+                    return lhsType;  // In binary expressions, operand types match, so we can return the left-hand type
                 }
 
             case Kind::Unary:
                 {
                     //auto operandType = op.
                     if (op == "!") {
-                        return Symbols::Variables::Type::BOOLEAN;  // Mivel a '!' operátor bool típust vár
+                        return Symbols::Variables::Type::BOOLEAN;  // Because the '!' operator expects a boolean type
                     }
                     break;
                 }
