@@ -34,60 +34,54 @@ class CallStatementNode : public StatementNode {
         args_(std::move(args)) {}
 
     void interpret(Interpreter & interpreter) const override {
-        using namespace Symbols;
-        // Evaluate argument expressions
-        std::vector<Value> argValues;
-        argValues.reserve(args_.size());
-        for (const auto & expr : args_) {
-            argValues.push_back(expr->evaluate(interpreter));
-        }
-
-        // Handle built-in function callbacks
-        {
-            auto &mgr = Modules::ModuleManager::instance();
-            if (mgr.hasFunction(functionName_)) {
-                mgr.callFunction(functionName_, argValues);
-                return;
+        try {
+            using namespace Symbols;
+            std::vector<Value> argValues;
+            argValues.reserve(args_.size());
+            for (const auto & expr : args_) {
+                argValues.push_back(expr->evaluate(interpreter));
             }
+            {
+                auto &mgr = Modules::ModuleManager::instance();
+                if (mgr.hasFunction(functionName_)) {
+                    mgr.callFunction(functionName_, argValues);
+                    return;
+                }
+            }
+            SymbolContainer * sc        = SymbolContainer::instance();
+            const std::string currentNs = sc->currentScopeName();
+            const std::string fnSymNs   = currentNs + ".functions";
+            auto              sym       = sc->get(fnSymNs, functionName_);
+            if (!sym || sym->getKind() != Kind::Function) {
+                throw Exception("Function not found: " + functionName_, filename_, line_, column_);
+            }
+            auto funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
+            const auto & params = funcSym->parameters();
+            if (params.size() != argValues.size()) {
+                throw Exception(
+                    "Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
+                    " args, got " + std::to_string(argValues.size()),
+                    filename_, line_, column_);
+            }
+            const std::string fnOpNs = currentNs + "." + functionName_;
+            sc->enter(fnOpNs);
+            for (size_t i = 0; i < params.size(); ++i) {
+                const auto &  p = params[i];
+                const Value & v = argValues[i];
+                auto varSym = SymbolFactory::createVariable(p.name, v, fnOpNs);
+                sc->add(varSym);
+            }
+            auto ops = Operations::Container::instance()->getAll(fnOpNs);
+            auto it  = ops.begin();
+            for (; it != ops.end(); ++it) {
+                interpreter.runOperation(*(*it));
+            }
+            sc->enterPreviousScope();
+        } catch (const Exception &) {
+            throw;
+        } catch (const std::exception &e) {
+            throw Exception(e.what(), filename_, line_, column_);
         }
-        // Lookup function symbol in functions namespace
-        SymbolContainer * sc        = SymbolContainer::instance();
-        const std::string currentNs = sc->currentScopeName();
-        const std::string fnSymNs   = currentNs + ".functions";
-        auto              sym       = sc->get(fnSymNs, functionName_);
-        if (!sym || sym->getKind() != Kind::Function) {
-            throw Exception("Function not found: " + functionName_, filename_, line_, column_);
-        }
-        auto funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
-
-        // Check parameter count
-        const auto & params = funcSym->parameters();
-        if (params.size() != argValues.size()) {
-            throw Exception(
-                "Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
-                " args, got " + std::to_string(argValues.size()),
-                filename_, line_, column_);
-        }
-
-        // Enter function scope to bind parameters and execute body
-        const std::string fnOpNs = currentNs + "." + functionName_;
-        sc->enter(fnOpNs);
-        // Bind parameters as local variables
-        for (size_t i = 0; i < params.size(); ++i) {
-            const auto &  p = params[i];
-            const Value & v = argValues[i];
-
-            auto varSym = SymbolFactory::createVariable(p.name, v, fnOpNs);
-            sc->add(varSym);
-        }
-        // Execute function body operations
-        auto ops = Operations::Container::instance()->getAll(fnOpNs);
-        auto it  = ops.begin();
-        for (; it != ops.end(); ++it) {
-            interpreter.runOperation(*(*it));
-        }
-        // Exit function scope
-        sc->enterPreviousScope();
     }
 
     std::string toString() const override {

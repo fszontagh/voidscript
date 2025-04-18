@@ -33,18 +33,22 @@
          elseBranch_(std::move(elseBranch)) {}
 
      void interpret(class Interpreter & interpreter) const override {
-         // Evaluate condition
-         auto val = condition_->evaluate(interpreter);
-         bool cond = false;
-         if (val.getType() == Symbols::Variables::Type::BOOLEAN) {
-             cond = val.get<bool>();
-        } else {
-            throw Exception("Condition did not evaluate to boolean", filename_, line_, column_);
-        }
-         // Execute appropriate branch
-         const auto & branch = cond ? thenBranch_ : elseBranch_;
-         for (const auto & stmt : branch) {
-             stmt->interpret(interpreter);
+         try {
+             auto val = condition_->evaluate(interpreter);
+             bool cond = false;
+             if (val.getType() == Symbols::Variables::Type::BOOLEAN) {
+                 cond = val.get<bool>();
+             } else {
+                 throw Exception("Condition did not evaluate to boolean", filename_, line_, column_);
+             }
+             const auto & branch = cond ? thenBranch_ : elseBranch_;
+             for (const auto & stmt : branch) {
+                 stmt->interpret(interpreter);
+             }
+         } catch (const Exception &) {
+             throw;
+         } catch (const std::exception &e) {
+             throw Exception(e.what(), filename_, line_, column_);
          }
      }
 

@@ -43,42 +43,42 @@
         body_(std::move(body)) {}
 
     void interpret(Interpreter & interpreter) const override {
-        using namespace Symbols;
-        // Evaluate iterable expression
-        auto iterableVal = iterableExpr_->evaluate(interpreter);
-        if (iterableVal.getType() != Variables::Type::OBJECT) {
-            throw Exception("For-in loop applied to non-object", filename_, line_, column_);
-        }
-        // Access underlying object map
-        const auto & objMap = std::get<Value::ObjectMap>(iterableVal.get());
-        auto * symContainer = SymbolContainer::instance();
-        const std::string base_ns = symContainer->currentScopeName();
-        const std::string var_ns  = base_ns + ".variables";
-        // Iterate through object entries
-        for (const auto & entry : objMap) {
-            // Key binding
-            const std::string & key = entry.first;
-            Value keyVal(key);
-            if (!symContainer->exists(keyName_, var_ns)) {
-                auto sym = SymbolFactory::createVariable(keyName_, keyVal, base_ns);
-                symContainer->add(sym);
-            } else {
-                auto sym = symContainer->get(var_ns, keyName_);
-                sym->setValue(keyVal);
+        try {
+            using namespace Symbols;
+            auto iterableVal = iterableExpr_->evaluate(interpreter);
+            if (iterableVal.getType() != Variables::Type::OBJECT) {
+                throw Exception("For-in loop applied to non-object", filename_, line_, column_);
             }
-            // Value binding
-            Value valVal = entry.second;
-            if (!symContainer->exists(valueName_, var_ns)) {
-                auto sym = SymbolFactory::createVariable(valueName_, valVal, base_ns);
-                symContainer->add(sym);
-            } else {
-                auto sym = symContainer->get(var_ns, valueName_);
-                sym->setValue(valVal);
+            const auto & objMap = std::get<Value::ObjectMap>(iterableVal.get());
+            auto * symContainer = SymbolContainer::instance();
+            const std::string base_ns = symContainer->currentScopeName();
+            const std::string var_ns  = base_ns + ".variables";
+            for (const auto & entry : objMap) {
+                const std::string & key = entry.first;
+                Value keyVal(key);
+                if (!symContainer->exists(keyName_, var_ns)) {
+                    auto sym = SymbolFactory::createVariable(keyName_, keyVal, base_ns);
+                    symContainer->add(sym);
+                } else {
+                    auto sym = symContainer->get(var_ns, keyName_);
+                    sym->setValue(keyVal);
+                }
+                Value valVal = entry.second;
+                if (!symContainer->exists(valueName_, var_ns)) {
+                    auto sym = SymbolFactory::createVariable(valueName_, valVal, base_ns);
+                    symContainer->add(sym);
+                } else {
+                    auto sym = symContainer->get(var_ns, valueName_);
+                    sym->setValue(valVal);
+                }
+                for (const auto & stmt : body_) {
+                    stmt->interpret(interpreter);
+                }
             }
-            // Execute loop body
-            for (const auto & stmt : body_) {
-                stmt->interpret(interpreter);
-            }
+        } catch (const Exception &) {
+            throw;
+        } catch (const std::exception &e) {
+            throw Exception(e.what(), filename_, line_, column_);
         }
     }
 

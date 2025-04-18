@@ -37,12 +37,17 @@ class DeclareFunctionStatementNode : public StatementNode {
         ns(ns) {}
 
     void interpret(Interpreter & /*interpreter*/) const override {
-        //Symbols::Value value = expression_->evaluate(interpreter);
-        if (Symbols::SymbolContainer::instance()->exists(functionName_)) {
-            throw Exception("Function already declared: " + functionName_, filename_, line_, column_);
+        try {
+            if (Symbols::SymbolContainer::instance()->exists(functionName_)) {
+                throw Exception("Function already declared: " + functionName_, filename_, line_, column_);
+            }
+            const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
+            Symbols::SymbolContainer::instance()->add(func);
+        } catch (const Exception &) {
+            throw;
+        } catch (const std::exception &e) {
+            throw Exception(e.what(), filename_, line_, column_);
         }
-        const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
-        Symbols::SymbolContainer::instance()->add(func);
     }
 
     std::string toString() const override {

@@ -2,9 +2,6 @@
 #ifndef MODULES_BASEMODULE_HPP
 #define MODULES_BASEMODULE_HPP
 
-#include <string>
-#include "Symbols/SymbolContainer.hpp"
-#include "Symbols/SymbolFactory.hpp"
 
 namespace Modules {
 
