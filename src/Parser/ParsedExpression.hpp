@@ -3,9 +3,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "../Symbols/SymbolContainer.hpp"
 #include "../Symbols/Value.hpp"
+#include "../Symbols/FunctionSymbol.hpp"
 
 namespace Parser {
 
@@ -14,7 +16,7 @@ struct ParsedExpression;
 using ParsedExpressionPtr = std::unique_ptr<ParsedExpression>;
 
 struct ParsedExpression {
-    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary };
+    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call };
 
     Kind kind;
 
@@ -25,6 +27,8 @@ struct ParsedExpression {
     std::string         op;
     ParsedExpressionPtr lhs;
     ParsedExpressionPtr rhs;
+    // For function call arguments
+    std::vector<ParsedExpressionPtr> args;
 
     // Constructor for literal
     static ParsedExpressionPtr makeLiteral(const Symbols::Value & val) {
@@ -60,6 +64,14 @@ struct ParsedExpression {
         expr->rhs  = std::move(operand);
         return expr;
     }
+    // Constructor for function call
+    static ParsedExpressionPtr makeCall(const std::string &name, std::vector<ParsedExpressionPtr> arguments) {
+        auto expr        = std::make_unique<ParsedExpression>();
+        expr->kind       = Kind::Call;
+        expr->name       = name;
+        expr->args       = std::move(arguments);
+        return expr;
+    }
 
     Symbols::Variables::Type getType() const {
         switch (kind) {
@@ -92,6 +104,17 @@ struct ParsedExpression {
                         return Symbols::Variables::Type::BOOLEAN;  // Because the '!' operator expects a boolean type
                     }
                     break;
+                }
+            case Kind::Call:
+                {
+                    const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName() + ".functions";
+                    auto symbol = Symbols::SymbolContainer::instance()->get(ns, name);
+                    if (!symbol) {
+                        throw std::runtime_error("Unknown function: " + name + " in namespace: " + ns);
+                    }
+                    // FunctionSymbol holds return type
+                    auto funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(symbol);
+                    return funcSym->returnType();
                 }
 
             default:

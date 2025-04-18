@@ -311,6 +311,30 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             // Pop the matching "("
             operator_stack.pop();
             expect_unary = false;
+        }
+        // Function call as expression: identifier followed by '('
+        else if (token.type == Lexer::Tokens::Type::IDENTIFIER &&
+                 peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
+            // Parse function call
+            std::string func_name = token.value;
+            consumeToken();  // consume function name
+            consumeToken();  // consume '('
+            std::vector<ParsedExpressionPtr> call_args;
+            // Parse arguments if any
+            if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
+                while (true) {
+                    auto arg_expr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+                    call_args.push_back(std::move(arg_expr));
+                    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                        continue;
+                    }
+                    break;
+                }
+            }
+            expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+            // Create call expression node
+            output_queue.push_back(ParsedExpression::makeCall(func_name, std::move(call_args)));
+            expect_unary = false;
         } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC) {
             std::string op = std::string(token.lexeme);
 

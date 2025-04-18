@@ -7,7 +7,6 @@ string $variable2 = $variable;
 function test = (int $i) {
     print("Param: ",$i);
     int $result = $i + 1;
-    print("The result is: ", $result);
 }
 
 function increment = (int $i) int {
@@ -15,7 +14,7 @@ function increment = (int $i) int {
 }
 
 
-test(1);
-
+int $z = 10;
+increment($z);
 int $t = increment(2);
 print("The result is: ", $t);

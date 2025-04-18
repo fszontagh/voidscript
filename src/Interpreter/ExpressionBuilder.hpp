@@ -9,6 +9,7 @@
 #include "Interpreter/IdentifierExpressionNode.hpp"
 #include "Interpreter/LiteralExpressionNode.hpp"
 #include "Interpreter/UnaryExpressionNode.hpp"  // <-- új include
+#include "Interpreter/CallExpressionNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 
 namespace Parser {
@@ -34,6 +35,16 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
             {
                 auto operand = buildExpressionFromParsed(expr->rhs);  // rhs az operandus
                 return std::make_unique<Interpreter::UnaryExpressionNode>(expr->op, std::move(operand));
+            }
+        case Kind::Call:
+            {
+                // Build argument expressions
+                std::vector<std::unique_ptr<Interpreter::ExpressionNode>> callArgs;
+                callArgs.reserve(expr->args.size());
+                for (const auto &arg : expr->args) {
+                    callArgs.push_back(buildExpressionFromParsed(arg));
+                }
+                return std::make_unique<Interpreter::CallExpressionNode>(expr->name, std::move(callArgs));
             }
     }
 
