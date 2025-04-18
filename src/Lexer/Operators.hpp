@@ -59,8 +59,16 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
                                       std::vector<Parser::ParsedExpressionPtr> & output_queue) {
     if (token.type == Tokens::Type::NUMBER || token.type == Tokens::Type::STRING_LITERAL ||
         token.type == Tokens::Type::KEYWORD) {
-        output_queue.push_back(
-            Parser::ParsedExpression::makeLiteral(Symbols::Value::fromString(token.value, expected_var_type)));
+        // Parse literal: use expected type if provided, otherwise auto-detect
+        if (expected_var_type == Symbols::Variables::Type::NULL_TYPE) {
+            output_queue.push_back(
+                Parser::ParsedExpression::makeLiteral(
+                    Symbols::Value::fromString(token.value, /*autoDetectType*/ true)));
+        } else {
+            output_queue.push_back(
+                Parser::ParsedExpression::makeLiteral(
+                    Symbols::Value::fromString(token.value, expected_var_type)));
+        }
         return true;
     }
     if (token.type == Tokens::Type::VARIABLE_IDENTIFIER) {

@@ -133,8 +133,13 @@ void Parser::parseCallStatement() {
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
     // Record the function call operation
-    Interpreter::OperationsFactory::callFunction(func_name, Symbols::SymbolContainer::instance()->currentScopeName(),
-                                                 this->current_filename_, id_token.line_number, id_token.column_number);
+    Interpreter::OperationsFactory::callFunction(
+        func_name,
+        std::move(args),
+        Symbols::SymbolContainer::instance()->currentScopeName(),
+        this->current_filename_,
+        id_token.line_number,
+        id_token.column_number);
 }
 
 Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type) {

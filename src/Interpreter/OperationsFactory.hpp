@@ -8,6 +8,7 @@
 #include "Interpreter/DeclareVariableStatementNode.hpp"
 #include "Interpreter/ExpressionBuilder.hpp"
 #include "Interpreter/LiteralExpressionNode.hpp"
+#include "Interpreter/CallStatementNode.hpp"
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Parser/ParsedExpression.hpp"
@@ -54,22 +55,31 @@ class OperationsFactory {
                                           }
     
     /**
-     * @brief Record a function call operation for later detection.
+     * @brief Record a function call operation with argument expressions.
      * @param functionName Name of the function being called.
-     * @param ns Current namespace scope.
+     * @param parsedArgs Vector of parsed argument expressions.
+     * @param ns Current namespace scope for operations.
      * @param fileName Source filename.
      * @param line Line number of call.
      * @param column Column number of call.
      */
     static void callFunction(const std::string & functionName,
+                             std::vector<Parser::ParsedExpressionPtr> &&parsedArgs,
                              const std::string & ns,
                              const std::string & fileName,
                              int line,
                              size_t column) {
-        // No associated StatementNode; this is for detection only
+        // Build argument ExpressionNode list
+        std::vector<std::unique_ptr<ExpressionNode>> exprs;
+        exprs.reserve(parsedArgs.size());
+        for (auto &pexpr : parsedArgs) {
+            exprs.push_back(buildExpressionFromParsed(pexpr));
+        }
+        // Create call statement node
+        auto stmt = std::make_unique<CallStatementNode>(functionName, std::move(exprs), fileName, line, column);
         Operations::Container::instance()->add(
             ns,
-            Operations::Operation{Operations::Type::FunctionCall, functionName, nullptr});
+            Operations::Operation{Operations::Type::FunctionCall, functionName, std::move(stmt)});
     }
 };
 

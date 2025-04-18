@@ -14,6 +14,11 @@ namespace Symbols {
 class SymbolFactory {
   public:
     static std::shared_ptr<Symbol> createVariable(const std::string & name, const Symbols::Value & value,
+                                                  const std::string & context) {
+        return std::make_shared<VariableSymbol>(name, value, context, value.getType());
+    }
+
+    static std::shared_ptr<Symbol> createVariable(const std::string & name, const Symbols::Value & value,
                                                   const std::string & context, Variables::Type type) {
         return std::make_shared<VariableSymbol>(name, value, context, type);
     }

@@ -12,6 +12,22 @@ namespace Interpreter {
 
 class Interpreter {
   private:
+
+
+  public:
+    Interpreter() {}
+
+    /**
+     * @brief Execute all operations in the current namespace (e.g., file-level or function-level).
+     */
+    void run() {
+        // Determine namespace to execute
+        const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
+        for (const auto & operation : Operations::Container::instance()->getAll(ns)) {
+            runOperation(*operation);
+        }
+    }
+
     void runOperation(const Operations::Operation & op) {
         std::cout << "Operation: " << op.toString() << "\n";
 
@@ -39,13 +55,11 @@ class Interpreter {
                     break;
                 }
 
-            case Operations::Type::FunctionCall: {
-                // Check that the called function is defined in the symbol table
-                if (!Symbols::SymbolContainer::instance()->exists(op.targetName)) {
-                    throw std::runtime_error("Function not declared: " + op.targetName);
+            case Operations::Type::FunctionCall:
+                if (op.statement) {
+                    op.statement->interpret(*this);
                 }
                 break;
-            }
             case Operations::Type::Return:
             case Operations::Type::Loop:
             case Operations::Type::Break:
@@ -58,15 +72,6 @@ class Interpreter {
                 break;
             default:
                 throw std::runtime_error("Not implemented operation type");
-        }
-    }
-
-  public:
-    Interpreter() {}
-
-    void run() {
-        for (const auto & operation : Operations::Container::instance()->getAll()) {
-            runOperation(*operation);
         }
     }
 
