@@ -5,8 +5,10 @@
  #include <memory>
  #include <string>
  #include <stdexcept>
- #include "Interpreter/StatementNode.hpp"
- #include "Interpreter/ExpressionNode.hpp"
+#include "Interpreter/StatementNode.hpp"
+// Include for unified runtime Exception
+#include "Interpreter/Interpreter.hpp"
+#include "Interpreter/ExpressionNode.hpp"
  #include "Symbols/Value.hpp"
  #include "Symbols/SymbolContainer.hpp"
  #include "Symbols/SymbolFactory.hpp"
@@ -45,8 +47,7 @@
         // Evaluate iterable expression
         auto iterableVal = iterableExpr_->evaluate(interpreter);
         if (iterableVal.getType() != Variables::Type::OBJECT) {
-            throw std::runtime_error("For-in loop applied to non-object at " + filename_ + ":" + std::to_string(line_) +
-                                     "," + std::to_string(column_));
+            throw Exception("For-in loop applied to non-object", filename_, line_, column_);
         }
         // Access underlying object map
         const auto & objMap = std::get<Value::ObjectMap>(iterableVal.get());

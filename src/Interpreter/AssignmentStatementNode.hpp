@@ -2,6 +2,8 @@
 #define INTERPRETER_ASSIGNMENT_STATEMENT_NODE_HPP
 
 #include "StatementNode.hpp"
+// Include for unified runtime Exception
+#include "Interpreter/Interpreter.hpp"
 #include "ExpressionNode.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -36,9 +38,9 @@ class AssignmentStatementNode : public StatementNode {
         const std::string base_ns = symContainer->currentScopeName();
         const std::string var_ns = base_ns + ".variables";
         if (!symContainer->exists(targetName_, var_ns)) {
-            throw std::runtime_error("Variable '" + targetName_ + "' does not exist in namespace: " + var_ns +
-                                     " File: " + filename_ + ", Line: " + std::to_string(line_) +
-                                     ", Column: " + std::to_string(column_));
+            throw Exception(
+                "Variable '" + targetName_ + "' does not exist in namespace: " + var_ns,
+                filename_, line_, column_);
         }
         auto symbol = symContainer->get(var_ns, targetName_);
         // Copy current value for potential nested updates
@@ -48,20 +50,22 @@ class AssignmentStatementNode : public StatementNode {
         // Simple variable assignment
         if (propertyPath_.empty()) {
             // Type check
-            if (newValue.getType() != varValue.getType()) {
-                using namespace Variables;
-                throw std::runtime_error("Type mismatch assigning to variable '" + targetName_ +
-                                         "': expected '" + TypeToString(varValue.getType()) +
-                                         "' but got '" + TypeToString(newValue.getType()) +
-                                         "' File: " + filename_ + ", Line: " + std::to_string(line_) +
-                                         ", Column: " + std::to_string(column_));
-            }
+        if (newValue.getType() != varValue.getType()) {
+            using namespace Variables;
+            throw Exception(
+                "Type mismatch assigning to variable '" + targetName_ +
+                "': expected '" + TypeToString(varValue.getType()) +
+                "' but got '" + TypeToString(newValue.getType()) + "'",
+                filename_, line_, column_);
+        }
             symbol->setValue(newValue);
             return;
         }
         // Nested object property assignment
         if (varValue.getType() != Variables::Type::OBJECT) {
-            throw std::runtime_error("Attempting to assign property on non-object variable '" + targetName_ + "'");
+            throw Exception(
+                "Attempting to assign property on non-object variable '" + targetName_ + "'",
+                filename_, line_, column_);
         }
         // Traverse into nested maps
         using ObjectMap = Value::ObjectMap;
@@ -71,11 +75,15 @@ class AssignmentStatementNode : public StatementNode {
             const auto & key = propertyPath_[i];
             auto it = currMap->find(key);
             if (it == currMap->end()) {
-                throw std::runtime_error("Property '" + key + "' not found on object '" + targetName_ + "'");
+                throw Exception(
+                    "Property '" + key + "' not found on object '" + targetName_ + "'",
+                    filename_, line_, column_);
             }
             Value & child = it->second;
             if (child.getType() != Variables::Type::OBJECT) {
-                throw std::runtime_error("Property '" + key + "' is not an object, cannot assign nested property");
+                throw Exception(
+                    "Property '" + key + "' is not an object, cannot assign nested property",
+                    filename_, line_, column_);
             }
             currMap = &std::get<ObjectMap>(child.get());
         }
@@ -83,15 +91,18 @@ class AssignmentStatementNode : public StatementNode {
         const std::string & lastKey = propertyPath_.back();
         auto it = currMap->find(lastKey);
         if (it == currMap->end()) {
-            throw std::runtime_error("Property '" + lastKey + "' not found on object '" + targetName_ + "'");
+            throw Exception(
+                "Property '" + lastKey + "' not found on object '" + targetName_ + "'",
+                filename_, line_, column_);
         }
         // Type check against existing property
         if (newValue.getType() != it->second.getType()) {
             using namespace Variables;
-            throw std::runtime_error("Type mismatch for property '" + lastKey + "': expected '" +
-                                     TypeToString(it->second.getType()) + "' but got '" +
-                                     TypeToString(newValue.getType()) + "' File: " + filename_ +
-                                     ", Line: " + std::to_string(line_) + ", Column: " + std::to_string(column_));
+            throw Exception(
+                "Type mismatch for property '" + lastKey + "': expected '" +
+                TypeToString(it->second.getType()) + "' but got '" +
+                TypeToString(newValue.getType()) + "'",
+                filename_, line_, column_);
         }
         // Assign and write back to symbol
         (*currMap)[lastKey] = newValue;

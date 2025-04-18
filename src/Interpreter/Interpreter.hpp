@@ -7,6 +7,23 @@
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "BaseException.hpp"
+
+// Exception type for runtime errors, includes file, line, and column context
+namespace Interpreter {
+class Exception : public BaseException {
+public:
+    Exception(const std::string &msg, const std::string &filename, int line, size_t column) {
+        rawMessage_ = msg;
+        context_ = std::string(" in file \"") + filename + "\" at line: " + std::to_string(line)
+                   + ", column: " + std::to_string(column);
+        formattedMessage_ = formatMessage();
+    }
+    std::string formatMessage() const override {
+        return std::string("[Runtime ERROR] >>") + context_ + " << : " + rawMessage_;
+    }
+};
+} // namespace Interpreter
 
 namespace Interpreter {
 

@@ -8,6 +8,8 @@
 #include "ExpressionNode.hpp"
 #include "Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
+// Include for unified runtime Exception
+#include "Interpreter/Interpreter.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -37,8 +39,7 @@ class DeclareFunctionStatementNode : public StatementNode {
     void interpret(Interpreter & /*interpreter*/) const override {
         //Symbols::Value value = expression_->evaluate(interpreter);
         if (Symbols::SymbolContainer::instance()->exists(functionName_)) {
-            throw std::runtime_error("Function already declared: " + functionName_ + " file: " + filename_ +
-                                     ", line: " + std::to_string(line_) + ", column: " + std::to_string(column_));
+            throw Exception("Function already declared: " + functionName_, filename_, line_, column_);
         }
         const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
         Symbols::SymbolContainer::instance()->add(func);

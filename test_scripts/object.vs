@@ -1,6 +1,6 @@
 
 object $person = {
-    string name: "Szoni",
+    string name: "Batman",
     int age: 37
 };
 
@@ -8,7 +8,7 @@ printnl("Hello, ", $person->name, " your age is: ", $person->age);
 
 
 object $person2 = {
-    string name: "Not Szoni",
+    string name: "Not Batman",
     int age: 37,
     object children: {
         string name: "Child1",
@@ -24,9 +24,9 @@ string $person_name = $person->name;
 printnl("Person name: ", $person_name);
 
 
-printnl("Child1 old age: ",$person2->children->age);
-$person2->children->age = $person2->children->age + 2;
-printnl("Child1 new age: ",$person2->children->age);
+printnl("Child1 old age: ", $person2->children->age);
+$person2->children->age = 22;
+printnl("Child1 new age: ", $person2->children->age);
 
 int $age = 10;
 if ($person2->children->age > 18) {

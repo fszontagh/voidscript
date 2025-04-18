@@ -7,6 +7,8 @@
 
 #include "ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
+// Include for unified runtime Exception (inherits BaseException)
+#include "BaseException.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "StatementNode.hpp"
 #include "Symbols/FunctionSymbol.hpp"
@@ -54,15 +56,17 @@ class CallStatementNode : public StatementNode {
         const std::string fnSymNs   = currentNs + ".functions";
         auto              sym       = sc->get(fnSymNs, functionName_);
         if (!sym || sym->getKind() != Kind::Function) {
-            throw std::runtime_error("Function not found: " + functionName_);
+            throw Exception("Function not found: " + functionName_, filename_, line_, column_);
         }
         auto funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
 
         // Check parameter count
         const auto & params = funcSym->parameters();
         if (params.size() != argValues.size()) {
-            throw std::runtime_error("Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
-                                     " args, got " + std::to_string(argValues.size()));
+            throw Exception(
+                "Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
+                " args, got " + std::to_string(argValues.size()),
+                filename_, line_, column_);
         }
 
         // Enter function scope to bind parameters and execute body

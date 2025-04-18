@@ -22,11 +22,13 @@ class Parser {
     class Exception : public BaseException {
       public:
         using BaseException::BaseException;
+        // Filename for error reporting
+        static std::string current_filename_;
 
         Exception(const std::string & msg, const std::string & expected, const Lexer::Tokens::Token & token) {
             rawMessage_ = msg + ": " + token.dump();
-            context_ =
-                " at line: " + std::to_string(token.line_number) + ", column: " + std::to_string(token.column_number);
+            context_ = " in file \"" + current_filename_ + "\" at line: " + std::to_string(token.line_number)
+                       + ", column: " + std::to_string(token.column_number);
             if (expected.empty() == false) {
                 rawMessage_ += " (expected: " + expected + ")";
             }
@@ -38,7 +40,8 @@ class Parser {
             if (expected.empty() == false) {
                 rawMessage_ += " (expected: " + expected + ")";
             }
-            context_          = " at line: " + std::to_string(line) + ", column: " + std::to_string(col);
+            context_ = " in file \"" + current_filename_ + "\" at line: " + std::to_string(line)
+                       + ", column: " + std::to_string(col);
             formattedMessage_ = formatMessage();
         }
 

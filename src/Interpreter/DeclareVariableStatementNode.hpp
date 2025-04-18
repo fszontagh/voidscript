@@ -8,6 +8,8 @@
 #include "ExpressionNode.hpp"
 #include "Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
+// Include for unified runtime Exception
+#include "Interpreter/Interpreter.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 
@@ -35,18 +37,17 @@ class DeclareVariableStatementNode : public StatementNode {
         Symbols::Value value = expression_->evaluate(interpreter);
         // Check for duplicate declaration
         if (Symbols::SymbolContainer::instance()->exists(variableName_)) {
-            throw std::runtime_error("Variable already declared: " + variableName_ + " File: " + filename_ +
-                                     ", Line: " + std::to_string(line_) + ", Column: " + std::to_string(column_));
+            throw Exception("Variable already declared: " + variableName_, filename_, line_, column_);
         }
         // Enforce type correctness: the evaluated value must match the declared type
         if (value.getType() != variableType_) {
             using namespace Symbols::Variables;
             std::string expected = TypeToString(variableType_);
             std::string actual   = TypeToString(value.getType());
-            throw std::runtime_error("Type mismatch for variable '" + variableName_ +
-                                     "': expected '" + expected + "' but got '" + actual +
-                                     "' File: " + filename_ + ", Line: " + std::to_string(line_) +
-                                     ", Column: " + std::to_string(column_));
+            throw Exception(
+                "Type mismatch for variable '" + variableName_ +
+                "': expected '" + expected + "' but got '" + actual + "'",
+                filename_, line_, column_);
         }
         // Create and add the variable symbol
         const auto variable = Symbols::SymbolFactory::createVariable(variableName_, value, ns, variableType_);

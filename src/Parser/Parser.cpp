@@ -1,4 +1,6 @@
 #include "Parser/Parser.hpp"
+// Static filename for unified error reporting in Parser::Exception
+std::string Parser::Parser::Exception::current_filename_;
 
 #include <stack>
 
@@ -781,6 +783,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
 
 void Parser::parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::string_view input_string,
                          const std::string & filename) {
+    ::Parser::Parser::Exception::current_filename_ = filename;
     tokens_              = tokens;
     input_str_view_      = input_string;
     current_token_index_ = 0;

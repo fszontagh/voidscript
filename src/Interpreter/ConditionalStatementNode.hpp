@@ -4,8 +4,10 @@
  #include <vector>
  #include <memory>
  #include <string>
- #include "Interpreter/StatementNode.hpp"
- #include "Interpreter/ExpressionNode.hpp"
+#include "Interpreter/StatementNode.hpp"
+// Include for unified runtime Exception
+#include "Interpreter/Interpreter.hpp"
+#include "Interpreter/ExpressionNode.hpp"
 
  namespace Interpreter {
 
@@ -36,10 +38,9 @@
          bool cond = false;
          if (val.getType() == Symbols::Variables::Type::BOOLEAN) {
              cond = val.get<bool>();
-         } else {
-             throw std::runtime_error("Condition did not evaluate to boolean at " + filename_ +
-                                      ":" + std::to_string(line_) + "," + std::to_string(column_));
-         }
+        } else {
+            throw Exception("Condition did not evaluate to boolean", filename_, line_, column_);
+        }
          // Execute appropriate branch
          const auto & branch = cond ? thenBranch_ : elseBranch_;
          for (const auto & stmt : branch) {
