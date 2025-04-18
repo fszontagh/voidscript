@@ -14,6 +14,7 @@
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
+#include "Interpreter/ReturnStatementNode.hpp"
 
 namespace Interpreter {
 
@@ -80,6 +81,24 @@ class OperationsFactory {
         Operations::Container::instance()->add(
             ns,
             Operations::Operation{Operations::Type::FunctionCall, functionName, std::move(stmt)});
+    }
+    /**
+     * @brief Record a return statement operation inside a function.
+     * @param pexpr Parsed expression for return value, or nullptr for void return.
+     * @param ns Current namespace (function scope).
+     * @param fileName Source filename.
+     * @param line Line number of return.
+     * @param column Column number of return.
+     */
+    static void callReturn(const Parser::ParsedExpressionPtr &pexpr,
+                           const std::string & ns,
+                           const std::string & fileName,
+                           int line,
+                           size_t column) {
+        std::unique_ptr<ExpressionNode> expr = pexpr ? buildExpressionFromParsed(pexpr) : nullptr;
+        auto stmt = std::make_unique<ReturnStatementNode>(std::move(expr), fileName, line, column);
+        Operations::Container::instance()->add(ns,
+            Operations::Operation{Operations::Type::Return, std::string(), std::move(stmt)});
     }
 };
 

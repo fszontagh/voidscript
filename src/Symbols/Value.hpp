@@ -88,10 +88,10 @@ class Value {
         trimmed.erase(0, trimmed.find_first_not_of(" \t\n\r"));
         trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
 
-        // Check bool
+        // Check bool literals
         std::string lower = trimmed;
         std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-        if (lower == "true" || lower == "false" || lower == "1" || lower == "0") {
+        if (lower == "true" || lower == "false") {
             try {
                 return fromStringToBool(trimmed);
             } catch (...) {

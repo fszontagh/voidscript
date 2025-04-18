@@ -142,6 +142,28 @@ void Parser::parseCallStatement() {
         id_token.column_number);
 }
 
+// Parse a return statement, e.g., return; or return expression;
+void Parser::parseReturnStatement() {
+    // Consume 'return' keyword
+    auto returnToken = expect(Lexer::Tokens::Type::KEYWORD_RETURN);
+    // Parse optional expression
+    ParsedExpressionPtr expr = nullptr;
+    if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ";")) {
+        expr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+    }
+    // Record return operation
+    Interpreter::OperationsFactory::callReturn(
+        expr,
+        Symbols::SymbolContainer::instance()->currentScopeName(),
+        this->current_filename_,
+        returnToken.line_number,
+        returnToken.column_number);
+    // Consume terminating semicolon
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+}
+
+// Continue with numeric literal parsing
+//
 Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type) {
     try {
         switch (type) {

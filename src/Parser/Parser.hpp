@@ -166,12 +166,17 @@ class Parser {
         throw Exception(message, expected, token);
     }
 
-    // parseStatement (unchanged)
+    // parseStatement (updated to handle return)
     void parseStatement() {
         const auto & token_type = currentToken().type;
 
         if (token_type == Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION) {
             parseFunctionDefinition();
+            return;
+        }
+        // Return statement
+        if (token_type == Lexer::Tokens::Type::KEYWORD_RETURN) {
+            parseReturnStatement();
             return;
         }
 
@@ -194,6 +199,8 @@ class Parser {
     void parseFunctionDefinition();
     // Parse a top-level function call statement (e.g., foo(arg1, arg2);)
     void parseCallStatement();
+    // Parse a return statement (e.g., return; or return expr;)
+    void parseReturnStatement();
 
     // --- Parsing helper functions ---
 
