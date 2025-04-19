@@ -20,17 +20,20 @@ class DeclareVariableStatementNode : public StatementNode {
     Symbols::Variables::Type        variableType_;
     std::unique_ptr<ExpressionNode> expression_;
     std::string                     ns;
+    bool                            isConst_;
 
 
   public:
+    // isConst: if true, declares a constant; otherwise a mutable variable
     DeclareVariableStatementNode(std::string name, const std::string & ns, Symbols::Variables::Type type,
-                                 std::unique_ptr<ExpressionNode> expr, const std::string & file_name, int file_line,
-                                 size_t line_column) :
+                                 std::unique_ptr<ExpressionNode> expr, const std::string & file_name,
+                                 int file_line, size_t line_column, bool isConst = false) :
         StatementNode(file_name, file_line, line_column),
         variableName_(std::move(name)),
         variableType_(type),
         expression_(std::move(expr)),
-        ns(ns) {}
+        ns(ns),
+        isConst_(isConst) {}
 
     void interpret(Interpreter & interpreter) const override {
         try {
@@ -47,7 +50,13 @@ class DeclareVariableStatementNode : public StatementNode {
                     "': expected '" + expected + "' but got '" + actual + "'",
                     filename_, line_, column_);
             }
-            const auto variable = Symbols::SymbolFactory::createVariable(variableName_, value, ns, variableType_);
+            // Create a constant or variable symbol
+            std::shared_ptr<Symbols::Symbol> variable;
+            if (isConst_) {
+                variable = Symbols::SymbolFactory::createConstant(variableName_, value, ns);
+            } else {
+                variable = Symbols::SymbolFactory::createVariable(variableName_, value, ns, variableType_);
+            }
             Symbols::SymbolContainer::instance()->add(variable);
         } catch (const Exception &) {
             throw;

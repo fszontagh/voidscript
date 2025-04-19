@@ -35,8 +35,14 @@ class AssignmentStatementNode : public StatementNode {
         using namespace Symbols;
         auto * symContainer = SymbolContainer::instance();
         // Variables are stored under <scope>.variables
-        const std::string base_ns = symContainer->currentScopeName();
-        const std::string var_ns = base_ns + ".variables";
+        const std::string base_ns   = symContainer->currentScopeName();
+        const std::string var_ns    = base_ns + ".variables";
+        const std::string const_ns  = base_ns + ".constants";
+        // Prevent assignment to constants
+        if (symContainer->exists(targetName_, const_ns)) {
+            throw Exception(
+                "Cannot assign to constant '" + targetName_ + "'", filename_, line_, column_);
+        }
         if (!symContainer->exists(targetName_, var_ns)) {
             throw Exception(
                 "Variable '" + targetName_ + "' does not exist in namespace: " + var_ns,

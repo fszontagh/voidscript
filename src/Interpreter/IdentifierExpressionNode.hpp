@@ -14,11 +14,17 @@ class IdentifierExpressionNode : public ExpressionNode {
     explicit IdentifierExpressionNode(std::string name) : name_(std::move(name)) {}
 
     Symbols::Value evaluate(Interpreter & /*interpreter*/) const override {
-        const auto ns = Symbols::SymbolContainer::instance()->currentScopeName() + ".variables";
-        if (Symbols::SymbolContainer::instance()->exists(name_, ns)) {
-            return Symbols::SymbolContainer::instance()->get(ns, name_)->getValue();
+        auto * sc = Symbols::SymbolContainer::instance();
+        const std::string base_ns  = sc->currentScopeName();
+        const std::string var_ns   = base_ns + ".variables";
+        if (sc->exists(name_, var_ns)) {
+            return sc->get(var_ns, name_)->getValue();
         }
-        throw std::runtime_error("Variable " + name_ + " does not exist in ns: " + ns);
+        const std::string const_ns = base_ns + ".constants";
+        if (sc->exists(name_, const_ns)) {
+            return sc->get(const_ns, name_)->getValue();
+        }
+        throw std::runtime_error("Identifier '" + name_ + "' not found in namespace: " + base_ns);
     }
 
     std::string toString() const override { return name_; }

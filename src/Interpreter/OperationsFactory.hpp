@@ -54,6 +54,20 @@ class OperationsFactory {
                                               Operations::Container::instance()->add(
                                                   ns, Operations::Operation{Operations::Type::Declaration, varName, std::move(stmt)});
                                           }
+    /**
+     * @brief Record a constant declaration operation with an initializer expression.
+     */
+    static void defineConstantWithExpression(const std::string & varName, Symbols::Variables::Type type,
+                                             const Parser::ParsedExpressionPtr pexpr, const std::string & ns,
+                                             const std::string & filename, int line, size_t column) {
+        // Build initializer expression
+        std::unique_ptr<ExpressionNode> expr = buildExpressionFromParsed(pexpr);
+        // Create declaration node with const flag
+        std::unique_ptr<DeclareVariableStatementNode> stmt = std::make_unique<DeclareVariableStatementNode>(
+            varName, ns, type, std::move(expr), filename, line, column, /* isConst */ true);
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{Operations::Type::Declaration, varName, std::move(stmt)});
+    }
     
     /**
      * @brief Record a function call operation with argument expressions.

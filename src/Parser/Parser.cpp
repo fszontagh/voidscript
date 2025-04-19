@@ -53,6 +53,35 @@ const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::
     { Lexer::Tokens::Type::KEYWORD_OBJECT,  Symbols::Variables::Type::OBJECT    },
 };
 
+// Parse a top-level constant variable definition: const <type> $name = expr;
+void Parser::parseConstVariableDefinition() {
+    // 'const'
+    auto constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
+    // Parse type
+    Symbols::Variables::Type var_type = parseType();
+    // Variable name
+    Lexer::Tokens::Token id_token;
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+        currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+        id_token = consumeToken();
+    } else {
+        reportError("Expected variable name after 'const'", currentToken());
+    }
+    std::string var_name = id_token.value;
+    if (!var_name.empty() && var_name[0] == '$') {
+        var_name = var_name.substr(1);
+    }
+    const auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
+    // Expect assignment
+    expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
+    // Parse initializer expression
+    auto expr = parseParsedExpression(var_type);
+    // Record constant definition
+    Interpreter::OperationsFactory::defineConstantWithExpression(
+        var_name, var_type, std::move(expr), ns, current_filename_, id_token.line_number, id_token.column_number);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+}
+
 void Parser::parseVariableDefinition() {
     Symbols::Variables::Type var_type = parseType();
 
@@ -365,11 +394,30 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         return std::make_unique<Interpreter::CallStatementNode>(funcName, std::move(exprs), this->current_filename_,
                                                                 idTok.line_number, idTok.column_number);
     }
+    // Constant variable declaration in blocks
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "const") {
+        // 'const'
+        auto constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
+        // Parse type
+        Symbols::Variables::Type type = parseType();
+        // Variable name
+        auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        std::string name = idTok.value;
+        if (!name.empty() && name[0] == '$') name = name.substr(1);
+        // Assignment
+        expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
+        auto valExpr = parseParsedExpression(type);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        auto exprNode = buildExpressionFromParsed(valExpr);
+        return std::make_unique<Interpreter::DeclareVariableStatementNode>(
+            name, Symbols::SymbolContainer::instance()->currentScopeName(), type, std::move(exprNode),
+            this->current_filename_, idTok.line_number, idTok.column_number, /* isConst */ true);
+    }
     // Variable declaration
     if (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) {
-        auto        type  = parseType();
-        auto        idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-        std::string name  = idTok.value;
+        auto type  = parseType();
+        auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        std::string name = idTok.value;
         if (!name.empty() && name[0] == '$') {
             name = name.substr(1);
         }
@@ -381,9 +429,13 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
             name, Symbols::SymbolContainer::instance()->currentScopeName(), type, std::move(exprNode),
             this->current_filename_, idTok.line_number, idTok.column_number);
     }
+    // Unexpected token in block
     reportError("Unexpected token in block");
     return nullptr;
 }
+// End of parseStatementNode
+// Parse next definition or statement
+// (Subsequent methods follow)
 
 void Parser::parseFunctionDefinition() {
     expect(Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION);
@@ -1015,6 +1067,11 @@ void Parser::parseStatement() {
         return;
     }
 
+    // Constant variable definition
+    if (token_type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "const") {
+        parseConstVariableDefinition();
+        return;
+    }
     // Variable definition if leading token matches a type keyword
     if (Parser::variable_types.find(token_type) != Parser::variable_types.end()) {
         parseVariableDefinition();

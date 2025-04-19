@@ -100,6 +100,9 @@ class Parser {
 
     // parseStatement (updated to handle return)
     void                                        parseStatement();
+    // Parse a top-level constant variable definition (e.g., const <type> $name = expr;)
+    void                                        parseConstVariableDefinition();
+    // Parse a top-level variable definition (e.g., <type> $name = expr;)
     void                                        parseVariableDefinition();
     void                                        parseFunctionDefinition();
     // Parse a top-level function call statement (e.g., foo(arg1, arg2);)
