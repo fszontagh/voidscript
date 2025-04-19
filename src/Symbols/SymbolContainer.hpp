@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdexcept>
 #include <unordered_map>
+#include <vector>
 
 #include "SymbolTable.hpp"
 
@@ -14,8 +15,8 @@ namespace Symbols {
 
 class SymbolContainer {
     std::unordered_map<std::string, std::shared_ptr<SymbolTable>> scopes_;
-    std::string                                                   currentScope_  = "global";
-    std::string                                                   previousScope_ = "global";
+    // Stack of active scope names (supports nested scope entry)
+    std::vector<std::string>                                        scopeStack_;
 
   public:
     static SymbolContainer * instance() {
@@ -27,25 +28,42 @@ class SymbolContainer {
 
     // --- Scope management ---
 
+    /**
+     * @brief Create a new scope and enter it.
+     * @param name Name of the new scope.
+     */
     void create(const std::string & name) {
-        scopes_[name]  = std::make_shared<SymbolTable>();
-        previousScope_ = currentScope_;
-        currentScope_  = name;
+        scopes_[name] = std::make_shared<SymbolTable>();
+        scopeStack_.push_back(name);
     }
 
+    /**
+     * @brief Enter an existing scope.
+     * @param name Name of the scope to enter.
+     */
     void enter(const std::string & name) {
         auto it = scopes_.find(name);
         if (it != scopes_.end()) {
-            previousScope_ = currentScope_;
-            currentScope_  = name;
+            scopeStack_.push_back(name);
         } else {
             throw std::runtime_error("Scope does not exist: " + name);
         }
     }
 
-    void enterPreviousScope() { currentScope_ = previousScope_; }
+    /**
+     * @brief Exit the current scope, returning to the previous one.
+     */
+    void enterPreviousScope() {
+        if (scopeStack_.size() > 1) {
+            scopeStack_.pop_back();
+        }
+    }
 
-    [[nodiscard]] std::string currentScopeName() const { return currentScope_; }
+    /**
+     * @brief Get the name of the current scope.
+     * @return Current scope name.
+     */
+    [[nodiscard]] std::string currentScopeName() const { return scopeStack_.empty() ? std::string() : scopeStack_.back(); }
 
     std::vector<std::string> getScopeNames() const {
         std::vector<std::string> result;
@@ -58,9 +76,14 @@ class SymbolContainer {
 
     // --- Symbol operations ---
 
+    /**
+     * @brief Add a symbol to the current scope.
+     * @param symbol Symbol to add.
+     * @return Namespace under which the symbol was defined.
+     */
     std::string add(const SymbolPtr & symbol) {
         const std::string ns = getNamespaceForSymbol(symbol);
-        scopes_[currentScope_]->define(ns, symbol);
+        scopes_[currentScopeName()]->define(ns, symbol);
         return ns;
     }
 
@@ -82,9 +105,15 @@ class SymbolContainer {
         return result;
     }
 
+    /**
+     * @brief Check if a symbol exists in the given namespace (or current scope if none provided).
+     * @param name Symbol name.
+     * @param fullNamespace Namespace to search within (defaults to current scope).
+     * @return True if the symbol exists, false otherwise.
+     */
     bool exists(const std::string & name, std::string fullNamespace = "") const {
         if (fullNamespace.empty()) {
-            fullNamespace = currentScope_;
+            fullNamespace = currentScopeName();
         }
 
         for (const auto & [_, table] : scopes_) {
@@ -122,8 +151,11 @@ class SymbolContainer {
     }
 
   private:
+    /**
+     * @brief Compute the namespace string for a symbol based on its kind and context.
+     */
     std::string getNamespaceForSymbol(const SymbolPtr & symbol) const {
-        std::string base = symbol->context().empty() ? currentScope_ : symbol->context();
+        std::string base = symbol->context().empty() ? currentScopeName() : symbol->context();
 
         switch (symbol->getKind()) {
             case Symbols::Kind::Variable:

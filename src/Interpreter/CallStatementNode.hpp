@@ -48,14 +48,27 @@ class CallStatementNode : public StatementNode {
                     return;
                 }
             }
-            SymbolContainer * sc        = SymbolContainer::instance();
-            const std::string currentNs = sc->currentScopeName();
-            const std::string fnSymNs   = currentNs + ".functions";
-            auto              sym       = sc->get(fnSymNs, functionName_);
-            if (!sym || sym->getKind() != Kind::Function) {
+            // User-defined function: lookup through scope hierarchy
+            SymbolContainer *sc = SymbolContainer::instance();
+            std::string lookupNs = sc->currentScopeName();
+            std::shared_ptr<FunctionSymbol> funcSym;
+            // Search for function symbol in current and parent scopes
+            while (true) {
+                std::string fnSymNs = lookupNs + ".functions";
+                auto sym = sc->get(fnSymNs, functionName_);
+                if (sym && sym->getKind() == Kind::Function) {
+                    funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
+                    break;
+                }
+                auto pos = lookupNs.find_last_of('.');
+                if (pos == std::string::npos) {
+                    break;
+                }
+                lookupNs = lookupNs.substr(0, pos);
+            }
+            if (!funcSym) {
                 throw Exception("Function not found: " + functionName_, filename_, line_, column_);
             }
-            auto funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
             const auto & params = funcSym->parameters();
             if (params.size() != argValues.size()) {
                 throw Exception(
@@ -63,18 +76,18 @@ class CallStatementNode : public StatementNode {
                     " args, got " + std::to_string(argValues.size()),
                     filename_, line_, column_);
             }
-            const std::string fnOpNs = currentNs + "." + functionName_;
+            // Enter function scope and bind parameters
+            const std::string fnOpNs = funcSym->context() + "." + functionName_;
             sc->enter(fnOpNs);
             for (size_t i = 0; i < params.size(); ++i) {
-                const auto &  p = params[i];
-                const Value & v = argValues[i];
+                const auto &p = params[i];
+                const Value &v = argValues[i];
                 auto varSym = SymbolFactory::createVariable(p.name, v, fnOpNs);
                 sc->add(varSym);
             }
             auto ops = Operations::Container::instance()->getAll(fnOpNs);
-            auto it  = ops.begin();
-            for (; it != ops.end(); ++it) {
-                interpreter.runOperation(*(*it));
+            for (const auto &op : ops) {
+                interpreter.runOperation(*op);
             }
             sc->enterPreviousScope();
         } catch (const Exception &) {

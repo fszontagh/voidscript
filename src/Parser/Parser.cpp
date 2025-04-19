@@ -304,7 +304,7 @@ void Parser::parseFunctionDefinition() {
     Lexer::Tokens::Token     id_token         = expect(Lexer::Tokens::Type::IDENTIFIER);
     std::string              func_name        = id_token.value;
     Symbols::Variables::Type func_return_type = Symbols::Variables::Type::NULL_TYPE;
-    expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
+    // note: '=' before parameter list is no longer required; function name is followed directly by '('
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
 
     Symbols::FunctionParameterInfo param_infos;
