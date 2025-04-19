@@ -1,0 +1,29 @@
+
+
+#ifndef VOIDSCRIPT_OPTIONS_H
+#define VOIDSCRIPT_OPTIONS_H
+/*
+* THIS IS A GENERATED FILE. DO NOT EDIT.
+*/
+#ifdef WIN32
+const char EOL = '\r\n';
+#else
+const char EOL = '\n';
+#endif
+const static char   IDENTIFIER_COMMENT   = '@IDENTIFIER_COMMENT@';
+const static char * PARSER_OPEN_TAG     = "@PARSER_OPEN_TAG@";
+const static char * PARSER_CLOSE_TAG    = "@PARSER_CLOSE_TAG@";
+const static char   IDENTIFIER_VARIABLE = '@IDENTIFIER_VARIABLE@';
+const static char * IDENTIFIER_FUNCTION = "@IDENTIFIER_FUNCTION@";
+const static char * IDENTIFIER_RETURN   = "@IDENTIFIER_RETURN@";
+const static char * IDENTIFIER_IF       = "@IDENTIFIER_IF@";
+const static char * VERSION_MINOR       = "@CMAKE_PROJECT_VERSION_MINOR@";
+const static char * VERSION_MAJOR       = "@CMAKE_PROJECT_VERSION_MAJOR@";
+const static char * VERSION_PATCH       = "@CMAKE_PROJECT_VERSION_PATCH@";
+const static char * VERSION_ARCH        = "@ARCHITECTURE@";
+const static char * VERSION_SYSTEM_NAME = "@CMAKE_SYSTEM_NAME@";
+const static char * VERSION_GIT_HASH    = "@APP_GIT_VERSION@";
+const static char * VERSION_STRING      = "v@CMAKE_PROJECT_VERSION@-@CMAKE_SYSTEM_NAME@-@ARCHITECTURE@-@CMAKE_BUILD_TYPE@";
+#cmakedefine01 DEBUG_BUILD
+
+#endif  // VOIDSCRIPT_OPTIONS_H
