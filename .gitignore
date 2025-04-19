@@ -22,3 +22,6 @@
 .vscode
 .cache
 build
+.gitsecret/keys/random_seed
+!*.secret
+.env

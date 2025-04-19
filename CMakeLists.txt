@@ -97,8 +97,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(ARCHITECTURE "amd64")
     elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
         set(ARCHITECTURE "i386")
-    else()
-        message(STATUS "Célarchitektúra: Nem meghatározható (CMAKE_SIZEOF_VOID_P: ${CMAKE_SIZEOF_VOID_P})")
     endif()
 endif()
 
@@ -112,15 +110,20 @@ include(GNUInstallDirs)
 # PACKAGING PROPERTIES END
 
 configure_file("cmake/options.h.in" "include/options.h" @ONLY)
-configure_file("test_scripts/test1.vs" "test_scripts/test1.vs" @ONLY)
-configure_file("test_scripts/test2.vs" "test_scripts/test2.vs" @ONLY)
+    configure_file("test_scripts/variables.vs" "test_scripts/variables.vs" @ONLY)
+    configure_file("test_scripts/expressions.vs" "test_scripts/expressions.vs" @ONLY)
 
-include_directories(${CMAKE_BINARY_DIR}/include src)
+
+
+
+include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src)
+
 
 # LIBRARY TARGET
 add_library(voidscript
-            src/ScriptInterpreter.cpp
-            src/Lexer.cpp
+            src/Parser/Parser.cpp
+            src/Lexer/Lexer.cpp
+            src/Lexer/Operators.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")
@@ -150,6 +153,13 @@ if (NEED_CLI)
     set(CPACK_DEBIAN_BIN_PACKAGE_SECTION "interpreters")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS ${CMAKE_BINARY_DIR})
     set(CPACK_DEBIAN_BIN_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
+endif()
+
+# Plugin modules options
+option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
+
+if (BUILD_MODULE_CURL)
+ add_subdirectory(Modules/CurlModule)
 endif()
 
 # CPACK CONFIGURATION

@@ -1,0 +1,44 @@
+{
+    "name": "voidscript-syntax",
+    "displayName": "VoidScript Syntax",
+    "description": "Syntax highlighting for VoidScript language.",
+    "license": "MIT",
+    "version": "1.0.0",
+    "publisher": "fszontagh",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/fszontagh/voidscript.git"
+    },
+    "engines": {
+      "vscode": "^1.58.0"
+    },
+    "contributes": {
+      "languages": [
+        {
+          "id": "voidscript",
+          "extensions": [".voidscript", ".vs"],
+          "aliases": ["VoidScript"],
+          "configuration": "./src/grammar/language-configuration.json",
+          "mimetypes": ["application/x-voidscript", "application/vpodscript"]
+        }
+      ],
+      "grammars": [
+        {
+          "language": "voidscript",
+          "scopeName": "source.voidscript",
+          "path": "./src/grammar/voidscript.tmLanguage.json"
+        }
+      ]
+    },
+    "scripts": {
+      "vscode:prepublish": "npm install",
+      "compile": "echo \"No compile needed\"",
+      "create:package": "vsce package",
+      "build": "npm run vscode:prepublish; npm run create:package"
+    },
+    "devDependencies": {
+      "typescript": "^4.0.0",
+      "vscode": "^1.1.37",
+      "eslint": "^7.23.0"
+    }
+  }
