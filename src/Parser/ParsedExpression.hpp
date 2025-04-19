@@ -30,6 +30,10 @@ struct ParsedExpression {
     // For function call arguments
     std::vector<ParsedExpressionPtr> args;
     std::vector<std::pair<std::string, ParsedExpressionPtr>> objectMembers;
+    // Source location for error reporting
+    std::string filename;
+    int line = 0;
+    size_t column = 0;
 
     // Constructor for literal
     static ParsedExpressionPtr makeLiteral(const Symbols::Value & val) {

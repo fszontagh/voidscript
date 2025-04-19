@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <iostream>
 #include <unordered_map>
+#include <unistd.h>  // for isatty, STDIN_FILENO
 
 #include "options.h"
 #include "VoidScript.hpp"
@@ -17,6 +18,8 @@ int main(int argc, char * argv[]) {
     for (const auto & [key, value] : params) {
         usage.append(" [" + key + "]");
     }
+    // [file] is optional; if omitted, script is read from stdin
+    usage.append(" [file]");
     // Parse arguments: allow --help, --version, --debug[=component], and a single file
     bool debugLexer       = false;
     bool debugParser      = false;
@@ -61,6 +64,9 @@ int main(int argc, char * argv[]) {
                 std::cerr << usage << "\n";
                 return 1;
             }
+        } else if (a == "-") {
+            // Read script from stdin
+            file = a;
         } else if (a.starts_with("-")) {
             std::cerr << "Error: Unknown option '" << a << "'\n";
             std::cerr << usage << "\n";
@@ -74,17 +80,27 @@ int main(int argc, char * argv[]) {
         }
     }
     if (file.empty()) {
-        std::cerr << "Error: No input file specified\n";
+        // No input file specified: read script from stdin
+        file = "-";
+    }
+    // If reading from stdin but stdin is a tty (no piped input), show usage
+    if (file == "-" && isatty(STDIN_FILENO)) {
         std::cerr << usage << "\n";
         return 1;
     }
 
-    if (!std::filesystem::exists(file)) {
-        std::cerr << "Error: File " << file << " does not exist.\n";
-        return 1;
+    // Determine if reading from a file or stdin
+    std::string filename;
+    if (file == "-") {
+        // Read script from standard input
+        filename = file;
+    } else {
+        if (!std::filesystem::exists(file)) {
+            std::cerr << "Error: File " << file << " does not exist.\n";
+            return 1;
+        }
+        filename = std::filesystem::canonical(file).string();
     }
-
-    const std::string filename = std::filesystem::canonical(file).string();
 
     // Initialize and run with debug options
     VoidScript voidscript(filename, debugLexer, debugParser, debugInterp, debugSymbolTable);

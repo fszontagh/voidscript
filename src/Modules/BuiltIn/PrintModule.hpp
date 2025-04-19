@@ -37,6 +37,15 @@ class PrintModule : public BaseModule {
             std::cerr << "\n";
             return Symbols::Value();
         });
+        // Built-in error thrower: throws a module exception with provided message
+        mgr.registerFunction("throw_error", [](const std::vector<Symbols::Value> & args) {
+            if (args.size() != 1 || args[0].getType() != Symbols::Variables::Type::STRING) {
+                throw Exception("throw_error requires exactly one string argument");
+            }
+            std::string msg = args[0].get<std::string>();
+            throw Exception(msg);
+            return Symbols::Value();  // never reached
+        });
     }
 };
 

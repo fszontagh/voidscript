@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <iostream>
+#include <iterator>
 
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
@@ -32,15 +34,18 @@ class VoidScript {
     std::shared_ptr<Parser::Parser> parser = nullptr;
 
     static std::string readFile(const std::string & file) {
+        // Read from stdin if '-' is specified
+        if (file == "-") {
+            return std::string(std::istreambuf_iterator<char>(std::cin), std::istreambuf_iterator<char>());
+        }
         if (!std::filesystem::exists(file)) {
-            throw std::runtime_error("File " + file + " does not exits");
+            throw std::runtime_error("File " + file + " does not exist");
         }
         std::ifstream input(file, std::ios::in);
         if (!input.is_open()) {
             throw std::runtime_error("Could not open file " + file);
-            return "";
         }
-        std::string content = std::string((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+        std::string content((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         input.close();
         return content;
     }

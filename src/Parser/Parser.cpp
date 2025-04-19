@@ -927,8 +927,14 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 }
             }
             expect(Lexer::Tokens::Type::PUNCTUATION, ")");
-            // Create call expression node
-            output_queue.push_back(ParsedExpression::makeCall(func_name, std::move(call_args)));
+            // Create call expression node with source location
+            {
+                auto pe = ParsedExpression::makeCall(func_name, std::move(call_args));
+                pe->filename = this->current_filename_;
+                pe->line = token.line_number;
+                pe->column = token.column_number;
+                output_queue.push_back(std::move(pe));
+            }
             expect_unary = false;
         } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC ||
                    token.type == Lexer::Tokens::Type::OPERATOR_RELATIONAL ||

@@ -69,7 +69,9 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
                 for (const auto &arg : expr->args) {
                     callArgs.push_back(buildExpressionFromParsed(arg));
                 }
-                return std::make_unique<Interpreter::CallExpressionNode>(expr->name, std::move(callArgs));
+                // Create call node with source location
+                return std::make_unique<Interpreter::CallExpressionNode>(expr->name,
+                    std::move(callArgs), expr->filename, expr->line, expr->column);
             }
         case Kind::Object:
             {
