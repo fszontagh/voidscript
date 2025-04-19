@@ -1,33 +1,36 @@
-// TypeofModule.hpp
-#ifndef MODULES_TYPEOFMODULE_HPP
-#define MODULES_TYPEOFMODULE_HPP
+// VariableHelpersModule.hpp
+#ifndef MODULES_VARIABLEHELPERSMODULE_HPP
+#define MODULES_VARIABLEHELPERSMODULE_HPP
 
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include "BaseModule.hpp"
-#include "ModuleManager.hpp"
+
+#include "Modules/BaseModule.hpp"
+#include "Modules/ModuleManager.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
 
 namespace Modules {
 
 /**
- * @brief Module providing a typeof() function.
- * Usage:
- *   typeof($var)            -> returns string name of type ("int", "string", etc.)
- *   typeof($var, "int")   -> returns bool indicating if type matches
+ * @brief Module providing helper functions for variables.
+ * Currently supports:
+ *   typeof($var)            -> returns string name of type
+ *   typeof($var, "int")   -> returns bool if type matches
  */
-class TypeofModule : public BaseModule {
+class VariableHelpersModule : public BaseModule {
   public:
     void registerModule() override {
-        auto &mgr = ModuleManager::instance();
-        mgr.registerFunction("typeof", [](const std::vector<Symbols::Value> &args) {
+        auto & mgr = ModuleManager::instance();
+        mgr.registerFunction("typeof", [](const std::vector<Symbols::Value> & args) {
             using namespace Symbols;
             if (args.size() == 1) {
                 auto t = args[0].getType();
                 return Value(Variables::TypeToString(t));
-            } else if (args.size() == 2) {
-                auto t = args[0].getType();
+            }
+            if (args.size() == 2) {
+                auto        t    = args[0].getType();
                 std::string name = Variables::TypeToString(t);
                 if (args[1].getType() != Variables::Type::STRING) {
                     throw std::runtime_error("Second argument to typeof must be string");
@@ -40,6 +43,6 @@ class TypeofModule : public BaseModule {
     }
 };
 
-} // namespace Modules
+}  // namespace Modules
 
-#endif // MODULES_TYPEOFMODULE_HPP
+#endif  // MODULES_VARIABLEHELPERSMODULE_HPP

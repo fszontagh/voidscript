@@ -6,12 +6,18 @@
 
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
+#include "Modules/BuiltIn/PrintModule.hpp"
 #include "Modules/ModuleManager.hpp"
-#include "Modules/PrintNlModule.hpp"
-#include "Modules/PrintModule.hpp"
-#include "Modules/TypeofModule.hpp"
-#include "Modules/FileModule.hpp"
-#include "Modules/JsonModule.hpp"
+// Variable helper functions (typeof)
+#include "Modules/BuiltIn/VariableHelpersModule.hpp"
+// String helper functions
+#include "Modules/BuiltIn/StringModule.hpp"
+// Array helper functions (sizeof)
+#include "Modules/BuiltIn/ArrayModule.hpp"
+// File I/O
+#include "Modules/BuiltIn/FileModule.hpp"
+// JSON encode/decode
+#include "Modules/BuiltIn/JsonModule.hpp"
 #include "Parser/Parser.hpp"
 
 class VoidScript {
@@ -55,10 +61,14 @@ class VoidScript {
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
         // Register built-in modules (print, etc.)
+        // print functions
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintNlModule>());
-        // typeof() builtin
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::TypeofModule>());
+        // variable helpers (typeof)
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::VariableHelpersModule>());
+        // string helper functions
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::StringModule>());
+        // array helper functions (sizeof)
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::ArrayModule>());
         // file I/O builtin
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::FileModule>());
         // JSON encode/decode builtin

@@ -11,6 +11,7 @@
 #include "Interpreter/UnaryExpressionNode.hpp"  // <-- új include
 #include "Interpreter/CallExpressionNode.hpp"
 #include "Interpreter/MemberExpressionNode.hpp"
+#include "Interpreter/ArrayAccessExpressionNode.hpp"
 #include "Interpreter/ObjectExpressionNode.hpp"
 #include "Interpreter/ObjectExpressionNode.hpp"
 #include "Parser/ParsedExpression.hpp"
@@ -29,10 +30,16 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
 
         case Kind::Binary:
             {
+                // Array/object dynamic indexing: operator []
+                if (expr->op == "[]") {
+                    auto arrExpr = buildExpressionFromParsed(expr->lhs);
+                    auto idxExpr = buildExpressionFromParsed(expr->rhs);
+                    return std::make_unique<Interpreter::ArrayAccessExpressionNode>(std::move(arrExpr), std::move(idxExpr));
+                }
+                // Member access for object properties: '->'
                 if (expr->op == "->") {
                     auto objExpr = buildExpressionFromParsed(expr->lhs);
                     std::string propName;
-                    // RHS parsed expression should be a literal string or variable parser node
                     if (expr->rhs->kind == ParsedExpression::Kind::Literal &&
                         expr->rhs->value.getType() == Symbols::Variables::Type::STRING) {
                         propName = expr->rhs->value.get<std::string>();
@@ -43,6 +50,7 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
                     }
                     return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objExpr), propName);
                 }
+                // Default binary operator
                 auto lhs = buildExpressionFromParsed(expr->lhs);
                 auto rhs = buildExpressionFromParsed(expr->rhs);
                 return std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), expr->op, std::move(rhs));

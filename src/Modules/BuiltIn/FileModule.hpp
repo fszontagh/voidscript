@@ -8,8 +8,8 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
-#include "BaseModule.hpp"
-#include "ModuleManager.hpp"
+#include "Modules/BaseModule.hpp"
+#include "Modules/ModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {

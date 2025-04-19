@@ -55,8 +55,15 @@ const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::
 void Parser::parseVariableDefinition() {
     Symbols::Variables::Type var_type = parseType();
 
-    Lexer::Tokens::Token id_token = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-    std::string          var_name = id_token.value;
+    // Variable name: allow names with or without leading '$'
+    Lexer::Tokens::Token id_token;
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+        currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+        id_token = consumeToken();
+    } else {
+        reportError("Expected variable name", currentToken());
+    }
+    std::string var_name = id_token.value;
 
     if (!var_name.empty() && var_name[0] == '$') {
         var_name = var_name.substr(1);
@@ -154,23 +161,39 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseIfStatementNode() {
 std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     auto forToken = expect(Lexer::Tokens::Type::KEYWORD, "for");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
-    Symbols::Variables::Type keyType = parseType();
-    auto                     keyTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-    std::string              keyName = keyTok.value;
-    if (!keyName.empty() && keyName[0] == '$') {
-        keyName = keyName.substr(1);
+    // Parse element type and variable name
+    Symbols::Variables::Type elemType = parseType();
+    auto firstTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+    std::string firstName = firstTok.value;
+    if (!firstName.empty() && firstName[0] == '$') {
+        firstName = firstName.substr(1);
     }
-    expect(Lexer::Tokens::Type::PUNCTUATION, ",");
-    if (!(currentToken().type == Lexer::Tokens::Type::IDENTIFIER && currentToken().value == "auto")) {
-        reportError("Expected 'auto' in for-in loop");
+    // Determine loop form: key,value or simple element loop
+    std::string keyName, valName;
+    Symbols::Variables::Type keyType;
+    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+        // Key, value syntax
+        keyType = elemType;
+        keyName = firstName;
+        // Expect 'auto' for value variable
+        if (!(currentToken().type == Lexer::Tokens::Type::IDENTIFIER && currentToken().value == "auto")) {
+            reportError("Expected 'auto' in for-in loop");
+        }
+        consumeToken();
+        auto valTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        valName = valTok.value;
+        if (!valName.empty() && valName[0] == '$') {
+            valName = valName.substr(1);
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+    } else if (match(Lexer::Tokens::Type::PUNCTUATION, ":")) {
+        // Simple element loop
+        keyType = elemType;
+        keyName = firstName;
+        valName = firstName;
+    } else {
+        reportError("Expected ',' or ':' in for-in loop");
     }
-    consumeToken();
-    auto        valTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-    std::string valName = valTok.value;
-    if (!valName.empty() && valName[0] == '$') {
-        valName = valName.substr(1);
-    }
-    expect(Lexer::Tokens::Type::PUNCTUATION, ":");
     auto iterableExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
     expect(Lexer::Tokens::Type::PUNCTUATION, "{");
@@ -401,25 +424,39 @@ void Parser::parseForStatement() {
     // 'for'
     auto forToken = expect(Lexer::Tokens::Type::KEYWORD, "for");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
-    // Parse key type and name
-    Symbols::Variables::Type keyType = parseType();
-    auto                     keyTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-    std::string              keyName = keyTok.value;
-    if (!keyName.empty() && keyName[0] == '$') {
-        keyName = keyName.substr(1);
+    // Parse element type and variable name
+    Symbols::Variables::Type elemType = parseType();
+    auto firstTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+    std::string firstName = firstTok.value;
+    if (!firstName.empty() && firstName[0] == '$') {
+        firstName = firstName.substr(1);
     }
-    expect(Lexer::Tokens::Type::PUNCTUATION, ",");
-    // Parse 'auto' keyword for value
-    if (!(currentToken().type == Lexer::Tokens::Type::IDENTIFIER && currentToken().value == "auto")) {
-        reportError("Expected 'auto' in for-in loop");
+    // Determine loop form: key,value or simple element loop
+    std::string keyName, valName;
+    Symbols::Variables::Type keyType;
+    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+        // Key, value syntax
+        keyType = elemType;
+        keyName = firstName;
+        // Expect 'auto' for value variable
+        if (!(currentToken().type == Lexer::Tokens::Type::IDENTIFIER && currentToken().value == "auto")) {
+            reportError("Expected 'auto' in for-in loop");
+        }
+        consumeToken();
+        auto valTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        valName = valTok.value;
+        if (!valName.empty() && valName[0] == '$') {
+            valName = valName.substr(1);
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+    } else if (match(Lexer::Tokens::Type::PUNCTUATION, ":")) {
+        // Simple element loop
+        keyType = elemType;
+        keyName = firstName;
+        valName = firstName;
+    } else {
+        reportError("Expected ',' or ':' in for-in loop");
     }
-    consumeToken();
-    auto        valTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-    std::string valName = valTok.value;
-    if (!valName.empty() && valName[0] == '$') {
-        valName = valName.substr(1);
-    }
-    expect(Lexer::Tokens::Type::PUNCTUATION, ":");
     // Parse iterable expression
     auto iterableExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
@@ -535,9 +572,52 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
     }
 
     bool expect_unary = true;
+    // Track if at start of expression (to distinguish array literal vs indexing)
+    bool atStart = true;
 
     while (true) {
         auto token = currentToken();
+        // Array literal (at start) or dynamic indexing (postfix)
+        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "[") {
+            if (atStart) {
+                // Parse array literal as object with numeric keys
+                consumeToken(); // consume '['
+                std::vector<std::pair<std::string, ParsedExpressionPtr>> members;
+                size_t idx = 0;
+                // Elements until ']'
+                if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "]")) {
+                    while (true) {
+                        auto elem = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+                        members.emplace_back(std::to_string(idx++), std::move(elem));
+                        if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                            continue;
+                        }
+                        break;
+                    }
+                }
+                expect(Lexer::Tokens::Type::PUNCTUATION, "]");
+                // Build as object literal
+                output_queue.push_back(ParsedExpression::makeObject(std::move(members)));
+                expect_unary = false;
+                atStart = false;
+                continue;
+            } else {
+                // Parse dynamic array/object indexing: lhs[index]
+                consumeToken(); // consume '['
+                auto indexExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+                expect(Lexer::Tokens::Type::PUNCTUATION, "]");
+                if (output_queue.empty()) {
+                    reportError("Missing array/object for indexing");
+                }
+                auto lhsExpr = std::move(output_queue.back());
+                output_queue.pop_back();
+                auto accessExpr = ParsedExpression::makeBinary("[]", std::move(lhsExpr), std::move(indexExpr));
+                output_queue.push_back(std::move(accessExpr));
+                expect_unary = false;
+                atStart = false;
+                continue;
+            }
+        }
         // Object literal: { key: value, ... }
         if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "{") {
             // Consume '{'
@@ -737,8 +817,10 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     Parser::reportError("Invalid type", token, "literal or variable");
                 }
             }
+            // Consume operand and mark that expression start has passed
             consumeToken();
             expect_unary = false;
+            atStart = false;
         } else {
             break;
         }
@@ -853,7 +935,12 @@ Symbols::Variables::Type Parser::parseType() {
     // Direct lookup for type keyword
     auto         it    = Parser::variable_types.find(token.type);
     if (it != Parser::variable_types.end()) {
+        // Base type
         consumeToken();
+        // Array type syntax: baseType[] -> treat as OBJECT/array map
+        if (match(Lexer::Tokens::Type::PUNCTUATION, "[") && match(Lexer::Tokens::Type::PUNCTUATION, "]")) {
+            return Symbols::Variables::Type::OBJECT;
+        }
         return it->second;
     }
     reportError("Expected type keyword (string, int, double, float)");
