@@ -289,7 +289,8 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
             offset += 2;  // skip '->' and following identifier
         }
         const auto & look = peekToken(offset);
-        if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT && look.value == "=") {
+        // Handle simple and compound assignment operators (e.g., =, +=, -=, etc.)
+        if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
             // Consume base variable
             auto        idTok    = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
             std::string baseName = idTok.value;
@@ -313,16 +314,29 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                 }
                 propertyPath.push_back(propName);
             }
-            // Consume '='
-            auto eqTok   = expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
+            // Consume assignment operator ("=" or compound like "+=")
+            auto opTok   = expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
             // Parse RHS expression
             auto rhsExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
             // Build RHS node
             auto rhsNode = buildExpressionFromParsed(rhsExpr);
+            // Compound assignment: a OP= b -> a = a OP b
+            if (opTok.value != "=") {
+                // Build LHS expression for current value
+                std::unique_ptr<Interpreter::ExpressionNode> lhsNode =
+                    std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
+                for (const auto & prop : propertyPath) {
+                    lhsNode = std::make_unique<Interpreter::MemberExpressionNode>(std::move(lhsNode), prop);
+                }
+                // Extract binary operator ("+=" -> "+")
+                std::string binOp = opTok.value.substr(0, opTok.value.size() - 1);
+                // Build binary expression lhs OP rhs
+                rhsNode = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhsNode), binOp, std::move(rhsNode));
+            }
             return std::make_unique<Interpreter::AssignmentStatementNode>(baseName, std::move(propertyPath),
                                                                           std::move(rhsNode), this->current_filename_,
-                                                                          eqTok.line_number, eqTok.column_number);
+                                                                          opTok.line_number, opTok.column_number);
         }
     }
     // Function call statement
@@ -1020,7 +1034,8 @@ void Parser::parseStatement() {
             offset += 2;
         }
         const auto & look = peekToken(offset);
-        if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT && look.value == "=") {
+        // Simple or compound assignment (e.g., =, +=, -=, etc.)
+        if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
             parseAssignmentStatement();
             return;
         }
