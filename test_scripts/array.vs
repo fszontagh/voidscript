@@ -18,3 +18,7 @@ for (string $value : $array) {
 int $size = sizeof($array);
 
 printnl("The size of the $array: ", $size);
+
+for (int $i = 0; $i < sizeof($intArray); $i++) {
+    printnl("Value: ", $intArray[$i]);
+}

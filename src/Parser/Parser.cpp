@@ -13,6 +13,7 @@ std::string Parser::Parser::Exception::current_filename_;
 #include "Interpreter/DeclareVariableStatementNode.hpp"
 #include "Interpreter/ExpressionBuilder.hpp"
 #include "Interpreter/ForStatementNode.hpp"
+#include "Interpreter/CStyleForStatementNode.hpp"
 #include "Interpreter/ReturnStatementNode.hpp"
 #include "Symbols/SymbolContainer.hpp"
 
@@ -167,6 +168,54 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     std::string firstName = firstTok.value;
     if (!firstName.empty() && firstName[0] == '$') {
         firstName = firstName.substr(1);
+    }
+    // C-style for loop: for (type $i = init; cond; incr) { ... }
+    if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
+        // Parse initialization expression
+        auto initExpr = parseParsedExpression(elemType);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        // Parse condition expression
+        auto condExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        // Parse increment statement
+        std::unique_ptr<Interpreter::StatementNode> incrStmt;
+        {
+            auto incrTok = currentToken();
+            if (incrTok.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+                auto identTok = consumeToken();
+                std::string incrName = identTok.value;
+                if (!incrName.empty() && incrName[0] == '$') incrName = incrName.substr(1);
+                if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "++")) {
+                    auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
+                    auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "+", std::move(rhs));
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                } else if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "--")) {
+                    auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
+                    auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "-", std::move(rhs));
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                } else {
+                    reportError("Expected '++' or '--' in for-loop increment");
+                }
+            } else {
+                reportError("Expected variable name in for-loop increment");
+            }
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+        expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+        // Parse loop body
+        std::vector<std::unique_ptr<Interpreter::StatementNode>> body;
+        while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+            body.push_back(parseStatementNode());
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+        // Build nodes for C-style for
+        auto initExprNode = buildExpressionFromParsed(initExpr);
+        auto initStmt = std::make_unique<Interpreter::DeclareVariableStatementNode>(firstName, Symbols::SymbolContainer::instance()->currentScopeName(), elemType, std::move(initExprNode), this->current_filename_, firstTok.line_number, firstTok.column_number);
+        auto condExprNode = buildExpressionFromParsed(condExpr);
+        auto * cnode = new Interpreter::CStyleForStatementNode(std::move(initStmt), std::move(condExprNode), std::move(incrStmt), std::move(body), this->current_filename_, forToken.line_number, forToken.column_number);
+        return std::unique_ptr<Interpreter::StatementNode>(cnode);
     }
     // Determine loop form: key,value or simple element loop
     std::string keyName, valName;
@@ -430,6 +479,56 @@ void Parser::parseForStatement() {
     std::string firstName = firstTok.value;
     if (!firstName.empty() && firstName[0] == '$') {
         firstName = firstName.substr(1);
+    }
+    // C-style for loop: for (type $i = init; cond; incr) { ... }
+    if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
+        // Parse initialization expression
+        auto initExpr = parseParsedExpression(elemType);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        // Parse condition expression
+        auto condExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        // Parse increment statement
+        std::unique_ptr<Interpreter::StatementNode> incrStmt;
+        {
+            auto incrTok = currentToken();
+            if (incrTok.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+                auto identTok = consumeToken();
+                std::string incrName = identTok.value;
+                if (!incrName.empty() && incrName[0] == '$') incrName = incrName.substr(1);
+                if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "++")) {
+                    auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
+                    auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "+", std::move(rhs));
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                } else if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "--")) {
+                    auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
+                    auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "-", std::move(rhs));
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                } else {
+                    reportError("Expected '++' or '--' in for-loop increment");
+                }
+            } else {
+                reportError("Expected variable name in for-loop increment");
+            }
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+        expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+        // Parse loop body
+        std::vector<std::unique_ptr<Interpreter::StatementNode>> body;
+        while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+            body.push_back(parseStatementNode());
+        }
+        expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+        // Build nodes for C-style for
+        auto initExprNode = buildExpressionFromParsed(initExpr);
+        auto initStmt = std::make_unique<Interpreter::DeclareVariableStatementNode>(firstName, Symbols::SymbolContainer::instance()->currentScopeName(), elemType, std::move(initExprNode), this->current_filename_, firstTok.line_number, firstTok.column_number);
+        auto condExprNode = buildExpressionFromParsed(condExpr);
+        auto cnode = std::make_unique<Interpreter::CStyleForStatementNode>(std::move(initStmt), std::move(condExprNode), std::move(incrStmt), std::move(body), this->current_filename_, forToken.line_number, forToken.column_number);
+        Operations::Container::instance()->add(Symbols::SymbolContainer::instance()->currentScopeName(),
+                                               Operations::Operation{Operations::Type::Loop, "", std::move(cnode)});
+        return;
     }
     // Determine loop form: key,value or simple element loop
     std::string keyName, valName;
