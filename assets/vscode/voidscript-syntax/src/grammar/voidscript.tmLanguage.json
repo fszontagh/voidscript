@@ -1,5 +1,8 @@
 {
-  "fileTypes": ["voidscript", "vs"],
+  "fileTypes": [
+    "voidscript",
+    "vs"
+  ],
   "scopeName": "source.voidscript",
   "patterns": [
     {
@@ -13,6 +16,23 @@
     {
       "name": "keyword.control.voidscript",
       "match": "\\b(function|class|const|object|string|int|boolean|bool|double|float|if|else|for|while|switch|case|break|continue|new|return|throw|typeof|private|public|protected)\\b"
+    },
+    {
+      "name": "entity.name.type.class.voidscript",
+      "match": "\\b(class)\\b"
+    },
+    {
+      "name": "entity.name.class.voidscript",
+      "match": "\\bclass\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "entity.name.class.voidscript"
+        }
+      }
+    },
+    {
+      "name": "support.class.voidscript",
+      "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
     },
     {
       "name": "variable.other.local.voidscript",
@@ -41,10 +61,6 @@
     {
       "name": "variable.other.local.voidscript",
       "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
-    },
-    {
-      "name": "entity.name.type.class.voidscript",
-      "match": "\\bclass\\s+[a-zA-Z_][a-zA-Z0-9_]*\\b"
     },
     {
       "name": "entity.name.function.voidscript",

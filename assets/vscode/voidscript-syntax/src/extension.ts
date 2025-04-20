@@ -21,45 +21,50 @@ export function deactivate() { }
 
 function formatVoidScript(text: string): string {
   const lines = text.split(/\r?\n/);
-  let indentLevel = 0;
-  const indentSize = 4;
   const formattedLines: string[] = [];
+  const indentSize = 4;
 
-  const increaseIndentNextLine = (line: string): boolean => {
-    return (
-      /{\s*$/.test(line) || // block start
-      /:\s*{/.test(line)    // inline object key: {
-    );
-  };
+  let indentLevel = 0;
+  const blockStack: string[] = [];
 
-  const decreaseIndentCurrentLine = (line: string): boolean => {
-    return /^\s*}/.test(line);
-  };
+  function getIndent(): string {
+    return ' '.repeat(indentLevel * indentSize);
+  }
 
-  for (let line of lines) {
-    const trimmed = line.trim();
+  function isBlockStart(line: string): boolean {
+    return /{\s*$/.test(line.trim());
+  }
 
-    if (trimmed === '') {
+  function isBlockEnd(line: string): boolean {
+    return /^}/.test(line.trim());
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+
+    if (line === '') {
       formattedLines.push('');
       continue;
     }
 
-    if (decreaseIndentCurrentLine(trimmed)) {
-      indentLevel = Math.max(indentLevel - 1, 0);
+    if (isBlockEnd(line)) {
+      indentLevel = Math.max(0, indentLevel - 1);
+      const top = blockStack.pop();
     }
 
-    const indent = ' '.repeat(indentLevel * indentSize);
-    formattedLines.push(indent + trimmed);
+    const indent = getIndent();
+    formattedLines.push(indent + line);
 
-    if (increaseIndentNextLine(trimmed)) {
+    if (isBlockStart(line)) {
+      // Heuristic: guess block type for better future expansion
+      if (line.includes('class')) blockStack.push('class');
+      else if (line.includes('function')) blockStack.push('function');
+      else if (line.startsWith('if')) blockStack.push('if');
+      else if (line.startsWith('else')) blockStack.push('else');
+      else blockStack.push('block');
+
       indentLevel++;
     }
-
-    // balance adjustment in case of multiple closing braces
-    const openCount = (trimmed.match(/{/g) || []).length;
-    const closeCount = (trimmed.match(/}/g) || []).length;
-    indentLevel += openCount - closeCount;
-    if (indentLevel < 0) indentLevel = 0;
   }
 
   return formattedLines.join('\n');
