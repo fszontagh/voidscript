@@ -45,7 +45,9 @@ class MethodCallExpressionNode : public ExpressionNode {
         try {
             // Evaluate target object
             Value objVal = objectExpr_->evaluate(interpreter);
-            if (objVal.getType() != Variables::Type::OBJECT) {
+            // Allow method calls on class instances (and plain objects with class metadata)
+            if (objVal.getType() != Variables::Type::OBJECT &&
+                objVal.getType() != Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
                                 column_);
             }

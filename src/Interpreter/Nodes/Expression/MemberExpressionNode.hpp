@@ -23,7 +23,9 @@ class MemberExpressionNode : public ExpressionNode {
 
     Symbols::Value evaluate(Interpreter & interpreter) const override {
         Symbols::Value objVal = objectExpr_->evaluate(interpreter);
-        if (objVal.getType() != Symbols::Variables::Type::OBJECT) {
+        // Allow member access on plain objects and class instances
+        if (objVal.getType() != Symbols::Variables::Type::OBJECT &&
+            objVal.getType() != Symbols::Variables::Type::CLASS) {
             throw Exception("Attempted to access member '" + propertyName_ + "' of non-object", filename_, line_,
                             column_);
         }

@@ -68,7 +68,8 @@ class NewExpressionNode : public ExpressionNode {
         }
         // Embed class metadata for method dispatch
         obj["__class__"] = Symbols::Value(className_);
-        return Symbols::Value(obj);
+        // Return class instance value (distinct from plain object)
+        return Symbols::Value::makeClassInstance(obj);
     }
 
     std::string toString() const override { return "NewExpression{ class=" + className_ + " }"; }

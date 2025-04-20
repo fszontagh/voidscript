@@ -1,14 +1,14 @@
 # JSON Encode/Decode Feature Test
 # Define an object with nested data
 object $user = {
-    string name: "Alice",
-    int age: 30,
-    boolean active: true,
-    object prefs: {
-        string theme: "dark",
-        boolean notifications: false
-    }
-};
+        string name: "Alice",
+        int age: 30,
+        boolean active: true,
+        object prefs: {
+                string theme: "dark",
+                boolean notifications: false
+            }
+    };
 
 // Encode to JSON string
 string $json = json_encode($user);

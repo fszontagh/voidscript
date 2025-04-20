@@ -51,6 +51,15 @@ class Value {
         auto v = Value("null");
         return v;
     }
+    /**
+     * @brief Construct a class instance value from a map of member names to Values,
+     *        setting its type to CLASS.
+     */
+    static Symbols::Value makeClassInstance(const ObjectMap & v) {
+        Value val(v);
+        val.type_ = Symbols::Variables::Type::CLASS;
+        return val;
+    }
 
     // operator+
     friend Value operator+(const Value & lhs, const Value & rhs) {

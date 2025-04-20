@@ -17,7 +17,7 @@ object $person2 = {
 };
 printnl("Person2: ", $person2->name, " age: ", $person2->age, " child: ", $person2->children->name, " age: ", $person2->children->age);
 
-object $test = $person2;
+object $test        = $person2;
 printnl("Person2: ", $test->name, " age: ", $test->age, " child: ", $test->children->name, " age: ", $test->children->age);
 
 string $person_name = $person->name;
@@ -29,10 +29,11 @@ $person2->children->age = 22;
 printnl("Child1 new age: ", $person2->children->age);
 
 int $age = 10;
+
 if ($person2->children->age > 18) {
     printnl("Child1 is old enough to go to school.");
 } else {
-    printnl("Child1 is too young to go to school.");
+printnl("Child1 is too young to go to school.");
 }
 
 for (string $key, auto $value : $person2) {
@@ -40,6 +41,6 @@ for (string $key, auto $value : $person2) {
     if (typeof($value,"object") == false) {
         printnl("Key: ", $key, " Value: ", $value);
     }else {
-        printnl("Key: ", $key, " is an object");
-    }
+    printnl("Key: ", $key, " is an object");
+}
 }

@@ -124,9 +124,6 @@ inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
     switch (expr->kind) {
         case Kind::Literal:
             {
-                // Literál típusának ellenőrzése - a literál típusát a value.getType() adja vissza
-                // auto type = expr->value.getType();
-                // Nem szükséges semmilyen más típusellenőrzés a literálokhoz, mivel azok fix típusúak.
                 break;
             }
 
