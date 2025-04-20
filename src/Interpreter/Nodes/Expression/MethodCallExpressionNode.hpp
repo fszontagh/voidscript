@@ -72,8 +72,10 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
             // Locate function symbol in class namespace
             auto *            sc       = SymbolContainer::instance();
-            const std::string currentNS = sc->currentScopeName();
-            const std::string fnSymNs  = currentNS + "::functions";
+            // Lookup method symbol in class namespace
+            const std::string fileNs   = sc->currentScopeName();
+            const std::string classNs  = fileNs + "::" + className;
+            const std::string fnSymNs  = classNs + "::functions";
             auto              sym      = sc->get(fnSymNs, methodName_);
             if (!sym || sym->getKind() != Kind::Function) {
                 throw Exception("Function symbol not found for method: '" + methodName_ + "' NS: " + fnSymNs, filename_,
@@ -87,8 +89,8 @@ class MethodCallExpressionNode : public ExpressionNode {
                                     " args, got " + std::to_string(args_.size()),
                                 filename_, line_, column_);
             }
-            // Enter method scope
-            const std::string methodNs = currentNS + "::" + methodName_;
+            // Enter method scope under class namespace
+            const std::string methodNs = classNs + "::" + methodName_;
             sc->enter(methodNs);
             // Bind 'this'
             sc->add(SymbolFactory::createVariable("this", objVal, methodNs));

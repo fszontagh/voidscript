@@ -1,33 +1,30 @@
- #include "Symbols/ClassRegistry.hpp"
- #include <stdexcept>
+#include "Symbols/ClassRegistry.hpp"
 
- namespace Symbols {
+#include <stdexcept>
 
- ClassRegistry & ClassRegistry::instance() {
-     static ClassRegistry inst;
-     return inst;
- }
+namespace Symbols {
+
+ClassRegistry & ClassRegistry::instance() {
+    static ClassRegistry inst;
+    return inst;
+}
 
 // Register a new property for a class
-void ClassRegistry::addProperty(const std::string & className,
-                                const std::string & propertyName,
-                                Variables::Type type,
+void ClassRegistry::addProperty(const std::string & className, const std::string & propertyName, Variables::Type type,
                                 Parser::ParsedExpressionPtr defaultValueExpr) {
-    ClassInfo & info = getClassInfo(className);
+    ClassInfo &             info = getClassInfo(className);
     ClassInfo::PropertyInfo prop{ propertyName, type, std::move(defaultValueExpr) };
     info.properties.push_back(std::move(prop));
 }
 
 // Register a new method for a class
-void ClassRegistry::addMethod(const std::string & className,
-                               const std::string & methodName) {
+void ClassRegistry::addMethod(const std::string & className, const std::string & methodName) {
     ClassInfo & info = getClassInfo(className);
     info.methodNames.push_back(methodName);
 }
 
 // Check if a property exists in the class
-bool ClassRegistry::hasProperty(const std::string & className,
-                                 const std::string & propertyName) const {
+bool ClassRegistry::hasProperty(const std::string & className, const std::string & propertyName) const {
     auto it = classes_.find(className);
     if (it == classes_.end()) {
         return false;
@@ -42,8 +39,7 @@ bool ClassRegistry::hasProperty(const std::string & className,
 }
 
 // Check if a method exists in the class
-bool ClassRegistry::hasMethod(const std::string & className,
-                               const std::string & methodName) const {
+bool ClassRegistry::hasMethod(const std::string & className, const std::string & methodName) const {
     auto it = classes_.find(className);
     if (it == classes_.end()) {
         return false;
@@ -67,22 +63,22 @@ std::vector<std::string> ClassRegistry::getClassNames() const {
     return names;
 }
 
- bool ClassRegistry::hasClass(const std::string & className) const {
-     return classes_.find(className) != classes_.end();
- }
+bool ClassRegistry::hasClass(const std::string & className) const {
+    return classes_.find(className) != classes_.end();
+}
 
- void ClassRegistry::registerClass(const std::string & className) {
+void ClassRegistry::registerClass(const std::string & className) {
     // Insert a new class, overwrite existing if present
     // Use operator[] to ensure existing entries are replaced rather than ignored
     classes_[className] = ClassInfo();
- }
+}
 
- ClassInfo & ClassRegistry::getClassInfo(const std::string & className) {
-     auto it = classes_.find(className);
-     if (it == classes_.end()) {
-         throw std::runtime_error("Class not found: " + className);
-     }
-     return it->second;
- }
+ClassInfo & ClassRegistry::getClassInfo(const std::string & className) {
+    auto it = classes_.find(className);
+    if (it == classes_.end()) {
+        throw std::runtime_error("Class not found: " + className);
+    }
+    return it->second;
+}
 
-} // namespace Symbols
+}  // namespace Symbols

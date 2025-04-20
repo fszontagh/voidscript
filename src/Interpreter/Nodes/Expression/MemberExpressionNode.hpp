@@ -2,9 +2,10 @@
 #define INTERPRETER_MEMBER_EXPRESSION_NODE_HPP
 
 #include <memory>
-#include <stdexcept>
+#include <string>
 
 #include "Interpreter/ExpressionNode.hpp"
+#include "Interpreter/Interpreter.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {
@@ -12,19 +13,24 @@ namespace Interpreter {
 // Expression node for member access: object->property
 class MemberExpressionNode : public ExpressionNode {
   public:
-    MemberExpressionNode(std::unique_ptr<ExpressionNode> objectExpr, std::string propertyName) :
+    MemberExpressionNode(std::unique_ptr<ExpressionNode> objectExpr, std::string propertyName,
+                         const std::string & filename, int line, size_t column) :
         objectExpr_(std::move(objectExpr)),
-        propertyName_(std::move(propertyName)) {}
+        propertyName_(std::move(propertyName)),
+        filename_(filename),
+        line_(line),
+        column_(column) {}
 
     Symbols::Value evaluate(Interpreter & interpreter) const override {
         Symbols::Value objVal = objectExpr_->evaluate(interpreter);
         if (objVal.getType() != Symbols::Variables::Type::OBJECT) {
-            throw std::runtime_error("Attempted to access member '" + propertyName_ + "' of non-object");
+            throw Exception("Attempted to access member '" + propertyName_ + "' of non-object", filename_, line_,
+                            column_);
         }
         const auto & map = std::get<Symbols::Value::ObjectMap>(objVal.get());
         auto         it  = map.find(propertyName_);
         if (it == map.end()) {
-            throw std::runtime_error("Property '" + propertyName_ + "' not found on object");
+            throw Exception("Property '" + propertyName_ + "' not found in object", filename_, line_, column_);
         }
         return it->second;
     }
@@ -34,6 +40,9 @@ class MemberExpressionNode : public ExpressionNode {
   private:
     std::unique_ptr<ExpressionNode> objectExpr_;
     std::string                     propertyName_;
+    std::string                     filename_;
+    int                             line_;
+    size_t                          column_;
 };
 
 }  // namespace Interpreter

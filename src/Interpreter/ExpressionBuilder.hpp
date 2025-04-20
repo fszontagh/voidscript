@@ -35,8 +35,9 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                 if (expr->op == "[]") {
                     auto arrExpr = buildExpressionFromParsed(expr->lhs);
                     auto idxExpr = buildExpressionFromParsed(expr->rhs);
-                    return std::make_unique<Interpreter::ArrayAccessExpressionNode>(std::move(arrExpr),
-                                                                                    std::move(idxExpr));
+                    return std::make_unique<Interpreter::ArrayAccessExpressionNode>(
+                        std::move(arrExpr), std::move(idxExpr),
+                        expr->filename, expr->line, expr->column);
                 }
                 // Member access for object properties: '->'
                 if (expr->op == "->") {
@@ -52,7 +53,9 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                     } else {
                         propName = expr->rhs->name;
                     }
-                    return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objExpr), propName);
+                    return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objExpr), propName,
+                                                                                   expr->filename, expr->line,
+                                                                                   expr->column);
                 }
                 // Default binary operator
                 auto lhs = buildExpressionFromParsed(expr->lhs);

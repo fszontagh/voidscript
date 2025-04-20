@@ -1,15 +1,15 @@
 #ifndef INTERPRETER_CLASS_DEFINITION_STATEMENT_NODE_HPP
 #define INTERPRETER_CLASS_DEFINITION_STATEMENT_NODE_HPP
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
-#include "Interpreter/StatementNode.hpp"
-#include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/Interpreter.hpp"
-#include "Symbols/SymbolContainer.hpp"
+#include "Interpreter/OperationContainer.hpp"
+#include "Interpreter/StatementNode.hpp"
 #include "Symbols/ClassRegistry.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 namespace Interpreter {
 
@@ -35,7 +35,7 @@ class ClassDefinitionStatementNode : public StatementNode {
         methodNames_(std::move(methods)) {}
 
     void interpret(Interpreter & interpreter) const override {
-        auto *sc = Symbols::SymbolContainer::instance();
+        auto * sc       = Symbols::SymbolContainer::instance();
         // Register class and its members in class registry
         auto & registry = Symbols::ClassRegistry::instance();
         // Register the class itself
@@ -56,7 +56,7 @@ class ClassDefinitionStatementNode : public StatementNode {
         // The method declaration operations were recorded under namespace: fileNs.className
         const std::string fileNs  = sc->currentScopeName();
         const std::string classNs = fileNs + "::" + className_;
-        auto ops = Operations::Container::instance()->getAll(classNs);
+        auto              ops     = Operations::Container::instance()->getAll(classNs);
         for (const auto & op : ops) {
             if (op->type == Operations::Type::FuncDeclaration) {
                 interpreter.runOperation(*op);

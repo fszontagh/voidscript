@@ -9,14 +9,12 @@
 
 #include "SymbolTable.hpp"
 
-#define NSMGR Symbols::SymbolContainer::instance()
-
 namespace Symbols {
 
 class SymbolContainer {
     std::unordered_map<std::string, std::shared_ptr<SymbolTable>> scopes_;
     // Stack of active scope names (supports nested scope entry)
-    std::vector<std::string>                                        scopeStack_;
+    std::vector<std::string>                                      scopeStack_;
 
   public:
     static SymbolContainer * instance() {
@@ -63,7 +61,9 @@ class SymbolContainer {
      * @brief Get the name of the current scope.
      * @return Current scope name.
      */
-    [[nodiscard]] std::string currentScopeName() const { return scopeStack_.empty() ? std::string() : scopeStack_.back(); }
+    [[nodiscard]] std::string currentScopeName() const {
+        return scopeStack_.empty() ? std::string() : scopeStack_.back();
+    }
 
     std::vector<std::string> getScopeNames() const {
         std::vector<std::string> result;
@@ -90,7 +90,7 @@ class SymbolContainer {
     /** @brief List the symbol namespaces (categories) within a given scope. */
     std::vector<std::string> getNamespaces(const std::string & scopeName) const {
         std::vector<std::string> result;
-        auto it = scopes_.find(scopeName);
+        auto                     it = scopes_.find(scopeName);
         if (it != scopes_.end()) {
             return it->second->listNamespaces();
         }
@@ -120,7 +120,7 @@ class SymbolContainer {
         // Search scopes in innermost-to-outermost order for shadowing
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const auto & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
+            auto         tableIt   = scopes_.find(scopeName);
             if (tableIt != scopes_.end() && tableIt->second->exists(fullNamespace, name)) {
                 return true;
             }
@@ -132,7 +132,7 @@ class SymbolContainer {
         // Search scopes in innermost-to-outermost order for first matching symbol
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const auto & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
+            auto         tableIt   = scopes_.find(scopeName);
             if (tableIt != scopes_.end()) {
                 auto sym = tableIt->second->get(fullNamespace, name);
                 if (sym) {
@@ -163,23 +163,24 @@ class SymbolContainer {
 
   private:
     // Helper to recursively dump object Value properties
-    static void dumpValue(const Value &value, std::string &result, int indent) {
+    static void dumpValue(const Value & value, std::string & result, int indent) {
         using ObjectMap = Value::ObjectMap;
         if (value.getType() == Variables::Type::OBJECT) {
-            const auto &objMap = std::get<ObjectMap>(value.get());
+            const auto & objMap = std::get<ObjectMap>(value.get());
             for (const auto & [key, childVal] : objMap) {
                 result += std::string(indent, '\t') + "- " + key + ": '" + Value::to_string(childVal) + "'\n";
                 dumpValue(childVal, result, indent + 1);
             }
         }
     }
+
     /**
      * @brief Compute the namespace string for a symbol based on its kind and context.
      */
     std::string getNamespaceForSymbol(const SymbolPtr & symbol) const {
         std::string base = symbol->context().empty() ? currentScopeName() : symbol->context();
 
-        const char *sep = "::";
+        const char * sep = "::";
         switch (symbol->getKind()) {
             case Symbols::Kind::Variable:
                 return base + sep + "variables";

@@ -326,8 +326,42 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         return std::make_unique<Interpreter::ReturnStatementNode>(std::move(exprNode), this->current_filename_,
                                                                   tok.line_number, tok.column_number);
     }
+    // Prefix increment/decrement (e.g., ++$u or --$u)
+    if (currentToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT &&
+        peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+        auto opTok = expect(Lexer::Tokens::Type::OPERATOR_INCREMENT);
+        auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        std::string baseName = idTok.value;
+        if (!baseName.empty() && baseName[0] == '$') baseName = baseName.substr(1);
+        auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
+        auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
+        std::string binOp = (opTok.value == "++") ? "+" : "-";
+        auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
+        return std::make_unique<Interpreter::AssignmentStatementNode>(
+            baseName, std::vector<std::string>(), std::move(bin),
+            this->current_filename_, idTok.line_number, idTok.column_number);
+    }
     // Assignment statement: variable or object member assignment
     if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+        // Postfix increment/decrement (e.g., $u++ or $u--)
+        if (peekToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT) {
+            auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+            std::string baseName = idTok.value;
+            if (!baseName.empty() && baseName[0] == '$') baseName = baseName.substr(1);
+            auto opTok = expect(Lexer::Tokens::Type::OPERATOR_INCREMENT);
+            expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+            std::unique_ptr<Interpreter::ExpressionNode> lhs =
+                std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
+            std::unique_ptr<Interpreter::ExpressionNode> rhs =
+                std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
+            std::string binOp = (opTok.value == "++") ? "+" : "-";
+            std::unique_ptr<Interpreter::ExpressionNode> bin =
+                std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
+            return std::make_unique<Interpreter::AssignmentStatementNode>(
+                baseName, std::vector<std::string>(), std::move(bin),
+                this->current_filename_, idTok.line_number, idTok.column_number);
+        }
         // Lookahead to detect '=' after optional '->' chains
         size_t offset = 1;
         // Skip member access sequence
@@ -373,7 +407,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                 std::unique_ptr<Interpreter::ExpressionNode> lhsNode =
                     std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
                 for (const auto & prop : propertyPath) {
-                    lhsNode = std::make_unique<Interpreter::MemberExpressionNode>(std::move(lhsNode), prop);
+                    lhsNode = std::make_unique<Interpreter::MemberExpressionNode>(
+                        std::move(lhsNode), prop,
+                        this->current_filename_, opTok.line_number, opTok.column_number);
                 }
                 // Extract binary operator ("+=" -> "+")
                 std::string binOp = opTok.value.substr(0, opTok.value.size() - 1);
@@ -530,8 +566,8 @@ void Parser::parseClassDefinition() {
     const std::string fileNs    = Symbols::SymbolContainer::instance()->currentScopeName();
     // Use :: as namespace separator
     const std::string classNs   = fileNs + "::" + className;
+    // Create class scope (automatically enters it)
     Symbols::SymbolContainer::instance()->create(classNs);
-    Symbols::SymbolContainer::instance()->enter(classNs);
     // Gather class members (registration happens at interpretation)
     std::vector<Symbols::ClassInfo::PropertyInfo> privateProps;
     std::vector<Symbols::ClassInfo::PropertyInfo> publicProps;
@@ -1429,6 +1465,11 @@ void Parser::parseStatement() {
             auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
             Operations::Container::instance()->add(
                 ns, Operations::Operation{Operations::Type::Expression, std::string(), std::move(exprStmt)});
+            return;
+        }
+        // Postfix increment/decrement (e.g., $u++ or $u--)
+        if (peekToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT) {
+            parseAssignmentStatement();
             return;
         }
         // Fallback to assignment for variable-based LHS

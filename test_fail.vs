@@ -42,3 +42,4 @@ printnl("Typeof $f: ",typeof($f));
 $f->test();
 
 printnl("$f->a now = ", $f->a);
+
