@@ -39,23 +39,31 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                         std::move(arrExpr), std::move(idxExpr),
                         expr->filename, expr->line, expr->column);
                 }
-                // Member access for object properties: '->'
+                // Member access or method invocation: '->'
                 if (expr->op == "->") {
-                    auto objExpr = buildExpressionFromParsed(expr->lhs);
-                    // Debug: inspect RHS kind for property name
-                    std::cerr << "[DEBUG] Member access operator '->': rhs kind = "
-                              << static_cast<int>(expr->rhs->kind) << "\n";
+                    auto objectExpr = buildExpressionFromParsed(expr->lhs);
+                    // Method call: rhs is a parsed call expression
+                    if (expr->rhs->kind == ParsedExpression::Kind::Call) {
+                        std::vector<std::unique_ptr<Interpreter::ExpressionNode>> methodArgs;
+                        methodArgs.reserve(expr->rhs->args.size());
+                        for (const auto & arg : expr->rhs->args) {
+                            methodArgs.push_back(buildExpressionFromParsed(arg));
+                        }
+                        return std::make_unique<Interpreter::MethodCallExpressionNode>(
+                            std::move(objectExpr), expr->rhs->name, std::move(methodArgs),
+                            expr->filename, expr->line, expr->column);
+                    }
+                    // Property access on object: rhs is identifier or string literal
                     std::string propName;
-                    // Accept string literal or identifier as property name
                     if (expr->rhs->kind == ParsedExpression::Kind::Literal &&
                         expr->rhs->value.getType() == Symbols::Variables::Type::STRING) {
                         propName = expr->rhs->value.get<std::string>();
                     } else {
                         propName = expr->rhs->name;
                     }
-                    return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objExpr), propName,
-                                                                                   expr->filename, expr->line,
-                                                                                   expr->column);
+                    return std::make_unique<Interpreter::MemberExpressionNode>(
+                        std::move(objectExpr), propName,
+                        expr->filename, expr->line, expr->column);
                 }
                 // Default binary operator
                 auto lhs = buildExpressionFromParsed(expr->lhs);
@@ -158,8 +166,6 @@ inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
                         Symbols::Variables::TypeToString(rhsType));
                 }
 
-                // Bináris operátoroknál is elvégezhetjük a típusellenőrzést:
-                // Ha numerikus operátor, akkor az operandusoknak numerikusnak kell lenniük
                 if (expr->op == "+" || expr->op == "-" || expr->op == "*" || expr->op == "/") {
                     if (lhsType != Symbols::Variables::Type::INTEGER && lhsType != Symbols::Variables::Type::FLOAT) {
                         throw std::runtime_error("Operands must be numeric for operator: " + expr->op);

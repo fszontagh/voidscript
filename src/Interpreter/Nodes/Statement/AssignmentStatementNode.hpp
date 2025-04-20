@@ -60,7 +60,7 @@ class AssignmentStatementNode : public StatementNode {
             return;
         }
         // Nested object property assignment
-        if (varValue.getType() != Variables::Type::OBJECT) {
+        if (varValue.getType() != Variables::Type::OBJECT && varValue.getType() != Variables::Type::CLASS) {
             throw Exception("Attempting to assign property on non-object variable '" + targetName_ + "'", filename_,
                             line_, column_);
         }

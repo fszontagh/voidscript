@@ -562,6 +562,8 @@ void Parser::parseClassDefinition() {
     // Class name
     auto              nameToken = expect(Lexer::Tokens::Type::IDENTIFIER);
     const std::string className = nameToken.value;
+    // Register class name early so parseType can recognize it as CLASS
+    Symbols::ClassRegistry::instance().registerClass(className);
     // Enter class scope for methods and parsing
     const std::string fileNs    = Symbols::SymbolContainer::instance()->currentScopeName();
     // Use :: as namespace separator
@@ -1500,10 +1502,17 @@ Symbols::Variables::Type Parser::parseType() {
         }
         return it->second;
     }
-    // User-defined class types as identifiers (treat as OBJECT)
+    // User-defined class types: if identifier names a registered class, return CLASS; otherwise OBJECT
     if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
-        // Consume class name
+        // Capture the identifier value as potential class name
+        const std::string typeName = token.value;
+        // Consume the identifier token
         consumeToken();
+        // If this name is a defined class, treat as CLASS
+        if (Symbols::ClassRegistry::instance().hasClass(typeName)) {
+            return Symbols::Variables::Type::CLASS;
+        }
+        // Otherwise treat as generic object type
         return Symbols::Variables::Type::OBJECT;
     }
     reportError("Expected type keyword (string, int, double, float or class name)");

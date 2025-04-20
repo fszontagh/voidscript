@@ -42,8 +42,18 @@ class MethodCallExpressionNode : public ExpressionNode {
 
     Symbols::Value evaluate(Interpreter & interpreter) const override {
         using namespace Symbols;
+        // Evaluate target object and track original symbol for write-back
+        auto * sc = Symbols::SymbolContainer::instance();
+        // Determine original variable symbol (only simple identifiers)
+        std::string fileNs = sc->currentScopeName();
+        std::string varNs  = fileNs + "::variables";
+        std::string objName = objectExpr_->toString();
+        std::shared_ptr<Symbols::Symbol> origSym;
+        if (sc->exists(objName, varNs)) {
+            origSym = sc->get(varNs, objName);
+        }
         try {
-            // Evaluate target object
+            // Evaluate target object (produces a copy)
             Value objVal = objectExpr_->evaluate(interpreter);
             // Allow method calls on class instances (and plain objects with class metadata)
             if (objVal.getType() != Variables::Type::OBJECT &&
@@ -105,9 +115,19 @@ class MethodCallExpressionNode : public ExpressionNode {
                 try {
                     interpreter.runOperation(*op);
                 } catch (const ReturnException & re) {
+                    // Write back modified object state before returning
+                    if (origSym) {
+                        auto thisSym = sc->get(methodNs + "::variables", "this");
+                        origSym->setValue(thisSym->getValue());
+                    }
                     sc->enterPreviousScope();
                     return re.value();
                 }
+            }
+            // Write back modified object state after method execution
+            if (origSym) {
+                auto thisSym = sc->get(methodNs + "::variables", "this");
+                origSym->setValue(thisSym->getValue());
             }
             // Exit method scope
             sc->enterPreviousScope();
