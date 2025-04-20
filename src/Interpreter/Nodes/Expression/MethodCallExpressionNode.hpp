@@ -2,16 +2,17 @@
 #define INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
-#include "ExpressionNode.hpp"
+
+#include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
+#include "Interpreter/ReturnException.hpp"
+#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
-#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/Value.hpp"
-#include "Interpreter/ReturnException.hpp"
 
 namespace Interpreter {
 
@@ -19,43 +20,42 @@ namespace Interpreter {
  * @brief Expression node for invoking class methods via object->method(...).
  */
 class MethodCallExpressionNode : public ExpressionNode {
-    std::unique_ptr<ExpressionNode> objectExpr_;
-    std::string                     methodName_;
+    std::unique_ptr<ExpressionNode>              objectExpr_;
+    std::string                                  methodName_;
     std::vector<std::unique_ptr<ExpressionNode>> args_;
-    std::string filename_;
-    int line_;
-    size_t column_;
+    std::string                                  filename_;
+    int                                          line_;
+    size_t                                       column_;
 
   public:
-    MethodCallExpressionNode(
-        std::unique_ptr<ExpressionNode> objectExpr,
-        std::string methodName,
-        std::vector<std::unique_ptr<ExpressionNode>> args,
-        const std::string & filename,
-        int line,
-        size_t column)
-      : objectExpr_(std::move(objectExpr)),
+    MethodCallExpressionNode(std::unique_ptr<ExpressionNode> objectExpr, std::string methodName,
+                             std::vector<std::unique_ptr<ExpressionNode>> args, const std::string & filename, int line,
+                             size_t column) :
+        objectExpr_(std::move(objectExpr)),
         methodName_(std::move(methodName)),
         args_(std::move(args)),
-        filename_(filename), line_(line), column_(column) {}
+        filename_(filename),
+        line_(line),
+        column_(column) {}
 
     Symbols::Value evaluate(Interpreter & interpreter) const override {
         // Evaluate target object
         Symbols::Value objVal = objectExpr_->evaluate(interpreter);
         if (objVal.getType() != Symbols::Variables::Type::OBJECT) {
-            throw std::runtime_error("Attempted to call method '" + methodName_ + "' on non-object");
+            throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_, column_);
         }
         const auto & objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
         // Extract class name from reserved field
-        auto it = objMap.find("__class__");
+        auto         it     = objMap.find("__class__");
         if (it == objMap.end() || it->second.getType() != Symbols::Variables::Type::STRING) {
-            throw std::runtime_error("Object is missing class metadata for method '" + methodName_ + "'");
+            throw Exception("Object is missing class metadata for method: '" + methodName_ + "'", filename_, line_,
+                            column_);
         }
         std::string className = it->second.get<std::string>();
         // Lookup method in registry
-        auto & registry = Symbols::ClassRegistry::instance();
+        auto &      registry  = Symbols::ClassRegistry::instance();
         if (!registry.hasMethod(className, methodName_)) {
-            throw std::runtime_error("Method not found: " + methodName_ + " in class " + className);
+            throw Exception("Method not found: " + methodName_ + " in class " + className, filename_, line_, column_);
         }
         // Build argument values
         std::vector<Symbols::Value> values;
@@ -66,17 +66,18 @@ class MethodCallExpressionNode : public ExpressionNode {
         }
         // Invoke as function: methodName with binding to class namespace
         // Find FunctionSymbol
-        auto sc = Symbols::SymbolContainer::instance();
-        const std::string globalNs = sc->currentScopeName();
-        const std::string classNs  = globalNs + "." + className;
+        auto *                                   sc       = Symbols::SymbolContainer::instance();
+        const std::string                        globalNs = sc->currentScopeName();
+        const std::string                        classNs  = globalNs + "." + className;
         std::shared_ptr<Symbols::FunctionSymbol> funcSym;
         // Search in classNs.functions
-        std::string fnSymNs = classNs + ".functions";
-        auto sym = sc->get(fnSymNs, methodName_);
+        std::string                              fnSymNs = classNs + ".functions";
+        auto                                     sym     = sc->get(fnSymNs, methodName_);
         if (sym && sym->getKind() == Symbols::Kind::Function) {
             funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
         } else {
             throw std::runtime_error("Function symbol not found for method '" + methodName_ + "'");
+            throw Exception("Function symbol not found for method: '" + methodName_ + "'", filename_, line_, column_);
         }
         // Execute method
         // Enter method scope
@@ -87,14 +88,15 @@ class MethodCallExpressionNode : public ExpressionNode {
         sc->add(thisSym);
         const auto & params = funcSym->parameters();
         for (size_t i = 0; i < params.size(); ++i) {
-            auto & p = params[i];
-            auto varSym = Symbols::SymbolFactory::createVariable(p.name, values[i+1], classNs + "." + methodName_);
+            const auto & p      = params[i];
+            auto   varSym = Symbols::SymbolFactory::createVariable(p.name, values[i + 1], classNs + "." + methodName_);
             sc->add(varSym);
         }
         // Run operations
         Symbols::SymbolContainer::instance();
-        Symbols::SymbolContainer * dummy = sc; (void)dummy;
-        Symbols::SymbolContainer *container = sc;
+        Symbols::SymbolContainer * dummy = sc;
+        (void) dummy;
+        Symbols::SymbolContainer * container = sc;
         for (const auto & op : Operations::Container::instance()->getAll(classNs + "." + methodName_)) {
             try {
                 interpreter.runOperation(*op);
@@ -110,11 +112,9 @@ class MethodCallExpressionNode : public ExpressionNode {
         return Symbols::Value::makeNull();
     }
 
-    std::string toString() const override {
-        return std::string("MethodCall{ this->" + methodName_ + " }");
-    }
+    std::string toString() const override { return std::string("MethodCall{ this->" + methodName_ + " }"); }
 };
 
-} // namespace Interpreter
+}  // namespace Interpreter
 
-#endif // INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
+#endif  // INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP

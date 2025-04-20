@@ -1,7 +1,7 @@
 #ifndef LITERAL_EXPRESSION_NODE_HPP
 #define LITERAL_EXPRESSION_NODE_HPP
 
-#include "ExpressionNode.hpp"
+#include "Interpreter/ExpressionNode.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {

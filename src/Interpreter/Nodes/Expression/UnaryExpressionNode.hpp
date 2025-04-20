@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include "ExpressionNode.hpp"
+#include "Interpreter/ExpressionNode.hpp"
 
 namespace Interpreter {
 

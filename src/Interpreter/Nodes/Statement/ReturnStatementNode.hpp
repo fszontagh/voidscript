@@ -4,9 +4,10 @@
 
 #include <memory>
 #include <string>
-#include "StatementNode.hpp"
-#include "ExpressionNode.hpp"
-#include "ReturnException.hpp"
+
+#include "Interpreter/ExpressionNode.hpp"
+#include "Interpreter/ReturnException.hpp"
+#include "Interpreter/StatementNode.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {
@@ -17,13 +18,12 @@ namespace Interpreter {
 class ReturnStatementNode : public StatementNode {
     std::unique_ptr<ExpressionNode> expr_;
   public:
-    explicit ReturnStatementNode(std::unique_ptr<ExpressionNode> expr,
-                                 const std::string &file_name,
-                                 int line,
+    explicit ReturnStatementNode(std::unique_ptr<ExpressionNode> expr, const std::string & file_name, int line,
                                  size_t column) :
-        StatementNode(file_name, line, column), expr_(std::move(expr)) {}
+        StatementNode(file_name, line, column),
+        expr_(std::move(expr)) {}
 
-    void interpret(Interpreter &interpreter) const override {
+    void interpret(Interpreter & interpreter) const override {
         Symbols::Value retVal;
         if (expr_) {
             retVal = expr_->evaluate(interpreter);
@@ -36,5 +36,5 @@ class ReturnStatementNode : public StatementNode {
     }
 };
 
-} // namespace Interpreter
-#endif // INTERPRETER_RETURN_STATEMENT_NODE_HPP
+}  // namespace Interpreter
+#endif  // INTERPRETER_RETURN_STATEMENT_NODE_HPP

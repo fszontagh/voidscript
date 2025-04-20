@@ -4,17 +4,17 @@
 #include <memory>
 #include <string>
 
-#include "Interpreter/DeclareFunctionStatementNode.hpp"
-#include "Interpreter/DeclareVariableStatementNode.hpp"
 #include "Interpreter/ExpressionBuilder.hpp"
-#include "Interpreter/LiteralExpressionNode.hpp"
-#include "Interpreter/CallStatementNode.hpp"
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
+#include "Nodes/Expression/LiteralExpressionNode.hpp"
+#include "Nodes/Statement/CallStatementNode.hpp"
+#include "Nodes/Statement/DeclareFunctionStatementNode.hpp"
+#include "Nodes/Statement/DeclareVariableStatementNode.hpp"
+#include "Nodes/Statement/ReturnStatementNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
-#include "Interpreter/ReturnStatementNode.hpp"
 
 namespace Interpreter {
 
@@ -43,32 +43,33 @@ class OperationsFactory {
     }
 
     static void defineVariableWithExpression(const std::string & varName, Symbols::Variables::Type type,
-                                             const Parser::ParsedExpressionPtr pexpr, const std::string & ns,
+                                             const Parser::ParsedExpressionPtr & pexpr, const std::string & ns,
                                              const std::string & filename, int line, size_t column) {
-                                              // ParsedExpression → ExpressionNode
-                                              std::unique_ptr<ExpressionNode> expr = buildExpressionFromParsed(pexpr);
+        // ParsedExpression → ExpressionNode
+        std::unique_ptr<ExpressionNode> expr = buildExpressionFromParsed(pexpr);
 
-                                              std::unique_ptr<DeclareVariableStatementNode> stmt = std::make_unique<DeclareVariableStatementNode>(
-                                                  varName, ns, type, std::move(expr), filename, line, column);
+        std::unique_ptr<DeclareVariableStatementNode> stmt =
+            std::make_unique<DeclareVariableStatementNode>(varName, ns, type, std::move(expr), filename, line, column);
 
-                                              Operations::Container::instance()->add(
-                                                  ns, Operations::Operation{Operations::Type::Declaration, varName, std::move(stmt)});
-                                          }
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });
+    }
+
     /**
      * @brief Record a constant declaration operation with an initializer expression.
      */
     static void defineConstantWithExpression(const std::string & varName, Symbols::Variables::Type type,
-                                             const Parser::ParsedExpressionPtr pexpr, const std::string & ns,
+                                             const Parser::ParsedExpressionPtr & pexpr, const std::string & ns,
                                              const std::string & filename, int line, size_t column) {
         // Build initializer expression
-        std::unique_ptr<ExpressionNode> expr = buildExpressionFromParsed(pexpr);
+        std::unique_ptr<ExpressionNode>               expr = buildExpressionFromParsed(pexpr);
         // Create declaration node with const flag
         std::unique_ptr<DeclareVariableStatementNode> stmt = std::make_unique<DeclareVariableStatementNode>(
             varName, ns, type, std::move(expr), filename, line, column, /* isConst */ true);
         Operations::Container::instance()->add(
-            ns, Operations::Operation{Operations::Type::Declaration, varName, std::move(stmt)});
+            ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });
     }
-    
+
     /**
      * @brief Record a function call operation with argument expressions.
      * @param functionName Name of the function being called.
@@ -78,24 +79,20 @@ class OperationsFactory {
      * @param line Line number of call.
      * @param column Column number of call.
      */
-    static void callFunction(const std::string & functionName,
-                             std::vector<Parser::ParsedExpressionPtr> &&parsedArgs,
-                             const std::string & ns,
-                             const std::string & fileName,
-                             int line,
-                             size_t column) {
+    static void callFunction(const std::string & functionName, std::vector<Parser::ParsedExpressionPtr> && parsedArgs,
+                             const std::string & ns, const std::string & fileName, int line, size_t column) {
         // Build argument ExpressionNode list
         std::vector<std::unique_ptr<ExpressionNode>> exprs;
         exprs.reserve(parsedArgs.size());
-        for (auto &pexpr : parsedArgs) {
+        for (auto & pexpr : parsedArgs) {
             exprs.push_back(buildExpressionFromParsed(pexpr));
         }
         // Create call statement node
         auto stmt = std::make_unique<CallStatementNode>(functionName, std::move(exprs), fileName, line, column);
         Operations::Container::instance()->add(
-            ns,
-            Operations::Operation{Operations::Type::FunctionCall, functionName, std::move(stmt)});
+            ns, Operations::Operation{ Operations::Type::FunctionCall, functionName, std::move(stmt) });
     }
+
     /**
      * @brief Record a return statement operation inside a function.
      * @param pexpr Parsed expression for return value, or nullptr for void return.
@@ -104,15 +101,12 @@ class OperationsFactory {
      * @param line Line number of return.
      * @param column Column number of return.
      */
-    static void callReturn(const Parser::ParsedExpressionPtr &pexpr,
-                           const std::string & ns,
-                           const std::string & fileName,
-                           int line,
-                           size_t column) {
+    static void callReturn(const Parser::ParsedExpressionPtr & pexpr, const std::string & ns,
+                           const std::string & fileName, int line, size_t column) {
         std::unique_ptr<ExpressionNode> expr = pexpr ? buildExpressionFromParsed(pexpr) : nullptr;
         auto stmt = std::make_unique<ReturnStatementNode>(std::move(expr), fileName, line, column);
-        Operations::Container::instance()->add(ns,
-            Operations::Operation{Operations::Type::Return, std::string(), std::move(stmt)});
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::Return, std::string(), std::move(stmt) });
     }
 };
 

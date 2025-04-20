@@ -1,7 +1,7 @@
 #ifndef IDENTIFIER_EXPRESSION_NODE_HPP
 #define IDENTIFIER_EXPRESSION_NODE_HPP
 
-#include "ExpressionNode.hpp"
+#include "Interpreter/ExpressionNode.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 

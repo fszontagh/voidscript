@@ -5,17 +5,15 @@
 #include <string>
 #include <vector>
 
-#include "ExpressionNode.hpp"
+#include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
-// Include for unified runtime Exception (inherits BaseException)
-#include "BaseException.hpp"
 #include "Interpreter/OperationContainer.hpp"
-#include "StatementNode.hpp"
+#include "Interpreter/StatementNode.hpp"
+#include "Modules/ModuleManager.hpp"
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 #include "Symbols/Value.hpp"
-#include "Modules/ModuleManager.hpp"
 
 namespace Interpreter {
 
@@ -42,20 +40,20 @@ class CallStatementNode : public StatementNode {
                 argValues.push_back(expr->evaluate(interpreter));
             }
             {
-                auto &mgr = Modules::ModuleManager::instance();
+                auto & mgr = Modules::ModuleManager::instance();
                 if (mgr.hasFunction(functionName_)) {
                     mgr.callFunction(functionName_, argValues);
                     return;
                 }
             }
             // User-defined function: lookup through scope hierarchy
-            SymbolContainer *sc = SymbolContainer::instance();
-            std::string lookupNs = sc->currentScopeName();
+            SymbolContainer *               sc       = SymbolContainer::instance();
+            std::string                     lookupNs = sc->currentScopeName();
             std::shared_ptr<FunctionSymbol> funcSym;
             // Search for function symbol in current and parent scopes
             while (true) {
                 std::string fnSymNs = lookupNs + ".functions";
-                auto sym = sc->get(fnSymNs, functionName_);
+                auto        sym     = sc->get(fnSymNs, functionName_);
                 if (sym && sym->getKind() == Kind::Function) {
                     funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
                     break;
@@ -71,36 +69,35 @@ class CallStatementNode : public StatementNode {
             }
             const auto & params = funcSym->parameters();
             if (params.size() != argValues.size()) {
-                throw Exception(
-                    "Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
-                    " args, got " + std::to_string(argValues.size()),
-                    filename_, line_, column_);
+                throw Exception("Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
+                                    " args, got " + std::to_string(argValues.size()),
+                                filename_, line_, column_);
             }
             // Enter function scope and bind parameters
             const std::string fnOpNs = funcSym->context() + "." + functionName_;
             sc->enter(fnOpNs);
             for (size_t i = 0; i < params.size(); ++i) {
-                const auto &p = params[i];
-                const Value &v = argValues[i];
-                auto varSym = SymbolFactory::createVariable(p.name, v, fnOpNs);
+                const auto &  p      = params[i];
+                const Value & v      = argValues[i];
+                auto          varSym = SymbolFactory::createVariable(p.name, v, fnOpNs);
                 sc->add(varSym);
             }
             auto ops = Operations::Container::instance()->getAll(fnOpNs);
-            for (const auto &op : ops) {
+            for (const auto & op : ops) {
                 interpreter.runOperation(*op);
             }
             sc->enterPreviousScope();
         } catch (const Exception &) {
             throw;
-        } catch (const std::exception &e) {
+        } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }
     }
 
     std::string toString() const override {
-        return "CallStatementNode{ functionName='" + functionName_ + "', " +
-               "args=" + std::to_string(args_.size()) + " " + "filename='" + filename_ + "', " +
-               "line=" + std::to_string(line_) + ", " + "column=" + std::to_string(column_) + "}";
+        return "CallStatementNode{ functionName='" + functionName_ + "', " + "args=" + std::to_string(args_.size()) +
+               " " + "filename='" + filename_ + "', " + "line=" + std::to_string(line_) + ", " +
+               "column=" + std::to_string(column_) + "}";
     };
 };
 

@@ -5,11 +5,9 @@
 #include <string>
 #include <utility>
 
-#include "ExpressionNode.hpp"
-#include "Interpreter.hpp"
-#include "Interpreter/StatementNode.hpp"
-// Include for unified runtime Exception
+#include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
+#include "Interpreter/StatementNode.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 
@@ -26,8 +24,8 @@ class DeclareVariableStatementNode : public StatementNode {
   public:
     // isConst: if true, declares a constant; otherwise a mutable variable
     DeclareVariableStatementNode(std::string name, const std::string & ns, Symbols::Variables::Type type,
-                                 std::unique_ptr<ExpressionNode> expr, const std::string & file_name,
-                                 int file_line, size_t line_column, bool isConst = false) :
+                                 std::unique_ptr<ExpressionNode> expr, const std::string & file_name, int file_line,
+                                 size_t line_column, bool isConst = false) :
         StatementNode(file_name, file_line, line_column),
         variableName_(std::move(name)),
         variableType_(type),
@@ -45,10 +43,9 @@ class DeclareVariableStatementNode : public StatementNode {
                 using namespace Symbols::Variables;
                 std::string expected = TypeToString(variableType_);
                 std::string actual   = TypeToString(value.getType());
-                throw Exception(
-                    "Type mismatch for variable '" + variableName_ +
-                    "': expected '" + expected + "' but got '" + actual + "'",
-                    filename_, line_, column_);
+                throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
+                                    "' but got '" + actual + "'",
+                                filename_, line_, column_);
             }
             // Create a constant or variable symbol
             std::shared_ptr<Symbols::Symbol> variable;
@@ -60,7 +57,7 @@ class DeclareVariableStatementNode : public StatementNode {
             Symbols::SymbolContainer::instance()->add(variable);
         } catch (const Exception &) {
             throw;
-        } catch (const std::exception &e) {
+        } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }
     }

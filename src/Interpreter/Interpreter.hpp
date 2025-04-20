@@ -4,26 +4,31 @@
 #include <memory>
 #include <stdexcept>
 
+#include "BaseException.hpp"
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Symbols/SymbolContainer.hpp"
-#include "BaseException.hpp"
 
 // Exception type for runtime errors, includes file, line, and column context
 namespace Interpreter {
 class Exception : public BaseException {
-public:
-    Exception(const std::string &msg, const std::string &filename, int line, size_t column) {
+  public:
+    Exception(const std::string & msg, const std::string & filename, int line, size_t column) {
         rawMessage_ = msg;
-        context_ = std::string(" in file \"") + filename + "\" at line: " + std::to_string(line)
-                   + ", column: " + std::to_string(column);
+        if (filename == "-") {
+            context_ = "At line: " + std::to_string(line) + ", column: " + std::to_string(column);
+        } else {
+            context_ = std::string(" in file \"") + filename + "\" at line: " + std::to_string(line) +
+                       ", column: " + std::to_string(column);
+        }
         formattedMessage_ = formatMessage();
     }
+
     std::string formatMessage() const override {
         return std::string("[Runtime ERROR] >>") + context_ + " << : " + rawMessage_;
     }
 };
-} // namespace Interpreter
+}  // namespace Interpreter
 
 namespace Interpreter {
 
@@ -59,41 +64,21 @@ class Interpreter {
                     op.statement->interpret(*this);
                 }
                 break;
+            case Operations::Type::Assignment:
+            case Operations::Type::Expression:
             case Operations::Type::FuncDeclaration:
                 {
                     op.statement->interpret(*this);
                 }
                 break;
 
-            case Operations::Type::Assignment:
-                {
-                    op.statement->interpret(*this);
-                    break;
-                }
-
-            case Operations::Type::Expression:
-                {
-                    op.statement->interpret(*this);  // csak side effect miatt
-                    break;
-                }
-
             case Operations::Type::FunctionCall:
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                }
-                break;
-            case Operations::Type::Conditional:
-                // if-else conditional block
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                }
-                break;
             case Operations::Type::Return:
-                // return statement
+            case Operations::Type::Conditional:
                 if (op.statement) {
                     op.statement->interpret(*this);
+                    break;
                 }
-                break;
             case Operations::Type::Loop:
                 // for-in or while loop
                 if (op.statement) {

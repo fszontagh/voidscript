@@ -5,11 +5,9 @@
 #include <string>
 #include <utility>
 
-#include "ExpressionNode.hpp"
-#include "Interpreter.hpp"
-#include "Interpreter/StatementNode.hpp"
-// Include for unified runtime Exception
+#include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
+#include "Interpreter/StatementNode.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -45,14 +43,15 @@ class DeclareFunctionStatementNode : public StatementNode {
             Symbols::SymbolContainer::instance()->add(func);
         } catch (const Exception &) {
             throw;
-        } catch (const std::exception &e) {
+        } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }
     }
 
     std::string toString() const override {
-        return std::string( " FunctioName: " + functionName_ + " return type: " + Symbols::Variables::TypeToString(returnType_) +
-               " params size: " + std::to_string(params_.size()));
+        return std::string(" FunctioName: " + functionName_ +
+                           " return type: " + Symbols::Variables::TypeToString(returnType_) +
+                           " params size: " + std::to_string(params_.size()));
     }
 };
 

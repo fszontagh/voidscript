@@ -4,22 +4,21 @@
 #include <memory>
 #include <stdexcept>
 
-#include "Interpreter/BinaryExpressionNode.hpp"
 #include "Interpreter/ExpressionNode.hpp"
-#include "Interpreter/IdentifierExpressionNode.hpp"
-#include "Interpreter/LiteralExpressionNode.hpp"
-#include "Interpreter/UnaryExpressionNode.hpp"  // <-- új include
-#include "Interpreter/CallExpressionNode.hpp"
-#include "Interpreter/MemberExpressionNode.hpp"
-#include "Interpreter/ArrayAccessExpressionNode.hpp"
-#include "Interpreter/ObjectExpressionNode.hpp"
-#include "Interpreter/NewExpressionNode.hpp"
-#include "Interpreter/MethodCallExpressionNode.hpp"
+#include "Nodes/Expression/ArrayAccessExpressionNode.hpp"
+#include "Nodes/Expression/BinaryExpressionNode.hpp"
+#include "Nodes/Expression/CallExpressionNode.hpp"
+#include "Nodes/Expression/IdentifierExpressionNode.hpp"
+#include "Nodes/Expression/LiteralExpressionNode.hpp"
+#include "Nodes/Expression/MemberExpressionNode.hpp"
+#include "Nodes/Expression/MethodCallExpressionNode.hpp"
+#include "Nodes/Expression/NewExpressionNode.hpp"
+#include "Nodes/Expression/ObjectExpressionNode.hpp"
+#include "Nodes/Expression/UnaryExpressionNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 
 namespace Parser {
-inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
-    const ParsedExpressionPtr & expr) {
+inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(const ParsedExpressionPtr & expr) {
     using Kind = ParsedExpression::Kind;
 
     switch (expr->kind) {
@@ -35,11 +34,12 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
                 if (expr->op == "[]") {
                     auto arrExpr = buildExpressionFromParsed(expr->lhs);
                     auto idxExpr = buildExpressionFromParsed(expr->rhs);
-                    return std::make_unique<Interpreter::ArrayAccessExpressionNode>(std::move(arrExpr), std::move(idxExpr));
+                    return std::make_unique<Interpreter::ArrayAccessExpressionNode>(std::move(arrExpr),
+                                                                                    std::move(idxExpr));
                 }
                 // Member access for object properties: '->'
                 if (expr->op == "->") {
-                    auto objExpr = buildExpressionFromParsed(expr->lhs);
+                    auto        objExpr = buildExpressionFromParsed(expr->lhs);
                     std::string propName;
                     if (expr->rhs->kind == ParsedExpression::Kind::Literal &&
                         expr->rhs->value.getType() == Symbols::Variables::Type::STRING) {
@@ -67,18 +67,18 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
                 // Build argument expressions
                 std::vector<std::unique_ptr<Interpreter::ExpressionNode>> callArgs;
                 callArgs.reserve(expr->args.size());
-                for (const auto &arg : expr->args) {
+                for (const auto & arg : expr->args) {
                     callArgs.push_back(buildExpressionFromParsed(arg));
                 }
                 // Create call node with source location
-                return std::make_unique<Interpreter::CallExpressionNode>(expr->name,
-                    std::move(callArgs), expr->filename, expr->line, expr->column);
+                return std::make_unique<Interpreter::CallExpressionNode>(expr->name, std::move(callArgs),
+                                                                         expr->filename, expr->line, expr->column);
             }
         case Kind::Object:
             {
                 std::vector<std::pair<std::string, std::unique_ptr<Interpreter::ExpressionNode>>> members;
                 members.reserve(expr->objectMembers.size());
-                for (const auto &p : expr->objectMembers) {
+                for (const auto & p : expr->objectMembers) {
                     members.emplace_back(p.first, buildExpressionFromParsed(p.second));
                 }
                 return std::make_unique<Interpreter::ObjectExpressionNode>(std::move(members));
@@ -88,13 +88,13 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
                 // Build argument expressions
                 std::vector<std::unique_ptr<Interpreter::ExpressionNode>> ctorArgs;
                 ctorArgs.reserve(expr->args.size());
-                for (const auto &arg : expr->args) {
+                for (const auto & arg : expr->args) {
                     ctorArgs.push_back(buildExpressionFromParsed(arg));
                 }
-                return std::make_unique<Interpreter::NewExpressionNode>(
-                    expr->name, std::move(ctorArgs), expr->filename, expr->line, expr->column);
+                return std::make_unique<Interpreter::NewExpressionNode>(expr->name, std::move(ctorArgs), expr->filename,
+                                                                        expr->line, expr->column);
             }
-        }
+    }
 
     throw std::runtime_error("Unknown ParsedExpression kind");
 }

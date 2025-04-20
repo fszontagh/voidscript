@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "ExpressionNode.hpp"
+#include "Interpreter/ExpressionNode.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {

@@ -1,7 +1,7 @@
 #include <memory>
 #include <string>
 
-#include "ExpressionNode.hpp"
+#include "Interpreter/ExpressionNode.hpp"
 
 namespace Interpreter {
 class BinaryExpressionNode : public ExpressionNode {
@@ -40,7 +40,6 @@ class BinaryExpressionNode : public ExpressionNode {
             if (op_ == "!=") {
                 return Symbols::Value(l != r);
             }
-
             throw std::runtime_error("Unknown operator: " + op_);
         }
 

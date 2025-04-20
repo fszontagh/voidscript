@@ -1,7 +1,6 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -27,8 +26,13 @@ class Parser {
 
         Exception(const std::string & msg, const std::string & expected, const Lexer::Tokens::Token & token) {
             rawMessage_ = msg + ": " + token.dump();
-            context_ = " in file \"" + current_filename_ + "\" at line: " + std::to_string(token.line_number)
-                       + ", column: " + std::to_string(token.column_number);
+            if (current_filename_ == "-") {
+                context_ = "at line: " + std::to_string(token.line_number) +
+                           ", column: " + std::to_string(token.column_number);
+            } else {
+                context_ = " in file \"" + current_filename_ + "\" at line: " + std::to_string(token.line_number) +
+                           ", column: " + std::to_string(token.column_number);
+            }
             if (expected.empty() == false) {
                 rawMessage_ += " (expected: " + expected + ")";
             }
@@ -40,8 +44,8 @@ class Parser {
             if (expected.empty() == false) {
                 rawMessage_ += " (expected: " + expected + ")";
             }
-            context_ = " in file \"" + current_filename_ + "\" at line: " + std::to_string(line)
-                       + ", column: " + std::to_string(col);
+            context_ = " in file \"" + current_filename_ + "\" at line: " + std::to_string(line) +
+                       ", column: " + std::to_string(col);
             formattedMessage_ = formatMessage();
         }
 

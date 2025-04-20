@@ -4,18 +4,17 @@ std::string Parser::Parser::Exception::current_filename_;
 
 #include <stack>
 
+#include "Interpreter/ExpressionBuilder.hpp"
+#include "Interpreter/Nodes/Statement/AssignmentStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/CallStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/ClassDefinitionStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/ConditionalStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/CStyleForStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/DeclareVariableStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/ForStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/ReturnStatementNode.hpp"
 #include "Interpreter/OperationsFactory.hpp"
 #include "Lexer/Operators.hpp"
-// Statements and expression building for conditional and block parsing
-#include "Interpreter/AssignmentStatementNode.hpp"
-#include "Interpreter/CallStatementNode.hpp"
-#include "Interpreter/ClassDefinitionStatementNode.hpp"
-#include "Interpreter/ConditionalStatementNode.hpp"
-#include "Interpreter/CStyleForStatementNode.hpp"
-#include "Interpreter/DeclareVariableStatementNode.hpp"
-#include "Interpreter/ExpressionBuilder.hpp"
-#include "Interpreter/ForStatementNode.hpp"
-#include "Interpreter/ReturnStatementNode.hpp"
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/SymbolContainer.hpp"
 
@@ -1193,9 +1192,8 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             consumeToken();
             expect_unary = true;
             continue;
-        }
-        else if (token.type == Lexer::Tokens::Type::IDENTIFIER &&
-                 peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
+        } else if (token.type == Lexer::Tokens::Type::IDENTIFIER &&
+                   peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
             // Parse function call
             std::string func_name = token.value;
             consumeToken();  // consume function name
@@ -1225,100 +1223,99 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC ||
                    token.type == Lexer::Tokens::Type::OPERATOR_RELATIONAL ||
                    token.type == Lexer::Tokens::Type::OPERATOR_LOGICAL) {
-        std::string op = std::string(token.lexeme);
+            std::string op = std::string(token.lexeme);
 
-        if (expect_unary && Lexer::isUnaryOperator(op)) {
-            op = "u" + op;  // e.g. u-, u+ or u!
-        }
+            if (expect_unary && Lexer::isUnaryOperator(op)) {
+                op = "u" + op;  // e.g. u-, u+ or u!
+            }
 
-        while (!operator_stack.empty()) {
-            const std::string & top = operator_stack.top();
-            if ((Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) <= Lexer::getPrecedence(top)) ||
-                (!Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) < Lexer::getPrecedence(top))) {
-                operator_stack.pop();
+            while (!operator_stack.empty()) {
+                const std::string & top = operator_stack.top();
+                if ((Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) <= Lexer::getPrecedence(top)) ||
+                    (!Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) < Lexer::getPrecedence(top))) {
+                    operator_stack.pop();
 
-                if (top == "u-" || top == "u+") {
-                    if (output_queue.empty()) {
-                        Parser::reportError("Missing operand for unary operator", token);
+                    if (top == "u-" || top == "u+") {
+                        if (output_queue.empty()) {
+                            Parser::reportError("Missing operand for unary operator", token);
+                        }
+                        auto rhs = std::move(output_queue.back());
+                        output_queue.pop_back();
+                        output_queue.push_back(Lexer::applyOperator(top, std::move(rhs)));
+                    } else {
+                        if (output_queue.size() < 2) {
+                            Parser::reportError("Malformed expression", token);
+                        }
+                        auto rhs = std::move(output_queue.back());
+                        output_queue.pop_back();
+                        auto lhs = std::move(output_queue.back());
+                        output_queue.pop_back();
+                        output_queue.push_back(Lexer::applyOperator(top, std::move(rhs), std::move(lhs)));
                     }
-                    auto rhs = std::move(output_queue.back());
-                    output_queue.pop_back();
-                    output_queue.push_back(Lexer::applyOperator(top, std::move(rhs)));
                 } else {
-                    if (output_queue.size() < 2) {
-                        Parser::reportError("Malformed expression", token);
-                    }
-                    auto rhs = std::move(output_queue.back());
-                    output_queue.pop_back();
-                    auto lhs = std::move(output_queue.back());
-                    output_queue.pop_back();
-                    output_queue.push_back(Lexer::applyOperator(top, std::move(rhs), std::move(lhs)));
+                    break;
                 }
+            }
+
+            operator_stack.push(op);
+            consumeToken();
+            expect_unary = true;
+        } else if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
+                   token.type == Lexer::Tokens::Type::KEYWORD ||
+                   token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                   token.type == Lexer::Tokens::Type::IDENTIFIER) {
+            if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
+                // Treat bare identifiers as variable references for member access
+                output_queue.push_back(ParsedExpression::makeVariable(token.value));
             } else {
-                break;
+                if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
+                    Parser::reportError("Invalid type", token, "literal or variable");
+                }
             }
-        }
-
-        operator_stack.push(op);
-        consumeToken();
-        expect_unary = true;
-    }
-    else if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
-             token.type == Lexer::Tokens::Type::KEYWORD || token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-             token.type == Lexer::Tokens::Type::IDENTIFIER) {
-        if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
-            // Treat bare identifiers as variable references for member access
-            output_queue.push_back(ParsedExpression::makeVariable(token.value));
+            // Consume operand and mark that expression start has passed
+            consumeToken();
+            expect_unary = false;
+            atStart      = false;
         } else {
-            if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
-                Parser::reportError("Invalid type", token, "literal or variable");
+            break;
+        }
+    }
+
+    // Empty the operator stack
+    while (!operator_stack.empty()) {
+        std::string op = operator_stack.top();
+        operator_stack.pop();
+
+        if (op == "(" || op == ")") {
+            Parser::reportError("Mismatched parentheses", tokens_[current_token_index_]);
+        }
+
+        // Handle unary operators (plus, minus, logical NOT)
+        if (op == "u-" || op == "u+" || op == "u!") {
+            if (output_queue.empty()) {
+                Parser::reportError("Missing operand for unary operator", tokens_[current_token_index_]);
             }
+            auto rhs = std::move(output_queue.back());
+            output_queue.pop_back();
+            output_queue.push_back(Lexer::applyOperator(op, std::move(rhs)));
+        } else {
+            // Binary operators
+            if (output_queue.size() < 2) {
+                Parser::reportError("Malformed expression", tokens_[current_token_index_]);
+            }
+            auto rhs = std::move(output_queue.back());
+            output_queue.pop_back();
+            auto lhs = std::move(output_queue.back());
+            output_queue.pop_back();
+            output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
         }
-        // Consume operand and mark that expression start has passed
-        consumeToken();
-        expect_unary = false;
-        atStart      = false;
-    }
-    else {
-        break;
-    }
-}
-
-// Empty the operator stack
-while (!operator_stack.empty()) {
-    std::string op = operator_stack.top();
-    operator_stack.pop();
-
-    if (op == "(" || op == ")") {
-        Parser::reportError("Mismatched parentheses", tokens_[current_token_index_]);
     }
 
-    // Handle unary operators (plus, minus, logical NOT)
-    if (op == "u-" || op == "u+" || op == "u!") {
-        if (output_queue.empty()) {
-            Parser::reportError("Missing operand for unary operator", tokens_[current_token_index_]);
-        }
-        auto rhs = std::move(output_queue.back());
-        output_queue.pop_back();
-        output_queue.push_back(Lexer::applyOperator(op, std::move(rhs)));
-    } else {
-        // Binary operators
-        if (output_queue.size() < 2) {
-            Parser::reportError("Malformed expression", tokens_[current_token_index_]);
-        }
-        auto rhs = std::move(output_queue.back());
-        output_queue.pop_back();
-        auto lhs = std::move(output_queue.back());
-        output_queue.pop_back();
-        output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
+    if (output_queue.size() != 1) {
+        reportError("Expression could not be parsed cleanly");
     }
-}
 
-if (output_queue.size() != 1) {
-    reportError("Expression could not be parsed cleanly");
-}
-
-return std::move(output_queue.back());
+    return std::move(output_queue.back());
 }
 
 void Parser::parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::string_view input_string,
