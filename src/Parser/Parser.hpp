@@ -109,6 +109,8 @@ class Parser {
     void                                        parseCallStatement();
     // Parse a top-level assignment statement (variable or object member)
     void                                        parseAssignmentStatement();
+    // Parse a top-level class definition: class Name { ... }
+    void                                        parseClassDefinition();
     // Parse a return statement (e.g., return; or return expr;)
     void                                        parseReturnStatement();
     // Parse an if-else conditional statement (at top-level)

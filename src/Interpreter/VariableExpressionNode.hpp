@@ -1,7 +1,6 @@
 #ifndef VARIABLEEXPRESSIONNODE_HPP
 #define VARIABLEEXPRESSIONNODE_HPP
 
-#include <memory>
 #include <string>
 #include <utility>
 
@@ -20,7 +19,7 @@ class VariableExpressionNode : public ExpressionNode {
         variableName_(std::move(varName)),
         ns(std::move(ns)) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
+    Symbols::Value evaluate(Interpreter & /*interpreter*/) const override {
         if (!Symbols::SymbolContainer::instance()->exists(variableName_)) {
             throw std::runtime_error("Variable not found: " + variableName_);
         }

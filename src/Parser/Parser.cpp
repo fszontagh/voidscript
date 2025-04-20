@@ -9,12 +9,14 @@ std::string Parser::Parser::Exception::current_filename_;
 // Statements and expression building for conditional and block parsing
 #include "Interpreter/AssignmentStatementNode.hpp"
 #include "Interpreter/CallStatementNode.hpp"
+#include "Interpreter/ClassDefinitionStatementNode.hpp"
 #include "Interpreter/ConditionalStatementNode.hpp"
+#include "Interpreter/CStyleForStatementNode.hpp"
 #include "Interpreter/DeclareVariableStatementNode.hpp"
 #include "Interpreter/ExpressionBuilder.hpp"
 #include "Interpreter/ForStatementNode.hpp"
-#include "Interpreter/CStyleForStatementNode.hpp"
 #include "Interpreter/ReturnStatementNode.hpp"
+#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/SymbolContainer.hpp"
 
 // Additional necessary includes, if needed
@@ -29,6 +31,11 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "function", Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION },
     // Older keywords:
     { "const",    Lexer::Tokens::Type::KEYWORD                      },
+    // Class support keywords
+    { "class",    Lexer::Tokens::Type::KEYWORD_CLASS                },
+    { "private",  Lexer::Tokens::Type::KEYWORD_PRIVATE              },
+    { "public",   Lexer::Tokens::Type::KEYWORD_PUBLIC               },
+    { "new",      Lexer::Tokens::Type::KEYWORD_NEW                  },
     { "true",     Lexer::Tokens::Type::KEYWORD                      },
     { "false",    Lexer::Tokens::Type::KEYWORD                      },
     // variable types
@@ -56,11 +63,11 @@ const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::
 // Parse a top-level constant variable definition: const <type> $name = expr;
 void Parser::parseConstVariableDefinition() {
     // 'const'
-    auto constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
+    auto                     constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
     // Parse type
     Symbols::Variables::Type var_type = parseType();
     // Variable name
-    Lexer::Tokens::Token id_token;
+    Lexer::Tokens::Token     id_token;
     if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
         currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
         id_token = consumeToken();
@@ -192,9 +199,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     auto forToken = expect(Lexer::Tokens::Type::KEYWORD, "for");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
     // Parse element type and variable name
-    Symbols::Variables::Type elemType = parseType();
-    auto firstTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-    std::string firstName = firstTok.value;
+    Symbols::Variables::Type elemType  = parseType();
+    auto                     firstTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+    std::string              firstName = firstTok.value;
     if (!firstName.empty() && firstName[0] == '$') {
         firstName = firstName.substr(1);
     }
@@ -211,19 +218,25 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
         {
             auto incrTok = currentToken();
             if (incrTok.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
-                auto identTok = consumeToken();
+                auto        identTok = consumeToken();
                 std::string incrName = identTok.value;
-                if (!incrName.empty() && incrName[0] == '$') incrName = incrName.substr(1);
+                if (!incrName.empty() && incrName[0] == '$') {
+                    incrName = incrName.substr(1);
+                }
                 if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "++")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
                     auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "+", std::move(rhs));
-                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
+                        incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
+                        incrTok.line_number, incrTok.column_number);
                 } else if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "--")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
                     auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "-", std::move(rhs));
-                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
+                        incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
+                        incrTok.line_number, incrTok.column_number);
                 } else {
                     reportError("Expected '++' or '--' in for-loop increment");
                 }
@@ -241,13 +254,17 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
         expect(Lexer::Tokens::Type::PUNCTUATION, "}");
         // Build nodes for C-style for
         auto initExprNode = buildExpressionFromParsed(initExpr);
-        auto initStmt = std::make_unique<Interpreter::DeclareVariableStatementNode>(firstName, Symbols::SymbolContainer::instance()->currentScopeName(), elemType, std::move(initExprNode), this->current_filename_, firstTok.line_number, firstTok.column_number);
-        auto condExprNode = buildExpressionFromParsed(condExpr);
-        auto * cnode = new Interpreter::CStyleForStatementNode(std::move(initStmt), std::move(condExprNode), std::move(incrStmt), std::move(body), this->current_filename_, forToken.line_number, forToken.column_number);
+        auto initStmt     = std::make_unique<Interpreter::DeclareVariableStatementNode>(
+            firstName, Symbols::SymbolContainer::instance()->currentScopeName(), elemType, std::move(initExprNode),
+            this->current_filename_, firstTok.line_number, firstTok.column_number);
+        auto   condExprNode = buildExpressionFromParsed(condExpr);
+        auto * cnode        = new Interpreter::CStyleForStatementNode(
+            std::move(initStmt), std::move(condExprNode), std::move(incrStmt), std::move(body), this->current_filename_,
+            forToken.line_number, forToken.column_number);
         return std::unique_ptr<Interpreter::StatementNode>(cnode);
     }
     // Determine loop form: key,value or simple element loop
-    std::string keyName, valName;
+    std::string              keyName, valName;
     Symbols::Variables::Type keyType;
     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
         // Key, value syntax
@@ -259,7 +276,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
         }
         consumeToken();
         auto valTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-        valName = valTok.value;
+        valName     = valTok.value;
         if (!valName.empty() && valName[0] == '$') {
             valName = valName.substr(1);
         }
@@ -361,7 +378,8 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                 // Extract binary operator ("+=" -> "+")
                 std::string binOp = opTok.value.substr(0, opTok.value.size() - 1);
                 // Build binary expression lhs OP rhs
-                rhsNode = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhsNode), binOp, std::move(rhsNode));
+                rhsNode =
+                    std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhsNode), binOp, std::move(rhsNode));
             }
             return std::make_unique<Interpreter::AssignmentStatementNode>(baseName, std::move(propertyPath),
                                                                           std::move(rhsNode), this->current_filename_,
@@ -397,13 +415,15 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     // Constant variable declaration in blocks
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "const") {
         // 'const'
-        auto constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
+        auto                     constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
         // Parse type
-        Symbols::Variables::Type type = parseType();
+        Symbols::Variables::Type type     = parseType();
         // Variable name
-        auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-        std::string name = idTok.value;
-        if (!name.empty() && name[0] == '$') name = name.substr(1);
+        auto                     idTok    = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        std::string              name     = idTok.value;
+        if (!name.empty() && name[0] == '$') {
+            name = name.substr(1);
+        }
         // Assignment
         expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
         auto valExpr = parseParsedExpression(type);
@@ -415,9 +435,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     }
     // Variable declaration
     if (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) {
-        auto type  = parseType();
-        auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-        std::string name = idTok.value;
+        auto        type  = parseType();
+        auto        idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        std::string name  = idTok.value;
         if (!name.empty() && name[0] == '$') {
             name = name.substr(1);
         }
@@ -433,6 +453,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     reportError("Unexpected token in block");
     return nullptr;
 }
+
 // End of parseStatementNode
 // Parse next definition or statement
 // (Subsequent methods follow)
@@ -488,6 +509,174 @@ void Parser::parseFunctionDefinition() {
     parseFunctionBody(opening_brace, func_name, func_return_type, param_infos);
 }
 
+// Parse a top-level class definition: class Name { ... }
+void Parser::parseClassDefinition() {
+    // 'class'
+    expect(Lexer::Tokens::Type::KEYWORD_CLASS);
+    // Class name
+    auto              nameToken = expect(Lexer::Tokens::Type::IDENTIFIER);
+    const std::string className = nameToken.value;
+    // Enter class scope for methods and parsing
+    const std::string fileNs    = Symbols::SymbolContainer::instance()->currentScopeName();
+    const std::string classNs   = fileNs + "." + className;
+    Symbols::SymbolContainer::instance()->create(classNs);
+    Symbols::SymbolContainer::instance()->enter(classNs);
+    // Gather class members (registration happens at interpretation)
+    std::vector<Symbols::ClassInfo::PropertyInfo> privateProps;
+    std::vector<Symbols::ClassInfo::PropertyInfo> publicProps;
+    std::vector<std::string>                      methodNames;
+
+    enum AccessLevel { PRIVATE, PUBLIC } currentAccess = PRIVATE;
+
+    // Opening brace
+    expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+    // Parse class body members
+    while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+        if (isAtEnd()) {
+            reportError("Unterminated class definition");
+        }
+        auto tok = currentToken();
+        // Access specifier
+        // Access specifiers
+        if (tok.type == Lexer::Tokens::Type::KEYWORD_PRIVATE) {
+            // 'private:'
+            consumeToken();
+            expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+            currentAccess = PRIVATE;
+            continue;
+        }
+        if (tok.type == Lexer::Tokens::Type::KEYWORD_PUBLIC) {
+            // 'public:'
+            consumeToken();
+            expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+            currentAccess = PUBLIC;
+            continue;
+        }
+        // Const property declaration
+        if (tok.type == Lexer::Tokens::Type::KEYWORD && tok.value == "const") {
+            consumeToken();
+            // Type
+            auto                 propType = parseType();
+            // Property name
+            Lexer::Tokens::Token idTok;
+            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+                idTok = consumeToken();
+            } else {
+                reportError("Expected property name in class definition");
+            }
+            std::string propName = idTok.value;
+            if (!propName.empty() && propName[0] == '$') {
+                propName = propName.substr(1);
+            }
+            // Optional default value
+            ParsedExpressionPtr defaultValue = nullptr;
+            if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
+                defaultValue = parseParsedExpression(propType);
+            }
+            expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+            Symbols::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue) };
+            if (currentAccess == PRIVATE) {
+                privateProps.push_back(std::move(info));
+            } else {
+                publicProps.push_back(std::move(info));
+            }
+            continue;
+        }
+        // Property declaration
+        if (Parser::variable_types.find(tok.type) != Parser::variable_types.end() ||
+            tok.type == Lexer::Tokens::Type::IDENTIFIER) {
+            auto                 propType = parseType();
+            // Property name
+            Lexer::Tokens::Token idTok;
+            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+                idTok = consumeToken();
+            } else {
+                reportError("Expected property name in class definition");
+            }
+            std::string propName = idTok.value;
+            if (!propName.empty() && propName[0] == '$') {
+                propName = propName.substr(1);
+            }
+            // Optional default value
+            ParsedExpressionPtr defaultValue = nullptr;
+            if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
+                defaultValue = parseParsedExpression(propType);
+            }
+            expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+            Symbols::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue) };
+            if (currentAccess == PRIVATE) {
+                privateProps.push_back(std::move(info));
+            } else {
+                publicProps.push_back(std::move(info));
+            }
+            continue;
+        }
+        // Method declaration inside class
+        if (tok.type == Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION) {
+            // Consume 'function'
+            consumeToken();
+            // Method name
+            auto              nameId     = expect(Lexer::Tokens::Type::IDENTIFIER);
+            std::string       methodName = nameId.value;
+            // Enter class namespace for method definitions
+            const std::string fileNs     = Symbols::SymbolContainer::instance()->currentScopeName();
+            const std::string classNs    = fileNs + "." + className;
+            Symbols::SymbolContainer::instance()->create(classNs);
+            Symbols::SymbolContainer::instance()->enter(classNs);
+            // Parse parameters
+            expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+            Symbols::FunctionParameterInfo params;
+            if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
+                while (true) {
+                    auto        paramType = parseType();
+                    auto        paramTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+                    std::string paramName = paramTok.value;
+                    if (!paramName.empty() && paramName[0] == '$') {
+                        paramName = paramName.substr(1);
+                    }
+                    params.push_back({ paramName, paramType });
+                    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                        continue;
+                    }
+                    break;
+                }
+            }
+            expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+            // Optional return type
+            Symbols::Variables::Type returnType = Symbols::Variables::Type::NULL_TYPE;
+            for (auto & vt : Parser::variable_types) {
+                if (match(vt.first)) {
+                    returnType = vt.second;
+                    break;
+                }
+            }
+            // Parse and record method body
+            auto opening_brace = expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+            parseFunctionBody(opening_brace, methodName, returnType, params);
+            // Exit class namespace
+            Symbols::SymbolContainer::instance()->enterPreviousScope();
+            // Track method name for class registry
+            methodNames.push_back(methodName);
+            continue;
+        }
+        // Unexpected token
+        reportError("Unexpected token in class definition");
+    }
+    // Consume closing brace
+    expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+    // Exit class scope
+    Symbols::SymbolContainer::instance()->enterPreviousScope();
+    // Enqueue class definition for interpretation
+    auto stmt = std::make_unique<Interpreter::ClassDefinitionStatementNode>(
+        className, std::move(privateProps), std::move(publicProps), std::move(methodNames), this->current_filename_,
+        nameToken.line_number, nameToken.column_number);
+    Operations::Container::instance()->add(
+        Symbols::SymbolContainer::instance()->currentScopeName(),
+        Operations::Operation{ Operations::Type::Declaration, className, std::move(stmt) });
+}
+
 // Parse a top-level function call, e.g., foo(arg1, arg2);
 void Parser::parseCallStatement() {
     // Function name
@@ -540,9 +729,9 @@ void Parser::parseForStatement() {
     auto forToken = expect(Lexer::Tokens::Type::KEYWORD, "for");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
     // Parse element type and variable name
-    Symbols::Variables::Type elemType = parseType();
-    auto firstTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-    std::string firstName = firstTok.value;
+    Symbols::Variables::Type elemType  = parseType();
+    auto                     firstTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+    std::string              firstName = firstTok.value;
     if (!firstName.empty() && firstName[0] == '$') {
         firstName = firstName.substr(1);
     }
@@ -559,19 +748,25 @@ void Parser::parseForStatement() {
         {
             auto incrTok = currentToken();
             if (incrTok.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
-                auto identTok = consumeToken();
+                auto        identTok = consumeToken();
                 std::string incrName = identTok.value;
-                if (!incrName.empty() && incrName[0] == '$') incrName = incrName.substr(1);
+                if (!incrName.empty() && incrName[0] == '$') {
+                    incrName = incrName.substr(1);
+                }
                 if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "++")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
                     auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "+", std::move(rhs));
-                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
+                        incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
+                        incrTok.line_number, incrTok.column_number);
                 } else if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "--")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
                     auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "-", std::move(rhs));
-                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(incrName, std::vector<std::string>(), std::move(bin), this->current_filename_, incrTok.line_number, incrTok.column_number);
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
+                        incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
+                        incrTok.line_number, incrTok.column_number);
                 } else {
                     reportError("Expected '++' or '--' in for-loop increment");
                 }
@@ -589,15 +784,19 @@ void Parser::parseForStatement() {
         expect(Lexer::Tokens::Type::PUNCTUATION, "}");
         // Build nodes for C-style for
         auto initExprNode = buildExpressionFromParsed(initExpr);
-        auto initStmt = std::make_unique<Interpreter::DeclareVariableStatementNode>(firstName, Symbols::SymbolContainer::instance()->currentScopeName(), elemType, std::move(initExprNode), this->current_filename_, firstTok.line_number, firstTok.column_number);
+        auto initStmt     = std::make_unique<Interpreter::DeclareVariableStatementNode>(
+            firstName, Symbols::SymbolContainer::instance()->currentScopeName(), elemType, std::move(initExprNode),
+            this->current_filename_, firstTok.line_number, firstTok.column_number);
         auto condExprNode = buildExpressionFromParsed(condExpr);
-        auto cnode = std::make_unique<Interpreter::CStyleForStatementNode>(std::move(initStmt), std::move(condExprNode), std::move(incrStmt), std::move(body), this->current_filename_, forToken.line_number, forToken.column_number);
+        auto cnode        = std::make_unique<Interpreter::CStyleForStatementNode>(
+            std::move(initStmt), std::move(condExprNode), std::move(incrStmt), std::move(body), this->current_filename_,
+            forToken.line_number, forToken.column_number);
         Operations::Container::instance()->add(Symbols::SymbolContainer::instance()->currentScopeName(),
-                                               Operations::Operation{Operations::Type::Loop, "", std::move(cnode)});
+                                               Operations::Operation{ Operations::Type::Loop, "", std::move(cnode) });
         return;
     }
     // Determine loop form: key,value or simple element loop
-    std::string keyName, valName;
+    std::string              keyName, valName;
     Symbols::Variables::Type keyType;
     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
         // Key, value syntax
@@ -609,7 +808,7 @@ void Parser::parseForStatement() {
         }
         consumeToken();
         auto valTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-        valName = valTok.value;
+        valName     = valTok.value;
         if (!valName.empty() && valName[0] == '$') {
             valName = valName.substr(1);
         }
@@ -738,17 +937,49 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
 
     bool expect_unary = true;
     // Track if at start of expression (to distinguish array literal vs indexing)
-    bool atStart = true;
+    bool atStart      = true;
 
     while (true) {
         auto token = currentToken();
+        // Handle 'new' keyword for object instantiation: new ClassName(arg1, arg2, ...)
+        if (token.type == Lexer::Tokens::Type::KEYWORD_NEW) {
+            // Consume 'new'
+            auto newTok = consumeToken();
+            // Next should be class name identifier
+            if (currentToken().type != Lexer::Tokens::Type::IDENTIFIER) {
+                reportError("Expected class name after 'new'");
+            }
+            auto        nameTok   = consumeToken();
+            std::string className = nameTok.value;
+            // Expect '('
+            expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+            // Parse constructor arguments
+            std::vector<ParsedExpressionPtr> args;
+            if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
+                while (true) {
+                    auto argExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+                    args.push_back(std::move(argExpr));
+                    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                        continue;
+                    }
+                    break;
+                }
+            }
+            // Closing ')'
+            expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+            // Create new expression
+            output_queue.push_back(ParsedExpression::makeNew(className, std::move(args)));
+            expect_unary = false;
+            atStart      = false;
+            continue;
+        }
         // Array literal (at start) or dynamic indexing (postfix)
         if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "[") {
             if (atStart) {
                 // Parse array literal as object with numeric keys
-                consumeToken(); // consume '['
+                consumeToken();  // consume '['
                 std::vector<std::pair<std::string, ParsedExpressionPtr>> members;
-                size_t idx = 0;
+                size_t                                                   idx = 0;
                 // Elements until ']'
                 if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "]")) {
                     while (true) {
@@ -764,11 +995,11 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 // Build as object literal
                 output_queue.push_back(ParsedExpression::makeObject(std::move(members)));
                 expect_unary = false;
-                atStart = false;
+                atStart      = false;
                 continue;
             } else {
                 // Parse dynamic array/object indexing: lhs[index]
-                consumeToken(); // consume '['
+                consumeToken();  // consume '['
                 auto indexExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
                 expect(Lexer::Tokens::Type::PUNCTUATION, "]");
                 if (output_queue.empty()) {
@@ -779,7 +1010,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 auto accessExpr = ParsedExpression::makeBinary("[]", std::move(lhsExpr), std::move(indexExpr));
                 output_queue.push_back(std::move(accessExpr));
                 expect_unary = false;
-                atStart = false;
+                atStart      = false;
                 continue;
             }
         }
@@ -907,7 +1138,62 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             operator_stack.pop();
             expect_unary = false;
         }
-        // Function call as expression: identifier followed by '('
+        // Method or function call: expression followed by '('
+        else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "(") {
+            // If we have a preceding expression, treat as call: pop callee from output_queue
+            if (!expect_unary && !output_queue.empty()) {
+                // Consume '('
+                consumeToken();
+                // Parse arguments
+                std::vector<ParsedExpressionPtr> args;
+                if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
+                    while (true) {
+                        auto arg = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+                        args.push_back(std::move(arg));
+                        if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                            continue;
+                        }
+                        break;
+                    }
+                }
+                expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+                // Build call: callee could be variable or member expression
+                auto callee = std::move(output_queue.back());
+                output_queue.pop_back();
+                // Distinguish method vs function
+                ParsedExpressionPtr callExpr;
+                if (callee->kind == ParsedExpression::Kind::Binary && callee->op == "->") {
+                    // Method call: lhs is object, rhs name
+                    callExpr       = std::make_unique<ParsedExpression>();
+                    callExpr->kind = ParsedExpression::Kind::Call;
+                    callExpr->name = callee->rhs->name;  // method name
+                    // Prepend object as first arg 'this'
+                    callExpr->args.reserve(1 + args.size());
+                    callExpr->args.push_back(std::move(callee->lhs));
+                    for (auto & a : args) {
+                        callExpr->args.push_back(std::move(a));
+                    }
+                } else if (callee->kind == ParsedExpression::Kind::Variable) {
+                    // Function call
+                    callExpr = ParsedExpression::makeCall(callee->name, std::move(args));
+                } else {
+                    reportError("Invalid call target");
+                }
+                // Preserve source location
+                callExpr->filename = callee->filename;
+                callExpr->line     = callee->line;
+                callExpr->column   = callee->column;
+                output_queue.push_back(std::move(callExpr));
+                expect_unary = false;
+                atStart      = false;
+                continue;
+            }
+            // Fallback grouping: treat '(' as usual
+            operator_stack.push(token.value);
+            consumeToken();
+            expect_unary = true;
+            continue;
+        }
         else if (token.type == Lexer::Tokens::Type::IDENTIFIER &&
                  peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
             // Parse function call
@@ -929,118 +1215,119 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             expect(Lexer::Tokens::Type::PUNCTUATION, ")");
             // Create call expression node with source location
             {
-                auto pe = ParsedExpression::makeCall(func_name, std::move(call_args));
+                auto pe      = ParsedExpression::makeCall(func_name, std::move(call_args));
                 pe->filename = this->current_filename_;
-                pe->line = token.line_number;
-                pe->column = token.column_number;
+                pe->line     = token.line_number;
+                pe->column   = token.column_number;
                 output_queue.push_back(std::move(pe));
             }
             expect_unary = false;
         } else if (token.type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC ||
                    token.type == Lexer::Tokens::Type::OPERATOR_RELATIONAL ||
                    token.type == Lexer::Tokens::Type::OPERATOR_LOGICAL) {
-            std::string op = std::string(token.lexeme);
+        std::string op = std::string(token.lexeme);
 
-            if (expect_unary && Lexer::isUnaryOperator(op)) {
-                op = "u" + op;  // e.g. u-, u+ or u!
-            }
+        if (expect_unary && Lexer::isUnaryOperator(op)) {
+            op = "u" + op;  // e.g. u-, u+ or u!
+        }
 
-            while (!operator_stack.empty()) {
-                const std::string & top = operator_stack.top();
-                if ((Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) <= Lexer::getPrecedence(top)) ||
-                    (!Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) < Lexer::getPrecedence(top))) {
-                    operator_stack.pop();
+        while (!operator_stack.empty()) {
+            const std::string & top = operator_stack.top();
+            if ((Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) <= Lexer::getPrecedence(top)) ||
+                (!Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) < Lexer::getPrecedence(top))) {
+                operator_stack.pop();
 
-                    if (top == "u-" || top == "u+") {
-                        if (output_queue.empty()) {
-                            Parser::reportError("Missing operand for unary operator", token);
-                        }
-                        auto rhs = std::move(output_queue.back());
-                        output_queue.pop_back();
-                        output_queue.push_back(Lexer::applyOperator(top, std::move(rhs)));
-                    } else {
-                        if (output_queue.size() < 2) {
-                            Parser::reportError("Malformed expression", token);
-                        }
-                        auto rhs = std::move(output_queue.back());
-                        output_queue.pop_back();
-                        auto lhs = std::move(output_queue.back());
-                        output_queue.pop_back();
-                        output_queue.push_back(Lexer::applyOperator(top, std::move(rhs), std::move(lhs)));
+                if (top == "u-" || top == "u+") {
+                    if (output_queue.empty()) {
+                        Parser::reportError("Missing operand for unary operator", token);
                     }
+                    auto rhs = std::move(output_queue.back());
+                    output_queue.pop_back();
+                    output_queue.push_back(Lexer::applyOperator(top, std::move(rhs)));
                 } else {
-                    break;
+                    if (output_queue.size() < 2) {
+                        Parser::reportError("Malformed expression", token);
+                    }
+                    auto rhs = std::move(output_queue.back());
+                    output_queue.pop_back();
+                    auto lhs = std::move(output_queue.back());
+                    output_queue.pop_back();
+                    output_queue.push_back(Lexer::applyOperator(top, std::move(rhs), std::move(lhs)));
                 }
-            }
-
-            operator_stack.push(op);
-            consumeToken();
-            expect_unary = true;
-        } else if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
-                   token.type == Lexer::Tokens::Type::KEYWORD ||
-                   token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-                   token.type == Lexer::Tokens::Type::IDENTIFIER) {
-            if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
-                // Treat bare identifiers as variable references for member access
-                output_queue.push_back(ParsedExpression::makeVariable(token.value));
             } else {
-                if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
-                    Parser::reportError("Invalid type", token, "literal or variable");
-                }
+                break;
             }
-            // Consume operand and mark that expression start has passed
-            consumeToken();
-            expect_unary = false;
-            atStart = false;
+        }
+
+        operator_stack.push(op);
+        consumeToken();
+        expect_unary = true;
+    }
+    else if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
+             token.type == Lexer::Tokens::Type::KEYWORD || token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+             token.type == Lexer::Tokens::Type::IDENTIFIER) {
+        if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
+            // Treat bare identifiers as variable references for member access
+            output_queue.push_back(ParsedExpression::makeVariable(token.value));
         } else {
-            break;
-        }
-    }
-
-    // Empty the operator stack
-    while (!operator_stack.empty()) {
-        std::string op = operator_stack.top();
-        operator_stack.pop();
-
-        if (op == "(" || op == ")") {
-            Parser::reportError("Mismatched parentheses", tokens_[current_token_index_]);
-        }
-
-        // Handle unary operators (plus, minus, logical NOT)
-        if (op == "u-" || op == "u+" || op == "u!") {
-            if (output_queue.empty()) {
-                Parser::reportError("Missing operand for unary operator", tokens_[current_token_index_]);
+            if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
+                Parser::reportError("Invalid type", token, "literal or variable");
             }
-            auto rhs = std::move(output_queue.back());
-            output_queue.pop_back();
-            output_queue.push_back(Lexer::applyOperator(op, std::move(rhs)));
-        } else {
-            // Binary operators
-            if (output_queue.size() < 2) {
-                Parser::reportError("Malformed expression", tokens_[current_token_index_]);
-            }
-            auto rhs = std::move(output_queue.back());
-            output_queue.pop_back();
-            auto lhs = std::move(output_queue.back());
-            output_queue.pop_back();
-            output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
         }
+        // Consume operand and mark that expression start has passed
+        consumeToken();
+        expect_unary = false;
+        atStart      = false;
+    }
+    else {
+        break;
+    }
+}
+
+// Empty the operator stack
+while (!operator_stack.empty()) {
+    std::string op = operator_stack.top();
+    operator_stack.pop();
+
+    if (op == "(" || op == ")") {
+        Parser::reportError("Mismatched parentheses", tokens_[current_token_index_]);
     }
 
-    if (output_queue.size() != 1) {
-        reportError("Expression could not be parsed cleanly");
+    // Handle unary operators (plus, minus, logical NOT)
+    if (op == "u-" || op == "u+" || op == "u!") {
+        if (output_queue.empty()) {
+            Parser::reportError("Missing operand for unary operator", tokens_[current_token_index_]);
+        }
+        auto rhs = std::move(output_queue.back());
+        output_queue.pop_back();
+        output_queue.push_back(Lexer::applyOperator(op, std::move(rhs)));
+    } else {
+        // Binary operators
+        if (output_queue.size() < 2) {
+            Parser::reportError("Malformed expression", tokens_[current_token_index_]);
+        }
+        auto rhs = std::move(output_queue.back());
+        output_queue.pop_back();
+        auto lhs = std::move(output_queue.back());
+        output_queue.pop_back();
+        output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
     }
+}
 
-    return std::move(output_queue.back());
+if (output_queue.size() != 1) {
+    reportError("Expression could not be parsed cleanly");
+}
+
+return std::move(output_queue.back());
 }
 
 void Parser::parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::string_view input_string,
                          const std::string & filename) {
     ::Parser::Parser::Exception::current_filename_ = filename;
-    tokens_              = tokens;
-    input_str_view_      = input_string;
-    current_token_index_ = 0;
-    current_filename_    = filename;
+    tokens_                                        = tokens;
+    input_str_view_                                = input_string;
+    current_token_index_                           = 0;
+    current_filename_                              = filename;
 
     while (!isAtEnd() && currentToken().type != Lexer::Tokens::Type::END_OF_FILE) {
         parseStatement();
@@ -1073,6 +1360,11 @@ void Parser::parseStatement() {
         return;
     }
 
+    // Class definition
+    if (token_type == Lexer::Tokens::Type::KEYWORD_CLASS) {
+        parseClassDefinition();
+        return;
+    }
     // Constant variable definition
     if (token_type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "const") {
         parseConstVariableDefinition();
@@ -1080,6 +1372,11 @@ void Parser::parseStatement() {
     }
     // Variable definition if leading token matches a type keyword
     if (Parser::variable_types.find(token_type) != Parser::variable_types.end()) {
+        parseVariableDefinition();
+        return;
+    }
+    // Variable definition for user-defined class types (e.g., ClassName $var)
+    if (token_type == Lexer::Tokens::Type::IDENTIFIER && peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
         parseVariableDefinition();
         return;
     }
@@ -1120,7 +1417,13 @@ Symbols::Variables::Type Parser::parseType() {
         }
         return it->second;
     }
-    reportError("Expected type keyword (string, int, double, float)");
+    // User-defined class types as identifiers (treat as OBJECT)
+    if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
+        // Consume class name
+        consumeToken();
+        return Symbols::Variables::Type::OBJECT;
+    }
+    reportError("Expected type keyword (string, int, double, float or class name)");
 }
 
 Symbols::Value Parser::parseValue(Symbols::Variables::Type expected_var_type) {

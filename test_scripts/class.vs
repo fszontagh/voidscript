@@ -1,16 +1,27 @@
+// class name can not be: function, string, null, int, etc...
 class test1 {
 
+    // private methods and variables can not accessavle outside from the class
     private:
-    string $name;
+    string $name = "No Name"; // pre defined variables allowed
     int $age;
+    // const variables allowed too
+    const string $test = "This is a test";
+    // private method only inner usage
+    function WhatIsTheAge() int {
+        return this->age;
+    }
 
     public:
-    // constructor method, the return is always the class, can not use 'return' keyword here
+    // constructor method, the return type and value is always the class itself to make it callable, can not use 'return' keyword here
+    // constructor is optional
     function construct(string $name, int $age) {
         this->name = $name;
         this->age = $age;
+        // return here drops error
     }
 
+    // othet public methods
     function getAge() int {
         return this->age;
     }
@@ -34,8 +45,7 @@ class test1 {
 
 }
 
-//
-
+// call the class, where the $testClass variable type is the class name, addig paramateres based on the constructor
 test1 $testclass = new test1("Batman", 17);
 
 if ($testclass->isAdult() == false) {

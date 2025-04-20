@@ -124,6 +124,7 @@ add_library(voidscript
             src/Parser/Parser.cpp
             src/Lexer/Lexer.cpp
             src/Lexer/Operators.cpp
+            src/Symbols/ClassRegistry.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")

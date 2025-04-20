@@ -29,6 +29,11 @@ enum class Type : std::uint8_t {
     KEYWORD_FUNCTION_DECLARATION,
     KEYWORD_RETURN,
     KEYWORD_NULL,
+    // Class-related keywords
+    KEYWORD_CLASS,
+    KEYWORD_PRIVATE,
+    KEYWORD_PUBLIC,
+    KEYWORD_NEW,
     UNKNOWN  // Ismeretlen karakter/szekvencia
 };
 
@@ -78,6 +83,14 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_RETURN";
         case Lexer::Tokens::Type::KEYWORD_NULL:
             return "KEYWORD_NULL";
+        case Lexer::Tokens::Type::KEYWORD_CLASS:
+            return "KEYWORD_CLASS";
+        case Lexer::Tokens::Type::KEYWORD_PRIVATE:
+            return "KEYWORD_PRIVATE";
+        case Lexer::Tokens::Type::KEYWORD_PUBLIC:
+            return "KEYWORD_PUBLIC";
+        case Lexer::Tokens::Type::KEYWORD_NEW:
+            return "KEYWORD_NEW";
         case Lexer::Tokens::Type::UNKNOWN:
             return "UNKNOWN";
         default:

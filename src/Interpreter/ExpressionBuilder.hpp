@@ -13,11 +13,12 @@
 #include "Interpreter/MemberExpressionNode.hpp"
 #include "Interpreter/ArrayAccessExpressionNode.hpp"
 #include "Interpreter/ObjectExpressionNode.hpp"
-#include "Interpreter/ObjectExpressionNode.hpp"
+#include "Interpreter/NewExpressionNode.hpp"
+#include "Interpreter/MethodCallExpressionNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 
 namespace Parser {
-static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
+inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
     const ParsedExpressionPtr & expr) {
     using Kind = ParsedExpression::Kind;
 
@@ -82,12 +83,23 @@ static std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(
                 }
                 return std::make_unique<Interpreter::ObjectExpressionNode>(std::move(members));
             }
-    }
+        case Kind::New:
+            {
+                // Build argument expressions
+                std::vector<std::unique_ptr<Interpreter::ExpressionNode>> ctorArgs;
+                ctorArgs.reserve(expr->args.size());
+                for (const auto &arg : expr->args) {
+                    ctorArgs.push_back(buildExpressionFromParsed(arg));
+                }
+                return std::make_unique<Interpreter::NewExpressionNode>(
+                    expr->name, std::move(ctorArgs), expr->filename, expr->line, expr->column);
+            }
+        }
 
     throw std::runtime_error("Unknown ParsedExpression kind");
 }
 
-void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
+inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
     using Kind = ParsedExpression::Kind;
 
     switch (expr->kind) {

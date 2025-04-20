@@ -13,10 +13,10 @@ namespace Parser {
 
 struct ParsedExpression;
 
-using ParsedExpressionPtr = std::unique_ptr<ParsedExpression>;
+using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
 
 struct ParsedExpression {
-    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, Object };
+    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object };
 
     Kind kind;
 
@@ -37,7 +37,7 @@ struct ParsedExpression {
 
     // Constructor for literal
     static ParsedExpressionPtr makeLiteral(const Symbols::Value & val) {
-        auto expr   = std::make_unique<ParsedExpression>();
+        auto expr   = std::make_shared<ParsedExpression>();
         expr->kind  = Kind::Literal;
         expr->value = val;
         return expr;
@@ -45,7 +45,7 @@ struct ParsedExpression {
 
     // Constructor for variable
     static ParsedExpressionPtr makeVariable(const std::string & name) {
-        auto expr  = std::make_unique<ParsedExpression>();
+        auto expr  = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Variable;
         expr->name = name;
         return expr;
@@ -53,7 +53,7 @@ struct ParsedExpression {
 
     // Constructor for binary operation
     static ParsedExpressionPtr makeBinary(std::string op, ParsedExpressionPtr left, ParsedExpressionPtr right) {
-        auto expr  = std::make_unique<ParsedExpression>();
+        auto expr  = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Binary;
         expr->op   = std::move(op);
         expr->lhs  = std::move(left);
@@ -63,7 +63,7 @@ struct ParsedExpression {
 
     // Constructor for unary operation
     static ParsedExpressionPtr makeUnary(std::string op, ParsedExpressionPtr operand) {
-        auto expr  = std::make_unique<ParsedExpression>();
+        auto expr  = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Unary;
         expr->op   = std::move(op);
         expr->rhs  = std::move(operand);
@@ -71,15 +71,35 @@ struct ParsedExpression {
     }
     // Constructor for function call
     static ParsedExpressionPtr makeCall(const std::string &name, std::vector<ParsedExpressionPtr> arguments) {
-        auto expr        = std::make_unique<ParsedExpression>();
+        auto expr        = std::make_shared<ParsedExpression>();
         expr->kind       = Kind::Call;
         expr->name       = name;
         expr->args       = std::move(arguments);
         return expr;
     }
+    
+    // Constructor for method call: object->method(args)
+    static ParsedExpressionPtr makeMethodCall(ParsedExpressionPtr object, const std::string &methodName,
+                                              std::vector<ParsedExpressionPtr> arguments) {
+        auto expr         = std::make_unique<ParsedExpression>();
+        expr->kind        = Kind::MethodCall;
+        expr->lhs         = std::move(object);
+        expr->name        = methodName;
+        expr->args        = std::move(arguments);
+        return expr;
+    }
+
+    // Constructor for 'new' expression: instantiate class
+    static ParsedExpressionPtr makeNew(const std::string &className, std::vector<ParsedExpressionPtr> arguments) {
+        auto expr        = std::make_shared<ParsedExpression>();
+        expr->kind       = Kind::New;
+        expr->name       = className;
+        expr->args       = std::move(arguments);
+        return expr;
+    }
     // Constructor for object literal
     static ParsedExpressionPtr makeObject(std::vector<std::pair<std::string, ParsedExpressionPtr>> members) {
-        auto expr = std::make_unique<ParsedExpression>();
+        auto expr = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Object;
         expr->objectMembers = std::move(members);
         return expr;
