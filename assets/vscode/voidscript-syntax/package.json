@@ -1,48 +1,59 @@
 {
-    "name": "voidscript-syntax",
-    "displayName": "VoidScript Syntax",
-    "description": "Syntax highlighting for VoidScript language.",
+    "name": "voidscript",
+    "displayName": "VoidScript Syntax highlighting & formatter",
+    "description": "Syntax highlighting & formatter for VoidScript language.",
     "license": "MIT",
     "version": "1.0.0",
     "publisher": "fszontagh",
     "repository": {
-      "type": "git",
-      "url": "https://github.com/fszontagh/voidscript.git"
+        "type": "git",
+        "url": "https://github.com/fszontagh/voidscript.git"
     },
     "engines": {
-      "vscode": "^1.58.0"
+        "vscode": "^1.61.0"
     },
     "main": "./out/extension.js",
     "activationEvents": [
-      "onLanguage:voidscript"
+        "onLanguage:voidscript"
     ],
     "contributes": {
-      "languages": [
-        {
-          "id": "voidscript",
-          "extensions": [".voidscript", ".vs"],
-          "aliases": ["VoidScript"],
-          "configuration": "./src/grammar/language-configuration.json",
-          "mimetypes": ["application/x-voidscript", "application/vpodscript"]
-        }
-      ],
-      "grammars": [
-        {
-          "language": "voidscript",
-          "scopeName": "source.voidscript",
-          "path": "./src/grammar/voidscript.tmLanguage.json"
-        }
-      ]
+        "languages": [
+            {
+                "id": "voidscript",
+                "extensions": [
+                    ".voidscript",
+                    ".vs"
+                ],
+                "aliases": [
+                    "VoidScript"
+                ],
+                "configuration": "./src/grammar/language-configuration.json",
+                "mimetypes": [
+                    "application/x-voidscript",
+                    "application/vpodscript"
+                ]
+            }
+        ],
+        "grammars": [
+            {
+                "language": "voidscript",
+                "scopeName": "source.voidscript",
+                "path": "./src/grammar/voidscript.tmLanguage.json"
+            }
+        ]
     },
     "scripts": {
-      "vscode:prepublish": "npm install && npm run compile",
-      "compile": "tsc -p tsconfig.json",
-      "create:package": "vsce package",
-      "build": "npm run vscode:prepublish && npm run create:package"
+        "package:build": "./node_modules/typescript/bin/tsc -p tsconfig.json",
+        "package:create": "node ./node_modules/vscode/bin/install",
+        "package:pack": "./node_modules/@vscode/vsce/vsce package --readme-path README.md",
+        "build": "npm run package:build && npm run package:create && npm run package:pack"
     },
     "devDependencies": {
-      "typescript": "^4.0.0",
-      "vscode": "^1.1.37",
-      "eslint": "^7.23.0"
+        "eslint": "^7.23.0",
+        "typescript": "^4.0.0",
+        "vscode": "^1.1.37"
+    },
+    "dependencies": {
+        "@vscode/vsce": "^3.3.2"
     }
-  }
+}

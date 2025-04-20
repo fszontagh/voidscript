@@ -17,30 +17,50 @@ export function activate(context: vscode.ExtensionContext) {
   );
 }
 
-export function deactivate() {}
+export function deactivate() { }
 
 function formatVoidScript(text: string): string {
   const lines = text.split(/\r?\n/);
   let indentLevel = 0;
   const indentSize = 4;
-  return lines
-    .map(line => {
-      const trimmed = line.trim();
-      if (trimmed === '') {
-        return '';
-      }
-      if (trimmed.startsWith('}')) {
-        indentLevel = Math.max(indentLevel - 1, 0);
-      }
-      const indent = ' '.repeat(indentLevel * indentSize);
-      const newLine = indent + trimmed;
-      const openCount = (trimmed.match(/{/g) || []).length;
-      const closeCount = (trimmed.match(/}/g) || []).length;
-      indentLevel += openCount - closeCount;
-      if (indentLevel < 0) {
-        indentLevel = 0;
-      }
-      return newLine;
-    })
-    .join('\n');
+  const formattedLines: string[] = [];
+
+  const increaseIndentNextLine = (line: string): boolean => {
+    return (
+      /{\s*$/.test(line) || // block start
+      /:\s*{/.test(line)    // inline object key: {
+    );
+  };
+
+  const decreaseIndentCurrentLine = (line: string): boolean => {
+    return /^\s*}/.test(line);
+  };
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed === '') {
+      formattedLines.push('');
+      continue;
+    }
+
+    if (decreaseIndentCurrentLine(trimmed)) {
+      indentLevel = Math.max(indentLevel - 1, 0);
+    }
+
+    const indent = ' '.repeat(indentLevel * indentSize);
+    formattedLines.push(indent + trimmed);
+
+    if (increaseIndentNextLine(trimmed)) {
+      indentLevel++;
+    }
+
+    // balance adjustment in case of multiple closing braces
+    const openCount = (trimmed.match(/{/g) || []).length;
+    const closeCount = (trimmed.match(/}/g) || []).length;
+    indentLevel += openCount - closeCount;
+    if (indentLevel < 0) indentLevel = 0;
+  }
+
+  return formattedLines.join('\n');
 }

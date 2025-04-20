@@ -9,3 +9,4 @@ node_modules/
 Thumbs.db
 package-lock.json
 .vscode/settings.json
+out
