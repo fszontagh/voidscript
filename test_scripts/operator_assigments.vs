@@ -8,3 +8,10 @@ printnl($i);
 int $x = 5;
 $x %= 2;
 printnl($x);
+
+int $u =  0;
+
+
+printnl("$u = ", $u);
+$u++;
+printnl("$u = ", $u);

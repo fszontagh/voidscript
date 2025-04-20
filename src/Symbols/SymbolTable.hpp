@@ -34,8 +34,10 @@ class SymbolTable {
         }
     }
 
-    std::vector<std::string> listNSs() {
+    /** @brief List all namespace keys (symbol categories) in this table. */
+    std::vector<std::string> listNamespaces() const {
         std::vector<std::string> result;
+        result.reserve(symbols_.size());
         for (const auto & [ns, _] : symbols_) {
             result.push_back(ns);
         }

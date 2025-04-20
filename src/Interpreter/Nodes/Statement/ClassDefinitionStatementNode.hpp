@@ -6,6 +6,9 @@
 #include <memory>
 
 #include "Interpreter/StatementNode.hpp"
+#include "Interpreter/OperationContainer.hpp"
+#include "Interpreter/Interpreter.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/ClassRegistry.hpp"
 
 namespace Interpreter {
@@ -31,7 +34,9 @@ class ClassDefinitionStatementNode : public StatementNode {
         publicProperties_(std::move(publicProps)),
         methodNames_(std::move(methods)) {}
 
-    void interpret(Interpreter & /*interpreter*/) const override {
+    void interpret(Interpreter & interpreter) const override {
+        auto *sc = Symbols::SymbolContainer::instance();
+        // Register class and its members in class registry
         auto & registry = Symbols::ClassRegistry::instance();
         // Register the class itself
         registry.registerClass(className_);
@@ -45,6 +50,17 @@ class ClassDefinitionStatementNode : public StatementNode {
         // Register methods
         for (const auto & method : methodNames_) {
             registry.addMethod(className_, method);
+        }
+        // After registering methods in class registry, also register function symbols
+        // for class methods by executing their declaration operations
+        // The method declaration operations were recorded under namespace: fileNs.className
+        const std::string fileNs  = sc->currentScopeName();
+        const std::string classNs = fileNs + "::" + className_;
+        auto ops = Operations::Container::instance()->getAll(classNs);
+        for (const auto & op : ops) {
+            if (op->type == Operations::Type::FuncDeclaration) {
+                interpreter.runOperation(*op);
+            }
         }
     }
 

@@ -7,7 +7,10 @@
 #include "SymbolKind.hpp"
 #include "Value.hpp"
 
+
 namespace Symbols {
+// Forward declare for specialized dump of functions
+class FunctionSymbol;
 
 class Symbol {
   protected:
@@ -40,10 +43,11 @@ class Symbol {
 
     virtual void setValue(const Value & value) { value_ = value; }
 
-    std::string dump() const {
-        std::string r = "\t\t  "+ kindToString(this->kind_) + " name: '" + name_ + "' \n\t\t\tContext: " + context_;
-        r += " \n\t\t\tType: " + Symbols::Variables::TypeToString(value_.getType());
-        r += " \n\t\t\tValue: '" + Symbols::Value::to_string(value_) + "'";
+    // Dump symbol details (default: type and value)
+    virtual std::string dump() const {
+        std::string r = "\t\t  " + kindToString(this->kind_) + " name: '" + name_ + "' \n\t\t\tContext: " + context_;
+        r += " \n\t\t\tType: " + Variables::TypeToString(value_.getType());
+        r += " \n\t\t\tValue: '" + Value::to_string(value_) + "'";
         return r;
     }
 

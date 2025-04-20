@@ -1,18 +1,29 @@
+// smple function
+
+function girafe (int $param1) {
+  int $var = $param1;
+}
 // Define a simple class with defaults and two public properties
         class Foo {
           public: int $a = 1;
           public: int $b = 2;
+          private: string $name;
 
           function test() {
                 printnl("Test method called");
           }
           function incrementA() int {
-            return this->a = this->a + 1;
+            $this->a = $this->a + 1;
+            return this->a;
+          }
+
+          function SetName(string $newName) null {
+            $this->name = $newName;
           }
         }
 
         // Instantiate with one constructor arg (overrides $a, leaves $b at default)
-        Foo $f = new Foo(10);
+        Foo $f = new Foo(); // there is no constructor, so no parameters
 
         // Should print “10”
         printnl("$f->a = ", $f->a);
@@ -22,6 +33,11 @@
         printnl("$f->b + $f->a = ",$f->b + $f->a);
 
         // typeof returns a string “object”
-        printnl(typeof($f));
+        printnl("Typeof $f: ",typeof($f));
 
-        //$f->test();
+        $f->test();
+        $f->incrementA();
+        // Test incrementA return value and updated property
+//        int $inc = $f->incrementA();
+///        printnl("incrementA returned ", $inc);
+        printnl("$f->a now = ", $f->a);

@@ -135,7 +135,14 @@ class Parser {
     Symbols::Variables::Type parseType();
     Symbols::Value           parseValue(Symbols::Variables::Type expected_var_type);
     Symbols::Value      parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type);
-    void                parseFunctionBody(const Lexer::Tokens::Token & opening_brace, const std::string & function_name,
+    /**
+     * @brief Parse the body of a function or method, creating a new scope and recording its operations.
+     * @param opening_brace_idx Index in tokens_ of the '{' token that opens the function body.
+     * @param function_name    Name of the function being parsed.
+     * @param return_type      Expected return type of the function.
+     * @param params           Parameter list for the function.
+     */
+    void                parseFunctionBody(size_t opening_brace_idx, const std::string & function_name,
                                           Symbols::Variables::Type return_type, const Symbols::FunctionParameterInfo & params);
     ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type);
 

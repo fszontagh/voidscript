@@ -63,9 +63,11 @@ class NewExpressionNode : public ExpressionNode {
             throw Exception("Too many constructor arguments for class: " + className_, filename_, line_, column_);
         }
         for (size_t j = 0; j < args_.size(); ++j) {
-            Symbols::Value val           = args_[j]->evaluate(interpreter);
+            Symbols::Value val             = args_[j]->evaluate(interpreter);
             obj[info.properties[j].name] = val;
         }
+        // Embed class metadata for method dispatch
+        obj["__class__"] = Symbols::Value(className_);
         return Symbols::Value(obj);
     }
 

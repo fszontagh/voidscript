@@ -29,10 +29,10 @@ class AssignmentStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         using namespace Symbols;
         auto *            symContainer = SymbolContainer::instance();
-        // Variables are stored under <scope>.variables
+        // Variables are stored under <scope>::variables
         const std::string base_ns      = symContainer->currentScopeName();
-        const std::string var_ns       = base_ns + ".variables";
-        const std::string const_ns     = base_ns + ".constants";
+        const std::string var_ns       = base_ns + "::variables";
+        const std::string const_ns     = base_ns + "::constants";
         // Prevent assignment to constants
         if (symContainer->exists(targetName_, const_ns)) {
             throw Exception("Cannot assign to constant '" + targetName_ + "'", filename_, line_, column_);

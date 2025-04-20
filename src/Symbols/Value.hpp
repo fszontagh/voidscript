@@ -16,7 +16,10 @@ class Value {
     using ObjectMap = std::map<std::string, Value>;
     using Variant = std::variant<int, double, float, std::string, bool, ObjectMap>;
 
-    Value() = default;
+    /**
+     * @brief Default-constructed value is undefined.
+     */
+    Value() : value_(), type_(Symbols::Variables::Type::UNDEFINED_TYPE) {}
 
     Value(int v) : value_(v) { type_ = Symbols::Variables::Type::INTEGER; }
 

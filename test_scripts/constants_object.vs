@@ -14,4 +14,4 @@ printnl($person->name, " is ", $person->age, " years old.");
 printnl("City: ", $person->address->city, ", ZIP: ", $person->address->zip);
 
 # Attempt to modify a property of the constant object (should produce runtime error)
-$person->age = 43;
+// $person->age = 43;

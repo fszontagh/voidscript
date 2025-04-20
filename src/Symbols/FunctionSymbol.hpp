@@ -34,6 +34,13 @@ class FunctionSymbol : public Symbol {
     const FunctionParameterInfo & parameters() const { return parameters_; }
 
     const std::string & plainBody() const { return plainBody_; }
+    
+    // Dump function symbol: name, context, and declared return type
+    std::string dump() const override {
+        std::string r = "\t\t  " + kindToString(this->kind_) + " name: '" + name_ + "' \n\t\t\tContext: " + context_;
+        r += " \n\t\t\tReturnType: " + Variables::TypeToString(returnType_);
+        return r;
+    }
 };
 
 }  // namespace Symbols

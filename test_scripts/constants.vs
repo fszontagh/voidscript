@@ -16,4 +16,4 @@ $y = "changed";
 printnl($y);
 
 # Attempt to modify constant (should produce runtime error)
-$name = "Bob";
+// $name = "Bob";

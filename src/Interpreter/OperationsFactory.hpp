@@ -12,6 +12,7 @@
 #include "Nodes/Statement/DeclareFunctionStatementNode.hpp"
 #include "Nodes/Statement/DeclareVariableStatementNode.hpp"
 #include "Nodes/Statement/ReturnStatementNode.hpp"
+#include "Nodes/Statement/ExpressionStatementNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -107,6 +108,21 @@ class OperationsFactory {
         auto stmt = std::make_unique<ReturnStatementNode>(std::move(expr), fileName, line, column);
         Operations::Container::instance()->add(
             ns, Operations::Operation{ Operations::Type::Return, std::string(), std::move(stmt) });
+    }
+    /**
+     * @brief Record a generic expression statement (e.g., method call).
+     * @param pexpr Parsed expression for evaluation.
+     * @param ns    Current namespace scope for operations.
+     * @param fileName Source filename.
+     * @param line  Line number of statement.
+     * @param column Column number of statement.
+     */
+    static void callExpression(const Parser::ParsedExpressionPtr & pexpr, const std::string & ns,
+                               const std::string & fileName, int line, size_t column) {
+        std::unique_ptr<ExpressionNode> expr = buildExpressionFromParsed(pexpr);
+        auto stmt = std::make_unique<ExpressionStatementNode>(std::move(expr), fileName, line, column);
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::Expression, std::string(), std::move(stmt) });
     }
 };
 

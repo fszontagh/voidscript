@@ -1,6 +1,7 @@
 #ifndef PARSEREXPRESSION_BUILDER_HPP
 #define PARSEREXPRESSION_BUILDER_HPP
 
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 
@@ -39,15 +40,17 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                 }
                 // Member access for object properties: '->'
                 if (expr->op == "->") {
-                    auto        objExpr = buildExpressionFromParsed(expr->lhs);
+                    auto objExpr = buildExpressionFromParsed(expr->lhs);
+                    // Debug: inspect RHS kind for property name
+                    std::cerr << "[DEBUG] Member access operator '->': rhs kind = "
+                              << static_cast<int>(expr->rhs->kind) << "\n";
                     std::string propName;
+                    // Accept string literal or identifier as property name
                     if (expr->rhs->kind == ParsedExpression::Kind::Literal &&
                         expr->rhs->value.getType() == Symbols::Variables::Type::STRING) {
                         propName = expr->rhs->value.get<std::string>();
-                    } else if (expr->rhs->kind == ParsedExpression::Kind::Variable) {
-                        propName = expr->rhs->name;
                     } else {
-                        throw std::runtime_error("Invalid property name in member access");
+                        propName = expr->rhs->name;
                     }
                     return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objExpr), propName);
                 }
@@ -64,15 +67,28 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
             }
         case Kind::Call:
             {
-                // Build argument expressions
+                // Build argument expressions for function call
                 std::vector<std::unique_ptr<Interpreter::ExpressionNode>> callArgs;
                 callArgs.reserve(expr->args.size());
                 for (const auto & arg : expr->args) {
                     callArgs.push_back(buildExpressionFromParsed(arg));
                 }
-                // Create call node with source location
                 return std::make_unique<Interpreter::CallExpressionNode>(expr->name, std::move(callArgs),
                                                                          expr->filename, expr->line, expr->column);
+            }
+        case Kind::MethodCall:
+            {
+                // Build argument expressions for method call
+                std::vector<std::unique_ptr<Interpreter::ExpressionNode>> methodArgs;
+                methodArgs.reserve(expr->args.size());
+                for (const auto & arg : expr->args) {
+                    methodArgs.push_back(buildExpressionFromParsed(arg));
+                }
+                // Build object expression
+                auto objectExpr = buildExpressionFromParsed(expr->lhs);
+                return std::make_unique<Interpreter::MethodCallExpressionNode>(std::move(objectExpr), expr->name,
+                                                                               std::move(methodArgs), expr->filename,
+                                                                               expr->line, expr->column);
             }
         case Kind::Object:
             {
@@ -113,7 +129,8 @@ inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
 
         case Kind::Variable:
             {
-                const std::string ns     = Symbols::SymbolContainer::instance()->currentScopeName() + ".variables";
+                // Lookup variable in current scope's variables namespace
+                const std::string ns     = Symbols::SymbolContainer::instance()->currentScopeName() + "::variables";
                 auto              symbol = Symbols::SymbolContainer::instance()->get(ns, expr->name);
                 if (!symbol) {
                     throw std::runtime_error("Variable not found in symbol table: " + expr->name);

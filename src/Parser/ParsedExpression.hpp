@@ -113,7 +113,8 @@ struct ParsedExpression {
 
             case Kind::Variable:
                 {
-                    const auto ns     = Symbols::SymbolContainer::instance()->currentScopeName() + ".variables";
+                    // Lookup variable in current scope's variables namespace
+                    const auto ns     = Symbols::SymbolContainer::instance()->currentScopeName() + "::variables";
                     auto       symbol = Symbols::SymbolContainer::instance()->get(ns, name);
                     if (!symbol) {
                         throw std::runtime_error("Unknown variable: " + name + " in namespace: " + ns +
@@ -139,7 +140,8 @@ struct ParsedExpression {
                 }
             case Kind::Call:
                 {
-                    const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName() + ".functions";
+                    // Lookup function in current scope's functions namespace
+                    const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName() + "::functions";
                     auto symbol = Symbols::SymbolContainer::instance()->get(ns, name);
                     if (!symbol) {
                         throw std::runtime_error("Unknown function: " + name + " in namespace: " + ns);

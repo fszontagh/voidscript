@@ -59,13 +59,13 @@ class CallExpressionNode : public ExpressionNode {
              std::shared_ptr<FunctionSymbol> funcSym;
              // Search for function symbol in current and parent scopes
              while (true) {
-                 std::string fnSymNs = lookupNs + ".functions";
+                 std::string fnSymNs = lookupNs + "::functions";
                  auto sym = sc->get(fnSymNs, functionName_);
                  if (sym && sym->getKind() == Kind::Function) {
                      funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
                      break;
                  }
-                 auto pos = lookupNs.find_last_of('.');
+                 auto pos = lookupNs.rfind("::");
                  if (pos == std::string::npos) {
                      break;
                  }
@@ -81,7 +81,7 @@ class CallExpressionNode : public ExpressionNode {
                      " args, got " + std::to_string(argValues.size()));
              }
              // Enter function scope and bind parameters
-             const std::string fnOpNs = funcSym->context() + "." + functionName_;
+             const std::string fnOpNs = funcSym->context() + "::" + functionName_;
              sc->enter(fnOpNs);
              for (size_t i = 0; i < params.size(); ++i) {
                  const auto &p = params[i];

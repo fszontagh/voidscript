@@ -52,7 +52,7 @@
             const auto & objMap = std::get<Value::ObjectMap>(iterableVal.get());
             auto * symContainer = SymbolContainer::instance();
             const std::string base_ns = symContainer->currentScopeName();
-            const std::string var_ns  = base_ns + ".variables";
+            const std::string var_ns  = base_ns + "::variables";
             for (const auto & entry : objMap) {
                 const std::string & key = entry.first;
                 Value keyVal(key);

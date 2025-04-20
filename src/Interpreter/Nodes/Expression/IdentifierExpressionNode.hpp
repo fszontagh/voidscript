@@ -16,11 +16,12 @@ class IdentifierExpressionNode : public ExpressionNode {
     Symbols::Value evaluate(Interpreter & /*interpreter*/) const override {
         auto * sc = Symbols::SymbolContainer::instance();
         const std::string base_ns  = sc->currentScopeName();
-        const std::string var_ns   = base_ns + ".variables";
+        // Look in current scope's variables namespace
+        const std::string var_ns   = base_ns + "::variables";
         if (sc->exists(name_, var_ns)) {
             return sc->get(var_ns, name_)->getValue();
         }
-        const std::string const_ns = base_ns + ".constants";
+        const std::string const_ns = base_ns + "::constants";
         if (sc->exists(name_, const_ns)) {
             return sc->get(const_ns, name_)->getValue();
         }

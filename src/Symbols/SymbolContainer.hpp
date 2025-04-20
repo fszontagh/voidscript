@@ -87,11 +87,12 @@ class SymbolContainer {
         return ns;
     }
 
-    std::vector<std::string> getNameSpaces(const std::string & scopeName) const {
+    /** @brief List the symbol namespaces (categories) within a given scope. */
+    std::vector<std::string> getNamespaces(const std::string & scopeName) const {
         std::vector<std::string> result;
-        auto                     it = scopes_.find(scopeName);
+        auto it = scopes_.find(scopeName);
         if (it != scopes_.end()) {
-            return it->second->listNSs();
+            return it->second->listNamespaces();
         }
         return result;
     }
@@ -116,8 +117,11 @@ class SymbolContainer {
             fullNamespace = currentScopeName();
         }
 
-        for (const auto & [_, table] : scopes_) {
-            if (table->exists(fullNamespace, name)) {
+        // Search scopes in innermost-to-outermost order for shadowing
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const auto & scopeName = *it;
+            auto tableIt = scopes_.find(scopeName);
+            if (tableIt != scopes_.end() && tableIt->second->exists(fullNamespace, name)) {
                 return true;
             }
         }
@@ -125,10 +129,15 @@ class SymbolContainer {
     }
 
     SymbolPtr get(const std::string & fullNamespace, const std::string & name) const {
-        for (const auto & [_, table] : scopes_) {
-            auto sym = table->get(fullNamespace, name);
-            if (sym) {
-                return sym;
+        // Search scopes in innermost-to-outermost order for first matching symbol
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const auto & scopeName = *it;
+            auto tableIt = scopes_.find(scopeName);
+            if (tableIt != scopes_.end()) {
+                auto sym = tableIt->second->get(fullNamespace, name);
+                if (sym) {
+                    return sym;
+                }
             }
         }
         return nullptr;
@@ -140,10 +149,12 @@ class SymbolContainer {
         std::cout << "\n--- Defined Scopes ---" << '\n';
         for (const auto & scope_name : instance()->getScopeNames()) {
             result += scope_name + '\n';
-            for (const auto & sname : instance()->getNameSpaces(scope_name)) {
-                result += "\t -" + sname + '\n';
-                for (const auto & symbol : instance()->getAll(sname)) {
+            for (const auto & ns : instance()->getNamespaces(scope_name)) {
+                result += "\t -" + ns + '\n';
+                for (const auto & symbol : instance()->getAll(ns)) {
                     result += symbol->dump() + '\n';
+                    // Recursively dump object properties
+                    dumpValue(symbol->getValue(), result, 4);
                 }
             }
         }
@@ -151,21 +162,33 @@ class SymbolContainer {
     }
 
   private:
+    // Helper to recursively dump object Value properties
+    static void dumpValue(const Value &value, std::string &result, int indent) {
+        using ObjectMap = Value::ObjectMap;
+        if (value.getType() == Variables::Type::OBJECT) {
+            const auto &objMap = std::get<ObjectMap>(value.get());
+            for (const auto & [key, childVal] : objMap) {
+                result += std::string(indent, '\t') + "- " + key + ": '" + Value::to_string(childVal) + "'\n";
+                dumpValue(childVal, result, indent + 1);
+            }
+        }
+    }
     /**
      * @brief Compute the namespace string for a symbol based on its kind and context.
      */
     std::string getNamespaceForSymbol(const SymbolPtr & symbol) const {
         std::string base = symbol->context().empty() ? currentScopeName() : symbol->context();
 
+        const char *sep = "::";
         switch (symbol->getKind()) {
             case Symbols::Kind::Variable:
-                return base + ".variables";
+                return base + sep + "variables";
             case Symbols::Kind::Function:
-                return base + ".functions";
+                return base + sep + "functions";
             case Symbols::Kind::Constant:
-                return base + ".constants";
+                return base + sep + "constants";
             default:
-                return base + ".others";
+                return base + sep + "others";
         }
     }
 };
