@@ -12,6 +12,10 @@
     "engines": {
       "vscode": "^1.58.0"
     },
+    "main": "./out/extension.js",
+    "activationEvents": [
+      "onLanguage:voidscript"
+    ],
     "contributes": {
       "languages": [
         {
@@ -31,10 +35,10 @@
       ]
     },
     "scripts": {
-      "vscode:prepublish": "npm install",
-      "compile": "echo \"No compile needed\"",
+      "vscode:prepublish": "npm install && npm run compile",
+      "compile": "tsc -p tsconfig.json",
       "create:package": "vsce package",
-      "build": "npm run vscode:prepublish; npm run create:package"
+      "build": "npm run vscode:prepublish && npm run create:package"
     },
     "devDependencies": {
       "typescript": "^4.0.0",

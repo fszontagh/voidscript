@@ -5,6 +5,7 @@ This Visual Studio Code extension provides syntax highlighting for the [VoidScri
 ## Features
 
 - Syntax highlighting for VoidScript source files with extensions `.vs` and `.voidscript`.
+- Code formatting for VoidScript scripts (`.vs`, `.voidscript`).
 
 ## Requirements
 
@@ -42,6 +43,10 @@ To install the extension from file: `code --install-extension voidscript-syntax-
 ## Usage
 
 Open a VoidScript file (extension `.vs` or `.voidscript`) in VS Code. The syntax highlighting will be applied automatically.
+
+### Formatting
+
+You can format a VoidScript document by opening the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and selecting **Format Document**, or by using the default shortcut (`Shift+Alt+F`). The document will be reformatted according to the VoidScript formatter.
 
 ## Contributing
 
