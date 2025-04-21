@@ -107,6 +107,16 @@ class Container {
         }
         return result;
     }
+    /**
+     * @brief Clear all operations in the given namespace.
+     * @param ns Namespace from which to clear operations.
+     */
+    void clear(const std::string & ns) {
+        auto it = _operations.find(ns);
+        if (it != _operations.end()) {
+            it->second.clear();
+        }
+    }
 
     auto begin() { return _operations.begin(); }
 

@@ -11,7 +11,9 @@
 const std::unordered_map<std::string, std::string> params = {
     { "--help",    "Print this help message"                                                                     },
     { "--version", "Print the version of the program"                                                            },
-    { "--debug",   "Enable debug output (all components or use --debug=lexer, parser, interpreter, symboltable)" },
+    { "--debug",       "Enable debug output (all components or use --debug=lexer, parser, interpreter, symboltable)" },
+    { "--enable-tags",            "Only parse tokens between PARSER_OPEN_TAG and PARSER_CLOSE_TAG when enabled"                  },
+    { "--suppress-tags-outside",  "Suppress text outside PARSER_OPEN_TAG/PARSER_CLOSE_TAG when tag filtering is enabled" },
 };
 
 int main(int argc, char * argv[]) {
@@ -28,6 +30,8 @@ int main(int argc, char * argv[]) {
     bool debugSymbolTable = false;
 
     std::string file;
+    bool enableTags = false;
+    bool suppressTagsOutside = false;
     // Collect script parameters (arguments after script filename)
     std::vector<std::string> scriptArgs;
     for (int i = 1; i < argc; ++i) {
@@ -67,6 +71,10 @@ int main(int argc, char * argv[]) {
                 std::cerr << usage << "\n";
                 return 1;
             }
+        } else if (a == "--enable-tags") {
+            enableTags = true;
+        } else if (a == "--suppress-tags-outside") {
+            suppressTagsOutside = true;
         } else if (a == "-") {
             // Read script from stdin
             file = a;
@@ -105,7 +113,14 @@ int main(int argc, char * argv[]) {
         filename = std::filesystem::canonical(file).string();
     }
 
-    // Initialize and run with debug options, passing script arguments
-    VoidScript voidscript(filename, debugLexer, debugParser, debugInterp, debugSymbolTable, scriptArgs);
+    // Initialize and run with debug options, tag filtering (and optional suppress outside), and script arguments
+    VoidScript voidscript(filename,
+                         debugLexer,
+                         debugParser,
+                         debugInterp,
+                         debugSymbolTable,
+                         enableTags,
+                         suppressTagsOutside,
+                         scriptArgs);
     return voidscript.run();
 }

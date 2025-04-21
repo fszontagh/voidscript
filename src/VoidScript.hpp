@@ -5,6 +5,9 @@
 #include <string>
 #include <iostream>
 #include <iterator>
+#include <vector>
+#include <utility>
+#include <algorithm>
 
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
@@ -21,6 +24,7 @@
 // JSON encode/decode
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Parser/Parser.hpp"
+#include "options.h"
 #include "Interpreter/OperationsFactory.hpp"
 #include "Symbols/Value.hpp"
 
@@ -32,6 +36,10 @@ class VoidScript {
     bool                            debugInterpreter_ = false;
     bool                            debugSymbolTable_ = false;
     std::vector<std::string>        files;
+    // Only parse between open/close tags if enabled
+    bool                             enableTags_ = false;
+    // Suppress printing text outside tags when filtering is enabled
+    bool                             suppressTagsOutside_ = false;
     // Script parameters passed after the script filename
     std::vector<std::string>        scriptArgs_;
     std::shared_ptr<Lexer::Lexer>   lexer  = nullptr;
@@ -61,14 +69,21 @@ class VoidScript {
      * @param debugParser        enable parser debug output
      * @param debugInterpreter   enable interpreter debug output
      */
-    VoidScript(const std::string & file, bool debugLexer = false, bool debugParser = false,
-               bool debugInterpreter = false, bool debugSymbolTable = false,
+    VoidScript(const std::string & file,
+               bool debugLexer = false,
+               bool debugParser = false,
+               bool debugInterpreter = false,
+               bool debugSymbolTable = false,
+               bool enableTags = false,
+               bool suppressTagsOutside = false,
                std::vector<std::string> scriptArgs = {}) :
         debugLexer_(debugLexer),
         debugParser_(debugParser),
         debugInterpreter_(debugInterpreter),
         debugSymbolTable_(debugSymbolTable),
         files(),
+        enableTags_(enableTags),
+        suppressTagsOutside_(suppressTagsOutside),
         scriptArgs_(std::move(scriptArgs)),
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
@@ -101,6 +116,44 @@ class VoidScript {
                 std::string       file         = files.back();
                 const std::string file_content = readFile(file);
                 files.pop_back();
+                // Split content into segments: code inside tags and outside tags
+                std::vector<std::pair<bool, std::string>> segments;
+                if (!enableTags_) {
+                    // Whole file is code to parse
+                    segments.emplace_back(true, file_content);
+                } else {
+                    std::string openTag(PARSER_OPEN_TAG);
+                    std::string closeTag(PARSER_CLOSE_TAG);
+                    size_t pos = 0;
+                    while (pos < file_content.size()) {
+                        size_t start = file_content.find(openTag, pos);
+                        if (start == std::string::npos) {
+                            // Remaining outside text
+                            std::string outside = file_content.substr(pos);
+                            if (!suppressTagsOutside_) {
+                                segments.emplace_back(false, outside);
+                            }
+                            break;
+                        }
+                        // Outside text before tag
+                        if (start > pos && !suppressTagsOutside_) {
+                            segments.emplace_back(false, file_content.substr(pos, start - pos));
+                        }
+                        // Inside tag code
+                        size_t code_start = start + openTag.size();
+                        size_t end = file_content.find(closeTag, code_start);
+                        std::string code;
+                        if (end != std::string::npos) {
+                            code = file_content.substr(code_start, end - code_start);
+                            pos = end + closeTag.size();
+                        } else {
+                            // No closing tag: take until end
+                            code = file_content.substr(code_start);
+                            pos = file_content.size();
+                        }
+                        segments.emplace_back(true, code);
+                    }
+                }
 
                 std::string _default_namespace_ = file;
                 std::replace(_default_namespace_.begin(), _default_namespace_.end(), '.', '_');
@@ -126,28 +179,36 @@ class VoidScript {
                     OperationsFactory::defineSimpleVariable("argv", Value(argv_map), ns, file, 0, 0);
                 }
 
-                this->lexer->addNamespaceInput(ns, file_content);
-                const auto tokens = this->lexer->tokenizeNamespace(ns);
-                if (debugLexer_) {
-                    std::cerr << "[Debug][Lexer] Tokens for namespace '" << ns << "':\n";
-                    for (const auto & tok : tokens) {
-                        std::cerr << tok.dump();
+                // Process each segment: either plain text or code to execute
+                for (const auto & seg : segments) {
+                    if (!seg.first) {
+                        // Outside tag text: print as-is
+                        std::cout << seg.second;
+                    } else {
+                        // Inside tag code: tokenize, parse, and execute
+                        this->lexer->addNamespaceInput(ns, seg.second);
+                        const auto tokens = this->lexer->tokenizeNamespace(ns);
+                        if (debugLexer_) {
+                            std::cerr << "[Debug][Lexer] Tokens for namespace '" << ns << "':\n";
+                            for (const auto & tok : tokens) {
+                                std::cerr << tok.dump();
+                            }
+                        }
+                        parser->parseScript(tokens, file_content, file);
+                        if (debugParser_) {
+                            std::cerr << "[Debug][Parser] Operations for namespace '" << ns << "':\n";
+                            for (const auto & op : Operations::Container::instance()->getAll(ns)) {
+                                std::cerr << op->toString() << "\n";
+                            }
+                        }
+                        Interpreter::Interpreter interpreter(debugInterpreter_);
+                        interpreter.run();
+                        // Clear operations after execution to avoid re-running
+                        Operations::Container::instance()->clear(ns);
+                        if (debugSymbolTable_) {
+                            std::cout << Symbols::SymbolContainer::dump() << "\n";
+                        }
                     }
-                }
-
-                parser->parseScript(tokens, file_content, file);
-                if (debugParser_) {
-                    std::cerr << "[Debug][Parser] Operations for namespace '" << ns << "':\n";
-                    for (const auto & op : Operations::Container::instance()->getAll(ns)) {
-                        std::cerr << op->toString() << "\n";
-                    }
-                }
-
-                // Execute interpreter with optional debug output
-                Interpreter::Interpreter interpreter(debugInterpreter_);
-                interpreter.run();
-                if (debugSymbolTable_) {
-                    std::cout << Symbols::SymbolContainer::dump() << "\n";
                 }
             }  // while (!files.empty())
 
