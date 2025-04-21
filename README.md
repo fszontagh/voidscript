@@ -14,6 +14,7 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
   - [File I/O](https://github.com/fszontagh/voidscript/blob/main/docs/FileModule.md) (`file_get_contents()`, `file_put_contents()` etc.)
   - [JSON encode/decode](https://github.com/fszontagh/voidscript/blob/main/docs/JsonModule.md) (`json_encode()`, `json_decode()`)
   - [Variable helpers](https://github.com/fszontagh/voidscript/blob/main/docs/VariableHelpersModule.md) (`typeof()` etc.)
+  - [Module helpers](https://github.com/fszontagh/voidscript/blob/main/docs/ModuleHelperModule.md) (`module_list()`, `module_exists()`, `module_info()`)
   - HTTP header management (FastCGI only): `header()`
 - Dynamic Plugin module support (e.g., [CurlModule](https://github.com/fszontagh/voidscript/tree/main/Modules/CurlModule) for HTTP requests)
 - Embeddable library (`libvoidscript`)

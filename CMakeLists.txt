@@ -134,7 +134,7 @@ add_library(voidscript
             src/Lexer/Lexer.cpp
             src/Lexer/Operators.cpp
             src/Symbols/ClassRegistry.cpp
-            src/Modules/BuiltIn/ModuleListModule.cpp
+            src/Modules/BuiltIn/ModuleHelperModule.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")
