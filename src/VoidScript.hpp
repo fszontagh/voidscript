@@ -21,6 +21,8 @@
 // JSON encode/decode
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Parser/Parser.hpp"
+#include "Interpreter/OperationsFactory.hpp"
+#include "Symbols/Value.hpp"
 
 class VoidScript {
   private:
@@ -30,6 +32,8 @@ class VoidScript {
     bool                            debugInterpreter_ = false;
     bool                            debugSymbolTable_ = false;
     std::vector<std::string>        files;
+    // Script parameters passed after the script filename
+    std::vector<std::string>        scriptArgs_;
     std::shared_ptr<Lexer::Lexer>   lexer  = nullptr;
     std::shared_ptr<Parser::Parser> parser = nullptr;
 
@@ -58,11 +62,14 @@ class VoidScript {
      * @param debugInterpreter   enable interpreter debug output
      */
     VoidScript(const std::string & file, bool debugLexer = false, bool debugParser = false,
-               bool debugInterpreter = false, bool debugSymbolTable = false) :
+               bool debugInterpreter = false, bool debugSymbolTable = false,
+               std::vector<std::string> scriptArgs = {}) :
         debugLexer_(debugLexer),
         debugParser_(debugParser),
         debugInterpreter_(debugInterpreter),
         debugSymbolTable_(debugSymbolTable),
+        files(),
+        scriptArgs_(std::move(scriptArgs)),
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
         // Register built-in modules (print, etc.)
@@ -101,6 +108,23 @@ class VoidScript {
                 Symbols::SymbolContainer::instance()->create(_default_namespace_);
 
                 const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
+                // Pre-define script arguments: $argc (int) and $argv (string array as object map)
+                {
+                    using namespace Interpreter;
+                    using namespace Symbols;
+                    // Define argc (including the script name)
+                    int argc_val = static_cast<int>(scriptArgs_.size()) + 1;
+                    OperationsFactory::defineSimpleVariable("argc", Value(argc_val), ns, file, 0, 0);
+                    // Define argv as object map: argv[0] = script name, then parameters
+                    Value::ObjectMap argv_map;
+                    // Script filename at index 0
+                    argv_map["0"] = Value(file);
+                    // Subsequent entries for each script parameter
+                    for (size_t i = 0; i < scriptArgs_.size(); ++i) {
+                        argv_map[std::to_string(i + 1)] = Value(scriptArgs_[i]);
+                    }
+                    OperationsFactory::defineSimpleVariable("argv", Value(argv_map), ns, file, 0, 0);
+                }
 
                 this->lexer->addNamespaceInput(ns, file_content);
                 const auto tokens = this->lexer->tokenizeNamespace(ns);

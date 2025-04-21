@@ -5,6 +5,7 @@
 
 #include "options.h"
 #include "VoidScript.hpp"
+#include <vector>
 
 // Supported command-line parameters and descriptions
 const std::unordered_map<std::string, std::string> params = {
@@ -27,6 +28,8 @@ int main(int argc, char * argv[]) {
     bool debugSymbolTable = false;
 
     std::string file;
+    // Collect script parameters (arguments after script filename)
+    std::vector<std::string> scriptArgs;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "--help") {
@@ -72,11 +75,11 @@ int main(int argc, char * argv[]) {
             std::cerr << usage << "\n";
             return 1;
         } else if (file.empty()) {
+            // First non-option argument is the script file
             file = a;
         } else {
-            std::cerr << "Error: Multiple files specified\n";
-            std::cerr << usage << "\n";
-            return 1;
+            // Remaining non-option arguments are script parameters
+            scriptArgs.emplace_back(a);
         }
     }
     if (file.empty()) {
@@ -102,7 +105,7 @@ int main(int argc, char * argv[]) {
         filename = std::filesystem::canonical(file).string();
     }
 
-    // Initialize and run with debug options
-    VoidScript voidscript(filename, debugLexer, debugParser, debugInterp, debugSymbolTable);
+    // Initialize and run with debug options, passing script arguments
+    VoidScript voidscript(filename, debugLexer, debugParser, debugInterp, debugSymbolTable, scriptArgs);
     return voidscript.run();
 }
