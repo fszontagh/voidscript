@@ -21,7 +21,8 @@ option(BUILD_MODULE_MARIADB "Enable building MariaDBModule" ON)
 
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
 
-
+option(BUILD_TESTS "Build the test cases" ON)
+enable_testing()
 
 
 
@@ -34,34 +35,36 @@ include(cmake/AppVersion.cmake)
 set(IDENTIFIER_COMMENT "#")
 set(PARSER_OPEN_TAG "<?void")
 set(PARSER_CLOSE_TAG "?>")
-set(IDENTIFIER_FUNCTION "function")
-set(IDENTIFIER_VARIABLE "$")
-set(IDENTIFIER_IF "if")
-set(IDENTIFIER_RETURN "return")
 
-message(STATUS "BUILD_CLI:             ${NEED_CLI}")
-message(STATUS "BUILD_FASTCGI: ${BUILD_FASTCGI}")
-message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
-message(STATUS "  PARSER_OPEN_TAG:     ${PARSER_OPEN_TAG}")
-message(STATUS "  PARSER_CLOSE_TAG:    ${PARSER_CLOSE_TAG}")
-message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
-
-
-message(STATUS " -- ENABLED MODULES --")
-message(STATUS "  BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}")
-message(STATUS "  BUILD_MODULE_MARIADB: ${BUILD_MODULE_MARIADB}")
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
     set(DEBUG_BUILD ON)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif()
+
+message(STATUS "CMAKE_BUILD_TYPE:      ${CMAKE_BUILD_TYPE}")
+message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
+message(STATUS "APP_VERSION:           ${CMAKE_PROJECT_VERSION}\n")
+message(STATUS "BUILD_CLI:             ${NEED_CLI}")
+message(STATUS "BUILD_FASTCGI:         ${BUILD_FASTCGI}")
+message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
+message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
+message(STATUS "  PARSER_OPEN_TAG:     '${PARSER_OPEN_TAG}'")
+message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
+
+
+#   BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}\n  BUILD_MODULE_MARIADB:    ${BUILD_MODULE_MARIADB}
+message(STATUS "  MODULES:         ")
+message(STATUS "    BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}")
+message(STATUS "    BUILD_MODULE_MARIADB: ${BUILD_MODULE_MARIADB}\n")
+
 
 # PACKAGING PROPERTIES
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
@@ -171,6 +174,26 @@ endif()
 
 if (BUILD_MODULE_CURL)
  add_subdirectory(Modules/CurlModule)
+endif()
+
+if (BUILD_TESTS)
+  include(cmake/catch2.cmake)
+
+  # Test executable for ModuleHelperModule
+  add_executable(module_helper_tests
+      tests/ModuleHelperTests.cpp
+  )
+  target_link_libraries(module_helper_tests PRIVATE voidscript Catch2::Catch2WithMain)
+  # Discover and register tests with CTest
+  include(CTest)
+  include(Catch)
+  catch_discover_tests(module_helper_tests)
+  # Test executable for all built-in modules
+  add_executable(built_in_module_tests
+      tests/BuiltInModuleTests.cpp
+  )
+  target_link_libraries(built_in_module_tests PRIVATE voidscript Catch2::Catch2WithMain)
+  catch_discover_tests(built_in_module_tests)
 endif()
 
 

@@ -27,14 +27,30 @@ class ArrayModule : public BaseModule {
             if (args.size() != 1) {
                 throw std::runtime_error("sizeof expects exactly one argument");
             }
-            const auto & val  = args[0];
-            auto   type = val.getType();
-            // Only allow array types (OBJECT)
-            if (type == Variables::Type::OBJECT) {
-                const auto & map = std::get<Value::ObjectMap>(val.get());
-                return Value(static_cast<int>(map.size()));
+            const auto & val = args[0];
+            auto type = val.getType();
+            switch (type) {
+                case Variables::Type::OBJECT: {
+                    const auto & map = std::get<Value::ObjectMap>(val.get());
+                    return Value(static_cast<int>(map.size()));
+                }
+                case Variables::Type::STRING: {
+                    const auto & str = std::get<std::string>(val.get());
+                    return Value(static_cast<int>(str.size()));
+                }
+                case Variables::Type::CLASS: {
+                    const auto & map = std::get<Value::ObjectMap>(val.get());
+                    return Value(static_cast<int>(map.size()));
+                }
+                case Variables::Type::INTEGER:
+                case Variables::Type::DOUBLE:
+                case Variables::Type::FLOAT:
+                case Variables::Type::BOOLEAN: {
+                    return Value(1);
+                }
+                default:
+                    throw std::runtime_error("sizeof unsupported type");
             }
-            throw std::runtime_error("sizeof expects an array variable");
         });
     }
 };

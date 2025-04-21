@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 #include "Modules/ModuleManager.hpp"
 #include "Symbols/Value.hpp"
@@ -16,7 +17,7 @@ void ModuleHelperModule::registerModule() {
     // List all loaded plugin modules
     mgr.registerFunction("module_list", [](const std::vector<Symbols::Value> & args) -> Symbols::Value {
         if (!args.empty()) {
-            throw Exception("module_list expects no arguments");
+            throw std::runtime_error("module_list expects no arguments");
         }
         using namespace Symbols;
         auto &mm = ModuleManager::instance();
@@ -65,7 +66,7 @@ void ModuleHelperModule::registerModule() {
     mgr.registerFunction("module_exists", [](const std::vector<Symbols::Value> & args) -> Symbols::Value {
         using namespace Symbols;
         if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
-            throw Exception("module_exists expects exactly one string argument");
+            throw std::runtime_error("module_exists expects exactly one string argument");
         }
         std::string query = Value::to_string(args[0].get());
         auto &mm = ModuleManager::instance();
@@ -86,7 +87,7 @@ void ModuleHelperModule::registerModule() {
     mgr.registerFunction("module_info", [](const std::vector<Symbols::Value> & args) -> Symbols::Value {
         using namespace Symbols;
         if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
-            throw Exception("module_info expects exactly one string argument");
+            throw std::runtime_error("module_info expects exactly one string argument");
         }
         std::string query = Value::to_string(args[0].get());
         auto &mm = ModuleManager::instance();
