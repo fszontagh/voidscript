@@ -2,7 +2,6 @@
 #define INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
 
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -11,6 +10,7 @@
 #include "Interpreter/ReturnException.hpp"
 // Access to recorded operations for class methods (method bodies)
 #include "Interpreter/OperationContainer.hpp"
+#include "Modules/ModuleManager.hpp"
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -43,11 +43,11 @@ class MethodCallExpressionNode : public ExpressionNode {
     Symbols::Value evaluate(Interpreter & interpreter) const override {
         using namespace Symbols;
         // Evaluate target object and track original symbol for write-back
-        auto * sc = Symbols::SymbolContainer::instance();
+        auto *                           sc      = Symbols::SymbolContainer::instance();
         // Determine original variable symbol (only simple identifiers)
-        std::string fileNs = sc->currentScopeName();
-        std::string varNs  = fileNs + "::variables";
-        std::string objName = objectExpr_->toString();
+        std::string                      fileNs  = sc->currentScopeName();
+        std::string                      varNs   = fileNs + "::variables";
+        std::string                      objName = objectExpr_->toString();
         std::shared_ptr<Symbols::Symbol> origSym;
         if (sc->exists(objName, varNs)) {
             origSym = sc->get(varNs, objName);
@@ -56,8 +56,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             // Evaluate target object (produces a copy)
             Value objVal = objectExpr_->evaluate(interpreter);
             // Allow method calls on class instances (and plain objects with class metadata)
-            if (objVal.getType() != Variables::Type::OBJECT &&
-                objVal.getType() != Variables::Type::CLASS) {
+            if (objVal.getType() != Variables::Type::OBJECT && objVal.getType() != Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
                                 column_);
             }
@@ -75,6 +74,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 throw Exception("Method not found: " + methodName_ + " in class " + className, filename_, line_,
                                 column_);
             }
+
             // Evaluate arguments (including 'this')
             std::vector<Value> argValues;
             argValues.reserve(args_.size() + 1);
@@ -82,13 +82,28 @@ class MethodCallExpressionNode : public ExpressionNode {
             for (const auto & arg : args_) {
                 argValues.push_back(arg->evaluate(interpreter));
             }
+            // Native method override via ModuleManager
+            {
+                auto &      mgr      = Modules::ModuleManager::instance();
+                std::string fullName = className + "::" + methodName_;
+                if (mgr.hasFunction(fullName)) {
+                    Value ret = mgr.callFunction(fullName, argValues);
+                    // Write back modified object if returned
+                    if (origSym &&
+                        (ret.getType() == Variables::Type::OBJECT || ret.getType() == Variables::Type::CLASS)) {
+                        origSym->setValue(ret);
+                    }
+                    return Value::makeNull();
+                }
+            }
+
             // Locate function symbol in class namespace
-            auto *            sc       = SymbolContainer::instance();
+            auto *            sc      = SymbolContainer::instance();
             // Lookup method symbol in class namespace
-            const std::string fileNs   = sc->currentScopeName();
-            const std::string classNs  = fileNs + "::" + className;
-            const std::string fnSymNs  = classNs + "::functions";
-            auto              sym      = sc->get(fnSymNs, methodName_);
+            const std::string fileNs  = sc->currentScopeName();
+            const std::string classNs = fileNs + "::" + className;
+            const std::string fnSymNs = classNs + "::functions";
+            auto              sym     = sc->get(fnSymNs, methodName_);
             if (!sym || sym->getKind() != Kind::Function) {
                 throw Exception("Function symbol not found for method: '" + methodName_ + "' NS: " + fnSymNs, filename_,
                                 line_, column_);

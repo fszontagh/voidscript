@@ -44,10 +44,16 @@ class ModuleManager {
     /**
      * @brief Invoke all registered modules to register their symbols.
      */
+    /**
+     * @brief Invoke all registered modules to register their symbols.
+     * Tracks current module during registration for introspection.
+     */
     void registerAll() {
         for (const auto & module : modules_) {
+            currentModule_ = module.get();
             module->registerModule();
         }
+        currentModule_ = nullptr;
     }
 
   private:
@@ -57,6 +63,14 @@ class ModuleManager {
     std::unordered_map<std::string, std::function<Symbols::Value(const std::vector<Symbols::Value> &)>> callbacks_;
     // Plugin handles for dynamically loaded modules
     std::vector<void *>                                                                                 pluginHandles_;
+    // Pointers to modules instantiated by plugin libraries
+    std::vector<BaseModule *>                                                                            pluginModules_;
+    // Paths of dynamically loaded plugin modules
+    std::vector<std::string>                                                                            pluginPaths_;
+    // Currently registering module during registerAll
+    BaseModule *                                                                                        currentModule_ = nullptr;
+    // Mapping from function name to module where it was registered
+    std::unordered_map<std::string, BaseModule *>                                                       functionModuleMap_;
   public:
     /**
      * @brief Register a built-in function callback.
@@ -66,6 +80,8 @@ class ModuleManager {
     void registerFunction(const std::string &                                                name,
                           std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb) {
         callbacks_[name] = std::move(cb);
+        // Record module that registered this function for introspection
+        functionModuleMap_[name] = currentModule_;
     }
 
     /**
@@ -84,6 +100,36 @@ class ModuleManager {
         return it->second(args);
     }
 
+    /**
+     * @brief Get list of loaded plugin module paths.
+     */
+    std::vector<std::string> getPluginPaths() const {
+        return pluginPaths_;
+    }
+    /**
+     * @brief Get list of module instances created by plugins.
+     */
+    std::vector<BaseModule *> getPluginModules() const {
+        return pluginModules_;
+    }
+    /**
+     * @brief Get the module currently registering symbols (set during registerAll).
+     */
+    BaseModule * getCurrentModule() const {
+        return currentModule_;
+    }
+    /**
+     * @brief Get all function names registered by the specified module.
+     */
+    std::vector<std::string> getFunctionNamesForModule(BaseModule *module) const {
+        std::vector<std::string> result;
+        for (const auto & kv : functionModuleMap_) {
+            if (kv.second == module) {
+                result.push_back(kv.first);
+            }
+        }
+        return result;
+    }
     /**
      * @brief Load all plugin modules from specified directory.
      * @param directory Path to directory containing plugin shared libraries.
@@ -125,6 +171,8 @@ class ModuleManager {
         }
 #endif
         pluginHandles_.push_back(handle);
+        // Record new module instances created by this plugin
+        size_t beforeCount = modules_.size();
 
 #ifndef _WIN32
         dlerror();  // clear any existing error
@@ -137,6 +185,12 @@ class ModuleManager {
             throw std::runtime_error("Cannot find symbol 'plugin_init' in " + path + ": " + dlsymError);
         }
         initFunc();
+        // After plugin initialization, record module instances and paths
+        size_t afterCount = modules_.size();
+        for (size_t i = beforeCount; i < afterCount; ++i) {
+            pluginModules_.push_back(modules_[i].get());
+            pluginPaths_.push_back(path);
+        }
 #else
         using PluginInitFunc = void(__cdecl *)();
         auto initFunc        = reinterpret_cast<PluginInitFunc>(GetProcAddress(handle, "plugin_init"));

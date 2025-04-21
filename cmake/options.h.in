@@ -5,18 +5,9 @@
 /*
 * THIS IS A GENERATED FILE. DO NOT EDIT.
 */
-#ifdef WIN32
-const char EOL = '\r\n';
-#else
-const char EOL = '\n';
-#endif
-const static char   IDENTIFIER_COMMENT   = '@IDENTIFIER_COMMENT@';
+
 const static char * PARSER_OPEN_TAG     = "@PARSER_OPEN_TAG@";
 const static char * PARSER_CLOSE_TAG    = "@PARSER_CLOSE_TAG@";
-const static char   IDENTIFIER_VARIABLE = '@IDENTIFIER_VARIABLE@';
-const static char * IDENTIFIER_FUNCTION = "@IDENTIFIER_FUNCTION@";
-const static char * IDENTIFIER_RETURN   = "@IDENTIFIER_RETURN@";
-const static char * IDENTIFIER_IF       = "@IDENTIFIER_IF@";
 const static char * VERSION_MINOR       = "@CMAKE_PROJECT_VERSION_MINOR@";
 const static char * VERSION_MAJOR       = "@CMAKE_PROJECT_VERSION_MAJOR@";
 const static char * VERSION_PATCH       = "@CMAKE_PROJECT_VERSION_PATCH@";

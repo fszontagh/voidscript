@@ -4,8 +4,9 @@
  #include <string>
  #include <unordered_map>
  #include <vector>
- #include "Parser/ParsedExpression.hpp"
- #include "Symbols/VariableTypes.hpp"
+#include "Parser/ParsedExpression.hpp"
+#include "Symbols/VariableTypes.hpp"
+#include "Modules/ModuleManager.hpp"
 
  namespace Symbols {
 
@@ -23,6 +24,15 @@
  // Registry of classes defined in the program
  class ClassRegistry {
    public:
+    /**
+     * @brief Get module that registered the given class, or nullptr.
+     */
+    Modules::BaseModule * getClassModule(const std::string & className) const;
+    /**
+     * @brief Get module that registered the given method, or nullptr.
+     */
+    Modules::BaseModule * getMethodModule(const std::string & className,
+                                         const std::string & methodName) const;
      // Get the singleton instance
      static ClassRegistry & instance();
 
@@ -56,7 +66,11 @@
     std::vector<std::string> getClassNames() const;
 
    private:
-     std::unordered_map<std::string, ClassInfo> classes_;
+     std::unordered_map<std::string, ClassInfo>                     classes_;
+    // Mapping from class name to module that registered it
+    std::unordered_map<std::string, Modules::BaseModule *>          classModuleMap_;
+    // Mapping from fully-qualified method (Class::Method) to registering module
+    std::unordered_map<std::string, Modules::BaseModule *>          methodModuleMap_;
  };
 
 } // namespace Symbols

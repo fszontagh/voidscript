@@ -16,6 +16,14 @@ set(NEED_CLI ON)
 option(BUILD_CLI, "Build example commandline intrepeter" ${NEED_CLI})
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
+option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
+option(BUILD_MODULE_MARIADB "Enable building MariaDBModule" ON)
+
+option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
+
+
+
+
 
 if (BUILD_CLI)
     set(NEED_CLI ${BUILD_CLI})
@@ -32,15 +40,16 @@ set(IDENTIFIER_IF "if")
 set(IDENTIFIER_RETURN "return")
 
 message(STATUS "BUILD_CLI:             ${NEED_CLI}")
+message(STATUS "BUILD_FASTCGI: ${BUILD_FASTCGI}")
 message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
-message(STATUS "  IDENTIFIER_COMMENT:  ${IDENTIFIER_COMMENT}")
-message(STATUS "  IDENTIFIER_FUNCTION: ${IDENTIFIER_FUNCTION}")
-message(STATUS "  IDENTIFIER_VARIABLE: ${IDENTIFIER_VARIABLE}")
-message(STATUS "  IDENTIFIER_IF:       ${IDENTIFIER_IF}")
-message(STATUS "  IDENTIFIER_RETURN:   ${IDENTIFIER_RETURN}")
 message(STATUS "  PARSER_OPEN_TAG:     ${PARSER_OPEN_TAG}")
 message(STATUS "  PARSER_CLOSE_TAG:    ${PARSER_CLOSE_TAG}")
 message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
+
+
+message(STATUS " -- ENABLED MODULES --")
+message(STATUS "  BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}")
+message(STATUS "  BUILD_MODULE_MARIADB: ${BUILD_MODULE_MARIADB}")
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -125,6 +134,7 @@ add_library(voidscript
             src/Lexer/Lexer.cpp
             src/Lexer/Operators.cpp
             src/Symbols/ClassRegistry.cpp
+            src/Modules/BuiltIn/ModuleListModule.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")
@@ -158,18 +168,18 @@ if (NEED_CLI)
     set(CPACK_DEBIAN_BIN_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
 endif()
 
-# Plugin modules options
-option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
 
 if (BUILD_MODULE_CURL)
  add_subdirectory(Modules/CurlModule)
 endif()
 
-# FastCGI target
-option(BUILD_FASTCGI "Enable building FastCGI executable" OFF)
-message(STATUS "BUILD_FASTCGI: ${BUILD_FASTCGI}")
+
 if (BUILD_FASTCGI)
     add_subdirectory(fastcgi)
+endif()
+
+if (BUILD_MODULE_MARIADB)
+    add_subdirectory(Modules/MariaDBModule)
 endif()
 
 # CPACK CONFIGURATION

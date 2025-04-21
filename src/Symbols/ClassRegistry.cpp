@@ -21,6 +21,11 @@ void ClassRegistry::addProperty(const std::string & className, const std::string
 void ClassRegistry::addMethod(const std::string & className, const std::string & methodName) {
     ClassInfo & info = getClassInfo(className);
     info.methodNames.push_back(methodName);
+    // Record module that registered this method
+    {
+        std::string key = className + "::" + methodName;
+        methodModuleMap_[key] = Modules::ModuleManager::instance().getCurrentModule();
+    }
 }
 
 // Check if a property exists in the class
@@ -71,6 +76,8 @@ void ClassRegistry::registerClass(const std::string & className) {
     // Insert a new class, overwrite existing if present
     // Use operator[] to ensure existing entries are replaced rather than ignored
     classes_[className] = ClassInfo();
+    // Record module that registered this class
+    classModuleMap_[className] = Modules::ModuleManager::instance().getCurrentModule();
 }
 
 ClassInfo & ClassRegistry::getClassInfo(const std::string & className) {
@@ -81,4 +88,19 @@ ClassInfo & ClassRegistry::getClassInfo(const std::string & className) {
     return it->second;
 }
 
+}  // namespace Symbols
+
+// --- Module lookup for classes and methods ---
+namespace Symbols {
+Modules::BaseModule * ClassRegistry::getClassModule(const std::string & className) const {
+    auto it = classModuleMap_.find(className);
+    return (it != classModuleMap_.end()) ? it->second : nullptr;
+}
+
+Modules::BaseModule * ClassRegistry::getMethodModule(const std::string & className,
+                                                     const std::string & methodName) const {
+    std::string key = className + "::" + methodName;
+    auto it = methodModuleMap_.find(key);
+    return (it != methodModuleMap_.end()) ? it->second : nullptr;
+}
 }  // namespace Symbols
