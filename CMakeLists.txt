@@ -143,6 +143,8 @@ set_target_properties(voidscript PROPERTIES
 # EXECUTABLE TARGET
 if (NEED_CLI)
     add_executable(voidscript-cli cli/main.cpp)
+    # Mark this build as CLI variant
+    target_compile_definitions(voidscript-cli PRIVATE CLI)
     target_link_libraries(voidscript-cli voidscript)
     install(TARGETS voidscript-cli DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT "bin")
     set_target_properties(voidscript-cli PROPERTIES
@@ -161,6 +163,13 @@ option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
 
 if (BUILD_MODULE_CURL)
  add_subdirectory(Modules/CurlModule)
+endif()
+
+# FastCGI target
+option(BUILD_FASTCGI "Enable building FastCGI executable" OFF)
+message(STATUS "BUILD_FASTCGI: ${BUILD_FASTCGI}")
+if (BUILD_FASTCGI)
+    add_subdirectory(fastcgi)
 endif()
 
 # CPACK CONFIGURATION

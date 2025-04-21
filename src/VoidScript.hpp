@@ -23,6 +23,9 @@
 #include "Modules/BuiltIn/FileModule.hpp"
 // JSON encode/decode
 #include "Modules/BuiltIn/JsonModule.hpp"
+#ifdef FCGI
+#include "Modules/BuiltIn/HeaderModule.hpp"
+#endif
 #include "Parser/Parser.hpp"
 #include "options.h"
 #include "Interpreter/OperationsFactory.hpp"
@@ -100,6 +103,10 @@ class VoidScript {
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::FileModule>());
         // JSON encode/decode builtin
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::JsonModule>());
+#ifdef FCGI
+        // FastCGI header() function module
+        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::HeaderModule>());
+#endif
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);

@@ -42,13 +42,13 @@ int main(int argc, char * argv[]) {
                 std::cout << "  " << key << ": " << value << "\n";
             }
             return 0;
-        } else if (a == "--version") {
+        } if (a == "--version") {
             std::cout << "Version:      " << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_PATCH << " ("
                       << VERSION_GIT_HASH << ")\n";
             std::cout << "Architecture: " << VERSION_ARCH << "\n";
             std::cout << "System:       " << VERSION_SYSTEM_NAME << "\n";
             return 0;
-        } else if (a.rfind("--debug", 0) == 0) {
+        } if (a.rfind("--debug", 0) == 0) {
             if (a == "--debug") {
                 debugLexer = debugParser = debugInterp = true;
             } else if (a.rfind("--debug=", 0) == 0) {
