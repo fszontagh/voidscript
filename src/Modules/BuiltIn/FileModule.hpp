@@ -25,7 +25,7 @@ class FileModule : public BaseModule {
     void registerModule() override {
         auto &mgr = ModuleManager::instance();
         // Read entire file content
-        mgr.registerFunction("file_get_contents", [](const std::vector<Symbols::Value> &args) {
+        mgr.registerFunction("file_get_contents", [](FuncionArguments &args) {
             using namespace Symbols;
             if (args.size() != 1) {
                 throw std::runtime_error("file_get_contents expects 1 argument");
@@ -46,7 +46,7 @@ class FileModule : public BaseModule {
             return Value(content);
         });
         // Write content to file, with optional overwrite
-        mgr.registerFunction("file_put_contents", [](const std::vector<Symbols::Value> &args) {
+        mgr.registerFunction("file_put_contents", [](FuncionArguments &args) {
             using namespace Symbols;
             if (args.size() != 3) {
                 throw std::runtime_error("file_put_contents expects 3 arguments");
@@ -74,7 +74,7 @@ class FileModule : public BaseModule {
             return Value();
         });
         // Check if file exists
-        mgr.registerFunction("file_exists", [](const std::vector<Symbols::Value> &args) {
+        mgr.registerFunction("file_exists", [](FuncionArguments &args) {
             using namespace Symbols;
             if (args.size() != 1) {
                 throw std::runtime_error("file_exists expects 1 argument");

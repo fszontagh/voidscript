@@ -22,7 +22,7 @@ class ArrayModule : public BaseModule {
   public:
     void registerModule() override {
         auto & mgr = ModuleManager::instance();
-        mgr.registerFunction("sizeof", [](const std::vector<Symbols::Value> & args) {
+        mgr.registerFunction("sizeof", [](FuncionArguments & args) {
             using namespace Symbols;
             if (args.size() != 1) {
                 throw std::runtime_error("sizeof expects exactly one argument");

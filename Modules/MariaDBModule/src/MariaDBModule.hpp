@@ -2,9 +2,10 @@
 #ifndef MARIADBMODULE_MARIADBMODULE_HPP
 #define MARIADBMODULE_MARIADBMODULE_HPP
 
+#include <vector>
+
 #include "Modules/BaseModule.hpp"
 #include "Symbols/Value.hpp"
-#include <vector>
 
 namespace Modules {
 
@@ -17,11 +18,12 @@ class MariaDBModule : public BaseModule {
 
   private:
     // Methods exposed for MariaDB class
-    Symbols::Value connect(const std::vector<Symbols::Value> & args);
-    Symbols::Value query(const std::vector<Symbols::Value> & args);
-    Symbols::Value close(const std::vector<Symbols::Value> & args);
+    Symbols::Value connect(FuncionArguments & args);
+    Symbols::Value query(FuncionArguments & args);
+    Symbols::Value close(FuncionArguments & args);
+    Symbols::Value insert(FuncionArguments & args);
 };
 
-} // namespace Modules
+}  // namespace Modules
 
-#endif // MARIADBMODULE_MARIADBMODULE_HPP
+#endif  // MARIADBMODULE_MARIADBMODULE_HPP

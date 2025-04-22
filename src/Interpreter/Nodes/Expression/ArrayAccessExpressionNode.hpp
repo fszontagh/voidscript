@@ -3,9 +3,9 @@
 
 #include <memory>
 #include <string>
-#include "Interpreter/Interpreter.hpp"
 
 #include "Interpreter/ExpressionNode.hpp"
+#include "Interpreter/Interpreter.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {
@@ -18,11 +18,8 @@ namespace Interpreter {
  */
 class ArrayAccessExpressionNode : public ExpressionNode {
   public:
-    ArrayAccessExpressionNode(std::unique_ptr<ExpressionNode> arrayExpr,
-                              std::unique_ptr<ExpressionNode> indexExpr,
-                              const std::string & filename,
-                              int line,
-                              size_t column) :
+    ArrayAccessExpressionNode(std::unique_ptr<ExpressionNode> arrayExpr, std::unique_ptr<ExpressionNode> indexExpr,
+                              const std::string & filename, int line, size_t column) :
         arrayExpr_(std::move(arrayExpr)),
         indexExpr_(std::move(indexExpr)),
         filename_(filename),
@@ -35,7 +32,7 @@ class ArrayAccessExpressionNode : public ExpressionNode {
         if (container.getType() != Symbols::Variables::Type::OBJECT) {
             throw Exception("Attempted to index non-array", filename_, line_, column_);
         }
-        const auto & map = std::get<Symbols::Value::ObjectMap>(container.get());
+        const auto &   map    = std::get<Symbols::Value::ObjectMap>(container.get());
         // Evaluate the index
         Symbols::Value idxVal = indexExpr_->evaluate(interpreter);
         std::string    key;

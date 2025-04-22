@@ -25,17 +25,31 @@ void MariaDBModule::registerModule() {
     registry.addMethod("MariaDB", "query");
     registry.addMethod("MariaDB", "close");
 
+    // shrtcut helpers
+    registry.addMethod("MariaDB", "insert");
+
     // Register native callbacks for class methods
     auto & mgr = ModuleManager::instance();
-    mgr.registerFunction("MariaDB::connect", [this](const std::vector<Value> & args) { return this->connect(args); });
-    mgr.registerFunction("MariaDB::query",   [this](const std::vector<Value> & args) { return this->query(args); });
-    mgr.registerFunction("MariaDB::close",   [this](const std::vector<Value> & args) { return this->close(args); });
+    mgr.registerFunction(
+        "MariaDB::connect", [this](const std::vector<Value> & args) { return this->connect(args); },
+        Symbols::Variables::Type::CLASS);
+    mgr.registerFunction(
+        "MariaDB::query", [this](const std::vector<Value> & args) { return this->query(args); },
+        Symbols::Variables::Type::OBJECT);
+    mgr.registerFunction(
+        "MariaDB::close", [this](const std::vector<Value> & args) { return this->close(args); },
+        Symbols::Variables::Type::NULL_TYPE);
+
+    mgr.registerFunction(
+        "MariaDB::insert", [this](const std::vector<Value> & args) { return this->insert(args); },
+        Symbols::Variables::Type::INTEGER);
 }
 
-Symbols::Value MariaDBModule::connect(const std::vector<Symbols::Value> & args) {
+Symbols::Value MariaDBModule::connect(FuncionArguments & args) {
     using namespace Symbols;
     if (args.size() != 5) {
-        throw std::runtime_error("MariaDB::connect expects (this, host, user, pass, db)");
+        throw std::runtime_error("MariaDB::connect expects (host, user, pass, db), got: " +
+                                 std::to_string(args.size() - 1));
     }
     // Extract object instance map
     if (args[0].getType() != Variables::Type::CLASS && args[0].getType() != Variables::Type::OBJECT) {
@@ -55,7 +69,7 @@ Symbols::Value MariaDBModule::connect(const std::vector<Symbols::Value> & args) 
     if (!mysql_real_connect(conn, host.c_str(), user.c_str(), pass.c_str(), db.c_str(), 0, nullptr, 0)) {
         std::string err = mysql_error(conn);
         mysql_close(conn);
-        throw std::runtime_error("MariaDB.connect failed: " + err);
+        throw std::runtime_error("MariaDB connect failed: " + err);
     }
     // Store connection handle
     int handle            = nextConnId++;
@@ -64,7 +78,7 @@ Symbols::Value MariaDBModule::connect(const std::vector<Symbols::Value> & args) 
     return Value::makeClassInstance(objMap);
 }
 
-Symbols::Value MariaDBModule::query(const std::vector<Symbols::Value> & args) {
+Symbols::Value MariaDBModule::query(FuncionArguments & args) {
     using namespace Symbols;
     if (args.size() < 2) {
         throw std::runtime_error("MariaDB::query expects (this, sql)");
@@ -78,25 +92,26 @@ Symbols::Value MariaDBModule::query(const std::vector<Symbols::Value> & args) {
     int  handle   = 0;
     auto itHandle = objMap.find("__conn_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Variables::Type::INTEGER) {
-        throw std::runtime_error("MariaDB.query: no valid connection");
+        throw std::runtime_error("MariaDB query: no valid connection");
     }
     handle      = itHandle->second.get<int>();
     auto connIt = connMap.find(handle);
     if (connIt == connMap.end()) {
-        throw std::runtime_error("MariaDB.query: connection not found");
+        throw std::runtime_error("MariaDB query: connection not found");
     }
     MYSQL *     conn = connIt->second;
     std::string sql  = Value::to_string(args[1].get());
+
     if (mysql_query(conn, sql.c_str())) {
-        throw std::runtime_error(std::string("MariaDB.query failed: ") + mysql_error(conn));
+        throw std::runtime_error(std::string("MariaDB query failed: ") + mysql_error(conn));
     }
     MYSQL_RES * res = mysql_store_result(conn);
     if (!res) {
         // No result set or error
-        if (mysql_field_count(conn) == 0) {
-            return Value::makeNull();
-        }
-        throw std::runtime_error(std::string("MariaDB.query store_result failed: ") + mysql_error(conn));
+        //if (mysql_field_count(conn) == 0) {
+        //    return Value(Value::ObjectMap{});
+        // }
+        throw std::runtime_error(std::string("MariaDB query store_result failed: ") + mysql_error(conn));
     }
     // Fetch field names
     unsigned int             num_fields = mysql_num_fields(res);
@@ -121,10 +136,10 @@ Symbols::Value MariaDBModule::query(const std::vector<Symbols::Value> & args) {
         result[std::to_string(rowIndex++)] = Value(rowObj);
     }
     mysql_free_result(res);
-    return Value(result);
+    return result;
 }
 
-Symbols::Value MariaDBModule::close(const std::vector<Symbols::Value> & args) {
+Symbols::Value MariaDBModule::close(FuncionArguments & args) {
     using namespace Symbols;
     if (args.size() < 1) {
         throw std::runtime_error("MariaDB::close expects (this)");
@@ -143,7 +158,22 @@ Symbols::Value MariaDBModule::close(const std::vector<Symbols::Value> & args) {
             connMap.erase(connIt);
         }
     }
-    return Value::makeNull();
+    return Value::makeNull(Variables::Type::NULL_TYPE);
+}
+
+Symbols::Value MariaDBModule::insert(FuncionArguments & args) {
+    if (args.size() < 3) {
+        throw std::invalid_argument("MariaDB::insert expects table_name, object");
+    }
+    if (args[1].getType() != Symbols::Variables::Type::STRING) {
+        throw std::invalid_argument("First parameter is not string");
+    }
+    if (args[2].getType() != Symbols::Variables::Type::OBJECT) {
+        throw std::invalid_argument("Second parameter needs object, object array");
+    }
+    std::string query = "INSERT INTO `" + Symbols::Value::to_string(args[1]) + "` VALUES ()";
+    std::cout << "QUERY: " << query << "\n";
+    return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
 }  // namespace Modules

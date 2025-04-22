@@ -19,17 +19,17 @@ static size_t write_callback(void* ptr, size_t size, size_t nmemb, void* userdat
 void Modules::CurlModule::registerModule() {
     auto& mgr = Modules::ModuleManager::instance();
     // Register HTTP GET: curlGet(url)
-    mgr.registerFunction("curlGet", [this](const std::vector<Symbols::Value>& args) -> Symbols::Value {
+    mgr.registerFunction("curlGet", [this](FuncionArguments& args) -> Symbols::Value {
         return this->curlGet(args);
     });
     // Register HTTP POST: curlPost(url, data)
-    mgr.registerFunction("curlPost", [this](const std::vector<Symbols::Value>& args) -> Symbols::Value {
+    mgr.registerFunction("curlPost", [this](FuncionArguments& args) -> Symbols::Value {
         return this->curlPost(args);
     });
 }
 
 
-Symbols::Value Modules::CurlModule::curlPost(const std::vector<Symbols::Value>& args) {
+Symbols::Value Modules::CurlModule::curlPost(FuncionArguments& args) {
     // curlPost: url, data [, options]
     if (args.size() < 2 || args.size() > 3) {
         throw std::runtime_error("curlPost: expects url, data, and optional options object");
@@ -121,7 +121,7 @@ Symbols::Value Modules::CurlModule::curlPost(const std::vector<Symbols::Value>& 
     return Symbols::Value(response);
 }
 
-Symbols::Value Modules::CurlModule::curlGet(const std::vector<Symbols::Value>& args) {
+Symbols::Value Modules::CurlModule::curlGet(FuncionArguments& args) {
     // curlGet: url [, options]
     if (args.size() < 1 || args.size() > 2) {
         throw std::runtime_error("curlGet: expects url and optional options object");

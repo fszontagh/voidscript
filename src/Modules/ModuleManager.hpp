@@ -20,7 +20,7 @@
 #endif
 
 namespace Modules {
-using CallbackFunction = std::function<Symbols::Value(const std::vector<Symbols::Value> &)>;
+using CallbackFunction = std::function<Symbols::Value(FuncionArguments &)>;
 
 /**
  * @brief Manager for registering and invoking modules.
@@ -60,17 +60,19 @@ class ModuleManager {
     ModuleManager() = default;
     std::vector<std::unique_ptr<BaseModule>>                                                            modules_;
     // Built-in function callbacks: name -> function
-    std::unordered_map<std::string, std::function<Symbols::Value(const std::vector<Symbols::Value> &)>> callbacks_;
+    std::unordered_map<std::string, std::function<Symbols::Value(FuncionArguments &)>> callbacks_;
+    // store the return type of the callback
+    std::unordered_map<std::string, Symbols::Variables::Type> callbacks_return_type_;
     // Plugin handles for dynamically loaded modules
-    std::vector<void *>                                                                                 pluginHandles_;
+    std::vector<void *>                                       pluginHandles_;
     // Pointers to modules instantiated by plugin libraries
-    std::vector<BaseModule *>                                                                            pluginModules_;
+    std::vector<BaseModule *>                                 pluginModules_;
     // Paths of dynamically loaded plugin modules
-    std::vector<std::string>                                                                            pluginPaths_;
+    std::vector<std::string>                                  pluginPaths_;
     // Currently registering module during registerAll
-    BaseModule *                                                                                        currentModule_ = nullptr;
+    BaseModule *                                              currentModule_ = nullptr;
     // Mapping from function name to module where it was registered
-    std::unordered_map<std::string, BaseModule *>                                                       functionModuleMap_;
+    std::unordered_map<std::string, BaseModule *>             functionModuleMap_;
   public:
     /**
      * @brief Register a built-in function callback.
@@ -78,10 +80,25 @@ class ModuleManager {
      * @param cb Callable taking argument values and returning a Value.
      */
     void registerFunction(const std::string &                                                name,
-                          std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb) {
-        callbacks_[name] = std::move(cb);
+                          std::function<Symbols::Value(FuncionArguments &)> cb,
+                          const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE) {
+        callbacks_[name]             = std::move(cb);
+        callbacks_return_type_[name] = returnType;
         // Record module that registered this function for introspection
-        functionModuleMap_[name] = currentModule_;
+        functionModuleMap_[name]     = currentModule_;
+    }
+
+    Symbols::Variables::Type getFunctionReturnType(const std::string & name) {
+        auto it = callbacks_return_type_.find(name);
+        if (it != callbacks_return_type_.end()) {
+            return (*it).second;
+        }
+        return Symbols::Variables::Type::NULL_TYPE;  // the null is the default
+    }
+
+    Symbols::Value getFunctionNullValue(const std::string & name) {
+        const auto type = this->getFunctionReturnType(name);
+        return Symbols::Value::makeNull(type);
     }
 
     /**
@@ -92,7 +109,7 @@ class ModuleManager {
     /**
      * @brief Call a built-in function callback.
      */
-    Symbols::Value callFunction(const std::string & name, const std::vector<Symbols::Value> & args) const {
+    Symbols::Value callFunction(const std::string & name, FuncionArguments & args) const {
         auto it = callbacks_.find(name);
         if (it == callbacks_.end()) {
             throw std::runtime_error("Built-in function callback not found: " + name);
@@ -103,25 +120,22 @@ class ModuleManager {
     /**
      * @brief Get list of loaded plugin module paths.
      */
-    std::vector<std::string> getPluginPaths() const {
-        return pluginPaths_;
-    }
+    std::vector<std::string> getPluginPaths() const { return pluginPaths_; }
+
     /**
      * @brief Get list of module instances created by plugins.
      */
-    std::vector<BaseModule *> getPluginModules() const {
-        return pluginModules_;
-    }
+    std::vector<BaseModule *> getPluginModules() const { return pluginModules_; }
+
     /**
      * @brief Get the module currently registering symbols (set during registerAll).
      */
-    BaseModule * getCurrentModule() const {
-        return currentModule_;
-    }
+    BaseModule * getCurrentModule() const { return currentModule_; }
+
     /**
      * @brief Get all function names registered by the specified module.
      */
-    std::vector<std::string> getFunctionNamesForModule(BaseModule *module) const {
+    std::vector<std::string> getFunctionNamesForModule(BaseModule * module) const {
         std::vector<std::string> result;
         for (const auto & kv : functionModuleMap_) {
             if (kv.second == module) {
@@ -130,6 +144,7 @@ class ModuleManager {
         }
         return result;
     }
+
     /**
      * @brief Load all plugin modules from specified directory.
      * @param directory Path to directory containing plugin shared libraries.
@@ -213,6 +228,7 @@ class ModuleManager {
         modules_.clear();
         // Clear callback functions (may refer to plugin code)
         callbacks_.clear();
+        callbacks_return_type_.clear();
         // Unload all dynamically loaded plugin libraries
         for (auto handle : pluginHandles_) {
 #ifndef _WIN32

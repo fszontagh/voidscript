@@ -55,17 +55,20 @@ class MethodCallExpressionNode : public ExpressionNode {
         try {
             // Evaluate target object (produces a copy)
             Value objVal = objectExpr_->evaluate(interpreter);
+
             // Allow method calls on class instances (and plain objects with class metadata)
             if (objVal.getType() != Variables::Type::OBJECT && objVal.getType() != Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
                                 column_);
             }
             const auto & objMap = std::get<Value::ObjectMap>(objVal.get());
+
+
             // Extract class name
-            auto         it     = objMap.find("__class__");
+            auto it = objMap.find("__class__");
             if (it == objMap.end() || it->second.getType() != Variables::Type::STRING) {
-                throw Exception("Object is missing class metadata for method: '" + methodName_ + "'", filename_, line_,
-                                column_);
+                throw std::invalid_argument("Object is missing class metadata for method: " + methodName_);
+                //throw Exception("Object is missing class metadata for method: '" + methodName_ + "'", filename_, line_,                                column_);
             }
             std::string className = it->second.get<std::string>();
             // Verify method exists
@@ -87,13 +90,19 @@ class MethodCallExpressionNode : public ExpressionNode {
                 auto &      mgr      = Modules::ModuleManager::instance();
                 std::string fullName = className + "::" + methodName_;
                 if (mgr.hasFunction(fullName)) {
-                    Value ret = mgr.callFunction(fullName, argValues);
+                    Value           ret     = mgr.callFunction(fullName, argValues);
+                    Variables::Type retType = mgr.getFunctionReturnType(fullName);
                     // Write back modified object if returned
                     if (origSym &&
                         (ret.getType() == Variables::Type::OBJECT || ret.getType() == Variables::Type::CLASS)) {
-                        origSym->setValue(ret);
+                            if (origSym->getValue().getType() == ret.getType()) {
+                                origSym->setValue(ret);
+                            }
+                        //origSym->setValue(ret);
                     }
-                    return Value::makeNull();
+                    return ret;
+                    //return mgr.getFunctionNullValue(fullName);
+                    //return Value::makeNull(Variables::Type::NULL_TYPE);
                 }
             }
 
@@ -146,7 +155,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
             // Exit method scope
             sc->enterPreviousScope();
-            return Value::makeNull();
+            return Value::makeNull(Variables::Type::UNDEFINED_TYPE);
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }

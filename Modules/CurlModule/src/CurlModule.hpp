@@ -14,7 +14,7 @@ public:
      * @brief Register this module's symbols (HTTP GET and POST functions).
      */
     void registerModule() override;
-    
+
     /**
      * @brief Perform HTTP GET: curlGet(url [, options])
      * options is an object with optional fields:
@@ -22,8 +22,8 @@ public:
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    Symbols::Value curlGet(const std::vector<Symbols::Value>& args);
-    
+    Symbols::Value curlGet(FuncionArguments& args);
+
     /**
      * @brief Perform HTTP POST: curlPost(url, data [, options])
      * options is an object with optional fields:
@@ -31,7 +31,7 @@ public:
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    Symbols::Value curlPost(const std::vector<Symbols::Value>& args);
+    Symbols::Value curlPost(FuncionArguments& args);
 };
 
 } // namespace Modules

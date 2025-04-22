@@ -2,17 +2,21 @@
 #ifndef MODULES_BASEMODULE_HPP
 #define MODULES_BASEMODULE_HPP
 
-
 // Base exception type for module errors
+#include <vector>
+
 #include "../BaseException.hpp"
+#include "Symbols/Value.hpp"
+
 namespace Modules {
+using FuncionArguments = const std::vector<Symbols::Value>;
 
 /**
  * @brief Base class for modules that can register functions and variables into the symbol table.
  */
 class BaseModule {
   public:
-    BaseModule() = default;
+    BaseModule()          = default;
     virtual ~BaseModule() = default;
 
     /**
@@ -32,9 +36,8 @@ class Exception : public ::BaseException {
      * Construct a module exception with a message.
      * @param msg Error message
      */
-    explicit Exception(const std::string & msg)
-        : BaseException(msg) {}
+    explicit Exception(const std::string & msg) : BaseException(msg) {}
 };
 
-} // namespace Modules
-#endif // MODULES_BASEMODULE_HPP
+}  // namespace Modules
+#endif  // MODULES_BASEMODULE_HPP

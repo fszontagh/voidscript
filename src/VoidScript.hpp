@@ -120,6 +120,7 @@ class VoidScript {
             // Load plugin modules from 'modules' directory (case-insensitive)
             Modules::ModuleManager::instance().loadPlugins("modules");
             Modules::ModuleManager::instance().loadPlugins("Modules");
+            Modules::ModuleManager::instance().loadPlugins("/home/fszontagh/soniscript/build/Modules");
             // Register all built-in and plugin modules before execution
             Modules::ModuleManager::instance().registerAll();
             while (!files.empty()) {
@@ -177,7 +178,7 @@ class VoidScript {
                     using namespace Symbols;
                     // Define argc (including the script name)
                     int argc_val = static_cast<int>(scriptArgs_.size()) + 1;
-                    OperationsFactory::defineSimpleVariable("argc", Value(argc_val), ns, file, 0, 0);
+                    OperationsFactory::defineSimpleConstantVariable("argc", Value(argc_val), ns, file, 0, 0);
                     // Define argv as object map: argv[0] = script name, then parameters
                     Value::ObjectMap argv_map;
                     // Script filename at index 0
@@ -186,7 +187,7 @@ class VoidScript {
                     for (size_t i = 0; i < scriptArgs_.size(); ++i) {
                         argv_map[std::to_string(i + 1)] = Value(scriptArgs_[i]);
                     }
-                    OperationsFactory::defineSimpleVariable("argv", Value(argv_map), ns, file, 0, 0);
+                    OperationsFactory::defineSimpleConstantVariable("argv", Value(argv_map), ns, file, 0, 0);
                 }
 
                 // Process each segment: either plain text or code to execute

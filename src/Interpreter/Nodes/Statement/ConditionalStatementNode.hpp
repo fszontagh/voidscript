@@ -39,7 +39,7 @@
              if (val.getType() == Symbols::Variables::Type::BOOLEAN) {
                  cond = val.get<bool>();
              } else {
-                 throw Exception("Condition did not evaluate to boolean", filename_, line_, column_);
+                 throw Exception("Condition did not evaluate to boolean: " + condition_->toString(), filename_, line_, column_);
              }
              const auto & branch = cond ? thenBranch_ : elseBranch_;
              for (const auto & stmt : branch) {

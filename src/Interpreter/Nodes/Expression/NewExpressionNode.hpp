@@ -50,7 +50,7 @@ class NewExpressionNode : public ExpressionNode {
         size_t                    propCount = info.properties.size();
         for (size_t i = 0; i < propCount; ++i) {
             const auto &   prop  = info.properties[i];
-            Symbols::Value value = Symbols::Value::makeNull();
+            Symbols::Value value = Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
             if (prop.defaultValueExpr) {
                 // Build and evaluate default expression
                 auto exprNode = Parser::buildExpressionFromParsed(prop.defaultValueExpr);

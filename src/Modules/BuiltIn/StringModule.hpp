@@ -24,7 +24,7 @@ class StringModule : public BaseModule {
     void registerModule() override {
         auto &mgr = ModuleManager::instance();
         // string_length
-        mgr.registerFunction("string_length", [](const std::vector<Symbols::Value> &args) {
+        mgr.registerFunction("string_length", [](FuncionArguments &args) {
             using namespace Symbols;
             if (args.size() != 1) {
                 throw std::runtime_error("string_length expects exactly one argument");
@@ -36,7 +36,7 @@ class StringModule : public BaseModule {
             return Value(static_cast<int>(s.size()));
         });
         // string_replace
-        mgr.registerFunction("string_replace", [](const std::vector<Symbols::Value> &args) {
+        mgr.registerFunction("string_replace", [](FuncionArguments &args) {
             using namespace Symbols;
             if (args.size() != 4) {
                 throw std::runtime_error("string_replace expects 4 arguments");
@@ -69,7 +69,7 @@ class StringModule : public BaseModule {
             return Value(in);
         });
         // string_substr
-        mgr.registerFunction("string_substr", [](const std::vector<Symbols::Value> &args) {
+        mgr.registerFunction("string_substr", [](FuncionArguments &args) {
             using namespace Symbols;
             if (args.size() != 3) {
                 throw std::runtime_error("string_substr expects 3 arguments");

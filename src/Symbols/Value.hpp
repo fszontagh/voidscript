@@ -2,9 +2,9 @@
 #define SYMBOL_VALUE_HPP
 
 #include <algorithm>
+#include <map>
 #include <stdexcept>
 #include <string>
-#include <map>
 #include <variant>
 
 #include "VariableTypes.hpp"
@@ -14,7 +14,7 @@ namespace Symbols {
 class Value {
   public:
     using ObjectMap = std::map<std::string, Value>;
-    using Variant = std::variant<int, double, float, std::string, bool, ObjectMap>;
+    using Variant   = std::variant<int, double, float, std::string, bool, ObjectMap>;
 
     /**
      * @brief Default-constructed value is undefined.
@@ -32,6 +32,7 @@ class Value {
     Value(const char * v) : value_(std::string(v)) { type_ = Symbols::Variables::Type::STRING; }
 
     Value(bool v) : value_(v) { type_ = Symbols::Variables::Type::BOOLEAN; }
+
     /**
      * @brief Construct an object value from a map of member names to Values.
      */
@@ -47,10 +48,18 @@ class Value {
 
     template <typename T> T get() const { return std::get<T>(value_); }
 
-    static Symbols::Value makeNull() {
-        auto v = Value("null");
+    static Symbols::Value makeNull(const Variables::Type & type) {
+        if (type == Variables::Type::UNDEFINED_TYPE) {
+            throw std::invalid_argument("Default type can not be UNDEFINED");
+        }
+        auto v    = Value();
+        v.is_null = true;
+        v.type_   = type;
         return v;
     }
+
+    void setNULL() { this->is_null = true; }
+
     /**
      * @brief Construct a class instance value from a map of member names to Values,
      *        setting its type to CLASS.
@@ -157,9 +166,12 @@ class Value {
                 return fromStringToString(str);
         }
     }
+
+    bool isNULL() { return is_null; }
   private:
     Variant                  value_;
     Symbols::Variables::Type type_;
+    bool                     is_null = false;
 
     static Value fromStringToInt(const std::string & str) { return Value(std::stoi(str)); }
 

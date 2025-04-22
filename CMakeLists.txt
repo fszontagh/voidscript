@@ -18,6 +18,7 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
 option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
 option(BUILD_MODULE_MARIADB "Enable building MariaDBModule" ON)
+option(BUILD_MODULE_FORMAT "Enable building FormatModule" ON)
 
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
 
@@ -63,7 +64,8 @@ message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
 #   BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}\n  BUILD_MODULE_MARIADB:    ${BUILD_MODULE_MARIADB}
 message(STATUS "  MODULES:         ")
 message(STATUS "    BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}")
-message(STATUS "    BUILD_MODULE_MARIADB: ${BUILD_MODULE_MARIADB}\n")
+message(STATUS "    BUILD_MODULE_MARIADB: ${BUILD_MODULE_MARIADB}")
+message(STATUS "    BUILD_MODULE_FORMAT:  ${BUILD_MODULE_FORMAT}\n")
 
 
 # PACKAGING PROPERTIES
@@ -203,6 +205,10 @@ endif()
 
 if (BUILD_MODULE_MARIADB)
     add_subdirectory(Modules/MariaDBModule)
+endif()
+
+if (BUILD_MODULE_FORMAT)
+    add_subdirectory(Modules/FormatModule)
 endif()
 
 # CPACK CONFIGURATION

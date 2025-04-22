@@ -14,16 +14,19 @@ class IdentifierExpressionNode : public ExpressionNode {
     explicit IdentifierExpressionNode(std::string name) : name_(std::move(name)) {}
 
     Symbols::Value evaluate(Interpreter & /*interpreter*/) const override {
-        auto * sc = Symbols::SymbolContainer::instance();
-        const std::string base_ns  = sc->currentScopeName();
+        auto *            sc      = Symbols::SymbolContainer::instance();
+        const std::string base_ns = sc->currentScopeName();
         // Look in current scope's variables namespace
-        const std::string var_ns   = base_ns + "::variables";
+        const std::string var_ns  = base_ns + "::variables";
         if (sc->exists(name_, var_ns)) {
             return sc->get(var_ns, name_)->getValue();
         }
         const std::string const_ns = base_ns + "::constants";
         if (sc->exists(name_, const_ns)) {
             return sc->get(const_ns, name_)->getValue();
+        }
+        if (name_ == "NULL" || name_ == "null") {
+            return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
         }
         throw std::runtime_error("Identifier '" + name_ + "' not found in namespace: " + base_ns);
     }

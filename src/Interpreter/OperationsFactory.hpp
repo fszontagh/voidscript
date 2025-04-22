@@ -11,8 +11,8 @@
 #include "Nodes/Statement/CallStatementNode.hpp"
 #include "Nodes/Statement/DeclareFunctionStatementNode.hpp"
 #include "Nodes/Statement/DeclareVariableStatementNode.hpp"
-#include "Nodes/Statement/ReturnStatementNode.hpp"
 #include "Nodes/Statement/ExpressionStatementNode.hpp"
+#include "Nodes/Statement/ReturnStatementNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -38,6 +38,18 @@ class OperationsFactory {
 
         std::unique_ptr<DeclareVariableStatementNode> stmt = std::make_unique<DeclareVariableStatementNode>(
             varName, ns, value.getType(), std::move(literalExpr), filename, line, column);
+
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });
+    }
+
+    static void defineSimpleConstantVariable(const std::string & varName, const Symbols::Value & value,
+                                             const std::string & ns, const std::string & filename, int line,
+                                             size_t column) {
+        auto literalExpr = std::make_unique<LiteralExpressionNode>(value);
+
+        std::unique_ptr<DeclareVariableStatementNode> stmt = std::make_unique<DeclareVariableStatementNode>(
+            varName, ns, value.getType(), std::move(literalExpr), filename, line, column, /*isConst*/ true);
 
         Operations::Container::instance()->add(
             ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });
@@ -109,6 +121,7 @@ class OperationsFactory {
         Operations::Container::instance()->add(
             ns, Operations::Operation{ Operations::Type::Return, std::string(), std::move(stmt) });
     }
+
     /**
      * @brief Record a generic expression statement (e.g., method call).
      * @param pexpr Parsed expression for evaluation.

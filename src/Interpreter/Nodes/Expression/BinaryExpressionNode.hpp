@@ -1,3 +1,4 @@
+#include <iostream>
 #include <memory>
 #include <string>
 
@@ -18,11 +19,21 @@ class BinaryExpressionNode : public ExpressionNode {
     Symbols::Value evaluate(Interpreter & interpreter) const override {
         auto leftVal  = lhs_->evaluate(interpreter);
         auto rightVal = rhs_->evaluate(interpreter);
-        using namespace Symbols::Variables;
+
+        if (leftVal.isNULL() || rightVal.isNULL()) {
+            if (op_ == "==") {
+                return Symbols::Value(leftVal.isNULL() == rightVal.isNULL());
+            }
+            if (op_ == "!=") {
+                return Symbols::Value(leftVal.isNULL() != rightVal.isNULL());
+            }
+        }
+
         auto lt = leftVal.getType();
         auto rt = rightVal.getType();
+
         // Boolean operations
-        if (lt == Type::BOOLEAN && rt == Type::BOOLEAN) {
+        if (lt == Symbols::Variables::Type::BOOLEAN && rt == Symbols::Variables::Type::BOOLEAN) {
             bool l = leftVal.get<bool>();
             bool r = rightVal.get<bool>();
             if (op_ == "&&") {
@@ -40,16 +51,18 @@ class BinaryExpressionNode : public ExpressionNode {
             throw std::runtime_error("Unknown operator: " + op_);
         }
         // Numeric operations: int, float, double (including mixed types)
-        if ((lt == Type::INTEGER || lt == Type::FLOAT || lt == Type::DOUBLE) &&
-            (rt == Type::INTEGER || rt == Type::FLOAT || rt == Type::DOUBLE)) {
+        if ((lt == Symbols::Variables::Type::INTEGER || lt == Symbols::Variables::Type::FLOAT ||
+             lt == Symbols::Variables::Type::DOUBLE) &&
+            (rt == Symbols::Variables::Type::INTEGER || rt == Symbols::Variables::Type::FLOAT ||
+             rt == Symbols::Variables::Type::DOUBLE)) {
             // Promote to double if any operand is double
-            if (lt == Type::DOUBLE || rt == Type::DOUBLE) {
-                double l = (lt == Type::DOUBLE) ? leftVal.get<double>() :
-                           (lt == Type::FLOAT)  ? static_cast<double>(leftVal.get<float>()) :
-                                                  static_cast<double>(leftVal.get<int>());
-                double r = (rt == Type::DOUBLE) ? rightVal.get<double>() :
-                           (rt == Type::FLOAT)  ? static_cast<double>(rightVal.get<float>()) :
-                                                  static_cast<double>(rightVal.get<int>());
+            if (lt == Symbols::Variables::Type::DOUBLE || rt == Symbols::Variables::Type::DOUBLE) {
+                double l = (lt == Symbols::Variables::Type::DOUBLE) ? leftVal.get<double>() :
+                           (lt == Symbols::Variables::Type::FLOAT)  ? static_cast<double>(leftVal.get<float>()) :
+                                                                      static_cast<double>(leftVal.get<int>());
+                double r = (rt == Symbols::Variables::Type::DOUBLE) ? rightVal.get<double>() :
+                           (rt == Symbols::Variables::Type::FLOAT)  ? static_cast<double>(rightVal.get<float>()) :
+                                                                      static_cast<double>(rightVal.get<int>());
                 if (op_ == "+") {
                     return Symbols::Value(l + r);
                 }
@@ -82,9 +95,11 @@ class BinaryExpressionNode : public ExpressionNode {
                 }
             }
             // Promote to float if any operand is float (and none is double)
-            else if (lt == Type::FLOAT || rt == Type::FLOAT) {
-                float l = (lt == Type::FLOAT) ? leftVal.get<float>() : static_cast<float>(leftVal.get<int>());
-                float r = (rt == Type::FLOAT) ? rightVal.get<float>() : static_cast<float>(rightVal.get<int>());
+            else if (lt == Symbols::Variables::Type::FLOAT || rt == Symbols::Variables::Type::FLOAT) {
+                float l = (lt == Symbols::Variables::Type::FLOAT) ? leftVal.get<float>() :
+                                                                    static_cast<float>(leftVal.get<int>());
+                float r = (rt == Symbols::Variables::Type::FLOAT) ? rightVal.get<float>() :
+                                                                    static_cast<float>(rightVal.get<int>());
                 if (op_ == "+") {
                     return Symbols::Value(l + r);
                 }
@@ -119,7 +134,7 @@ class BinaryExpressionNode : public ExpressionNode {
             // Integer case will be handled below
         }
         // Integer operations
-        if (lt == Type::INTEGER && rt == Type::INTEGER) {
+        if (lt == Symbols::Variables::Type::INTEGER && rt == Symbols::Variables::Type::INTEGER) {
             if (leftVal.getType() == Symbols::Variables::Type::INTEGER &&
                 rightVal.getType() == Symbols::Variables::Type::INTEGER) {
                 int l = leftVal.get<int>();

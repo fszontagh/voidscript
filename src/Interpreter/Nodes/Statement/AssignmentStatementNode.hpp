@@ -46,8 +46,17 @@ class AssignmentStatementNode : public StatementNode {
         Value varValue = symbol->getValue();
         // Evaluate RHS
         Value newValue = rhs_->evaluate(interpreter);
+        if (newValue.getType() == Symbols::Variables::Type::NULL_TYPE) {
+            newValue = Symbols::Value::makeNull(varValue.getType());
+        }
+
         // Simple variable assignment
         if (propertyPath_.empty()) {
+            if (newValue.getType() == Symbols::Variables::Type::NULL_TYPE) {
+                symbol->setValue(newValue);
+                std::cout << "SET TO NULL\n";
+                return;
+            }
             // Type check
             if (newValue.getType() != varValue.getType()) {
                 using namespace Variables;

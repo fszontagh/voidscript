@@ -39,6 +39,10 @@ class DeclareVariableStatementNode : public StatementNode {
             if (Symbols::SymbolContainer::instance()->exists(variableName_)) {
                 throw Exception("Variable already declared: " + variableName_, filename_, line_, column_);
             }
+            if (value.getType() == Symbols::Variables::Type::NULL_TYPE) {
+                value = Symbols::Value::makeNull(variableType_);
+            }
+
             if (value.getType() != variableType_) {
                 using namespace Symbols::Variables;
                 std::string expected = TypeToString(variableType_);
@@ -47,6 +51,7 @@ class DeclareVariableStatementNode : public StatementNode {
                                     "' but got '" + actual + "'",
                                 filename_, line_, column_);
             }
+
             // Create a constant or variable symbol
             std::shared_ptr<Symbols::Symbol> variable;
             if (isConst_) {

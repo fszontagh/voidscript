@@ -21,7 +21,7 @@ class VariableExpressionNode : public ExpressionNode {
 
     Symbols::Value evaluate(Interpreter & /*interpreter*/) const override {
         if (!Symbols::SymbolContainer::instance()->exists(variableName_)) {
-            throw std::runtime_error("Variable not found: " + variableName_);
+            throw std::runtime_error("Undefined variable name: " + variableName_);
         }
         auto symbol = Symbols::SymbolContainer::instance()->get(ns, variableName_);
         return symbol->getValue();

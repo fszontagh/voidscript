@@ -1,0 +1,1 @@
+format("Hello, {}!\n", "world");
