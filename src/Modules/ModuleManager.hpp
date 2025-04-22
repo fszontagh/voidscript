@@ -58,29 +58,28 @@ class ModuleManager {
 
   private:
     ModuleManager() = default;
-    std::vector<std::unique_ptr<BaseModule>>                                                            modules_;
+    std::vector<std::unique_ptr<BaseModule>>                                           modules_;
     // Built-in function callbacks: name -> function
     std::unordered_map<std::string, std::function<Symbols::Value(FuncionArguments &)>> callbacks_;
     // store the return type of the callback
-    std::unordered_map<std::string, Symbols::Variables::Type> callbacks_return_type_;
+    std::unordered_map<std::string, Symbols::Variables::Type>                          callbacks_return_type_;
     // Plugin handles for dynamically loaded modules
-    std::vector<void *>                                       pluginHandles_;
+    std::vector<void *>                                                                pluginHandles_;
     // Pointers to modules instantiated by plugin libraries
-    std::vector<BaseModule *>                                 pluginModules_;
+    std::vector<BaseModule *>                                                          pluginModules_;
     // Paths of dynamically loaded plugin modules
-    std::vector<std::string>                                  pluginPaths_;
+    std::vector<std::string>                                                           pluginPaths_;
     // Currently registering module during registerAll
-    BaseModule *                                              currentModule_ = nullptr;
+    BaseModule *                                                                       currentModule_ = nullptr;
     // Mapping from function name to module where it was registered
-    std::unordered_map<std::string, BaseModule *>             functionModuleMap_;
+    std::unordered_map<std::string, BaseModule *>                                      functionModuleMap_;
   public:
     /**
      * @brief Register a built-in function callback.
      * @param name Name of the function.
      * @param cb Callable taking argument values and returning a Value.
      */
-    void registerFunction(const std::string &                                                name,
-                          std::function<Symbols::Value(FuncionArguments &)> cb,
+    void registerFunction(const std::string & name, std::function<Symbols::Value(FuncionArguments &)> cb,
                           const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE) {
         callbacks_[name]             = std::move(cb);
         callbacks_return_type_[name] = returnType;

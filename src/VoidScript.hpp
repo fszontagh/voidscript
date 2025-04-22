@@ -118,9 +118,7 @@ class VoidScript {
     int run() {
         try {
             // Load plugin modules from 'modules' directory (case-insensitive)
-            Modules::ModuleManager::instance().loadPlugins("modules");
             Modules::ModuleManager::instance().loadPlugins("Modules");
-            Modules::ModuleManager::instance().loadPlugins("/home/fszontagh/soniscript/build/Modules");
             // Register all built-in and plugin modules before execution
             Modules::ModuleManager::instance().registerAll();
             while (!files.empty()) {

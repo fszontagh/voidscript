@@ -3,13 +3,12 @@
 #define CURLMODULE_CURLMODULE_HPP
 
 #include "Modules/BaseModule.hpp"
-#include <vector>
 #include "Symbols/Value.hpp"
 
 namespace Modules {
 
 class CurlModule : public BaseModule {
-public:
+  public:
     /**
      * @brief Register this module's symbols (HTTP GET and POST functions).
      */
@@ -22,7 +21,7 @@ public:
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    Symbols::Value curlGet(FuncionArguments& args);
+    Symbols::Value curlGet(FuncionArguments & args);
 
     /**
      * @brief Perform HTTP POST: curlPost(url, data [, options])
@@ -31,9 +30,9 @@ public:
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    Symbols::Value curlPost(FuncionArguments& args);
+    Symbols::Value curlPost(FuncionArguments & args);
 };
 
-} // namespace Modules
+}  // namespace Modules
 
-#endif // CURLMODULE_CURLMODULE_HPP
+#endif  // CURLMODULE_CURLMODULE_HPP

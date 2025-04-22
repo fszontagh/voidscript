@@ -19,6 +19,7 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
 option(BUILD_MODULE_MARIADB "Enable building MariaDBModule" ON)
 option(BUILD_MODULE_FORMAT "Enable building FormatModule" ON)
+option(BUILD_MODULE_IMAGICK "Enable building ImagickModule" ON)
 
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
 
@@ -50,23 +51,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif()
 
-message(STATUS "CMAKE_BUILD_TYPE:      ${CMAKE_BUILD_TYPE}")
-message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
-message(STATUS "APP_VERSION:           ${CMAKE_PROJECT_VERSION}\n")
-message(STATUS "BUILD_CLI:             ${NEED_CLI}")
-message(STATUS "BUILD_FASTCGI:         ${BUILD_FASTCGI}")
-message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
-message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
-message(STATUS "  PARSER_OPEN_TAG:     '${PARSER_OPEN_TAG}'")
-message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
-
-
-#   BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}\n  BUILD_MODULE_MARIADB:    ${BUILD_MODULE_MARIADB}
-message(STATUS "  MODULES:         ")
-message(STATUS "    BUILD_MODULE_CURL:    ${BUILD_MODULE_CURL}")
-message(STATUS "    BUILD_MODULE_MARIADB: ${BUILD_MODULE_MARIADB}")
-message(STATUS "    BUILD_MODULE_FORMAT:  ${BUILD_MODULE_FORMAT}\n")
-
 
 # PACKAGING PROPERTIES
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
@@ -79,7 +63,6 @@ set(CPACK_PACKAGE_CHECKSUM "SHA512")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-#set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
 set(CPACK_STRIP_FILES YES)
 
 set(
@@ -119,6 +102,9 @@ message(STATUS "System architecture: ${ARCHITECTURE}")
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE "/")
 endif()
+
+set(MODULES_PATH "${CMAKE_INSTALL_PREFIX}usr/share/${CMAKE_PROJECT_NAME}/Modules" CACHE PATH "OS specific modules folder")
+
 
 include(GNUInstallDirs)
 # PACKAGING PROPERTIES END
@@ -173,11 +159,6 @@ if (NEED_CLI)
     set(CPACK_DEBIAN_BIN_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
 endif()
 
-
-if (BUILD_MODULE_CURL)
- add_subdirectory(Modules/CurlModule)
-endif()
-
 if (BUILD_TESTS)
   include(cmake/catch2.cmake)
 
@@ -203,6 +184,12 @@ if (BUILD_FASTCGI)
     add_subdirectory(fastcgi)
 endif()
 
+## MODULES
+
+if (BUILD_MODULE_CURL)
+    add_subdirectory(Modules/CurlModule)
+endif()
+
 if (BUILD_MODULE_MARIADB)
     add_subdirectory(Modules/MariaDBModule)
 endif()
@@ -211,7 +198,28 @@ if (BUILD_MODULE_FORMAT)
     add_subdirectory(Modules/FormatModule)
 endif()
 
+if (BUILD_MODULE_IMAGICK)
+    add_subdirectory(Modules/ImagickModule)
+endif()
+
 # CPACK CONFIGURATION
 set(CPACK_DEB_COMPONENT_INSTALL ON)
+
+message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
+message(STATUS "APP_VERSION:           ${CMAKE_PROJECT_VERSION}\n")
+message(STATUS "BUILD_CLI:             ${NEED_CLI}")
+message(STATUS "BUILD_FASTCGI:         ${BUILD_FASTCGI}")
+message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
+message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
+message(STATUS "  PARSER_OPEN_TAG:     '${PARSER_OPEN_TAG}'")
+message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
+
+
+message(STATUS "  MODULES_PATH:            ${MODULES_PATH}")
+message(STATUS "  MODULES:         ")
+message(STATUS "    BUILD_MODULE_CURL:     ${BUILD_MODULE_CURL}")
+message(STATUS "    BUILD_MODULE_MARIADB:  ${BUILD_MODULE_MARIADB}")
+message(STATUS "    BUILD_MODULE_FORMAT:   ${BUILD_MODULE_FORMAT}")
+message(STATUS "    BUILD_MODULE_IMAGICK:  ${BUILD_MODULE_IMAGICK}\n")
 
 include(CPack)
