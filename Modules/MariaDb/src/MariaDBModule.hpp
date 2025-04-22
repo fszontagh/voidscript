@@ -2,8 +2,6 @@
 #ifndef MARIADBMODULE_MARIADBMODULE_HPP
 #define MARIADBMODULE_MARIADBMODULE_HPP
 
-#include <vector>
-
 #include "Modules/BaseModule.hpp"
 #include "Symbols/Value.hpp"
 

@@ -26,12 +26,12 @@
  ## Example
 
  ```vs
- var x = 42;
- printnl(typeof(x));              // int
- printnl(typeof(x, "int"));     // true
- printnl(typeof(x, "string"));  // false
+ int $x = 42;
+ printnl(typeof($x));              // int
+ printnl(typeof($x, "int"));     // true
+ printnl(typeof($x, "string"));  // false
 
- var s = "hello";
- printnl(typeof(s));              // string
- printnl(typeof(s, "bool"));    // false
+ string $s = "hello";
+ printnl(typeof($s));              // string
+ printnl(typeof($s, "bool"));    // false
  ```

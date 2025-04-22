@@ -6,7 +6,7 @@
 
  ### module_list
  - **Signature:** `module_list() -> object`
- - **Description:** Returns an object mapping numerical indices (`"0"`, `"1"`, ...) to module info objects for each loaded plugin module.
+ - **Description:** Returns an object array to module info objects for each loaded plugin module.
  - **Module info object fields:**
    - `name` (string): Module name (shared library filename without extension, `lib` prefix stripped).
    - `path` (string): Filesystem path to the loaded shared library.

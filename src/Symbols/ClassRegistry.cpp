@@ -1,6 +1,7 @@
 #include "Symbols/ClassRegistry.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 namespace Symbols {
 
@@ -23,9 +24,24 @@ void ClassRegistry::addMethod(const std::string & className, const std::string &
     info.methodNames.push_back(methodName);
     // Record module that registered this method
     {
-        std::string key = className + "::" + methodName;
+        std::string key       = className + "::" + methodName;
         methodModuleMap_[key] = Modules::ModuleManager::instance().getCurrentModule();
     }
+}
+
+void ClassRegistry::addMethod(const std::string & className, const std::string & methodName,
+                              std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb,
+                              const Symbols::Variables::Type &                                   returnType) {
+    ClassInfo & info = getClassInfo(className);
+    info.methodNames.push_back(methodName);
+    // Record module that registered this method
+    {
+        std::string key       = className + "::" + methodName;
+        methodModuleMap_[key] = Modules::ModuleManager::instance().getCurrentModule();
+    }
+
+    auto & mgr = Modules::ModuleManager::instance();
+    mgr.registerFunction(className + "::" + methodName, std::move(cb), returnType);
 }
 
 // Check if a property exists in the class
@@ -75,7 +91,7 @@ bool ClassRegistry::hasClass(const std::string & className) const {
 void ClassRegistry::registerClass(const std::string & className) {
     // Insert a new class, overwrite existing if present
     // Use operator[] to ensure existing entries are replaced rather than ignored
-    classes_[className] = ClassInfo();
+    classes_[className]        = ClassInfo();
     // Record module that registered this class
     classModuleMap_[className] = Modules::ModuleManager::instance().getCurrentModule();
 }
@@ -100,7 +116,7 @@ Modules::BaseModule * ClassRegistry::getClassModule(const std::string & classNam
 Modules::BaseModule * ClassRegistry::getMethodModule(const std::string & className,
                                                      const std::string & methodName) const {
     std::string key = className + "::" + methodName;
-    auto it = methodModuleMap_.find(key);
+    auto        it  = methodModuleMap_.find(key);
     return (it != methodModuleMap_.end()) ? it->second : nullptr;
 }
 }  // namespace Symbols

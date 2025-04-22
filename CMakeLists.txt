@@ -131,6 +131,8 @@ add_library(voidscript
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")
 set(CPACK_DEBIAN_LIB_FILE_NAME "libvoidscript_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
+set(CPACK_RPM_LIB_FILE_NAME "libvoidscript_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.rpm")
+set(CPACK_DEBIAN_LIB_DESCRIPTION "VoidScript - libraries")
 set(CPACK_DEBIAN_LIB_PACKAGE_NAME "libvoidscript")
 set(CPACK_DEBIAN_LIB_PACKAGE_SECTION "libs")
 set_target_properties(voidscript PROPERTIES VERSION ${CMAKE_PROJECT_VERSION} SOVERSION 1)
@@ -179,6 +181,7 @@ if (BUILD_FASTCGI)
     set(CPACK_RPM_FCGI_PACKAGE_NAME "${CMAKE_PROJECT_NAME}-fcgi")
     set(CPACK_RPM_FCGI_PACKAGE_GROUP "Applications/Web")
     set(CPACK_RPM_FCGI_PACKAGE_REQUIRES "libvoidscript = ${CMAKE_PROJECT_VERSION}")
+    set(CPACK_COMPONENT_FCGI_DESCRIPTION "VoidScript - fastCGI implementation")
 endif()
 
 
@@ -191,15 +194,22 @@ macro(add_dynamic_module MODULE_NAME)
     option(${opt_name} "Enable ${UPPER_MODULE_NAME} module" ON)
 
     if(${opt_name})
-        message(STATUS "Adding module: ${MODULE_NAME}")
+        message(STATUS "Adding module:     ${MODULE_NAME}  ${MODULE_DESCRIPTION}")
+        include(Modules/${MODULE_NAME}/module.cmake OPTIONAL)
+        set_property(GLOBAL PROPERTY MODULE_DESCRIPTION_${UPPER_MODULE_NAME} "${MODULE_DESCRIPTION}")
+
         add_subdirectory(Modules/${MODULE_NAME})
 
         string(CONCAT debian_var_name "CPACK_DEBIAN_" "MODULES-${UPPER_MODULE_NAME}" "_FILE_NAME")
+        string(CONCAT debian_desc_name "CPACK_RPM_" "MODULES-${UPPER_MODULE_NAME}" "_DESCRIPTION")
         string(CONCAT rpm_var_name "CPACK_RPM_" "MODULES-${UPPER_MODULE_NAME}" "_FILE_NAME")
+        string(CONCAT rpm_desc_name "CPACK_RPM_" "MODULES-${UPPER_MODULE_NAME}" "_DESCRIPTION")
 
         set(${debian_var_name} "${CMAKE_PROJECT_NAME}-modules-${LOWER_MODULE_NAME}_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
-
         set(${rpm_var_name}    "${CMAKE_PROJECT_NAME}-modules-${LOWER_MODULE_NAME}_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.rpm")
+        set(${debian_desc_name} "${MODULE_DESCRIPTION}")
+        set(${rpm_desc_name} "${MODULE_DESCRIPTION}")
+
     endif()
 endmacro()
 
