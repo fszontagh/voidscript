@@ -1,0 +1,5 @@
+<IfModule fcgid_module>
+    Options +ExecCGI
+    AddHandler fcgid-script .vs
+    FcgidWrapper @FCGI_PATH@ .vs
+</IfModule>

@@ -16,15 +16,14 @@ set(NEED_CLI ON)
 option(BUILD_CLI, "Build example commandline intrepeter" ${NEED_CLI})
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
-option(BUILD_MODULE_CURL "Enable building CurlModule" ON)
-option(BUILD_MODULE_MARIADB "Enable building MariaDBModule" ON)
-option(BUILD_MODULE_FORMAT "Enable building FormatModule" ON)
-option(BUILD_MODULE_IMAGICK "Enable building ImagickModule" ON)
+
+
+
+
 
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
 
-option(BUILD_TESTS "Build the test cases" ON)
-enable_testing()
+option(BUILD_TESTS "Build the test cases" OFF)
 
 
 
@@ -103,10 +102,12 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE "/")
 endif()
 
-set(MODULES_PATH "${CMAKE_INSTALL_PREFIX}usr/share/${CMAKE_PROJECT_NAME}/Modules" CACHE PATH "OS specific modules folder")
-
-
 include(GNUInstallDirs)
+
+set(MODULES_FOLDER "${CMAKE_INSTALL_FULL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules" CACHE PATH "OS specific modules folder")
+
+message(STATUS "CMAKE_INSTALL_FULL_DATADIR ${CMAKE_INSTALL_FULL_DATADIR}")
+
 # PACKAGING PROPERTIES END
 
 configure_file("cmake/options.h.in" "include/options.h" @ONLY)
@@ -149,17 +150,87 @@ if (NEED_CLI)
     target_link_libraries(voidscript-cli voidscript)
     install(TARGETS voidscript-cli DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT "bin")
     set_target_properties(voidscript-cli PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME voidscript)
+        LINKER_LANGUAGE CXX
+        OUTPUT_NAME voidscript)
+
     set(CPACK_PACKAGE_EXECUTABLES voidscript-cli "Simple Shell")
-    set(CPACK_DEBIAN_BIN_FILE_NAME "voidscript_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
+
+    set(CPACK_DEBIAN_BIN_FILE_NAME "${CMAKE_PROJECT_NAME}_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
     set(CPACK_DEBIAN_BIN_PACKAGE_NAME "voidscript")
     set(CPACK_DEBIAN_BIN_PACKAGE_SECTION "interpreters")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS ${CMAKE_BINARY_DIR})
     set(CPACK_DEBIAN_BIN_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
+
+    set(CPACK_RPM_BIN_FILE_NAME "${CMAKE_PROJECT_NAME}_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.rpm")
+    set(CPACK_RPM_BIN_PACKAGE_NAME "voidscript")
+    set(CPACK_RPM_BIN_PACKAGE_REQUIRES "libvoidscript = ${CMAKE_PROJECT_VERSION}")
 endif()
 
+
+if (BUILD_FASTCGI)
+    add_subdirectory(fastcgi)
+
+    set(CPACK_DEBIAN_FCGI_FILE_NAME "${CMAKE_PROJECT_NAME}-fcgi_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
+    set(CPACK_DEBIAN_FCGI_PACKAGE_NAME "${CMAKE_PROJECT_NAME}-fcgi")
+    set(CPACK_DEBIAN_FCGI_PACKAGE_SECTION "web")
+    set(CPACK_DEBIAN_FCGI_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
+
+    set(CPACK_RPM_FCGI_FILE_NAME "${CMAKE_PROJECT_NAME}-fcgi_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.rpm")
+    set(CPACK_RPM_FCGI_PACKAGE_NAME "${CMAKE_PROJECT_NAME}-fcgi")
+    set(CPACK_RPM_FCGI_PACKAGE_GROUP "Applications/Web")
+    set(CPACK_RPM_FCGI_PACKAGE_REQUIRES "libvoidscript = ${CMAKE_PROJECT_VERSION}")
+endif()
+
+
+## MODULES
+
+macro(add_dynamic_module MODULE_NAME)
+    string(TOUPPER "${MODULE_NAME}" UPPER_MODULE_NAME)
+    string(TOLOWER "${MODULE_NAME}" LOWER_MODULE_NAME)
+    set(opt_name "BUILD_MODULE_${UPPER_MODULE_NAME}")
+    option(${opt_name} "Enable ${UPPER_MODULE_NAME} module" ON)
+
+    if(${opt_name})
+        message(STATUS "Adding module: ${MODULE_NAME}")
+        add_subdirectory(Modules/${MODULE_NAME})
+
+        string(CONCAT debian_var_name "CPACK_DEBIAN_" "MODULES-${UPPER_MODULE_NAME}" "_FILE_NAME")
+        string(CONCAT rpm_var_name "CPACK_RPM_" "MODULES-${UPPER_MODULE_NAME}" "_FILE_NAME")
+
+        set(${debian_var_name} "${CMAKE_PROJECT_NAME}-modules-${LOWER_MODULE_NAME}_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
+
+        set(${rpm_var_name}    "${CMAKE_PROJECT_NAME}-modules-${LOWER_MODULE_NAME}_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.rpm")
+    endif()
+endmacro()
+
+
+file(GLOB AVAILABLE_MODULES
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/Modules
+    "Modules/*"
+)
+
+
+message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
+message(STATUS "APP_VERSION:           ${CMAKE_PROJECT_VERSION}\n")
+message(STATUS "BUILD_CLI:             ${NEED_CLI}")
+message(STATUS "BUILD_FASTCGI:         ${BUILD_FASTCGI}")
+message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
+message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
+message(STATUS "  PARSER_OPEN_TAG:     '${PARSER_OPEN_TAG}'")
+message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
+
+
+message(STATUS "  MODULES_FOLDER:            ${MODULES_FOLDER}")
+foreach(MODULE IN LISTS AVAILABLE_MODULES)
+    add_dynamic_module(${MODULE})
+endforeach(MODULE AVAILABLE_MODULES)
+
+# CPACK CONFIGURATION
+set(CPACK_DEB_COMPONENT_INSTALL ON)
+
+
 if (BUILD_TESTS)
+  enable_testing()
   include(cmake/catch2.cmake)
 
   # Test executable for ModuleHelperModule
@@ -179,47 +250,5 @@ if (BUILD_TESTS)
   catch_discover_tests(built_in_module_tests)
 endif()
 
-
-if (BUILD_FASTCGI)
-    add_subdirectory(fastcgi)
-endif()
-
-## MODULES
-
-if (BUILD_MODULE_CURL)
-    add_subdirectory(Modules/CurlModule)
-endif()
-
-if (BUILD_MODULE_MARIADB)
-    add_subdirectory(Modules/MariaDBModule)
-endif()
-
-if (BUILD_MODULE_FORMAT)
-    add_subdirectory(Modules/FormatModule)
-endif()
-
-if (BUILD_MODULE_IMAGICK)
-    add_subdirectory(Modules/ImagickModule)
-endif()
-
-# CPACK CONFIGURATION
-set(CPACK_DEB_COMPONENT_INSTALL ON)
-
-message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
-message(STATUS "APP_VERSION:           ${CMAKE_PROJECT_VERSION}\n")
-message(STATUS "BUILD_CLI:             ${NEED_CLI}")
-message(STATUS "BUILD_FASTCGI:         ${BUILD_FASTCGI}")
-message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
-message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
-message(STATUS "  PARSER_OPEN_TAG:     '${PARSER_OPEN_TAG}'")
-message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
-
-
-message(STATUS "  MODULES_PATH:            ${MODULES_PATH}")
-message(STATUS "  MODULES:         ")
-message(STATUS "    BUILD_MODULE_CURL:     ${BUILD_MODULE_CURL}")
-message(STATUS "    BUILD_MODULE_MARIADB:  ${BUILD_MODULE_MARIADB}")
-message(STATUS "    BUILD_MODULE_FORMAT:   ${BUILD_MODULE_FORMAT}")
-message(STATUS "    BUILD_MODULE_IMAGICK:  ${BUILD_MODULE_IMAGICK}\n")
 
 include(CPack)

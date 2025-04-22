@@ -119,6 +119,7 @@ class VoidScript {
         try {
             // Load plugin modules from 'modules' directory (case-insensitive)
             Modules::ModuleManager::instance().loadPlugins("Modules");
+            Modules::ModuleManager::instance().loadPlugins(MODULES_FOLDER);
             // Register all built-in and plugin modules before execution
             Modules::ModuleManager::instance().registerAll();
             while (!files.empty()) {
