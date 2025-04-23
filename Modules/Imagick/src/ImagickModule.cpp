@@ -2,6 +2,7 @@
 
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/Value.hpp"
+#include "Modules/ModuleManager.hpp"
 
 void Modules::ImagickModule::registerModule() {
     auto & registry = Symbols::ClassRegistry::instance();

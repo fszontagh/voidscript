@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include "Modules/ModuleManager.hpp"
+
 namespace Symbols {
 
 ClassRegistry & ClassRegistry::instance() {

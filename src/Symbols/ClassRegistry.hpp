@@ -1,11 +1,12 @@
 #ifndef SYMBOLS_CLASS_REGISTRY_HPP
 #define SYMBOLS_CLASS_REGISTRY_HPP
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "Modules/ModuleManager.hpp"
+#include "Modules/BaseModule.hpp"
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/VariableTypes.hpp"
 
