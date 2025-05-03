@@ -23,7 +23,6 @@ class WhileStatementNode : public StatementNode {
         body_(std::move(body)) {}
 
     void interpret(Interpreter & interpreter) const override {
-        std::cout << "interpret while\n";
         try {
             bool cond;
             while (true) {
@@ -33,9 +32,7 @@ class WhileStatementNode : public StatementNode {
                                     line_, column_);
                 }
                 cond = val.get<bool>();
-                std::cout << "COND: " << cond << "\n";
                 if (!cond) {
-                    std::cout << "Breaking while\n";
                     break;
                 }
 

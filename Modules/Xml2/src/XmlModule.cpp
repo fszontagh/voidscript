@@ -1,5 +1,7 @@
 #include "XmlModule.hpp"
 
+#include <cstring>
+
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/Value.hpp"
 
@@ -103,16 +105,51 @@ Symbols::Value Modules::XmlModule::GetNodeAttributes(FuncionArguments & args) {
     int  handle = val.get<int>();
 
     if (nodeHolder.contains(handle)) {
-        const auto * const node_name    = nodeHolder[handle]->name;
-        const auto         node_type    = nodeHolder[handle]->type;
-        const auto *       node_content = nodeHolder[handle]->content;
-
+        const auto * node         = nodeHolder[handle];
+        const auto * node_name    = node->name;
+        const auto   node_type    = node->type;
+        const auto * node_content = node->content;
+        const auto   children     = node->children;
 
         Symbols::Value::ObjectMap map;
-        map["name"]    = Symbols::Value(node_name);
-        map["type"]    = Symbols::Value(node_type);
-        map["content"] = Symbols::Value(node_content);
+        map["tagName"]    = Symbols::Value(node_name);
+        map["tagType"]    = Symbols::Value(XmlModule::xmlElementTypeToString(node_type));
+        map["tagContent"] = Symbols::Value(node_content);
+
+        if (map["tagContent"].get<std::string>().empty()) {
+            map["tagContent"].setNULL();
+        }
+
+        if (children) {
+            Symbols::Value::ObjectMap childrenArray;
+            unsigned int              i = 0;
+            for (xmlNodePtr child = children; child; child = child->next) {
+                if (child->type != XML_ELEMENT_NODE) {
+                    continue;
+                }
+
+                int childHandle         = nextDoc++;
+                nodeHolder[childHandle] = child;
+
+                Symbols::Value::ObjectMap childObj =
+                    this->storeObject(args, Symbols::Value{ childHandle }, "__xml_node_handler_id__");
+                childObj["__class__"] = "XmlNode";
+
+                //childrenArray.push_back(Symbols::Value::makeClassInstance(childObj));
+                childrenArray[std::to_string(i++)] = Symbols::Value::makeClassInstance(childObj);
+            }
+
+            if (!childrenArray.empty()) {
+                map["children"] = childrenArray;
+            } else {
+                map["children"] = Symbols::Value::makeNull(Symbols::Variables::Type::OBJECT);
+            }
+        } else {
+            map["children"] = Symbols::Value::makeNull(Symbols::Variables::Type::OBJECT);
+        }
+
         return map;
     }
+
     throw std::runtime_error(this->moduleName + ":getNodeAttributes: invalid handler");
 }
