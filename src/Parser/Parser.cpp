@@ -306,7 +306,22 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
 }
 
 // Parse a while-in loop over object members and return a StatementNode (for nested blocks)
-std::unique_ptr<Interpreter::StatementNode> Parser::parseWhileStatementNode() {}
+std::unique_ptr<Interpreter::StatementNode> Parser::parseWhileStatementNode() {
+    auto whileToken = expect(Lexer::Tokens::Type::KEYWORD_WHILE, "while");
+    expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+    auto condExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+    expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+    std::vector<std::unique_ptr<Interpreter::StatementNode>> body;
+    while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+        body.push_back(parseStatementNode());
+    }
+    expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+    auto condExprNode = buildExpressionFromParsed(condExpr);
+    auto *node = new Interpreter::WhileStatementNode(std::move(condExprNode), std::move(body),
+                                                    this->current_filename_, whileToken.line_number, whileToken.column_number);
+    return std::unique_ptr<Interpreter::StatementNode>(node);
+}
 
 // Parse a single statement and return its StatementNode (for use in blocks)
 std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
