@@ -920,7 +920,25 @@ void Parser::parseForStatement() {
                                            Operations::Operation{ Operations::Type::Loop, "", std::move(stmt) });
 }
 
-void Parser::parserForWhile() {}
+std::unique_ptr<Interpreter::StatementNode> Parser::parseWhileStatementNode() {
+    auto whileToken = expect(Lexer::Tokens::Type::KEYWORD_WHILE, "while");
+    expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+    // Parse condition expression
+    auto condExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+    expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+    std::vector<std::unique_ptr<Interpreter::StatementNode>> body;
+    while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+        body.push_back(parseStatementNode());
+    }
+    expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+    auto condExprNode = buildExpressionFromParsed(condExpr);
+    auto * node = new Interpreter::WhileStatementNode(std::move(condExprNode), std::move(body),
+                                                    this->current_filename_, whileToken.line_number, whileToken.column_number);
+    return std::unique_ptr<Interpreter::StatementNode>(node);
+}
+
+void Parser::parserForWhile() {} // Keep this for now until we update parseWhileStatement
 
 // Continue with numeric literal parsing
 //
