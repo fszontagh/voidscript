@@ -4,15 +4,14 @@
 #include <libxml/tree.h>
 #include <stdint.h>
 
-#include <iostream>
-
 #include "Modules/BaseModule.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {
 
-inline static std::unordered_map<int, xmlDocPtr> docHolder;
-static int                                       nextDoc = 1;
+inline static std::unordered_map<int, xmlDocPtr>  docHolder;
+inline static std::unordered_map<int, xmlNodePtr> nodeHolder;
+static int                                        nextDoc = 1;
 
 class XmlModule : public BaseModule {
   public:
@@ -35,6 +34,8 @@ class XmlModule : public BaseModule {
 
     Symbols::Value readFile(FuncionArguments & args);
     Symbols::Value readMemory(FuncionArguments & args);
+    Symbols::Value GetRootElement(FuncionArguments & args);
+    Symbols::Value GetNodeAttributes(FuncionArguments & args);
 
 };  // Class
 }  // namespace Modules

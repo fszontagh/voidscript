@@ -19,7 +19,21 @@ class Value {
     /**
      * @brief Default-constructed value is undefined.
      */
-    Value() : value_(), type_(Symbols::Variables::Type::UNDEFINED_TYPE) {}
+    Value() : type_(Symbols::Variables::Type::UNDEFINED_TYPE) {}
+
+    Value(const unsigned char * uc, int len = -1) {
+        if (uc == nullptr) {
+            value_  = std::string();
+            is_null = true;
+            return;
+        }
+
+        if (len > -1) {
+            value_ = std::string(reinterpret_cast<const char *>(uc), len);
+            return;
+        }
+        value_ = std::string(reinterpret_cast<const char *>(uc));
+    }
 
     Value(int v) : value_(v) { type_ = Symbols::Variables::Type::INTEGER; }
 
@@ -167,7 +181,7 @@ class Value {
         }
     }
 
-    bool isNULL() { return is_null; }
+    bool isNULL() const { return is_null; }
   private:
     Variant                  value_;
     Symbols::Variables::Type type_;

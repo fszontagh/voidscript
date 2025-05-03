@@ -11,10 +11,10 @@ std::string Parser::Parser::Exception::current_filename_;
 #include "Interpreter/Nodes/Statement/ConditionalStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/CStyleForStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/DeclareVariableStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/ExpressionStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/ForStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/ReturnStatementNode.hpp"
 #include "Interpreter/OperationsFactory.hpp"
-#include "Interpreter/Nodes/Statement/ExpressionStatementNode.hpp"
 #include "Lexer/Operators.hpp"
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/SymbolContainer.hpp"
@@ -23,14 +23,14 @@ std::string Parser::Parser::Exception::current_filename_;
 namespace Parser {
 
 const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
-    { "if",       Lexer::Tokens::Type::KEYWORD                      },
-    { "else",     Lexer::Tokens::Type::KEYWORD                      },
-    { "while",    Lexer::Tokens::Type::KEYWORD                      },
-    { "for",      Lexer::Tokens::Type::KEYWORD                      },
+    { "if",       Lexer::Tokens::Type::KEYWORD_IF                   },
+    { "else",     Lexer::Tokens::Type::KEYWORD_ELSE                 },
+    { "while",    Lexer::Tokens::Type::KEYWORD_WHILE                },
+    { "for",      Lexer::Tokens::Type::KEYWORD_FOR                  },
     { "return",   Lexer::Tokens::Type::KEYWORD_RETURN               },
     { "function", Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION },
     // Older keywords:
-    { "const",    Lexer::Tokens::Type::KEYWORD                      },
+    { "const",    Lexer::Tokens::Type::KEYWORD_CONST                },
     // Class support keywords
     { "class",    Lexer::Tokens::Type::KEYWORD_CLASS                },
     { "private",  Lexer::Tokens::Type::KEYWORD_PRIVATE              },
@@ -63,7 +63,7 @@ const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::
 // Parse a top-level constant variable definition: const <type> $name = expr;
 void Parser::parseConstVariableDefinition() {
     // 'const'
-    auto                     constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
+    auto                     constTok = expect(Lexer::Tokens::Type::KEYWORD_CONST, "const");
     // Parse type
     Symbols::Variables::Type var_type = parseType();
     // Variable name
@@ -84,8 +84,8 @@ void Parser::parseConstVariableDefinition() {
     // Parse initializer expression
     auto expr = parseParsedExpression(var_type);
     // Record constant definition
-    Interpreter::OperationsFactory::defineConstantWithExpression(
-        var_name, var_type, std::move(expr), ns, current_filename_, id_token.line_number, id_token.column_number);
+    Interpreter::OperationsFactory::defineConstantWithExpression(var_name, var_type, expr, ns, current_filename_,
+                                                                 id_token.line_number, id_token.column_number);
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
 
@@ -110,8 +110,8 @@ void Parser::parseVariableDefinition() {
     expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
 
     auto expr = parseParsedExpression(var_type);
-    Interpreter::OperationsFactory::defineVariableWithExpression(
-        var_name, var_type, std::move(expr), ns, current_filename_, id_token.line_number, id_token.column_number);
+    Interpreter::OperationsFactory::defineVariableWithExpression(var_name, var_type, expr, ns, current_filename_,
+                                                                 id_token.line_number, id_token.column_number);
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
 
@@ -125,7 +125,7 @@ void Parser::parseAssignmentStatement() {
 // Parse an if-else conditional statement
 void Parser::parseIfStatement() {
     // 'if'
-    auto ifToken = expect(Lexer::Tokens::Type::KEYWORD, "if");
+    auto ifToken = expect(Lexer::Tokens::Type::KEYWORD_IF, "if");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
     // Parse the condition expression without restricting literal types,
     // dynamic evaluation will enforce boolean type at runtime
@@ -140,9 +140,9 @@ void Parser::parseIfStatement() {
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
     // else / else-if branch
     std::vector<std::unique_ptr<Interpreter::StatementNode>> elseBranch;
-    if (match(Lexer::Tokens::Type::KEYWORD, "else")) {
+    if (match(Lexer::Tokens::Type::KEYWORD_ELSE, "else")) {
         // else-if: nested conditional
-        if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "if") {
+        if (currentToken().type == Lexer::Tokens::Type::KEYWORD_IF) {
             elseBranch.push_back(parseIfStatementNode());
         } else {
             expect(Lexer::Tokens::Type::PUNCTUATION, "{");
@@ -164,7 +164,7 @@ void Parser::parseIfStatement() {
 
 // Parse an if-else conditional block and return a StatementNode (for nested blocks)
 std::unique_ptr<Interpreter::StatementNode> Parser::parseIfStatementNode() {
-    auto ifToken = expect(Lexer::Tokens::Type::KEYWORD, "if");
+    auto ifToken = expect(Lexer::Tokens::Type::KEYWORD_IF, "if");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
     auto condExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
@@ -175,9 +175,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseIfStatementNode() {
     }
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
     std::vector<std::unique_ptr<Interpreter::StatementNode>> elseBranch;
-    if (match(Lexer::Tokens::Type::KEYWORD, "else")) {
+    if (match(Lexer::Tokens::Type::KEYWORD_ELSE, "else")) {
         // else-if: nested conditional
-        if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "if") {
+        if (currentToken().type == Lexer::Tokens::Type::KEYWORD_IF) {
             elseBranch.push_back(parseIfStatementNode());
         } else {
             expect(Lexer::Tokens::Type::PUNCTUATION, "{");
@@ -196,7 +196,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseIfStatementNode() {
 
 // Parse a for-in loop over object members and return a StatementNode (for nested blocks)
 std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
-    auto forToken = expect(Lexer::Tokens::Type::KEYWORD, "for");
+    auto forToken = expect(Lexer::Tokens::Type::KEYWORD_FOR, "for");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
     // Parse element type and variable name
     Symbols::Variables::Type elemType  = parseType();
@@ -264,7 +264,8 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
         return std::unique_ptr<Interpreter::StatementNode>(cnode);
     }
     // Determine loop form: key,value or simple element loop
-    std::string              keyName, valName;
+    std::string              keyName;
+    std::string              valName;
     Symbols::Variables::Type keyType;
     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
         // Key, value syntax
@@ -304,15 +305,21 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     return std::unique_ptr<Interpreter::StatementNode>(node);
 }
 
+// Parse a while-in loop over object members and return a StatementNode (for nested blocks)
+std::unique_ptr<Interpreter::StatementNode> Parser::parseWhileStatementNode() {}
+
 // Parse a single statement and return its StatementNode (for use in blocks)
 std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     // Handle nested if statements in blocks
-    if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "if") {
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_IF) {
         return parseIfStatementNode();
     }
     // Handle nested for loops in blocks
-    if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "for") {
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_FOR) {
         return parseForStatementNode();
+    }
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_WHILE) {
+        return parseWhileStatementNode();
     }
     // Return statement
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD_RETURN) {
@@ -333,34 +340,38 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
         expect(Lexer::Tokens::Type::PUNCTUATION, ";");
         std::string baseName = idTok.value;
-        if (!baseName.empty() && baseName[0] == '$') baseName = baseName.substr(1);
-        auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
-        auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
+        if (!baseName.empty() && baseName[0] == '$') {
+            baseName = baseName.substr(1);
+        }
+        auto        lhs   = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
+        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
         std::string binOp = (opTok.value == "++") ? "+" : "-";
-        auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
-        return std::make_unique<Interpreter::AssignmentStatementNode>(
-            baseName, std::vector<std::string>(), std::move(bin),
-            this->current_filename_, idTok.line_number, idTok.column_number);
+        auto        bin   = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
+        return std::make_unique<Interpreter::AssignmentStatementNode>(baseName, std::vector<std::string>(),
+                                                                      std::move(bin), this->current_filename_,
+                                                                      idTok.line_number, idTok.column_number);
     }
     // Assignment statement: variable or object member assignment
     if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
         // Postfix increment/decrement (e.g., $u++ or $u--)
         if (peekToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT) {
-            auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+            auto        idTok    = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
             std::string baseName = idTok.value;
-            if (!baseName.empty() && baseName[0] == '$') baseName = baseName.substr(1);
+            if (!baseName.empty() && baseName[0] == '$') {
+                baseName = baseName.substr(1);
+            }
             auto opTok = expect(Lexer::Tokens::Type::OPERATOR_INCREMENT);
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
             std::unique_ptr<Interpreter::ExpressionNode> lhs =
                 std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
             std::unique_ptr<Interpreter::ExpressionNode> rhs =
                 std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
-            std::string binOp = (opTok.value == "++") ? "+" : "-";
+            std::string                                  binOp = (opTok.value == "++") ? "+" : "-";
             std::unique_ptr<Interpreter::ExpressionNode> bin =
                 std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
-            return std::make_unique<Interpreter::AssignmentStatementNode>(
-                baseName, std::vector<std::string>(), std::move(bin),
-                this->current_filename_, idTok.line_number, idTok.column_number);
+            return std::make_unique<Interpreter::AssignmentStatementNode>(baseName, std::vector<std::string>(),
+                                                                          std::move(bin), this->current_filename_,
+                                                                          idTok.line_number, idTok.column_number);
         }
         // Lookahead to detect '=' after optional '->' chains
         size_t offset = 1;
@@ -408,8 +419,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                     std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
                 for (const auto & prop : propertyPath) {
                     lhsNode = std::make_unique<Interpreter::MemberExpressionNode>(
-                        std::move(lhsNode), prop,
-                        this->current_filename_, opTok.line_number, opTok.column_number);
+                        std::move(lhsNode), prop, this->current_filename_, opTok.line_number, opTok.column_number);
                 }
                 // Extract binary operator ("+=" -> "+")
                 std::string binOp = opTok.value.substr(0, opTok.value.size() - 1);
@@ -449,9 +459,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                                                                 idTok.line_number, idTok.column_number);
     }
     // Constant variable declaration in blocks
-    if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "const") {
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_CONST) {
         // 'const'
-        auto                     constTok = expect(Lexer::Tokens::Type::KEYWORD, "const");
+        auto                     constTok = expect(Lexer::Tokens::Type::KEYWORD_CONST, "const");
         // Parse type
         Symbols::Variables::Type type     = parseType();
         // Variable name
@@ -491,8 +501,8 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         auto parsedExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
         expect(Lexer::Tokens::Type::PUNCTUATION, ";");
         auto exprNode = buildExpressionFromParsed(parsedExpr);
-        return std::make_unique<Interpreter::ExpressionStatementNode>(
-            std::move(exprNode), this->current_filename_, parsedExpr->line, parsedExpr->column);
+        return std::make_unique<Interpreter::ExpressionStatementNode>(std::move(exprNode), this->current_filename_,
+                                                                      parsedExpr->line, parsedExpr->column);
     }
     // Unexpected token in block
     reportError("Unexpected token in block");
@@ -565,9 +575,9 @@ void Parser::parseClassDefinition() {
     // Register class name early so parseType can recognize it as CLASS
     Symbols::ClassRegistry::instance().registerClass(className);
     // Enter class scope for methods and parsing
-    const std::string fileNs    = Symbols::SymbolContainer::instance()->currentScopeName();
+    const std::string fileNs  = Symbols::SymbolContainer::instance()->currentScopeName();
     // Use :: as namespace separator
-    const std::string classNs   = fileNs + "::" + className;
+    const std::string classNs = fileNs + "::" + className;
     // Create class scope (automatically enters it)
     Symbols::SymbolContainer::instance()->create(classNs);
     // Gather class members (registration happens at interpretation)
@@ -575,7 +585,7 @@ void Parser::parseClassDefinition() {
     std::vector<Symbols::ClassInfo::PropertyInfo> publicProps;
     std::vector<std::string>                      methodNames;
 
-    enum AccessLevel { PRIVATE, PUBLIC } currentAccess = PRIVATE;
+    enum AccessLevel : std::uint8_t { PRIVATE, PUBLIC } currentAccess = PRIVATE;
 
     // Opening brace
     expect(Lexer::Tokens::Type::PUNCTUATION, "{");
@@ -602,7 +612,7 @@ void Parser::parseClassDefinition() {
             continue;
         }
         // Const property declaration
-        if (tok.type == Lexer::Tokens::Type::KEYWORD && tok.value == "const") {
+        if (tok.type == Lexer::Tokens::Type::KEYWORD_CONST) {
             consumeToken();
             // Type
             auto                 propType = parseType();
@@ -667,8 +677,8 @@ void Parser::parseClassDefinition() {
             // Consume 'function'
             consumeToken();
             // Method name
-            auto              nameId     = expect(Lexer::Tokens::Type::IDENTIFIER);
-            std::string       methodName = nameId.value;
+            auto        nameId     = expect(Lexer::Tokens::Type::IDENTIFIER);
+            std::string methodName = nameId.value;
             // Parsing method in current class scope; method bodies handled in parseFunctionBody
             // Parse parameters
             expect(Lexer::Tokens::Type::PUNCTUATION, "(");
@@ -691,7 +701,7 @@ void Parser::parseClassDefinition() {
             expect(Lexer::Tokens::Type::PUNCTUATION, ")");
             // Optional return type
             Symbols::Variables::Type returnType = Symbols::Variables::Type::NULL_TYPE;
-            for (auto & vt : Parser::variable_types) {
+            for (const auto & vt : Parser::variable_types) {
                 if (match(vt.first)) {
                     returnType = vt.second;
                     break;
@@ -779,7 +789,7 @@ void Parser::parseReturnStatement() {
 // Parse a for-in loop over object members
 void Parser::parseForStatement() {
     // 'for'
-    auto forToken = expect(Lexer::Tokens::Type::KEYWORD, "for");
+    auto forToken = expect(Lexer::Tokens::Type::KEYWORD_FOR, "for");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
     // Parse element type and variable name
     Symbols::Variables::Type elemType  = parseType();
@@ -849,7 +859,8 @@ void Parser::parseForStatement() {
         return;
     }
     // Determine loop form: key,value or simple element loop
-    std::string              keyName, valName;
+    std::string              keyName;
+    std::string              valName;
     Symbols::Variables::Type keyType;
     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
         // Key, value syntax
@@ -894,6 +905,8 @@ void Parser::parseForStatement() {
                                            Operations::Operation{ Operations::Type::Loop, "", std::move(stmt) });
 }
 
+void Parser::parserForWhile() {}
+
 // Continue with numeric literal parsing
 //
 Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type) {
@@ -932,10 +945,10 @@ Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_ne
 void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & function_name,
                                Symbols::Variables::Type return_type, const Symbols::FunctionParameterInfo & params) {
     // Find the matching closing brace for the function body
-    size_t braceDepth = 0;
+    size_t braceDepth  = 0;
     size_t closing_idx = opening_brace_idx;
     for (size_t i = opening_brace_idx + 1; i < tokens_.size(); ++i) {
-        const auto &tok = tokens_[i];
+        const auto & tok = tokens_[i];
         if (tok.type == Lexer::Tokens::Type::PUNCTUATION) {
             if (tok.value == "{") {
                 ++braceDepth;
@@ -952,15 +965,14 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
         reportError("Unmatched braces in function body");
     }
     // Extract tokens for the function body
-    std::vector<Lexer::Tokens::Token> filtered_tokens(
-        tokens_.begin() + opening_brace_idx + 1,
-        tokens_.begin() + closing_idx);
+    std::vector<Lexer::Tokens::Token> filtered_tokens(tokens_.begin() + opening_brace_idx + 1,
+                                                      tokens_.begin() + closing_idx);
     // Extract the raw text for the body
-    const auto &openTok  = tokens_[opening_brace_idx];
-    const auto &closeTok = tokens_[closing_idx];
-    size_t start_pos     = openTok.end_pos;
-    size_t len           = closeTok.start_pos - start_pos;
-    std::string_view input_string = input_str_view_.substr(start_pos, len);
+    const auto &                      openTok      = tokens_[opening_brace_idx];
+    const auto &                      closeTok     = tokens_[closing_idx];
+    size_t                            start_pos    = openTok.end_pos;
+    size_t                            len          = closeTok.start_pos - start_pos;
+    std::string_view                  input_string = input_str_view_.substr(start_pos, len);
 
     // Advance parser index to closing '}' and consume it
     current_token_index_ = closing_idx;
@@ -975,10 +987,9 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
     // Exit the function scope
     Symbols::SymbolContainer::instance()->enterPreviousScope();
     // Define the function symbol now that its body is recorded
-    Interpreter::OperationsFactory::defineFunction(
-        function_name, params, return_type,
-        Symbols::SymbolContainer::instance()->currentScopeName(),
-        this->current_filename_, openTok.line_number, openTok.column_number);
+    Interpreter::OperationsFactory::defineFunction(function_name, params, return_type,
+                                                   Symbols::SymbolContainer::instance()->currentScopeName(),
+                                                   this->current_filename_, openTok.line_number, openTok.column_number);
 }
 
 ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type & expected_var_type) {
@@ -1051,22 +1062,20 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 expect_unary = false;
                 atStart      = false;
                 continue;
-            } else {
-                // Parse dynamic array/object indexing: lhs[index]
-                consumeToken();  // consume '['
-                auto indexExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
-                expect(Lexer::Tokens::Type::PUNCTUATION, "]");
-                if (output_queue.empty()) {
-                    reportError("Missing array/object for indexing");
-                }
-                auto lhsExpr = std::move(output_queue.back());
-                output_queue.pop_back();
-                auto accessExpr = ParsedExpression::makeBinary("[]", std::move(lhsExpr), std::move(indexExpr));
-                output_queue.push_back(std::move(accessExpr));
-                expect_unary = false;
-                atStart      = false;
-                continue;
+            }  // Parse dynamic array/object indexing: lhs[index]
+            consumeToken();  // consume '['
+            auto indexExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+            expect(Lexer::Tokens::Type::PUNCTUATION, "]");
+            if (output_queue.empty()) {
+                reportError("Missing array/object for indexing");
             }
+            auto lhsExpr = std::move(output_queue.back());
+            output_queue.pop_back();
+            auto accessExpr = ParsedExpression::makeBinary("[]", std::move(lhsExpr), std::move(indexExpr));
+            output_queue.push_back(std::move(accessExpr));
+            expect_unary = false;
+            atStart      = false;
+            continue;
         }
         // Object literal: { key: value, ... }
         if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "{") {
@@ -1115,7 +1124,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         }
 
         // Member access: '->'
-        else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "->") {
+        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "->") {
             std::string op(token.lexeme);
             // Shunting-yard: handle operator precedence
             while (!operator_stack.empty()) {
@@ -1213,8 +1222,8 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 ParsedExpressionPtr callExpr;
                 if (callee->kind == ParsedExpression::Kind::Binary && callee->op == "->") {
                     // Method call: object->method(args)
-                    callExpr = ParsedExpression::makeMethodCall(std::move(callee->lhs), callee->rhs->name,
-                                                               std::move(args));
+                    callExpr =
+                        ParsedExpression::makeMethodCall(std::move(callee->lhs), callee->rhs->name, std::move(args));
                 } else if (callee->kind == ParsedExpression::Kind::Variable) {
                     // Function call
                     callExpr = ParsedExpression::makeCall(callee->name, std::move(args));
@@ -1380,7 +1389,7 @@ void Parser::parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::
 void Parser::parseStatement() {
     const auto & token_type = currentToken().type;
     // if-else conditional
-    if (token_type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "if") {
+    if (token_type == Lexer::Tokens::Type::KEYWORD_IF) {
         parseIfStatement();
         return;
     }
@@ -1395,8 +1404,14 @@ void Parser::parseStatement() {
         return;
     }
     // For-in loop over object members
-    if (token_type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "for") {
+    if (token_type == Lexer::Tokens::Type::KEYWORD_FOR) {
         parseForStatement();
+        return;
+    }
+    // while loop
+    if (token_type == Lexer::Tokens::Type::KEYWORD_WHILE) {
+        //parseForStatement();
+        parserForWhile();
         return;
     }
 
@@ -1406,7 +1421,7 @@ void Parser::parseStatement() {
         return;
     }
     // Constant variable definition
-    if (token_type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "const") {
+    if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
         return;
     }
@@ -1433,16 +1448,18 @@ void Parser::parseStatement() {
             peekToken(2).type == Lexer::Tokens::Type::IDENTIFIER &&
             peekToken(3).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(3).value == "(") {
             // Parse base variable
-            auto varTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+            auto        varTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
             std::string varName = varTok.value;
-            if (!varName.empty() && varName[0] == '$') varName = varName.substr(1);
+            if (!varName.empty() && varName[0] == '$') {
+                varName = varName.substr(1);
+            }
             // Build object expression node
             std::unique_ptr<Interpreter::ExpressionNode> objectExpr =
                 std::make_unique<Interpreter::IdentifierExpressionNode>(varName);
             // Consume '->'
             expect(Lexer::Tokens::Type::PUNCTUATION, "->");
             // Method name
-            auto methodTok = expect(Lexer::Tokens::Type::IDENTIFIER);
+            auto        methodTok  = expect(Lexer::Tokens::Type::IDENTIFIER);
             std::string methodName = methodTok.value;
             // Parse arguments
             expect(Lexer::Tokens::Type::PUNCTUATION, "(");
@@ -1451,7 +1468,9 @@ void Parser::parseStatement() {
                 while (true) {
                     auto argPexpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
                     args.push_back(buildExpressionFromParsed(argPexpr));
-                    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) continue;
+                    if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                        continue;
+                    }
                     break;
                 }
             }
@@ -1459,14 +1478,14 @@ void Parser::parseStatement() {
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
             // Create method call expression node
             auto methodCall = std::make_unique<Interpreter::MethodCallExpressionNode>(
-                std::move(objectExpr), methodName, std::move(args),
-                this->current_filename_, varTok.line_number, varTok.column_number);
+                std::move(objectExpr), methodName, std::move(args), this->current_filename_, varTok.line_number,
+                varTok.column_number);
             // Wrap into expression statement and record operation
             auto exprStmt = std::make_unique<Interpreter::ExpressionStatementNode>(
                 std::move(methodCall), this->current_filename_, varTok.line_number, varTok.column_number);
             auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
             Operations::Container::instance()->add(
-                ns, Operations::Operation{Operations::Type::Expression, std::string(), std::move(exprStmt)});
+                ns, Operations::Operation{ Operations::Type::Expression, std::string(), std::move(exprStmt) });
             return;
         }
         // Postfix increment/decrement (e.g., $u++ or $u--)
@@ -1479,7 +1498,7 @@ void Parser::parseStatement() {
         while (peekToken(offset).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(offset).value == "->") {
             offset += 2;
         }
-        const auto &look = peekToken(offset);
+        const auto & look = peekToken(offset);
         if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
             parseAssignmentStatement();
             return;

@@ -121,10 +121,14 @@ class Parser {
     void                                        parseIfStatement();
     // Parse a for-in loop over object members (at top-level)
     void                                        parseForStatement();
+    // Parse a wile loop
+    void                                        parserForWhile();
     // Parse an if-else conditional block and return a StatementNode (for nested blocks)
     std::unique_ptr<Interpreter::StatementNode> parseIfStatementNode();
     // Parse a for-in loop over object members and return a StatementNode (for nested blocks)
     std::unique_ptr<Interpreter::StatementNode> parseForStatementNode();
+    // Parse a while loop over
+    std::unique_ptr<Interpreter::StatementNode> parseWhileStatementNode();
     // Parse a statement node for use inside blocks (not added to operation container)
     std::unique_ptr<Interpreter::StatementNode> parseStatementNode();
 

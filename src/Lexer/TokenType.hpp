@@ -29,6 +29,11 @@ enum class Type : std::uint8_t {
     KEYWORD_FUNCTION_DECLARATION,
     KEYWORD_RETURN,
     KEYWORD_NULL,
+    KEYWORD_IF,
+    KEYWORD_ELSE,
+    KEYWORD_FOR,
+    KEYWORD_WHILE,
+    KEYWORD_CONST,
     // Class-related keywords
     KEYWORD_CLASS,
     KEYWORD_PRIVATE,
@@ -91,6 +96,16 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_PUBLIC";
         case Lexer::Tokens::Type::KEYWORD_NEW:
             return "KEYWORD_NEW";
+        case Lexer::Tokens::Type::KEYWORD_WHILE:
+            return "KEYWORD_WHILE";
+        case Lexer::Tokens::Type::KEYWORD_IF:
+            return "KEYWORD_IF";
+        case Lexer::Tokens::Type::KEYWORD_ELSE:
+            return "KEYWORD_ELSE";
+        case Lexer::Tokens::Type::KEYWORD_FOR:
+            return "KEYWORD_FOR";
+        case Lexer::Tokens::Type::KEYWORD_CONST:
+            return "KEYWORD_CONST";
         case Lexer::Tokens::Type::UNKNOWN:
             return "UNKNOWN";
         default:

@@ -1,13 +1,13 @@
 #ifndef VOIDSCRIPT_HPP
 #define VOIDSCRIPT_HPP
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <string>
 #include <iostream>
 #include <iterator>
-#include <vector>
+#include <string>
 #include <utility>
-#include <algorithm>
+#include <vector>
 
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
@@ -25,11 +25,11 @@
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
 #ifdef FCGI
-#include "Modules/BuiltIn/HeaderModule.hpp"
+#    include "Modules/BuiltIn/HeaderModule.hpp"
 #endif
-#include "Parser/Parser.hpp"
-#include "options.h"
 #include "Interpreter/OperationsFactory.hpp"
+#include "options.h"
+#include "Parser/Parser.hpp"
 #include "Symbols/Value.hpp"
 
 class VoidScript {
@@ -41,9 +41,9 @@ class VoidScript {
     bool                            debugSymbolTable_ = false;
     std::vector<std::string>        files;
     // Only parse between open/close tags if enabled
-    bool                             enableTags_ = false;
+    bool                            enableTags_          = false;
     // Suppress printing text outside tags when filtering is enabled
-    bool                             suppressTagsOutside_ = false;
+    bool                            suppressTagsOutside_ = false;
     // Script parameters passed after the script filename
     std::vector<std::string>        scriptArgs_;
     std::shared_ptr<Lexer::Lexer>   lexer  = nullptr;
@@ -73,19 +73,13 @@ class VoidScript {
      * @param debugParser        enable parser debug output
      * @param debugInterpreter   enable interpreter debug output
      */
-    VoidScript(const std::string & file,
-               bool debugLexer = false,
-               bool debugParser = false,
-               bool debugInterpreter = false,
-               bool debugSymbolTable = false,
-               bool enableTags = false,
-               bool suppressTagsOutside = false,
-               std::vector<std::string> scriptArgs = {}) :
+    VoidScript(const std::string & file, bool debugLexer = false, bool debugParser = false,
+               bool debugInterpreter = false, bool debugSymbolTable = false, bool enableTags = false,
+               bool suppressTagsOutside = false, std::vector<std::string> scriptArgs = {}) :
         debugLexer_(debugLexer),
         debugParser_(debugParser),
         debugInterpreter_(debugInterpreter),
         debugSymbolTable_(debugSymbolTable),
-        files(),
         enableTags_(enableTags),
         suppressTagsOutside_(suppressTagsOutside),
         scriptArgs_(std::move(scriptArgs)),
@@ -134,7 +128,7 @@ class VoidScript {
                 } else {
                     std::string openTag(PARSER_OPEN_TAG);
                     std::string closeTag(PARSER_CLOSE_TAG);
-                    size_t pos = 0;
+                    size_t      pos = 0;
                     while (pos < file_content.size()) {
                         size_t start = file_content.find(openTag, pos);
                         if (start == std::string::npos) {
@@ -150,16 +144,16 @@ class VoidScript {
                             segments.emplace_back(false, file_content.substr(pos, start - pos));
                         }
                         // Inside tag code
-                        size_t code_start = start + openTag.size();
-                        size_t end = file_content.find(closeTag, code_start);
+                        size_t      code_start = start + openTag.size();
+                        size_t      end        = file_content.find(closeTag, code_start);
                         std::string code;
                         if (end != std::string::npos) {
                             code = file_content.substr(code_start, end - code_start);
-                            pos = end + closeTag.size();
+                            pos  = end + closeTag.size();
                         } else {
                             // No closing tag: take until end
                             code = file_content.substr(code_start);
-                            pos = file_content.size();
+                            pos  = file_content.size();
                         }
                         segments.emplace_back(true, code);
                     }

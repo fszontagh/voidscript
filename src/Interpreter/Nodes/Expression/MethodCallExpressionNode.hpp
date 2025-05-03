@@ -63,7 +63,6 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
             const auto & objMap = std::get<Value::ObjectMap>(objVal.get());
 
-
             // Extract class name
             auto it = objMap.find("__class__");
             if (it == objMap.end() || it->second.getType() != Variables::Type::STRING) {
@@ -95,9 +94,9 @@ class MethodCallExpressionNode : public ExpressionNode {
                     // Write back modified object if returned
                     if (origSym &&
                         (ret.getType() == Variables::Type::OBJECT || ret.getType() == Variables::Type::CLASS)) {
-                            if (origSym->getValue().getType() == ret.getType()) {
-                                origSym->setValue(ret);
-                            }
+                        if (origSym->getValue().getType() == ret.getType()) {
+                            origSym->setValue(ret);
+                        }
                         //origSym->setValue(ret);
                     }
                     return ret;
