@@ -80,6 +80,7 @@ class Interpreter {
                     break;
                 }
             case Operations::Type::Loop:
+            case Operations::Type::While:
                 // for-in or while loop
                 if (op.statement) {
                     op.statement->interpret(*this);

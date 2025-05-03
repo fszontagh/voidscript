@@ -17,6 +17,7 @@ enum class Type : std::uint8_t {
     Return,           // return statement
     Conditional,      // if/else structure
     Loop,             // while/for loop
+    While,            // While loop
     Break,            // break out of a loop
     Continue,         // continue with the next iteration of a loop
     Block,            // block of statements, e.g. { ... }

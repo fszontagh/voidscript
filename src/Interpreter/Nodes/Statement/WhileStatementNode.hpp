@@ -3,55 +3,56 @@
 
 #include <memory>
 #include <string>
-#include <stdexcept>
 
+#include "Interpreter/ExpressionNode.hpp"
+#include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
-#include "Symbols/SymbolContainer.hpp"
-#include "Symbols/SymbolFactory.hpp"
 
 namespace Interpreter {
 
 class WhileStatementNode : public StatementNode {
-private:
-    std::unique_ptr<ExpressionNode> conditionExpr_;
+  private:
+    std::unique_ptr<ExpressionNode>             conditionExpr_;
     std::vector<std::unique_ptr<StatementNode>> body_;
 
-public:
-    WhileStatementNode(std::unique_ptr<ExpressionNode> conditionExpr,
-                     std::vector<std::unique_ptr<StatementNode>> body,
-                     const std::string& file_name, int line, size_t column)
-        : StatementNode(file_name, line, column),
-          conditionExpr_(std::move(conditionExpr)),
-          body_(std::move(body)) {}
+  public:
+    WhileStatementNode(std::unique_ptr<ExpressionNode> conditionExpr, std::vector<std::unique_ptr<StatementNode>> body,
+                       const std::string & file_name, int line, size_t column) :
+        StatementNode(file_name, line, column),
+        conditionExpr_(std::move(conditionExpr)),
+        body_(std::move(body)) {}
 
-    void interpret(Interpreter& interpreter) const override {
+    void interpret(Interpreter & interpreter) const override {
+        std::cout << "interpret while\n";
         try {
             bool cond;
             while (true) {
                 auto val = conditionExpr_->evaluate(interpreter);
                 if (val.getType() != Symbols::Variables::Type::BOOLEAN) {
-                    throw Exception("Condition did not evaluate to boolean: " + conditionExpr_->toString());
+                    throw Exception("Condition did not evaluate to boolean: " + conditionExpr_->toString(), filename_,
+                                    line_, column_);
                 }
                 cond = val.get<bool>();
-                
-                if (!cond) break;
+                std::cout << "COND: " << cond << "\n";
+                if (!cond) {
+                    std::cout << "Breaking while\n";
+                    break;
+                }
 
-                for (const auto& stmt : body_) {
+                for (const auto & stmt : body_) {
                     stmt->interpret(interpreter);
                 }
             }
-        } catch (const Exception&) {
+        } catch (const Exception &) {
             throw;
-        } catch (const std::exception& e) {
+        } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }
     }
 
-    std::string toString() const override {
-        return "WhileStatementNode at " + filename_ + ":" + std::to_string(line_);
-    }
+    std::string toString() const override { return "WhileStatementNode at " + filename_ + ":" + std::to_string(line_); }
 };
 
-} // namespace Interpreter
+}  // namespace Interpreter
 
-#endif // INTERPRETER_WHILE_STATEMENT_NODE_HPP
+#endif  // INTERPRETER_WHILE_STATEMENT_NODE_HPP

@@ -1,41 +1,36 @@
- #ifndef INTERPRETER_FOR_STATEMENT_NODE_HPP
- #define INTERPRETER_FOR_STATEMENT_NODE_HPP
+#ifndef INTERPRETER_FOR_STATEMENT_NODE_HPP
+#define INTERPRETER_FOR_STATEMENT_NODE_HPP
 
- #include <vector>
- #include <memory>
- #include <string>
- #include <stdexcept>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "Interpreter/StatementNode.hpp"
 // Include for unified runtime Exception
-#include "Interpreter/Interpreter.hpp"
 #include "Interpreter/ExpressionNode.hpp"
- #include "Symbols/Value.hpp"
- #include "Symbols/SymbolContainer.hpp"
- #include "Symbols/SymbolFactory.hpp"
+#include "Interpreter/Interpreter.hpp"
+#include "Symbols/SymbolContainer.hpp"
+#include "Symbols/SymbolFactory.hpp"
+#include "Symbols/Value.hpp"
 
- namespace Interpreter {
+namespace Interpreter {
 
- /**
+/**
   * @brief Statement node representing a for-in loop over object members.
   */
- class ForStatementNode : public StatementNode {
-   private:
-    Symbols::Variables::Type keyType_;
-    std::string keyName_;
-    std::string valueName_;
-    std::unique_ptr<ExpressionNode> iterableExpr_;
+class ForStatementNode : public StatementNode {
+  private:
+    Symbols::Variables::Type                    keyType_;
+    std::string                                 keyName_;
+    std::string                                 valueName_;
+    std::unique_ptr<ExpressionNode>             iterableExpr_;
     std::vector<std::unique_ptr<StatementNode>> body_;
 
-   public:
-    ForStatementNode(Symbols::Variables::Type keyType,
-                     std::string keyName,
-                     std::string valueName,
-                     std::unique_ptr<ExpressionNode> iterableExpr,
-                     std::vector<std::unique_ptr<StatementNode>> body,
-                     const std::string & file_name,
-                     int line,
-                     size_t column)
-      : StatementNode(file_name, line, column),
+  public:
+    ForStatementNode(Symbols::Variables::Type keyType, std::string keyName, std::string valueName,
+                     std::unique_ptr<ExpressionNode> iterableExpr, std::vector<std::unique_ptr<StatementNode>> body,
+                     const std::string & file_name, int line, size_t column) :
+        StatementNode(file_name, line, column),
         keyType_(keyType),
         keyName_(std::move(keyName)),
         valueName_(std::move(valueName)),
@@ -49,13 +44,13 @@
             if (iterableVal.getType() != Variables::Type::OBJECT) {
                 throw Exception("For-in loop applied to non-object", filename_, line_, column_);
             }
-            const auto & objMap = std::get<Value::ObjectMap>(iterableVal.get());
-            auto * symContainer = SymbolContainer::instance();
-            const std::string base_ns = symContainer->currentScopeName();
-            const std::string var_ns  = base_ns + "::variables";
+            const auto &      objMap       = std::get<Value::ObjectMap>(iterableVal.get());
+            auto *            symContainer = SymbolContainer::instance();
+            const std::string base_ns      = symContainer->currentScopeName();
+            const std::string var_ns       = base_ns + "::variables";
             for (const auto & entry : objMap) {
                 const std::string & key = entry.first;
-                Value keyVal(key);
+                Value               keyVal(key);
                 if (!symContainer->exists(keyName_, var_ns)) {
                     auto sym = SymbolFactory::createVariable(keyName_, keyVal, base_ns);
                     symContainer->add(sym);
@@ -77,16 +72,14 @@
             }
         } catch (const Exception &) {
             throw;
-        } catch (const std::exception &e) {
+        } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }
     }
 
-    std::string toString() const override {
-        return "ForStatementNode at " + filename_ + ":" + std::to_string(line_);
-    }
- };
+    std::string toString() const override { return "ForStatementNode at " + filename_ + ":" + std::to_string(line_); }
+};
 
-} // namespace Interpreter
+}  // namespace Interpreter
 
-#endif // INTERPRETER_FOR_STATEMENT_NODE_HPP
+#endif  // INTERPRETER_FOR_STATEMENT_NODE_HPP
