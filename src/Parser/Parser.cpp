@@ -118,9 +118,95 @@ void Parser::parseVariableDefinition() {
 
 // Parse a top-level assignment statement and record it
 void Parser::parseAssignmentStatement() {
+    // Special case for 'this' keyword
+    if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && currentToken().value == "this") {
+        // Consume 'this' keyword
+        auto thisTok = consumeToken();
+        
+        // Expect property access
+        expect(Lexer::Tokens::Type::PUNCTUATION, "->");
+        
+        // Get property name (with or without $)
+        Lexer::Tokens::Token propTok;
+        if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+            currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+            propTok = consumeToken();
+        } else {
+            reportError("Expected property name after 'this->'");
+        }
+        
+        std::string propName = propTok.value;
+        if (!propName.empty() && propName[0] == '$') {
+            propName = propName.substr(1);
+        }
+        
+        std::vector<std::string> propertyPath = { propName };
+        
+        // Handle additional property access (obj->prop1->prop2->...)
+        while (match(Lexer::Tokens::Type::PUNCTUATION, "->")) {
+            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+                auto nextPropTok = consumeToken();
+                std::string nextPropName = nextPropTok.value;
+                if (!nextPropName.empty() && nextPropName[0] == '$') {
+                    nextPropName = nextPropName.substr(1);
+                }
+                propertyPath.push_back(nextPropName);
+            } else {
+                reportError("Expected property name after '->'");
+            }
+        }
+        
+        // Expect assignment operator
+        auto opTok = expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
+        
+        // Parse RHS expression
+        auto rhsExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+        
+        // Expect closing semicolon
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        
+        // Build RHS node
+        auto rhsNode = buildExpressionFromParsed(rhsExpr);
+        
+        // Handle compound assignment operators (+=, -=, etc.)
+        if (opTok.value != "=") {
+            std::unique_ptr<Interpreter::ExpressionNode> lhsNode =
+                std::make_unique<Interpreter::IdentifierExpressionNode>("this");
+            
+            // Build property access chain
+            for (const auto & prop : propertyPath) {
+                auto member = std::make_unique<Interpreter::MemberExpressionNode>(
+                    std::move(lhsNode), prop, this->current_filename_, 
+                    thisTok.line_number, thisTok.column_number);
+                lhsNode = std::move(member);
+            }
+            
+            // Extract operator without '='
+            std::string binOp = opTok.value.substr(0, opTok.value.size() - 1);
+            
+            // Create binary operation: this->prop OP rhs
+            rhsNode = std::make_unique<Interpreter::BinaryExpressionNode>(
+                std::move(lhsNode), binOp, std::move(rhsNode));
+        }
+        
+        // Create assignment operation
+        auto assignNode = std::make_unique<Interpreter::AssignmentStatementNode>(
+            "this", std::move(propertyPath), std::move(rhsNode), 
+            this->current_filename_, thisTok.line_number, thisTok.column_number);
+        
+        // Add to operation container
+        Operations::Container::instance()->add(
+            Symbols::SymbolContainer::instance()->currentScopeName(),
+            Operations::Operation{ Operations::Type::Assignment, "", std::move(assignNode) });
+        
+        return;
+    }
+    
+    // Regular variable assignment (existing code)
     auto stmt = parseStatementNode();
     Operations::Container::instance()->add(Symbols::SymbolContainer::instance()->currentScopeName(),
-                                           Operations::Operation{ Operations::Type::Assignment, "", std::move(stmt) });
+                                          Operations::Operation{ Operations::Type::Assignment, "", std::move(stmt) });
 }
 
 // Parse an if-else conditional statement
@@ -326,6 +412,17 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseWhileStatementNode() {
 
 // Parse a single statement and return its StatementNode (for use in blocks)
 std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
+    // Check if this is a special 'this' reference
+    if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && 
+        currentToken().value == "this" &&
+        peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "->") {
+        // Since we've already added code to handle 'this' in parseStatement(),
+        // simply call the assignment statement parser which will handle it correctly
+        parseAssignmentStatement();
+        return nullptr;  // parseAssignmentStatement will create the operation
+    }
+    
+    // Continue with normal statement parsing
     // Handle nested if statements in blocks
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD_IF) {
         return parseIfStatementNode();
@@ -398,12 +495,75 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         const auto & look = peekToken(offset);
         // Handle simple and compound assignment operators (e.g., =, +=, -=, etc.)
         if (look.type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
+            // Detect if base variable is 'this' (special case)
+            if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && currentToken().value == "this") {
+                // Consume 'this' keyword
+                auto idTok = consumeToken();
+                std::string baseName = "this";
+                
+                // Collect member path keys
+                std::vector<std::string> propertyPath;
+                while (match(Lexer::Tokens::Type::PUNCTUATION, "->")) {
+                    // Next token must be identifier or variable identifier
+                    Lexer::Tokens::Token propTok;
+                    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                        currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+                        propTok = consumeToken();
+                    } else {
+                        reportError("Expected property name after '->'");
+                    }
+                    std::string propName = propTok.value;
+                    if (!propName.empty() && propName[0] == '$') {
+                        propName = propName.substr(1);
+                    }
+                    propertyPath.push_back(propName);
+                }
+                
+                // Consume assignment operator
+                auto opTok = expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
+                
+                // Parse RHS expression
+                auto rhsExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+                expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+                
+                // Build RHS node
+                auto rhsNode = buildExpressionFromParsed(rhsExpr);
+                
+                // Compound assignment: a OP= b -> a = a OP b
+                if (opTok.value != "=") {
+                    // Build LHS expression for current value
+                    std::unique_ptr<Interpreter::ExpressionNode> lhsNode =
+                        std::make_unique<Interpreter::IdentifierExpressionNode>("this");
+                    
+                    for (const auto & prop : propertyPath) {
+                        lhsNode = std::make_unique<Interpreter::MemberExpressionNode>(
+                            std::move(lhsNode), prop, this->current_filename_, opTok.line_number, opTok.column_number);
+                    }
+                    
+                    // Extract binary operator ("+=" -> "+")
+                    std::string binOp = opTok.value.substr(0, opTok.value.size() - 1);
+                    
+                    // Build binary expression lhs OP rhs
+                    rhsNode =
+                        std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhsNode), binOp, std::move(rhsNode));
+                }
+                
+                return std::make_unique<Interpreter::AssignmentStatementNode>(
+                    baseName, std::move(propertyPath), std::move(rhsNode), this->current_filename_,
+                    idTok.line_number, idTok.column_number);
+            }
+            
+            // Normal variable case (existing code)
             // Consume base variable
-            auto        idTok    = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+            auto idTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
             std::string baseName = idTok.value;
             if (!baseName.empty() && baseName[0] == '$') {
                 baseName = baseName.substr(1);
             }
+            
+            // Special case for 'this' variable - 'this' is already registered in the method scope
+            bool isThisVar = (baseName == "this");
+            
             // Collect member path keys
             std::vector<std::string> propertyPath;
             while (match(Lexer::Tokens::Type::PUNCTUATION, "->")) {
@@ -431,8 +591,15 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
             // Compound assignment: a OP= b -> a = a OP b
             if (opTok.value != "=") {
                 // Build LHS expression for current value
-                std::unique_ptr<Interpreter::ExpressionNode> lhsNode =
-                    std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
+                std::unique_ptr<Interpreter::ExpressionNode> lhsNode;
+                
+                if (isThisVar) {
+                    // 'this' is a special variable in method contexts
+                    lhsNode = std::make_unique<Interpreter::IdentifierExpressionNode>("this");
+                } else {
+                    lhsNode = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
+                }
+                
                 for (const auto & prop : propertyPath) {
                     lhsNode = std::make_unique<Interpreter::MemberExpressionNode>(
                         std::move(lhsNode), prop, this->current_filename_, opTok.line_number, opTok.column_number);
@@ -781,25 +948,91 @@ void Parser::parseReturnStatement() {
     // Consume 'return' keyword
     auto                returnToken = expect(Lexer::Tokens::Type::KEYWORD_RETURN);
     // Parse optional expression
-    ParsedExpressionPtr expr        = nullptr;
+    ParsedExpressionPtr exprPtr;
+    
+    // Handle 'return this->$property' specially
+    bool isThisAccess = false;
+    bool hasExpr = false;
+    
     if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ";")) {
-        // Parse expression; assignment expressions not fully supported here
-        expr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
-        // If following assignment operator (e.g., return this->a = ...;), skip unsupported RHS
-        if (currentToken().type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
-            // Skip '=' and any remaining tokens until semicolon
+        hasExpr = true;
+        
+        // Special case for 'this' property access
+        if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && 
+            currentToken().value == "this" &&
+            peekToken().type == Lexer::Tokens::Type::PUNCTUATION && 
+            peekToken().value == "->") {
+                
+            isThisAccess = true;
+            
+            // Create a special expression for 'this' property access
+            // Consume 'this'
             consumeToken();
-            while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ";")) {
-                consumeToken();
+            
+            // Expect '->'
+            expect(Lexer::Tokens::Type::PUNCTUATION, "->");
+            
+            // Get property name
+            Lexer::Tokens::Token propTok;
+            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+                propTok = consumeToken();
+            } else {
+                reportError("Expected property name after 'this->'");
             }
+            
+            std::string propName = propTok.value;
+            if (!propName.empty() && propName[0] == '$') {
+                propName = propName.substr(1);
+            }
+            
+            // Create member expression for this->property
+            auto thisExpr = std::make_unique<Interpreter::IdentifierExpressionNode>("this");
+            auto memberExpr = std::make_unique<Interpreter::MemberExpressionNode>(
+                std::move(thisExpr), propName, this->current_filename_,
+                returnToken.line_number, returnToken.column_number);
+                
+            // Expect semicolon
+            expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+            
+            // Create return statement
+            auto returnStmt = std::make_unique<Interpreter::ReturnStatementNode>(
+                std::move(memberExpr), this->current_filename_,
+                returnToken.line_number, returnToken.column_number);
+                
+            // Record the return statement
+            Operations::Container::instance()->add(
+                Symbols::SymbolContainer::instance()->currentScopeName(),
+                Operations::Operation{ Operations::Type::Return, "", std::move(returnStmt) });
+                
+            return;
         }
+        
+        // Normal expression parsing
+        exprPtr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
     }
-    // Record return operation
-    Interpreter::OperationsFactory::callReturn(expr, Symbols::SymbolContainer::instance()->currentScopeName(),
-                                               this->current_filename_, returnToken.line_number,
-                                               returnToken.column_number);
-    // Consume terminating semicolon
-    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+    
+    // If this is a 'this' access, we've already handled it above
+    if (!isThisAccess) {
+        // Parse closing semicolon
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        
+        // Build expression node
+        std::unique_ptr<Interpreter::ExpressionNode> exprNode;
+        if (hasExpr) {
+            exprNode = buildExpressionFromParsed(exprPtr);
+        }
+        
+        // Create return statement
+        auto stmt = std::make_unique<Interpreter::ReturnStatementNode>(
+            std::move(exprNode), this->current_filename_,
+            returnToken.line_number, returnToken.column_number);
+            
+        // Record the return operation
+        Operations::Container::instance()->add(
+            Symbols::SymbolContainer::instance()->currentScopeName(),
+            Operations::Operation{ Operations::Type::Return, "", std::move(stmt) });
+    }
 }
 
 // Parse a for-in loop over object members
@@ -1169,6 +1402,22 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             }
             operator_stack.push(op);
             consumeToken();
+            
+            // Check if the next token is a variable identifier with a $ prefix (e.g., this->$property)
+            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+                Lexer::Tokens::Token propToken = consumeToken();
+                std::string propName = propToken.value;
+                // Remove $ prefix from property name
+                if (!propName.empty() && propName[0] == '$') {
+                    propName = propName.substr(1);
+                }
+                // Create an identifier for the property without $ and push to queue
+                output_queue.push_back(ParsedExpression::makeVariable(propName));
+                expect_unary = false;
+                atStart = false;
+                continue;
+            }
+            
             expect_unary = true;
         }
         // Grouping parentheses closing
@@ -1338,18 +1587,34 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                    token.type == Lexer::Tokens::Type::KEYWORD ||
                    token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
                    token.type == Lexer::Tokens::Type::IDENTIFIER) {
-            if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
-                // Treat bare identifiers as variable references for member access
-                output_queue.push_back(ParsedExpression::makeVariable(token.value));
+          
+            // Special case for 'this->$property' syntax
+            if (token.type == Lexer::Tokens::Type::IDENTIFIER && 
+                token.value == "this" && 
+                peekToken().type == Lexer::Tokens::Type::PUNCTUATION && 
+                peekToken().value == "->") {
+                
+                // Use helper method to parse 'this->$property' access
+                output_queue.push_back(parseThisPropertyAccess());
+            }
+            else if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
+                // Special case for 'this' keyword in method contexts
+                if (token.value == "this") {
+                    output_queue.push_back(ParsedExpression::makeVariable("this"));
+                } else {
+                    // Treat other bare identifiers as variable references for member access
+                    output_queue.push_back(ParsedExpression::makeVariable(token.value));
+                }
+                consumeToken();
             } else {
                 if (Lexer::pushOperand(token, expected_var_type, output_queue) == false) {
                     Parser::reportError("Invalid type", token, "literal or variable");
                 }
+                consumeToken();
             }
-            // Consume operand and mark that expression start has passed
-            consumeToken();
+            
             expect_unary = false;
-            atStart      = false;
+            atStart = false;
         } else {
             break;
         }
@@ -1463,17 +1728,33 @@ void Parser::parseStatement() {
         return;
     }
     // Assignment statement at top-level or method call on an object
-    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
-        // Detect simple method call pattern: $obj->method(...);
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+        (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && currentToken().value == "this")) {
+        
+        // Special handling for 'this' keyword  
+        bool isThisKeyword = (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && 
+                              currentToken().value == "this");
+        
+        // Detect simple method call pattern: $obj->method(...) or this->method(...)
         if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "->" &&
             peekToken(2).type == Lexer::Tokens::Type::IDENTIFIER &&
             peekToken(3).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(3).value == "(") {
-            // Parse base variable
-            auto        varTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-            std::string varName = varTok.value;
-            if (!varName.empty() && varName[0] == '$') {
-                varName = varName.substr(1);
+            
+            // Parse base variable (could be $variable or this)
+            Lexer::Tokens::Token varTok;
+            std::string varName;
+            
+            if (isThisKeyword) {
+                varTok = consumeToken();  // Consume 'this'
+                varName = "this";
+            } else {
+                varTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+                varName = varTok.value;
+                if (!varName.empty() && varName[0] == '$') {
+                    varName = varName.substr(1);
+                }
             }
+            
             // Build object expression node
             std::unique_ptr<Interpreter::ExpressionNode> objectExpr =
                 std::make_unique<Interpreter::IdentifierExpressionNode>(varName);
@@ -1509,13 +1790,18 @@ void Parser::parseStatement() {
                 ns, Operations::Operation{ Operations::Type::Expression, std::string(), std::move(exprStmt) });
             return;
         }
+        
         // Postfix increment/decrement (e.g., $u++ or $u--)
-        if (peekToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT) {
+        if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER && 
+            peekToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT) {
             parseAssignmentStatement();
             return;
         }
-        // Fallback to assignment for variable-based LHS
+        
+        // Handle assignments like $var = x, this->$prop = x, or $obj->$prop = x
+        // Fallback to assignment for variable-based LHS or 'this'
         size_t offset = 1;
+        // Skip property access chain to find assignment
         while (peekToken(offset).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(offset).value == "->") {
             offset += 2;
         }
@@ -1689,5 +1975,41 @@ const Lexer::Tokens::Token & Parser::currentToken() const {
         throw std::runtime_error("Unexpected end of token stream reached.");
     }
     return tokens_[current_token_index_];
+}
+
+// Add this helper method to parse a 'this->$property' access as a special case
+ParsedExpressionPtr Parser::parseThisPropertyAccess() {
+    // Consume 'this' token
+    auto thisTok = consumeToken();
+    
+    // Expect '->' token
+    expect(Lexer::Tokens::Type::PUNCTUATION, "->");
+    
+    // Get property name (with or without $)
+    Lexer::Tokens::Token propTok;
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+        currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+        propTok = consumeToken();
+    } else {
+        reportError("Expected property name after 'this->'");
+    }
+    
+    std::string propName = propTok.value;
+    if (!propName.empty() && propName[0] == '$') {
+        propName = propName.substr(1);
+    }
+    
+    // Create a variable expression for 'this'
+    auto thisExpr = ParsedExpression::makeVariable("this");
+    
+    // Create a member expression for the property access
+    auto memberExpr = ParsedExpression::makeMember(std::move(thisExpr), propName);
+    
+    // Add source location for better error messages
+    memberExpr->filename = this->current_filename_;
+    memberExpr->line = thisTok.line_number;
+    memberExpr->column = thisTok.column_number;
+    
+    return memberExpr;
 }
 }  // namespace Parser

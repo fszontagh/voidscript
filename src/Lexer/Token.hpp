@@ -11,29 +11,27 @@ namespace Lexer::Tokens {
 
 struct Token {
     Lexer::Tokens::Type type;
-    std::string         value;      // A token feldolgozott értéke
-    std::string_view    lexeme;     // A nyers szövegrész az eredeti stringből
-    size_t              start_pos;  // Kezdő index
-    size_t              end_pos;    // Vég index (exclusive)
+    std::string         value;      // The processed value of the token
+    std::string_view    lexeme;     // The raw text segment from the original string
+    size_t              start_pos;  // The starting index
+    size_t              end_pos;    // The ending index (exclusive)
     int                 line_number;
     int                 column_number;
 
-    // Módosított print metódus a lexeme kiírásával
+    // Modified print method to include lexeme
     void print() const {
         std::cout << "Token { Type: " << Lexer::Tokens::TypeToString(type) << ", Value: \"" << value << "\""
                   << ", Pos: [" << start_pos << ", " << end_pos
                   << ")"
-                  // Lexeme kiírása (stringgé konvertálva a biztonság kedvéért, ha pl. null lenne)
+                  // Lexeme output (converted to string for safety, if it's null)
                   << ", Lexeme: \"" << std::string(lexeme) << "\""
                   << " }" << '\n';
     }
 
     std::string dump() const {
-        return + "Token { Type: " + Lexer::Tokens::TypeToString(type) + ", Value: \"" + value + "\""
-               + ", Pos: [" + std::to_string(start_pos) + ", " + std::to_string(end_pos)
-               + ")"
-               + ", Lexeme: \"" + std::string(lexeme) + "\""
-               + " }" + '\n';
+        return +"Token { Type: " + Lexer::Tokens::TypeToString(type) + ", Value: \"" + value + "\"" + ", Pos: [" +
+               std::to_string(start_pos) + ", " + std::to_string(end_pos) + ")" + ", Lexeme: \"" + std::string(lexeme) +
+               "\"" + " }" + '\n';
     }
 };
 

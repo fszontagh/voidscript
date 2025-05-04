@@ -53,9 +53,27 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
                                                  Parser::ParsedExpressionPtr lhs = nullptr) {
     if (op.starts_with("u")) {
         std::string real_op = op.substr(1);  // "u!" -> "!"
-        return Parser::ParsedExpression::makeUnary(real_op, std::move(rhs));
+        auto result = Parser::ParsedExpression::makeUnary(real_op, std::move(rhs));
+        // Copy source location from operand if available
+        if (rhs) {
+            result->filename = rhs->filename;
+            result->line = rhs->line;
+            result->column = rhs->column;
+        }
+        return result;
     }
-    return Parser::ParsedExpression::makeBinary(op, std::move(lhs), std::move(rhs));
+    auto result = Parser::ParsedExpression::makeBinary(op, std::move(lhs), std::move(rhs));
+    // Copy source location from lhs if available, otherwise from rhs
+    if (lhs) {
+        result->filename = lhs->filename;
+        result->line = lhs->line;
+        result->column = lhs->column;
+    } else if (rhs) {
+        result->filename = rhs->filename;
+        result->line = rhs->line;
+        result->column = rhs->column;
+    }
+    return result;
 }
 
 [[nodiscard]] inline bool pushOperand(const Tokens::Token & token, const Symbols::Variables::Type & expected_var_type,

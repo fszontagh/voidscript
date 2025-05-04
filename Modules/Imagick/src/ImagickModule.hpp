@@ -22,6 +22,13 @@ class ImagickModule : public BaseModule {
     Symbols::Value                         crop(FuncionArguments & args);
     Symbols::Value                         resize(FuncionArguments & args);
     Symbols::Value                         write(FuncionArguments & args);
+    Symbols::Value                         mode(FuncionArguments & args);
+    Symbols::Value                         blur(FuncionArguments & args);
+    Symbols::Value                         rotate(FuncionArguments & args);
+    Symbols::Value                         flip(FuncionArguments & args);
+    Symbols::Value                         getWidth(FuncionArguments & args);
+    Symbols::Value                         getHeight(FuncionArguments & args);
+    Symbols::Value                         composite(FuncionArguments & args);
 
 };  // Class ImagickModule
 }  // namespace Modules

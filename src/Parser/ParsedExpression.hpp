@@ -16,7 +16,7 @@ struct ParsedExpression;
 using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
 
 struct ParsedExpression {
-    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object };
+    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object, Member };
 
     Kind kind;
 
@@ -81,7 +81,7 @@ struct ParsedExpression {
     // Constructor for method call: object->method(args)
     static ParsedExpressionPtr makeMethodCall(ParsedExpressionPtr object, const std::string &methodName,
                                               std::vector<ParsedExpressionPtr> arguments) {
-        auto expr         = std::make_unique<ParsedExpression>();
+        auto expr         = std::make_shared<ParsedExpression>();
         expr->kind        = Kind::MethodCall;
         expr->lhs         = std::move(object);
         expr->name        = methodName;
@@ -102,6 +102,13 @@ struct ParsedExpression {
         auto expr = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Object;
         expr->objectMembers = std::move(members);
+        return expr;
+    }
+
+    static ParsedExpressionPtr makeMember(ParsedExpressionPtr object, const std::string &propName) {
+        auto expr = std::make_shared<ParsedExpression>();
+        expr->kind = Kind::Member;
+        expr->objectMembers.push_back({propName, std::move(object)});
         return expr;
     }
 
@@ -158,6 +165,63 @@ struct ParsedExpression {
         }
 
         throw std::runtime_error("Could not determine type for expression");
+    }
+
+    std::string toString() const {
+        switch (kind) {
+            case Kind::Literal:
+                return Symbols::Value::to_string(value);
+            case Kind::Variable:
+                return name;
+            case Kind::Binary:
+                return "(" + lhs->toString() + " " + op + " " + rhs->toString() + ")";
+            case Kind::Unary:
+                return "(" + op + rhs->toString() + ")";
+            case Kind::Call:
+                {
+                    std::string result = name + "(";
+                    for (size_t i = 0; i < args.size(); ++i) {
+                        if (i > 0) result += ", ";
+                        result += args[i]->toString();
+                    }
+                    result += ")";
+                    return result;
+                }
+            case Kind::MethodCall:
+                {
+                    std::string result = lhs->toString() + "->" + name + "(";
+                    for (size_t i = 0; i < args.size(); ++i) {
+                        if (i > 0) result += ", ";
+                        result += args[i]->toString();
+                    }
+                    result += ")";
+                    return result;
+                }
+            case Kind::Object:
+                {
+                    std::string result = "{";
+                    for (size_t i = 0; i < objectMembers.size(); ++i) {
+                        if (i > 0) result += ", ";
+                        result += objectMembers[i].first + ": " + objectMembers[i].second->toString();
+                    }
+                    result += "}";
+                    return result;
+                }
+            case Kind::New:
+                {
+                    std::string result = "new " + name + "(";
+                    for (size_t i = 0; i < args.size(); ++i) {
+                        if (i > 0) result += ", ";
+                        result += args[i]->toString();
+                    }
+                    result += ")";
+                    return result;
+                }
+            case Kind::Member:
+                return objectMembers[0].second->toString() + "->" + objectMembers[0].first;
+            default:
+                return "Unknown expression kind";
+        }
     }
 };
 

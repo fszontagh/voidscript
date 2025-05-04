@@ -34,12 +34,12 @@ for (object $module : $z) {
     // …
 }
 
-bool $CurlModuleExists = module_exists("CurlModule");
+bool $CurlModuleExists = module_exists("modules-curl");
 
-printnl("CurlModule exists: ", $CurlModuleExists);    # e.g., true or false
+printnl("modules-curl exists: ", $CurlModuleExists);    # e.g., true or false
 
 if ($CurlModuleExists) {
-    object $info = module_info("CurlModule");
+    object $info = module_info("modules-curl");
     printnl("Path: ", $info->path);
 }
 

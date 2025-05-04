@@ -1,4 +1,4 @@
-string $test = "Test string";
+const string $test = "Test string";
 
 
 if ($test == "Test string") {

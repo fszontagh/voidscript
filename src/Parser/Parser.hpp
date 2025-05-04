@@ -63,6 +63,10 @@ class Parser {
     size_t                            current_token_index_;
     std::string                       current_filename_;
 
+    // Validation functions
+    void validateTokenStream();
+    void validateParserState();
+
     // Token stream handling and error-reporting helper functions (unchanged)
     const Lexer::Tokens::Token & currentToken() const;
 
@@ -121,8 +125,10 @@ class Parser {
     void                                        parseIfStatement();
     // Parse a for-in loop over object members (at top-level)
     void                                        parseForStatement();
-    // Parse a wile loop
+    // Parse a while loop statement
     void                                        parseWhileStatement();
+    // Parse an empty statement (just a semicolon)
+    void                                        parseEmptyStatement();
     // Parse an if-else conditional block and return a StatementNode (for nested blocks)
     std::unique_ptr<Interpreter::StatementNode> parseIfStatementNode();
     // Parse a for-in loop over object members and return a StatementNode (for nested blocks)
@@ -149,6 +155,9 @@ class Parser {
     void                parseFunctionBody(size_t opening_brace_idx, const std::string & function_name,
                                           Symbols::Variables::Type return_type, const Symbols::FunctionParameterInfo & params);
     ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type);
+
+    // Helper to parse this->$property access as a special case
+    ParsedExpressionPtr parseThisPropertyAccess();
 
 };  // class Parser
 
