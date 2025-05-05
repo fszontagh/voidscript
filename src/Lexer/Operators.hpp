@@ -53,26 +53,15 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
                                                  Parser::ParsedExpressionPtr lhs = nullptr) {
     if (op.starts_with("u")) {
         std::string real_op = op.substr(1);  // "u!" -> "!"
-        auto result = Parser::ParsedExpression::makeUnary(real_op, std::move(rhs));
+        auto        result =
+            Parser::ParsedExpression::makeUnary(real_op, std::move(rhs), rhs->filename, rhs->line, rhs->column);
         // Copy source location from operand if available
-        if (rhs) {
-            result->filename = rhs->filename;
-            result->line = rhs->line;
-            result->column = rhs->column;
-        }
+
         return result;
     }
-    auto result = Parser::ParsedExpression::makeBinary(op, std::move(lhs), std::move(rhs));
-    // Copy source location from lhs if available, otherwise from rhs
-    if (lhs) {
-        result->filename = lhs->filename;
-        result->line = lhs->line;
-        result->column = lhs->column;
-    } else if (rhs) {
-        result->filename = rhs->filename;
-        result->line = rhs->line;
-        result->column = rhs->column;
-    }
+    auto result =
+        Parser::ParsedExpression::makeBinary(op, std::move(lhs), std::move(rhs), lhs->filename, lhs->line, lhs->column);
+
     return result;
 }
 
@@ -103,7 +92,7 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
     }
     if (token.type == Tokens::Type::KEYWORD) {
         // Keyword literal: e.g., true, false, null
-        auto val = Symbols::Value::fromString(token.value, /*autoDetectType*/ true);
+        auto val   = Symbols::Value::fromString(token.value, /*autoDetectType*/ true);
         auto vtype = val.getType();
         // only allowed if expected matches or unspecified
         if (expected_var_type != Symbols::Variables::Type::NULL_TYPE && expected_var_type != vtype) {

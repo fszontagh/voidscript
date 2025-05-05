@@ -29,6 +29,12 @@ class UnaryExpressionNode : public ExpressionNode {
             if (op_ == "+") {
                 return Symbols::Value(+v);
             }
+            if (op_ == "++") {
+                return Symbols::Value(v + 1);
+            }
+            if (op_ == "--") {
+                return Symbols::Value(v - 1);
+            }
         } else if (type == Symbols::Variables::Type::DOUBLE) {
             double v = value.get<double>();
             if (op_ == "-") {
@@ -37,6 +43,12 @@ class UnaryExpressionNode : public ExpressionNode {
             if (op_ == "+") {
                 return Symbols::Value(+v);
             }
+            if (op_ == "++") {
+                return Symbols::Value(v + 1);
+            }
+            if (op_ == "--") {
+                return Symbols::Value(v - 1);
+            }
         } else if (type == Symbols::Variables::Type::FLOAT) {
             float v = value.get<float>();
             if (op_ == "-") {
@@ -44,6 +56,12 @@ class UnaryExpressionNode : public ExpressionNode {
             }
             if (op_ == "+") {
                 return Symbols::Value(+v);
+            }
+            if (op_ == "++") {
+                return Symbols::Value(v + 1);
+            }
+            if (op_ == "--") {
+                return Symbols::Value(v - 1);
             }
         } else if (type == Symbols::Variables::Type::BOOLEAN) {
             bool v = value.get<bool>();

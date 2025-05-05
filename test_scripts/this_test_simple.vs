@@ -2,7 +2,7 @@
 class AgeChecker {
     private: int $age = 20;
     
-    function setAge(int $newAge) {
+    function setAge(int $newAge) null {
         this->$age = $newAge;
     }
     

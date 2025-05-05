@@ -39,21 +39,30 @@ class test1 {
     }
 
     function incrementAge(int $incremental) int {
-        return this->$age + $incremental;
+        //this->$age += $incremental; // -> this works and fine
+        return this->$age + $incremental; // this is not working, the age is not changed but the return value is correct
     }
 }
 
+
+function getInt() int {
+    return 10;
+}
 // create an instance of the class, where the $testClass variable type is the class name, adding parameters based on the constructor
 test1 $testclass = new test1("Batman", 17);
 
+int $z = getInt();
+
+printnl("Z: ", $z);
+
 if ($testclass->isAdult() == false) {
     printnl($testclass->getName(), " is not adult.. incrementing the age");
-    int $new_age = $testclass->incrementAge(1);
-    printnl("New age would be: ", $new_age);
+    //int $new_age = $testclass->incrementAge(1);
+    printnl("New age would be: ", $testclass->incrementAge(1));
 }
 
 if ($testclass->isAdult()) {
-    printnl($testclass->getName(), " is adult");
+    printnl($testclass->getName(), " is adult ", $testclass->getAge());
 } else {
-    printnl($testclass->getName(), " is not adult");
+    printnl($testclass->getName(), " is not adult ", $testclass->getAge());
 }

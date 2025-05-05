@@ -26,9 +26,10 @@ class PrintModule : public BaseModule {
         });
         mgr.registerFunction("printnl", [](FuncionArguments & args) {
             for (const auto & v : args) {
-                std::cout << Symbols::Value::to_string(v);
+                 std::string valStr = Symbols::Value::to_string(v);
+                 std::cout << valStr;
             }
-            std::cout << "\n";
+            std::cout << "\n" << std::flush; 
             return Symbols::Value();
         });
         mgr.registerFunction("error", [](FuncionArguments & args) {

@@ -53,14 +53,12 @@ class ClassDefinitionStatementNode : public StatementNode {
         }
         // After registering methods in class registry, also register function symbols
         // for class methods by executing their declaration operations
-        // The method declaration operations were recorded under namespace: fileNs.className
         const std::string fileNs  = sc->currentScopeName();
         const std::string classNs = fileNs + "::" + className_;
-        auto              ops     = Operations::Container::instance()->getAll(classNs);
+        // Execute all operations in the class namespace to register methods and their bodies
+        auto ops = Operations::Container::instance()->getAll(classNs);
         for (const auto & op : ops) {
-            if (op->type == Operations::Type::FuncDeclaration) {
-                interpreter.runOperation(*op);
-            }
+            interpreter.runOperation(*op);
         }
     }
 

@@ -45,15 +45,18 @@ if ($person2->children->age > $adult_age) {
 
 int $third_age = 21;
 $person2->children->age = $third_age;
-
+int $count = 0;
 for (string $key, auto $value : $person2) {
-
+    $count++;
     if (typeof($value,"object") == false) {
         printnl("Key: ", $key, " Value: ", $value);
     }else {
         printnl("Key: ", $key, " is an object");
     }
+
+    printnl("Count: ", $count); 
 }
+printnl("Count: ", $count);
 $person2->children->age = 33;
 
 printnl("Child1 age: ", $person2->children->age);

@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 #include "BaseModule.hpp"
 #include "Symbols/Value.hpp"

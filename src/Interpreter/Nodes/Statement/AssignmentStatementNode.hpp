@@ -28,87 +28,85 @@ class AssignmentStatementNode : public StatementNode {
 
     void interpret(Interpreter & interpreter) const override {
         using namespace Symbols;
-        auto *            symContainer = SymbolContainer::instance();
-        // Variables are stored under <scope>::variables
-        const std::string base_ns      = symContainer->currentScopeName();
-        const std::string var_ns       = base_ns + "::variables";
-        const std::string const_ns     = base_ns + "::constants";
-        // Prevent assignment to constants
-        if (symContainer->exists(targetName_, const_ns)) {
+        auto * symContainer = SymbolContainer::instance();
+        
+        // Find the target symbol hierarchically
+        auto symbol = symContainer->findSymbol(targetName_); 
+        
+        if (!symbol) {
+            // Use the error message from findSymbol which indicates search scope
+             throw Exception("Variable '" + targetName_ + "' not found starting from scope: " + symContainer->currentScopeName(), filename_, line_, column_);
+        }
+        
+        // Check if the found symbol is a constant
+        if (symbol->getKind() == Kind::Constant) {
             throw Exception("Cannot assign to constant '" + targetName_ + "'", filename_, line_, column_);
         }
-        if (!symContainer->exists(targetName_, var_ns)) {
-            throw Exception("Variable '" + targetName_ + "' does not exist in namespace: " + var_ns, filename_, line_,
-                            column_);
-        }
-        auto  symbol   = symContainer->get(var_ns, targetName_);
-        // Copy current value for potential nested updates
-        Value varValue = symbol->getValue();
-        // Evaluate RHS
-        Value newValue = rhs_->evaluate(interpreter);
-        if (newValue.getType() == Symbols::Variables::Type::NULL_TYPE) {
-            newValue = Symbols::Value::makeNull(varValue.getType());
-        }
 
-        // Simple variable assignment
-        if (propertyPath_.empty()) {
-            if (newValue.getType() == Symbols::Variables::Type::NULL_TYPE) {
-                symbol->setValue(newValue);
-                std::cout << "SET TO NULL\n";
-                return;
-            }
-            // Type check
-            if (newValue.getType() != varValue.getType()) {
+        // If propertyPath_ is not empty, we are assigning to an object member
+        if (!propertyPath_.empty()) {
+             // Get the object value from the base symbol
+             Value objectValue = symbol->getValue();
+             if (objectValue.getType() != Variables::Type::OBJECT && objectValue.getType() != Variables::Type::CLASS) {
+                 throw Exception("Attempting to assign property on non-object variable '" + targetName_ + "'", filename_, line_, column_);
+             }
+             
+             // Evaluate RHS first
+             Value newValue = rhs_->evaluate(interpreter);
+
+             // Traverse and modify the nested object structure IN PLACE within the Value obtained from the symbol
+             // (Requires Value to allow modification of its internal map, or handle copy-on-write)
+             // Assuming Value allows modification via get() returning a reference or similar mechanism
+             // --- Modification Logic (Needs careful review based on Value implementation) ---
+             Value* currentVal = &objectValue; // Start with the base object value
+             for (size_t i = 0; i < propertyPath_.size(); ++i) {
+                 const auto& key = propertyPath_[i];
+                 if (currentVal->getType() != Variables::Type::OBJECT && currentVal->getType() != Variables::Type::CLASS) {
+                      throw Exception("Intermediate property '" + key + "' is not an object", filename_, line_, column_);
+                 }
+                 
+                 auto& currentMap = std::get<Value::ObjectMap>(currentVal->get()); // Get reference to map
+                 auto it = currentMap.find(key);
+                 if (it == currentMap.end()) {
+                     throw Exception("Property '" + key + "' not found on object", filename_, line_, column_);
+                 }
+                 
+                 if (i == propertyPath_.size() - 1) {
+                     // Last element: perform assignment
+                      // Type check before assignment
+                      if (newValue.getType() != Variables::Type::NULL_TYPE && it->second.getType() != Variables::Type::NULL_TYPE && newValue.getType() != it->second.getType()) {
+                           using namespace Variables;
+                            throw Exception("Type mismatch for property '" + key + "': expected '" +
+                                                TypeToString(it->second.getType()) + "' but got '" + TypeToString(newValue.getType()) +
+                                                "'",
+                                            filename_, line_, column_);
+                      }
+                     it->second = newValue; // Assign the new value to the property in the map
+                 } else {
+                     // Move to the next level
+                     currentVal = &it->second; 
+                 }
+             }
+             // --- End Modification Logic ---
+             
+             // Update the original symbol with the modified objectValue
+             symbol->setValue(objectValue);
+             
+        } else {
+            // Simple variable assignment (targetName_ is the variable itself)
+            Value newValue = rhs_->evaluate(interpreter);
+            Value currentValue = symbol->getValue(); // Get current value for type checking
+
+            // Type check (allow assigning NULL to anything, otherwise types must match)
+             if (newValue.getType() != Variables::Type::NULL_TYPE && currentValue.getType() != Variables::Type::NULL_TYPE && newValue.getType() != currentValue.getType()) {
                 using namespace Variables;
                 throw Exception("Type mismatch assigning to variable '" + targetName_ + "': expected '" +
-                                    TypeToString(varValue.getType()) + "' but got '" +
+                                    TypeToString(currentValue.getType()) + "' but got '" +
                                     TypeToString(newValue.getType()) + "'",
                                 filename_, line_, column_);
             }
-            symbol->setValue(newValue);
-            return;
+            symbol->setValue(newValue); // Assign directly to the symbol
         }
-        // Nested object property assignment
-        if (varValue.getType() != Variables::Type::OBJECT && varValue.getType() != Variables::Type::CLASS) {
-            throw Exception("Attempting to assign property on non-object variable '" + targetName_ + "'", filename_,
-                            line_, column_);
-        }
-        // Traverse into nested maps
-        using ObjectMap     = Value::ObjectMap;
-        ObjectMap * currMap = &std::get<ObjectMap>(varValue.get());
-        // Iterate through all but last key
-        for (size_t i = 0; i + 1 < propertyPath_.size(); ++i) {
-            const auto & key = propertyPath_[i];
-            auto         it  = currMap->find(key);
-            if (it == currMap->end()) {
-                throw Exception("Property '" + key + "' not found on object '" + targetName_ + "'", filename_, line_,
-                                column_);
-            }
-            Value & child = it->second;
-            if (child.getType() != Variables::Type::OBJECT) {
-                throw Exception("Property '" + key + "' is not an object, cannot assign nested property", filename_,
-                                line_, column_);
-            }
-            currMap = &std::get<ObjectMap>(child.get());
-        }
-        // Last key
-        const std::string & lastKey = propertyPath_.back();
-        auto                it      = currMap->find(lastKey);
-        if (it == currMap->end()) {
-            throw Exception("Property '" + lastKey + "' not found on object '" + targetName_ + "'", filename_, line_,
-                            column_);
-        }
-        // Type check against existing property
-        if (newValue.getType() != it->second.getType()) {
-            using namespace Variables;
-            throw Exception("Type mismatch for property '" + lastKey + "': expected '" +
-                                TypeToString(it->second.getType()) + "' but got '" + TypeToString(newValue.getType()) +
-                                "'",
-                            filename_, line_, column_);
-        }
-        // Assign and write back to symbol
-        (*currMap)[lastKey] = newValue;
-        symbol->setValue(varValue);
     }
 
     std::string toString() const override {

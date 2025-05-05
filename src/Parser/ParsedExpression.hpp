@@ -52,63 +52,91 @@ struct ParsedExpression {
     }
 
     // Constructor for binary operation
-    static ParsedExpressionPtr makeBinary(std::string op, ParsedExpressionPtr left, ParsedExpressionPtr right) {
+    static ParsedExpressionPtr makeBinary(std::string op, ParsedExpressionPtr left, ParsedExpressionPtr right, const std::string &filename, int line, size_t column) {
         auto expr  = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Binary;
         expr->op   = std::move(op);
         expr->lhs  = std::move(left);
         expr->rhs  = std::move(right);
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
+
         return expr;
     }
 
     // Constructor for unary operation
-    static ParsedExpressionPtr makeUnary(std::string op, ParsedExpressionPtr operand) {
+    static ParsedExpressionPtr makeUnary(std::string op, ParsedExpressionPtr operand, const std::string &filename, int line, size_t column) {
         auto expr  = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Unary;
         expr->op   = std::move(op);
         expr->rhs  = std::move(operand);
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
+        
         return expr;
     }
     // Constructor for function call
-    static ParsedExpressionPtr makeCall(const std::string &name, std::vector<ParsedExpressionPtr> arguments) {
+    static ParsedExpressionPtr makeCall(const std::string &name, std::vector<ParsedExpressionPtr> arguments, const std::string &filename, int line, size_t column) {
         auto expr        = std::make_shared<ParsedExpression>();
         expr->kind       = Kind::Call;
         expr->name       = name;
         expr->args       = std::move(arguments);
+        expr->filename   = filename;
+        expr->line       = line;
+        expr->column     = column;
+        
         return expr;
     }
     
     // Constructor for method call: object->method(args)
     static ParsedExpressionPtr makeMethodCall(ParsedExpressionPtr object, const std::string &methodName,
-                                              std::vector<ParsedExpressionPtr> arguments) {
+                                              std::vector<ParsedExpressionPtr> arguments, const std::string &filename, int line, size_t column) {
         auto expr         = std::make_shared<ParsedExpression>();
         expr->kind        = Kind::MethodCall;
         expr->lhs         = std::move(object);
         expr->name        = methodName;
         expr->args        = std::move(arguments);
+        expr->filename    = filename;
+        expr->line        = line;
+        expr->column      = column;
+
         return expr;
     }
 
     // Constructor for 'new' expression: instantiate class
-    static ParsedExpressionPtr makeNew(const std::string &className, std::vector<ParsedExpressionPtr> arguments) {
+    static ParsedExpressionPtr makeNew(const std::string &className, std::vector<ParsedExpressionPtr> arguments, const std::string &filename, int line, size_t column) {
         auto expr        = std::make_shared<ParsedExpression>();
         expr->kind       = Kind::New;
         expr->name       = className;
         expr->args       = std::move(arguments);
+        expr->filename    = filename;
+        expr->line        = line;
+        expr->column      = column;
+
         return expr;
     }
     // Constructor for object literal
-    static ParsedExpressionPtr makeObject(std::vector<std::pair<std::string, ParsedExpressionPtr>> members) {
+    static ParsedExpressionPtr makeObject(std::vector<std::pair<std::string, ParsedExpressionPtr>> members, const std::string &filename, int line, size_t column) {
         auto expr = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Object;
         expr->objectMembers = std::move(members);
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
+
         return expr;
     }
 
-    static ParsedExpressionPtr makeMember(ParsedExpressionPtr object, const std::string &propName) {
+    static ParsedExpressionPtr makeMember(ParsedExpressionPtr object, const std::string &propName, const std::string &filename, int line, size_t column) {
         auto expr = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Member;
         expr->objectMembers.push_back({propName, std::move(object)});
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
+
         return expr;
     }
 

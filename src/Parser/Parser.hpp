@@ -57,6 +57,9 @@ class Parser {
     static const std::unordered_map<std::string, Lexer::Tokens::Type>              keywords;
     static const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> variable_types;
 
+    // Helper method to parse a statement body enclosed in { }
+    std::vector<std::unique_ptr<Interpreter::StatementNode>> parseStatementBody(const std::string & errorContext);
+
   private:
     std::vector<Lexer::Tokens::Token> tokens_;
     std::string_view                  input_str_view_;
@@ -106,15 +109,18 @@ class Parser {
         throw Exception(message, expected, token);
     }
 
-    // parseStatement (updated to handle return)
-    void                                        parseStatement();
+    // Main entry point for parsing top-level statements in a script
+    void                                        parseTopLevelStatement();
+    // Parse a statement node for use inside blocks (if, for, while, function bodies)
+    std::unique_ptr<Interpreter::StatementNode> parseStatementNode();
+
     // Parse a top-level constant variable definition (e.g., const <type> $name = expr;)
     void                                        parseConstVariableDefinition();
     // Parse a top-level variable definition (e.g., <type> $name = expr;)
     void                                        parseVariableDefinition();
     void                                        parseFunctionDefinition();
     // Parse a top-level function call statement (e.g., foo(arg1, arg2);)
-    void                                        parseCallStatement();
+    std::unique_ptr<Interpreter::StatementNode> parseCallStatement();
     // Parse a top-level assignment statement (variable or object member)
     void                                        parseAssignmentStatement();
     // Parse a top-level class definition: class Name { ... }
@@ -135,8 +141,12 @@ class Parser {
     std::unique_ptr<Interpreter::StatementNode> parseForStatementNode();
     // Parse a while loop over
     std::unique_ptr<Interpreter::StatementNode> parseWhileStatementNode();
-    // Parse a statement node for use inside blocks (not added to operation container)
-    std::unique_ptr<Interpreter::StatementNode> parseStatementNode();
+    // Parse an assignment statement (variable, object member, 'this' member) and return its node
+    // Used by both parseTopLevelStatement and parseStatementNode
+    std::unique_ptr<Interpreter::StatementNode> parseAssignmentStatementNode();
+
+    // Parse a return statement and return a StatementNode (for nested blocks)
+    std::unique_ptr<Interpreter::StatementNode> parseReturnStatementNode();
 
     // --- Parsing helper functions ---
 
@@ -155,6 +165,9 @@ class Parser {
     void                parseFunctionBody(size_t opening_brace_idx, const std::string & function_name,
                                           Symbols::Variables::Type return_type, const Symbols::FunctionParameterInfo & params);
     ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type);
+
+    // Helper to parse an identifier name, stripping leading '$' if present
+    std::string parseIdentifierName(const Lexer::Tokens::Token& token);
 
     // Helper to parse this->$property access as a special case
     ParsedExpressionPtr parseThisPropertyAccess();

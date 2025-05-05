@@ -24,4 +24,8 @@ for (int $g = 0;$g <= 10; $g++) {
     printnl("$l: ", $l);
     $i++;
     ++$l;
+    printnl("---");
 }
+printnl("$i: ", $i);
+printnl("$l: ", $l);
+printnl("$g: ", $g);

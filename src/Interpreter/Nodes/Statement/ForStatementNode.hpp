@@ -25,19 +25,23 @@ class ForStatementNode : public StatementNode {
     std::string                                 valueName_;
     std::unique_ptr<ExpressionNode>             iterableExpr_;
     std::vector<std::unique_ptr<StatementNode>> body_;
+    std::string                                 loopScopeName_;
 
   public:
     ForStatementNode(Symbols::Variables::Type keyType, std::string keyName, std::string valueName,
                      std::unique_ptr<ExpressionNode> iterableExpr, std::vector<std::unique_ptr<StatementNode>> body,
+                     std::string loopScopeName,
                      const std::string & file_name, int line, size_t column) :
         StatementNode(file_name, line, column),
         keyType_(keyType),
         keyName_(std::move(keyName)),
         valueName_(std::move(valueName)),
         iterableExpr_(std::move(iterableExpr)),
-        body_(std::move(body)) {}
+        body_(std::move(body)),
+        loopScopeName_(std::move(loopScopeName)) {}
 
     void interpret(Interpreter & interpreter) const override {
+        bool entered_scope = false;
         try {
             using namespace Symbols;
             auto iterableVal = iterableExpr_->evaluate(interpreter);
@@ -46,33 +50,47 @@ class ForStatementNode : public StatementNode {
             }
             const auto &      objMap       = std::get<Value::ObjectMap>(iterableVal.get());
             auto *            symContainer = SymbolContainer::instance();
-            const std::string base_ns      = symContainer->currentScopeName();
-            const std::string var_ns       = base_ns + "::variables";
+            
+            if (!loopScopeName_.empty()) {
+                symContainer->enter(loopScopeName_);
+                entered_scope = true;
+            } else {
+                throw Exception("Internal error: ForStatementNode missing loop scope name.", filename_, line_, column_);
+            }
+            
             for (const auto & entry : objMap) {
                 const std::string & key = entry.first;
                 Value               keyVal(key);
-                if (!symContainer->exists(keyName_, var_ns)) {
-                    auto sym = SymbolFactory::createVariable(keyName_, keyVal, base_ns);
+                if (!symContainer->findSymbol(keyName_)) {
+                    auto sym = SymbolFactory::createVariable(keyName_, keyVal, loopScopeName_);
                     symContainer->add(sym);
                 } else {
-                    auto sym = symContainer->get(var_ns, keyName_);
-                    sym->setValue(keyVal);
+                    auto sym = symContainer->findSymbol(keyName_);
+                    if(sym) sym->setValue(keyVal);
                 }
+                
                 Value valVal = entry.second;
-                if (!symContainer->exists(valueName_, var_ns)) {
-                    auto sym = SymbolFactory::createVariable(valueName_, valVal, base_ns);
+                if (!symContainer->findSymbol(valueName_)) {
+                    auto sym = SymbolFactory::createVariable(valueName_, valVal, loopScopeName_);
                     symContainer->add(sym);
                 } else {
-                    auto sym = symContainer->get(var_ns, valueName_);
-                    sym->setValue(valVal);
+                    auto sym = symContainer->findSymbol(valueName_);
+                    if(sym) sym->setValue(valVal);
                 }
+                
                 for (const auto & stmt : body_) {
                     stmt->interpret(interpreter);
                 }
             }
-        } catch (const Exception &) {
+            
+            if (entered_scope) {
+                symContainer->enterPreviousScope();
+            }
+        } catch (const Exception &e) {
+            if (entered_scope) Symbols::SymbolContainer::instance()->enterPreviousScope();
             throw;
         } catch (const std::exception & e) {
+            if (entered_scope) Symbols::SymbolContainer::instance()->enterPreviousScope();
             throw Exception(e.what(), filename_, line_, column_);
         }
     }

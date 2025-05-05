@@ -14,21 +14,25 @@ class IdentifierExpressionNode : public ExpressionNode {
     explicit IdentifierExpressionNode(std::string name) : name_(std::move(name)) {}
 
     Symbols::Value evaluate(Interpreter & /*interpreter*/) const override {
-        auto *            sc      = Symbols::SymbolContainer::instance();
-        const std::string base_ns = sc->currentScopeName();
-        // Look in current scope's variables namespace
-        const std::string var_ns  = base_ns + "::variables";
-        if (sc->exists(name_, var_ns)) {
-            return sc->get(var_ns, name_)->getValue();
+        auto* sc = Symbols::SymbolContainer::instance();
+        
+        // Use a hierarchical find method starting from the current scope
+        auto symbol = sc->findSymbol(name_); // Now uses the implemented findSymbol
+        
+        if (symbol) {
+             // Check if symbol is accessible (e.g., private members if applicable)
+             // For now, assume accessible if found
+            return symbol->getValue();
         }
-        const std::string const_ns = base_ns + "::constants";
-        if (sc->exists(name_, const_ns)) {
-            return sc->get(const_ns, name_)->getValue();
-        }
+        
+        // Handle built-in NULL literal
         if (name_ == "NULL" || name_ == "null") {
             return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
         }
-        throw std::runtime_error("Identifier '" + name_ + "' not found in namespace: " + base_ns);
+        
+        // If not found after hierarchical search, throw error
+        // Report the specific scope where the search started for clarity
+        throw std::runtime_error("Identifier '" + name_ + "' not found starting from scope: " + sc->currentScopeName());
     }
 
     std::string toString() const override { return name_; }

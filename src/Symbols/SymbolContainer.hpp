@@ -143,6 +143,44 @@ class SymbolContainer {
         return nullptr;
     }
 
+    /**
+     * @brief Find a symbol by name, searching hierarchically from current scope upwards.
+     * Checks variables and constants sub-namespaces within each scope.
+     * @param name The name of the symbol to find.
+     * @return Shared pointer to the found symbol, or nullptr if not found.
+     */
+    SymbolPtr findSymbol(const std::string & name) const {
+
+        
+        // Iterate from the innermost scope outwards
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const std::string& current_scope_name = *it;
+             
+            auto table_it = scopes_.find(current_scope_name);
+            if (table_it == scopes_.end()) {
+                continue; 
+            }
+            const auto& table = table_it->second;
+            
+            // Check variables namespace first
+            std::string var_ns = current_scope_name + "::variables";
+            auto sym = table->get(var_ns, name);
+            if (sym) {
+                return sym;
+            }
+
+            // Check constants namespace next
+            std::string const_ns = current_scope_name + "::constants";
+            sym = table->get(const_ns, name);
+            if (sym) {
+                return sym;
+            }
+            
+        }
+        // Not found in any scope in the stack
+        return nullptr;
+    }
+
     static std::string dump() {
         std::string result;
 

@@ -36,7 +36,8 @@ class DeclareVariableStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         try {
             Symbols::Value value = expression_->evaluate(interpreter);
-            if (Symbols::SymbolContainer::instance()->exists(variableName_)) {
+            const std::string var_ns = ns + "::variables";
+            if (Symbols::SymbolContainer::instance()->exists(variableName_, var_ns)) {
                 throw Exception("Variable already declared: " + variableName_, filename_, line_, column_);
             }
             if (value.getType() == Symbols::Variables::Type::NULL_TYPE) {
@@ -71,6 +72,8 @@ class DeclareVariableStatementNode : public StatementNode {
         return std::string("variable name: " + variableName_ +
                            " type: " + Symbols::Variables::TypeToString(variableType_));
     }
+
+    const std::string& getNamespace() const { return ns; }
 };
 
 }  // namespace Interpreter

@@ -1,10 +1,11 @@
 #ifndef INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
 #define INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
 
+
 #include <memory>
 #include <string>
 #include <vector>
-
+#include <stdexcept>
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/ReturnException.hpp"
@@ -117,6 +118,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                                 line_, column_);
             }
             auto         funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
+            Variables::Type returnType = funcSym->returnType();
             // Check argument count
             const auto & params  = funcSym->parameters();
             if (params.size() != args_.size()) {
@@ -154,7 +156,12 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
             // Exit method scope
             sc->enterPreviousScope();
-            return Value::makeNull(Variables::Type::UNDEFINED_TYPE);
+            // Return type checking: if method declares a non-null return type, error if no value was returned
+            if (returnType == Variables::Type::NULL_TYPE) {
+                return Value::makeNull(Variables::Type::NULL_TYPE);
+            } else {
+                throw Exception("Method '" + methodName_ + "' (return type: " + Variables::TypeToString(returnType) + ") did not return a value", filename_, line_, column_);
+            }
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }
