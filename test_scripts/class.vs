@@ -39,8 +39,8 @@ class test1 {
     }
 
     function incrementAge(int $incremental) int {
-        //this->$age += $incremental; // -> this works and fine
-        return this->$age + $incremental; // this is not working, the age is not changed but the return value is correct
+        this->$age += $incremental; // Modify the age
+        return this->$age; // Return the *new* age
     }
 }
 
@@ -57,7 +57,7 @@ printnl("Z: ", $z);
 
 if ($testclass->isAdult() == false) {
     printnl($testclass->getName(), " is not adult.. incrementing the age");
-    //int $new_age = $testclass->incrementAge(1);
+    int $new_age = $testclass->incrementAge(1);
     printnl("New age would be: ", $testclass->incrementAge(1));
 }
 

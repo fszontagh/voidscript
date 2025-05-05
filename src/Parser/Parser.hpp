@@ -148,6 +148,9 @@ class Parser {
     // Parse a return statement and return a StatementNode (for nested blocks)
     std::unique_ptr<Interpreter::StatementNode> parseReturnStatementNode();
 
+    // NEW: Parse a variable definition within a block and return its node
+    std::unique_ptr<Interpreter::StatementNode> parseVariableDefinitionNode();
+
     // --- Parsing helper functions ---
 
     // type : KEYWORD_STRING | KEYWORD_INT | KEYWORD_DOUBLE

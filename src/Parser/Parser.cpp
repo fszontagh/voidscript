@@ -414,6 +414,21 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         }
     }
 
+    // <<< ADD VARIABLE DEFINITION CHECK HERE >>>
+    // Check if current token is a known type keyword OR a registered class identifier
+    bool is_type_keyword = (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end());
+    bool is_class_name = (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && 
+                          Symbols::ClassRegistry::instance().hasClass(currentToken().value));
+
+    if ((is_type_keyword || is_class_name) && 
+        (peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER || peekToken().type == Lexer::Tokens::Type::IDENTIFIER) &&
+        peekToken(2).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) 
+    {
+        // Parse as variable definition using the new node-returning function
+        return parseVariableDefinitionNode(); 
+    }
+    // <<< END VARIABLE DEFINITION CHECK >>>
+
     // Function call (identifier followed directly by '(')
     if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
         peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
@@ -1695,6 +1710,37 @@ void Parser::parseTopLevelStatement() {
             reportError("Unexpected token at beginning of statement", currentTok);
         }
     }
+}
+
+// NEW: Parse a variable definition and return its node
+std::unique_ptr<Interpreter::StatementNode> Parser::parseVariableDefinitionNode() {
+    Symbols::Variables::Type var_type = this->parseType(); // Add this->
+
+    // Variable name
+    Lexer::Tokens::Token id_token;
+    if (this->currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER || // Add this->
+        this->currentToken().type == Lexer::Tokens::Type::IDENTIFIER) { // Add this->
+        id_token = this->consumeToken(); // Add this->
+    } else {
+        this->reportError("Expected variable name", this->currentToken()); // Add this->
+        return nullptr; // Should not be reached
+    }
+    std::string var_name = this->parseIdentifierName(id_token); // Add this->
+    const auto ns = Symbols::SymbolContainer::instance()->currentScopeName(); // Use current scope
+
+    this->expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "="); // Add this->
+
+    auto expr = this->parseParsedExpression(var_type); // Add this->
+    // Build expression node FIRST
+    auto initExprNode = buildExpressionFromParsed(expr); // No 'this->' needed for static/global helper
+    
+    // Consume the semicolon
+    this->expect(Lexer::Tokens::Type::PUNCTUATION, ";"); // Add this->
+
+    // Create and return the node
+    return std::make_unique<Interpreter::DeclareVariableStatementNode>(
+        var_name, ns, var_type, std::move(initExprNode), this->current_filename_,
+        id_token.line_number, id_token.column_number);
 }
 }  // namespace Parser
 
