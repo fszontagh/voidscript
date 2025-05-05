@@ -1590,12 +1590,35 @@ void Parser::parseTopLevelStatement() {
         parseConstVariableDefinition();
     }
     // Variable definition (type keyword or known class name followed by variable identifier)
-    else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
-              (token_type == Lexer::Tokens::Type::IDENTIFIER &&
-               Symbols::ClassRegistry::instance().hasClass(token_val))) &&
-             peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER &&
-             peekToken(2).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
-        parseVariableDefinition();
+    else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() || 
+              (token_type == Lexer::Tokens::Type::IDENTIFIER && 
+               Symbols::ClassRegistry::instance().hasClass(token_val))) ) 
+    {
+        // Check if it's an array declaration: Type[] $var = ...
+        bool is_array_decl = (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
+                              peekToken(2).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(2).value == "]" &&
+                              (peekToken(3).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER || peekToken(3).type == Lexer::Tokens::Type::IDENTIFIER) &&
+                              peekToken(4).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
+        
+        // Check if it's a simple variable declaration: Type $var = ...
+        bool is_simple_decl = ((peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER || peekToken().type == Lexer::Tokens::Type::IDENTIFIER) &&
+                               peekToken(2).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
+                               
+        if (is_array_decl || is_simple_decl) {
+             parseVariableDefinition(); // This function should handle both cases now (since parseType consumes [])
+        }
+        // If it starts with a type but isn't a declaration, it might be an expression statement (like a class method call)
+        else {
+             // Fall through to expression statement parsing
+              auto stmtNode = parseStatementNode(); 
+             if (stmtNode) {
+                 Operations::Container::instance()->add(
+                     Symbols::SymbolContainer::instance()->currentScopeName(),
+                     Operations::Operation{ Operations::Type::Expression, "", std::move(stmtNode) });
+             } else {
+                 reportError("Invalid statement starting with type keyword", currentTok);
+             }
+        }
     }
     // Prefix increment/decrement statement (++$var; or --$var;)
     else if (token_type == Lexer::Tokens::Type::OPERATOR_INCREMENT &&
