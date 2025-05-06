@@ -35,12 +35,18 @@ namespace Interpreter {
 class Interpreter {
   private:
     bool debug_ = false;
+    static inline unsigned long long next_call_id_ = 0;
+
   public:
     /**
      * @brief Construct interpreter with optional debug output
      * @param debug enable interpreter debug output
      */
     Interpreter(bool debug = false) : debug_(debug) {}
+
+    static unsigned long long get_unique_call_id() {
+        return next_call_id_++;
+    }
 
     /**
      * @brief Execute all operations in the current namespace (e.g., file-level or function-level).

@@ -82,20 +82,28 @@ class CallStatementNode : public StatementNode {
                                     " args, got " + std::to_string(argValues.size()),
                                 filename_, line_, column_);
             }
-            // Enter function scope and bind parameters
-            const std::string fnOpNs = funcSym->context() + "::" + functionName_;
-            sc->enter(fnOpNs);
+
+            // Create unique scope for this function call
+            const std::string canonical_fn_scope_name = funcSym->context().empty() ? functionName_ : funcSym->context() + "::" + functionName_;
+            std::string unique_call_scope_name = canonical_fn_scope_name + "::call_" + std::to_string(Interpreter::get_unique_call_id());
+
+            sc->create(unique_call_scope_name); // Creates and enters the new unique scope
+
+            // Bind parameters in the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
                 const auto &  p      = params[i];
                 const Value & v      = argValues[i];
-                auto          varSym = SymbolFactory::createVariable(p.name, v, fnOpNs);
-                sc->add(varSym);
+                // Symbol's context is this specific call's scope
+                auto varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
+                sc->add(varSym); // Adds to the current scope (unique_call_scope_name)
             }
-            auto ops = Operations::Container::instance()->getAll(fnOpNs);
+
+            // Operations are associated with the canonical function name
+            auto ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
             for (const auto & op : ops) {
-                interpreter.runOperation(*op);
+                interpreter.runOperation(*op); // These operations will use the current unique_call_scope_name
             }
-            sc->enterPreviousScope();
+            sc->enterPreviousScope(); // Exit unique_call_scope_name
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

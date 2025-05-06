@@ -2,7 +2,8 @@
 
 # Define a simple greeting function (no return type)
 function greet (string $name) {
-    printnl("Hello, ", $name, "!");
+    const string $greeting = "Hello, ";
+    printnl($greeting, $name, "!");
 }
 
 # Define a sum function with explicit return type
@@ -13,7 +14,7 @@ function sum (int $a, int $b) int {
 # Define a function that uses other functions and local variables
 function mulSum (int $x, int $y, int $z) int {
     int $product = $x * $y;
-    int $result = sum($product, $z);
+    const int $result = sum($product, $z);
     return $result;
 }
 

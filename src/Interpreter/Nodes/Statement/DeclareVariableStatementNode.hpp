@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <iostream>
 
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
@@ -37,22 +38,25 @@ class DeclareVariableStatementNode : public StatementNode {
         try {
             Symbols::Value value = expression_->evaluate(interpreter);
             
-            // Get the SymbolTable for the target scope
             auto* sc = Symbols::SymbolContainer::instance();
-            auto targetTable = sc->getScopeTable(ns);
             
+            // Use the CURRENT scope from SymbolContainer for definitions and checks
+            std::string current_runtime_scope_name = sc->currentScopeName();
+            auto targetTable = sc->getScopeTable(current_runtime_scope_name);
             
             if (!targetTable) {
-                // This should ideally not happen if parser creates scopes correctly
-                throw Exception("Target scope '" + ns + "' for variable declaration does not exist", filename_, line_, column_);
+                // This should ideally not happen if parser/caller creates scopes correctly
+                throw Exception("Current runtime scope '" + current_runtime_scope_name + "' for variable declaration does not exist", filename_, line_, column_);
             }
 
-            // Check if variable/constant already exists in the target scope's table
+
+            // Check if variable/constant already exists in the target (current runtime) scope's table
             if (targetTable->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, variableName_)) { 
-                throw Exception("Variable '" + variableName_ + "' already declared in scope '" + ns + "'", filename_, line_, column_);
+                throw Exception("Variable '" + variableName_ + "' already declared in scope '" + current_runtime_scope_name + "'", filename_, line_, column_);
             }
-            if (targetTable->get(Symbols::SymbolContainer::DEFAULT_CONSTANTS_SCOPE, variableName_)) { 
-                 throw Exception("Cannot redefine constant '" + variableName_ + "' in scope '" + ns + "'", filename_, line_, column_);
+            Symbols::SymbolPtr existing_const_check = targetTable->get(Symbols::SymbolContainer::DEFAULT_CONSTANTS_SCOPE, variableName_);
+            if (existing_const_check) {
+                 throw Exception("Cannot redefine constant '" + variableName_ + "' in scope '" + current_runtime_scope_name + "'", filename_, line_, column_);
             }
 
             if (value.getType() == Symbols::Variables::Type::NULL_TYPE) {
@@ -64,18 +68,20 @@ class DeclareVariableStatementNode : public StatementNode {
                 std::string expected = TypeToString(variableType_);
                 std::string actual   = TypeToString(value.getType());
                 throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
-                                    "' but got '" + actual + "'",
+                                    "' but got '" + actual + "' in scope '" + current_runtime_scope_name + "'",
                                 filename_, line_, column_);
             }
 
             // Create a constant or variable symbol
-            std::shared_ptr<Symbols::Symbol> variable;
+            // The symbol's own context should be this current_runtime_scope_name
+            std::shared_ptr<Symbols::Symbol> symbol_to_define;
             if (isConst_) {
-                variable = Symbols::SymbolFactory::createConstant(variableName_, value, ns);
+                symbol_to_define = Symbols::SymbolFactory::createConstant(variableName_, value, current_runtime_scope_name);
             } else {
-                variable = Symbols::SymbolFactory::createVariable(variableName_, value, ns, variableType_);
+                symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value, current_runtime_scope_name, variableType_);
             }
-            Symbols::SymbolContainer::instance()->defineInScope(ns, variable);
+            // sc->add() uses SymbolContainer::currentScopeName() internally, which is current_runtime_scope_name
+            sc->add(symbol_to_define);
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

@@ -23,4 +23,4 @@ for (int $k = 0; $k < 2; $k++) {
     printnl("Outer var inside loop: ", $outer_var);
     $outer_var++;
 }
-printnl("Outer var after loop: ", $outer_var); // Expected: 102 
+printnl("Outer var after loop: ", $outer_var, " and constant string: ", $const_string); // Expected: 102 
