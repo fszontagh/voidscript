@@ -163,17 +163,26 @@ inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
 
         case Kind::Variable:
             {
-                // Lookup variable in current scope's variables namespace
-                const std::string ns     = Symbols::SymbolContainer::instance()->currentScopeName() + "::variables";
-                auto              symbol = Symbols::SymbolContainer::instance()->get(ns, expr->name);
+                // Lookup variable using findSymbol, which handles scope hierarchy and sub-namespaces correctly.
+                auto symbol = Symbols::SymbolContainer::instance()->findSymbol(expr->name);
                 if (!symbol) {
-                    throw std::runtime_error("Variable not found in symbol table: " + expr->name);
+                    // If not found by findSymbol, it could be a function name used as a variable, which is an error.
+                    // Or it's genuinely not found.
+                    // findSymbol checks both ::variables and constants.
+                    throw std::runtime_error("Symbol not found or cannot be used as a variable: " + expr->name);
                 }
 
-                // Ha a szimbólum nem egy változó, akkor hibát dobunk
-                if (symbol->getKind() == Symbols::Kind::Function) {
-                    throw std::runtime_error("Cannot use function as variable: " + expr->name);
-                }
+                // Check if the found symbol is a variable or constant (findSymbol checks both)
+                // If it's a function, it's an error because findSymbol doesn't return functions for this usage.
+                // This check is implicitly handled by findSymbol only looking in variable/constant namespaces.
+                // However, an explicit check might be desired if findSymbol's behavior changes.
+                // For now, if findSymbol returns something, it's usable as a variable/constant value.
+
+                // Ha a szimbólum nem egy változó, akkor hibát dobunk (Original Comment)
+                // This original check might be redundant if findSymbol is used correctly.
+                // if (symbol->getKind() == Symbols::Kind::Function) {
+                // throw std::runtime_error("Cannot use function as variable: " + expr->name);
+                // }
                 break;
             }
 

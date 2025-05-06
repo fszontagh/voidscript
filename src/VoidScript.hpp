@@ -31,6 +31,7 @@
 #include "options.h"
 #include "Parser/Parser.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 class VoidScript {
   private:
@@ -85,6 +86,11 @@ class VoidScript {
         scriptArgs_(std::move(scriptArgs)),
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
+        
+        // Initialize SymbolContainer with the main script file path
+        // Assuming 'file' parameter is the absolute path desired for the scope name.
+        Symbols::SymbolContainer::initialize(file);
+
         // Register built-in modules (print, etc.)
         // print functions
         Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
@@ -159,10 +165,8 @@ class VoidScript {
                     }
                 }
 
-                std::string _default_namespace_ = file;
-                std::replace(_default_namespace_.begin(), _default_namespace_.end(), '.', '_');
-
-                Symbols::SymbolContainer::instance()->create(_default_namespace_);
+                std::string current_file_scope_name = file;
+                Symbols::SymbolContainer::instance()->create(current_file_scope_name);
 
                 const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
                 // Pre-define script arguments: $argc (int) and $argv (string array as object map)

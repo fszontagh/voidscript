@@ -36,11 +36,31 @@ class DeclareFunctionStatementNode : public StatementNode {
 
     void interpret(Interpreter & /*interpreter*/) const override {
         try {
-            if (Symbols::SymbolContainer::instance()->exists(functionName_)) {
-                throw Exception("Function already declared: " + functionName_, filename_, line_, column_);
+            auto sc = Symbols::SymbolContainer::instance();
+            auto targetTable = sc->getScopeTable(ns); // 'ns' is the current scope for this function
+
+            if (!targetTable) {
+                 // This case should ideally be prevented by parser ensuring scope exists before defining function in it.
+                throw Exception("Target scope '" + ns + "' for function declaration does not exist", filename_, line_, column_);
             }
+
+            // Check if function already declared in the target scope's function namespace
+            if (targetTable->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_)) {
+                throw Exception("Function '" + functionName_ + "' already declared in scope '" + ns + "'", filename_, line_, column_);
+            }
+            
+            // If we are here, the function is not yet defined in the current scope's function namespace.
+            // The old check Symbols::SymbolContainer::instance()->exists(functionName_) was too broad and could lead to incorrect shadowing issues or missed re-declarations.
+
             const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
-            Symbols::SymbolContainer::instance()->add(func);
+            // DefineInScope is more appropriate here if we want to ensure it's in the 'ns' scope specifically.
+            // However, 'add' uses currentScopeName(), which should be 'ns' if the parser logic for entering/exiting scopes around function parsing is correct.
+            // Let's assume 'ns' is indeed the current scope at this point of execution for this node.
+            // If 'add' is used, ensure currentScopeName() == ns.
+            // If defineInScope(ns, func) is used, it's more explicit.
+            // Given the symbol factory sets context to 'ns', getNamespaceForSymbol in 'add' or 'defineInScope' will use DEFAULT_FUNCTIONS_SCOPE.
+            sc->defineInScope(ns, func); // Explicitly define in the target scope 'ns'
+
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

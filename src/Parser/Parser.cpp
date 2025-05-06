@@ -107,6 +107,7 @@ void Parser::parseVariableDefinition() {
     if (!var_name.empty() && var_name[0] == '$') {
         var_name = var_name.substr(1);
     }
+    // Corrected: ns should be the pure scope name, not combined with sub-namespace here.
     const auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
 
     expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");

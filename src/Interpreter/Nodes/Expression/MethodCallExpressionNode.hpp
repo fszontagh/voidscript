@@ -107,14 +107,21 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
 
             // Locate function symbol in class namespace
-            auto *            sc      = SymbolContainer::instance();
-            // Lookup method symbol in class namespace
-            const std::string fileNs  = sc->currentScopeName();
-            const std::string classNs = fileNs + "::" + className;
-            const std::string fnSymNs = classNs + "::functions";
-            auto              sym     = sc->get(fnSymNs, methodName_);
+            auto *            sc_instance = SymbolContainer::instance(); // Renamed to avoid conflict with outer sc
+            // Lookup method symbol in class namespace.
+            // classNs is the scope where the class's methods are defined.
+            // This often takes the form: current_file_scope_name + "::" + className
+            const std::string current_file_scope = sc_instance->currentScopeName(); // Or derive from filename if more reliable
+            const std::string class_scope_name = current_file_scope + "::" + className;
+
+            Symbols::SymbolPtr sym = nullptr;
+            auto class_scope_table = sc_instance->getScopeTable(class_scope_name);
+            if (class_scope_table) {
+                sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
+            }
+
             if (!sym || sym->getKind() != Kind::Function) {
-                throw Exception("Function symbol not found for method: '" + methodName_ + "' NS: " + fnSymNs, filename_,
+                throw Exception("Function symbol not found for method: '" + methodName_ + "' in class scope '" + class_scope_name + "'", filename_,
                                 line_, column_);
             }
             auto         funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
@@ -127,13 +134,13 @@ class MethodCallExpressionNode : public ExpressionNode {
                                 filename_, line_, column_);
             }
             // Enter method scope under class namespace
-            const std::string methodNs = classNs + "::" + methodName_;
-            sc->enter(methodNs);
+            const std::string methodNs = class_scope_name + "::" + methodName_;
+            sc_instance->enter(methodNs);
             // Bind 'this'
-            sc->add(SymbolFactory::createVariable("this", objVal, methodNs));
+            sc_instance->add(SymbolFactory::createVariable("this", objVal, methodNs));
             // Bind parameters
             for (size_t i = 0; i < params.size(); ++i) {
-                sc->add(SymbolFactory::createVariable(params[i].name, argValues[i + 1], methodNs));
+                sc_instance->add(SymbolFactory::createVariable(params[i].name, argValues[i + 1], methodNs));
             }
             // Execute method body
             for (const auto & op : Operations::Container::instance()->getAll(methodNs)) {
@@ -142,20 +149,38 @@ class MethodCallExpressionNode : public ExpressionNode {
                 } catch (const ReturnException & re) {
                     // Write back modified object state before returning
                     if (origSym) {
-                        auto thisSym = sc->get(methodNs + "::variables", "this");
-                        origSym->setValue(thisSym->getValue());
+                        auto method_scope_table = sc_instance->getScopeTable(methodNs);
+                        if (method_scope_table) {
+                            auto thisSym = method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+                            if (thisSym) {
+                                origSym->setValue(thisSym->getValue());
+                            } else {
+                                // Log error or handle: 'this' not found in method scope where expected
+                            }
+                        } else {
+                            // Log error or handle: method scope table not found
+                        }
                     }
-                    sc->enterPreviousScope();
+                    sc_instance->enterPreviousScope();
                     return re.value();
                 }
             }
             // Write back modified object state after method execution
             if (origSym) {
-                auto thisSym = sc->get(methodNs + "::variables", "this");
-                origSym->setValue(thisSym->getValue());
+                auto method_scope_table = sc_instance->getScopeTable(methodNs);
+                if (method_scope_table) {
+                    auto thisSym = method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+                    if (thisSym) {
+                        origSym->setValue(thisSym->getValue());
+                    } else {
+                        // Log error or handle: 'this' not found in method scope where expected
+                    }
+                } else {
+                    // Log error or handle: method scope table not found
+                }
             }
             // Exit method scope
-            sc->enterPreviousScope();
+            sc_instance->enterPreviousScope();
             // Return type checking: if method declares a non-null return type, error if no value was returned
             if (returnType == Variables::Type::NULL_TYPE) {
                 return Value::makeNull(Variables::Type::NULL_TYPE);

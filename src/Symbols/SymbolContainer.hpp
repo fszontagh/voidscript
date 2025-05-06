@@ -16,13 +16,53 @@ class SymbolContainer {
     // Stack of active scope names (supports nested scope entry)
     std::vector<std::string>                                      scopeStack_;
 
+    // For singleton initialization
+    static std::string initial_scope_name_for_singleton_;
+    static bool        is_initialized_for_singleton_;
+
+    // Private constructor
+    explicit SymbolContainer(const std::string& default_scope_name) {
+        if (default_scope_name.empty()) {
+            throw std::runtime_error("SymbolContainer default scope name cannot be empty during construction.");
+        }
+        create(default_scope_name); // Creates and enters the initial scope
+    }
+
   public:
-    static SymbolContainer * instance() {
-        static SymbolContainer instance_;
+    SymbolContainer(const SymbolContainer&) = delete;
+    SymbolContainer& operator=(const SymbolContainer&) = delete;
+
+    static void initialize(const std::string& initial_scope_name) {
+        if (initial_scope_name.empty()) {
+            throw std::invalid_argument("Initial scope name for SymbolContainer cannot be empty.");
+        }
+        if (is_initialized_for_singleton_) {
+            // Log re-initialization, but allow it for now. Could be an error in stricter scenarios.
+            std::cerr << "Warning: SymbolContainer already initialized. Re-initializing with scope: " << initial_scope_name << std::endl;
+        }
+        initial_scope_name_for_singleton_ = initial_scope_name;
+        is_initialized_for_singleton_ = true;
+    }
+
+    static SymbolContainer* instance() {
+        if (!is_initialized_for_singleton_) {
+            // It's crucial that initialize() is called before the first instance() call.
+            // This typically happens at application startup.
+            throw std::runtime_error("SymbolContainer has not been initialized. Call SymbolContainer::initialize() with the top-level script/file name first.");
+        }
+        // Meyer's Singleton: instance_ is constructed on first call using the initialized name
+        static SymbolContainer instance_(initial_scope_name_for_singleton_);
         return &instance_;
     }
 
-    explicit SymbolContainer(const std::string & default_scope_name = "global") { create(default_scope_name); }
+    // default scope names
+    constexpr static const std::string DEFAULT_VARIABLES_SCOPE = "::variables";
+    constexpr static const std::string DEFAULT_CONSTANTS_SCOPE = "constants";
+    constexpr static const std::string DEFAULT_FUNCTIONS_SCOPE = "::functions";
+    constexpr static const std::string DEFAULT_OTHERS_SCOPE    = "::others";
+
+    // The following explicit constructor is now replaced by the private one and initialize() pattern
+    // explicit SymbolContainer(const std::string & default_scope_name) { create(default_scope_name); }
 
     // --- Scope management ---
 
@@ -87,15 +127,31 @@ class SymbolContainer {
         return ns;
     }
 
-    /** @brief List the symbol namespaces (categories) within a given scope. */
-    std::vector<std::string> getNamespaces(const std::string & scopeName) const {
-        std::vector<std::string> result;
-        auto                     it = scopes_.find(scopeName);
-        if (it != scopes_.end()) {
-            return it->second->listNamespaces();
+    /**
+     * @brief Define a symbol in a specific scope (not necessarily the current one).
+     * @param scopeName The name of the scope to define the symbol in.
+     * @param symbol The symbol to define.
+     * @throws std::runtime_error if the scope does not exist.
+     */
+    void defineInScope(const std::string & scopeName, const SymbolPtr & symbol) {
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            throw std::runtime_error("Cannot define symbol in non-existent scope: " + scopeName);
         }
-        return result;
+        const std::string ns = getNamespaceForSymbol(symbol);
+        it->second->define(ns, symbol);  // Define in the found scope's table
     }
+
+    // /** @brief List the symbol namespaces (categories) within a given scope. */
+    // // THIS METHOD IS NO LONGER VALID AS SymbolTable::listNamespaces was removed
+    // std::vector<std::string> getNamespaces(const std::string & scopeName) const {
+    //     std::vector<std::string> result;
+    //     auto                     it = scopes_.find(scopeName);
+    //     if (it != scopes_.end()) {
+    //         // return it->second->listNamespaces(); // Error: listNamespaces removed from SymbolTable
+    //     }
+    //     return result;
+    // }
 
     std::vector<SymbolPtr> getAll(const std::string & ns = "") const {
         std::vector<SymbolPtr> result;
@@ -149,54 +205,63 @@ class SymbolContainer {
      * @param name The name of the symbol to find.
      * @return Shared pointer to the found symbol, or nullptr if not found.
      */
-    SymbolPtr findSymbol(const std::string & name) const {
-
-        
-        // Iterate from the innermost scope outwards
+    SymbolPtr findSymbol(const std::string & name) {
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
-            const std::string& current_scope_name = *it;
-             
+            const std::string & current_scope_name = *it;
+
             auto table_it = scopes_.find(current_scope_name);
             if (table_it == scopes_.end()) {
-                continue; 
-            }
-            const auto& table = table_it->second;
-            
-            // Check variables namespace first
-            std::string var_ns = current_scope_name + "::variables";
-            auto sym = table->get(var_ns, name);
-            if (sym) {
-                return sym;
+                continue;
             }
 
-            // Check constants namespace next
-            std::string const_ns = current_scope_name + "::constants";
-            sym = table->get(const_ns, name);
-            if (sym) {
-                return sym;
+            // Check variables namespace first (assuming "variables" is the namespace key)
+            SymbolPtr symbol = table_it->second->get(DEFAULT_VARIABLES_SCOPE, name);
+            if (symbol) {
+                return symbol;
             }
-            
+
+            // Check constants namespace next (assuming "constants" is the namespace key)
+            symbol = table_it->second->get(DEFAULT_CONSTANTS_SCOPE, name);
+            if (symbol) {
+                return symbol;
+            }
         }
-        // Not found in any scope in the stack
+        // If not found in any scope
         return nullptr;
     }
 
     static std::string dump() {
         std::string result;
 
-        std::cout << "\n--- Defined Scopes ---" << '\n';
+        result += "\n--- Symbol Table Dump ---\n";
+
         for (const auto & scope_name : instance()->getScopeNames()) {
-            result += scope_name + '\n';
-            for (const auto & ns : instance()->getNamespaces(scope_name)) {
-                result += "\t -" + ns + '\n';
-                for (const auto & symbol : instance()->getAll(ns)) {
+            result += "Scope: '" + scope_name + "'\n";
+
+            // Get the table for this scope
+            auto tablePtr = instance()->getScopeTable(scope_name);
+            if (tablePtr) {
+                // Iterate all symbols in this table using the flat structure
+                for (const auto & symbol : tablePtr->listAll()) {  // listAll doesn't need prefix now
                     result += symbol->dump() + '\n';
                     // Recursively dump object properties
-                    dumpValue(symbol->getValue(), result, 4);
+                    dumpValue(symbol->getValue(), result, 2);  // Reduced indent slightly
                 }
+            } else {
+                result += "\t(Error: Scope table not found)\n";
             }
         }
+        result += "--- End Dump ---\n";
         return result;
+    }
+
+    /** @brief Get the SymbolTable for a specific scope name, if it exists. */
+    std::shared_ptr<SymbolTable> getScopeTable(const std::string & scopeName) const {
+        auto it = scopes_.find(scopeName);
+        if (it != scopes_.end()) {
+            return it->second;  // Return the shared_ptr to the table
+        }
+        return nullptr;         // Scope not found
     }
 
   private:
@@ -216,18 +281,18 @@ class SymbolContainer {
      * @brief Compute the namespace string for a symbol based on its kind and context.
      */
     std::string getNamespaceForSymbol(const SymbolPtr & symbol) const {
-        std::string base = symbol->context().empty() ? currentScopeName() : symbol->context();
+        // std::string base = symbol->context().empty() ? currentScopeName() : symbol->context(); // OLD LOGIC
 
-        const char * sep = "::";
+        // const char * sep = "::"; // This is SymbolTable::key_separator // Not needed if using static constants
         switch (symbol->getKind()) {
             case Symbols::Kind::Variable:
-                return base + sep + "variables";
+                return DEFAULT_VARIABLES_SCOPE;
             case Symbols::Kind::Function:
-                return base + sep + "functions";
+                return DEFAULT_FUNCTIONS_SCOPE;
             case Symbols::Kind::Constant:
-                return base + sep + "constants";
+                return DEFAULT_CONSTANTS_SCOPE;
             default:
-                return base + sep + "others";
+                return DEFAULT_OTHERS_SCOPE;
         }
     }
 };

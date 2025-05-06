@@ -148,13 +148,16 @@ struct ParsedExpression {
 
             case Kind::Variable:
                 {
-                    // Lookup variable in current scope's variables namespace
-                    const auto ns     = Symbols::SymbolContainer::instance()->currentScopeName() + "::variables";
-                    auto       symbol = Symbols::SymbolContainer::instance()->get(ns, name);
+                    // Use findSymbol which correctly searches variables and constants up the scope chain.
+                    auto symbol = Symbols::SymbolContainer::instance()->findSymbol(name);
                     if (!symbol) {
-                        throw std::runtime_error("Unknown variable: " + name + " in namespace: " + ns +
-                                                 " File: " + __FILE__ + ":" + std::to_string(__LINE__));
+                        // findSymbol searches current scope and up for variables/constants
+                        throw std::runtime_error("Unknown variable or constant: " + name +
+                                                 " (searched from scope: " + Symbols::SymbolContainer::instance()->currentScopeName() + ")" +
+                                                 " File: " + filename + ":" + std::to_string(line));
                     }
+                    // findSymbol returns a SymbolPtr, which could be VariableSymbol or ConstantSymbol.
+                    // Both have getValue().
                     return symbol->getValue().getType();
                 }
 
@@ -175,14 +178,26 @@ struct ParsedExpression {
                 }
             case Kind::Call:
                 {
-                    // Lookup function in current scope's functions namespace
-                    const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName() + "::functions";
-                    auto symbol = Symbols::SymbolContainer::instance()->get(ns, name);
+                    // For getType during parsing, we typically check the current scope for the function.
+                    // A more advanced type system might search up the scope chain.
+                    auto sc = Symbols::SymbolContainer::instance();
+                    auto current_scope_table = sc->getScopeTable(sc->currentScopeName());
+                    Symbols::SymbolPtr symbol = nullptr;
+                    if (current_scope_table) {
+                        symbol = current_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, name);
+                    }
+
                     if (!symbol) {
-                        throw std::runtime_error("Unknown function: " + name + " in namespace: " + ns);
+                         throw std::runtime_error("Unknown function: " + name + " in current scope: " + sc->currentScopeName() + 
+                                                 " File: " + filename + ":" + std::to_string(line));
                     }
                     // FunctionSymbol holds return type
-                    auto funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(symbol);
+                    auto funcSym = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(symbol);
+                    if (!funcSym) {
+                        // Should not happen if it was found in DEFAULT_FUNCTIONS_SCOPE and is a function
+                        throw std::runtime_error("Symbol " + name + " found but is not a function." +
+                                                 " File: " + filename + ":" + std::to_string(line));
+                    }
                     return funcSym->returnType();
                 }
             case Kind::Object:

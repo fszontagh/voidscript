@@ -29,8 +29,9 @@ TEST_CASE("ModuleHelperModule functions without plugins", "[module_helper]") {
 
     SECTION("module_info returns null string for unknown module") {
         auto val = mm.callFunction("module_info", { Value("nonexistent") });
-        REQUIRE(val.getType() == Variables::Type::STRING);
-        REQUIRE(val.get<std::string>() == "null");
+        REQUIRE(val.getType() == Variables::Type::OBJECT);
+        auto obj = std::get<Value::ObjectMap>(val.get());
+        REQUIRE(obj.empty());
     }
 
     SECTION("invalid arguments throw exception") {

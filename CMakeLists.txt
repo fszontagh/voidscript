@@ -126,6 +126,7 @@ add_library(voidscript
             src/Lexer/Lexer.cpp
             src/Lexer/Operators.cpp
             src/Symbols/ClassRegistry.cpp
+            src/Symbols/SymbolContainer.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
 )
 
@@ -258,6 +259,27 @@ if (BUILD_TESTS)
   )
   target_link_libraries(built_in_module_tests PRIVATE voidscript Catch2::Catch2WithMain)
   catch_discover_tests(built_in_module_tests)
+
+  # Ensure voidscript target exists before adding tests that use it
+  if(TARGET voidscript)
+      add_test(NAME WhileLoopTest
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript ${CMAKE_SOURCE_DIR}/test_scripts/while_loop_test.vs)
+
+      add_test(NAME CStyleForLoopTest
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript ${CMAKE_SOURCE_DIR}/test_scripts/cstyle_for_loop_test.vs)
+
+      add_test(NAME ObjectTest
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript ${CMAKE_SOURCE_DIR}/test_scripts/object.vs)
+
+      add_test(NAME ClassTest
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript ${CMAKE_SOURCE_DIR}/test_scripts/class.vs)
+
+      add_test(NAME ArrayTest
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript ${CMAKE_SOURCE_DIR}/test_scripts/array.vs)
+
+      # Add more tests here if needed...
+
+  endif()
 endif()
 
 

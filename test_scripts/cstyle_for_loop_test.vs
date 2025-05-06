@@ -6,6 +6,8 @@ for (int $i = 0; $i < 3; $i++) {
 
 printnl("C-style loop finished.");
 
+const string $const_string = "Hello, World!";
+printnl("Constant string: ", $const_string);
 // Test with empty increment
 printnl("Testing C-style loop with empty increment...");
 for (int $j = 5; $j > 2; ) {
@@ -13,6 +15,7 @@ for (int $j = 5; $j > 2; ) {
     $j--; // Manual decrement inside body
 }
 printnl("C-style loop (no incr) finished.");
+printnl("Constant string: ", $const_string);
 
 // Test access to outer scope variable
 int $outer_var = 100;

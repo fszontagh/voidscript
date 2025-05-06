@@ -52,17 +52,26 @@ class CallStatementNode : public StatementNode {
             std::shared_ptr<FunctionSymbol> funcSym;
             // Search for function symbol in current and parent scopes
             while (true) {
-                std::string fnSymNs = lookupNs + "::functions";
-                auto        sym     = sc->get(fnSymNs, functionName_);
+                auto scope_table = sc->getScopeTable(lookupNs);
+                Symbols::SymbolPtr sym = nullptr;
+                if (scope_table) {
+                    sym = scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_);
+                }
+
                 if (sym && sym->getKind() == Kind::Function) {
                     funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
                     break;
                 }
+                // Move to parent scope by finding the last '::'
+                // This assumes scope names are hierarchical (e.g., /file/path::class::method or a top-level file path)
                 auto pos = lookupNs.rfind("::");
                 if (pos == std::string::npos) {
-                    break;
+                    // Reached top-level scope (e.g., a file path). If not found, it's not in accessible parent scopes.
+                    break; 
                 }
                 lookupNs = lookupNs.substr(0, pos);
+                // If substr results in an empty string (e.g. if lookupNs was "::foo"), implies invalid scope.
+                if (lookupNs.empty()) break;
             }
             if (!funcSym) {
                 throw Exception("Function not found: " + functionName_, filename_, line_, column_);
