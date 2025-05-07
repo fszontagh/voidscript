@@ -1,6 +1,7 @@
-// ImagickModule: declares a module that provides 'imagick' function via imagick
-#ifndef IMAGICK_NODULE_HPP
-#define IMAGICK_NODULE_HPP
+// ImagickModule.hpp
+#ifndef IMAGICK_MODULE_HPP
+#define IMAGICK_MODULE_HPP
+
 #include <Magick++.h>
 
 #include "Modules/BaseModule.hpp"
@@ -31,7 +32,8 @@ class ImagickModule : public BaseModule {
     Symbols::Value                         getWidth(FunctionArguments & args);
     Symbols::Value                         getHeight(FunctionArguments & args);
     Symbols::Value                         composite(FunctionArguments & args);
+};
 
-};  // Class ImagickModule
 }  // namespace Modules
-#endif  // IMAGICK_NODULE_HPP
+
+#endif  // IMAGICK_MODULE_HPP
