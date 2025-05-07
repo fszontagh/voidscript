@@ -12,9 +12,40 @@
 
 namespace Modules {
 
+namespace {
+    Symbols::Value::ObjectMap buildModuleInfoMap(BaseModule* module, const std::string& path, const UnifiedModuleManager& umm, const Symbols::ClassRegistry& cr) {
+        Symbols::Value::ObjectMap classesMap;
+        auto classNames = cr.getClassNames();
+        int ci = 0;
+        for (const auto& cls : classNames) {
+            if (cr.getClassModule(cls) == module) {
+                classesMap[std::to_string(ci++)] = Symbols::Value(cls);
+            }
+        }
+
+        Symbols::Value::ObjectMap funcsMap;
+        auto funcNames = umm.getFunctionNamesForModule(module);
+        int fi = 0;
+        for (const auto& fn : funcNames) {
+            funcsMap[std::to_string(fi++)] = Symbols::Value(fn);
+        }
+
+        Symbols::Value::ObjectMap varsMap;
+
+        Symbols::Value::ObjectMap infoMap;
+        infoMap["name"] = Symbols::Value(std::filesystem::path(path).stem().string());
+        infoMap["path"] = Symbols::Value(path);
+        infoMap["classes"] = Symbols::Value(classesMap);
+        infoMap["functions"] = Symbols::Value(funcsMap);
+        infoMap["variables"] = Symbols::Value(varsMap);
+
+        return infoMap;
+    }
+}
+
 void ModuleHelperModule::registerModule(IModuleContext & context) {
     auto & umm = UnifiedModuleManager::instance();
-    REGISTER_FUNCTION_WITH_DOC(umm, "module_list", Symbols::Variables::Type::OBJECT, {}, "", [](FunctionArguments & args) -> Symbols::Value {
+    REGISTER_FUNCTION_WITH_DOC(umm, "ModuleHelperModule", "module_list", Symbols::Variables::Type::OBJECT, {}, "", [](FunctionArguments & args) -> Symbols::Value {
         if (!args.empty()) {
             throw std::runtime_error("module_list expects no arguments");
         }
@@ -30,39 +61,15 @@ void ModuleHelperModule::registerModule(IModuleContext & context) {
             if (name.rfind("lib", 0) == 0) {
                 name = name.substr(3);
             }
-            // Collect classes
-            Symbols::Value::ObjectMap classesMap;
-            auto &                    cr         = Symbols::ClassRegistry::instance();
-            auto                      classNames = cr.getClassNames();
-            int                       ci         = 0;
-            for (const auto & cls : classNames) {
-                if (cr.getClassModule(cls) == mod) {
-                    classesMap[std::to_string(ci++)] = Symbols::Value(cls);
-                }
-            }
-            // Collect functions
-            Symbols::Value::ObjectMap funcsMap;
-            auto                      funcNames = umm.getFunctionNamesForModule(mod);
-            int                       fi        = 0;
-            for (const auto & fn : funcNames) {
-                funcsMap[std::to_string(fi++)] = Symbols::Value(fn);
-            }
-            // Variables (not tracked)
-            Symbols::Value::ObjectMap varsMap;
             // Build info object
-            Symbols::Value::ObjectMap infoMap;
-            infoMap["name"]               = Symbols::Value(name);
-            infoMap["path"]               = Symbols::Value(path);
-            infoMap["classes"]            = Symbols::Value(classesMap);
-            infoMap["functions"]          = Symbols::Value(funcsMap);
-            infoMap["variables"]          = Symbols::Value(varsMap);
+            Symbols::Value::ObjectMap infoMap = buildModuleInfoMap(mod, path, umm, Symbols::ClassRegistry::instance());
             modulesMap[std::to_string(i)] = Symbols::Value(infoMap);
         }
         return Symbols::Value(modulesMap);
     });
 
     REGISTER_FUNCTION_WITH_DOC(
-        UnifiedModuleManager::instance(),
+        umm,
         "ModuleHelperModule",
         "module_exists",
         Symbols::Variables::Type::BOOLEAN,
@@ -89,7 +96,7 @@ void ModuleHelperModule::registerModule(IModuleContext & context) {
     });
 
     REGISTER_FUNCTION_WITH_DOC(
-        UnifiedModuleManager::instance(),
+        umm,
         "ModuleHelperModule",
         "module_info",
         Symbols::Variables::Type::OBJECT,
@@ -112,30 +119,7 @@ void ModuleHelperModule::registerModule(IModuleContext & context) {
                 name = name.substr(3);
             }
             if (name == query) {
-                // Build same infoMap as module_list
-                Value::ObjectMap classesMap;
-                auto &           cr         = Symbols::ClassRegistry::instance();
-                auto             classNames = cr.getClassNames();
-                int              ci         = 0;
-                for (const auto & cls : classNames) {
-                    if (cr.getClassModule(cls) == mod) {
-                        classesMap[std::to_string(ci++)] = Value(cls);
-                    }
-                }
-                Value::ObjectMap funcsMap;
-                auto             funcNames = umm.getFunctionNamesForModule(mod);
-                int              fi        = 0;
-                for (const auto & fn : funcNames) {
-                    funcsMap[std::to_string(fi++)] = Value(fn);
-                }
-                Value::ObjectMap varsMap;
-                Value::ObjectMap infoMap;
-                infoMap["name"]      = Value(name);
-                infoMap["path"]      = Value(path);
-                infoMap["classes"]   = Value(classesMap);
-                infoMap["functions"] = Value(funcsMap);
-                infoMap["variables"] = Value(varsMap);
-                return Value(infoMap);
+                return Symbols::Value(buildModuleInfoMap(mod, path, umm, Symbols::ClassRegistry::instance()));
             }
         }
         return Value::ObjectMap{};
