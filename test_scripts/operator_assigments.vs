@@ -16,7 +16,7 @@ printnl("$u = ", $u);
 $u++;
 printnl("$u = ", $u);
 
-int $i = 0;
+$i = 0;
 int $l = 0;
 for (int $g = 0;$g <= 10; $g++) {
     printnl("$g: ", $g);

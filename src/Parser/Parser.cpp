@@ -191,9 +191,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
 
     // --- Create loop scope ONCE at the beginning ---
     const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
-    const std::string loopScope =
-        currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
-    Symbols::SymbolContainer::instance()->create(loopScope);  // Create & Enter loopScope
+    //const std::string loopScope =
+//        currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
+    //Symbols::SymbolContainer::instance()->create(loopScope);  // Create & Enter loopScope
     // --- End scope creation ---
 
     // Parse element type and variable name (common to both loop types)
@@ -251,7 +251,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
         auto initExprNode = buildExpressionFromParsed(initExpr);
         // Create initStmt node targeting loopScope
         auto initStmt     = std::make_unique<Interpreter::DeclareVariableStatementNode>(
-            firstName, loopScope, elemType, std::move(initExprNode), this->current_filename_, firstTok.line_number,
+            firstName, currentScope, elemType, std::move(initExprNode), this->current_filename_, firstTok.line_number,
             firstTok.column_number);
         // NO Operations::add here
         auto condExprNode = buildExpressionFromParsed(condExpr);
@@ -262,7 +262,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
             forToken.line_number, forToken.column_number);
 
         // Exit the loop scope (for subsequent parsing)
-        Symbols::SymbolContainer::instance()->enterPreviousScope();
+        //Symbols::SymbolContainer::instance()->enterPreviousScope();
 
         return forNode;
     }
@@ -307,7 +307,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
 
     // Pass loopScope (created at function start) to the ForStatementNode constructor
     auto forNode = std::make_unique<Interpreter::ForStatementNode>(
-        keyType, keyName, valName, std::move(iterableExprNode), std::move(body), loopScope,  // <-- Pass loopScope
+        keyType, keyName, valName, std::move(iterableExprNode), std::move(body), currentScope,  // <-- Pass loopScope
         this->current_filename_, forToken.line_number, forToken.column_number);
 
     // Exit the loop scope (for subsequent parsing)
