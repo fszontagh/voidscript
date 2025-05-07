@@ -12,10 +12,14 @@ void Modules::XmlModule::registerModule(IModuleContext & context) {
     REGISTER_CLASS(context, "XmlAttr");
 
     // Register methods using UnifiedModuleManager macros
-    REGISTER_METHOD(context, this->moduleName, "readFile", &XmlModule::readFile);
-    REGISTER_METHOD(context, this->moduleName, "readMemory", &XmlModule::readMemory);
-    REGISTER_METHOD(context, this->moduleName, "getRootElement", &XmlModule::GetRootElement);
-    REGISTER_METHOD(context, "XmlNode", "getAttributes", &XmlModule::GetNodeAttributes);
+    REGISTER_METHOD(context, this->moduleName, "readFile", &XmlModule::readFile, Symbols::Variables::Type::CLASS,
+                   "Read an XML file from disk");
+    REGISTER_METHOD(context, this->moduleName, "readMemory", &XmlModule::readMemory, Symbols::Variables::Type::CLASS,
+                   "Parse XML from memory");
+    REGISTER_METHOD(context, this->moduleName, "getRootElement", &XmlModule::GetRootElement,
+                   Symbols::Variables::Type::CLASS, "Get the root element of the XML document");
+    REGISTER_METHOD(context, "XmlNode", "getAttributes", &XmlModule::GetNodeAttributes, Symbols::Variables::Type::OBJECT,
+                   "Get attributes and children of an XML node");
 }
 
 Symbols::Value Modules::XmlModule::readFile(FunctionArguments & args) {
