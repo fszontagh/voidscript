@@ -2,9 +2,9 @@
 #include <memory>
 
 #include "ImagickModule.hpp"
-#include "Modules/ModuleManager.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 
 extern "C" void plugin_init() {
     // Register MariaDBModule
-    Modules::ModuleManager::instance().addModule(std::make_unique<Modules::ImagickModule>());
+    Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ImagickModule>());
 }

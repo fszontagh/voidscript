@@ -5,6 +5,7 @@
 
 #include "options.h"
 #include "VoidScript.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include <vector>
 
 // Supported command-line parameters and descriptions
@@ -23,7 +24,7 @@ int main(int argc, char * argv[]) {
     }
     // [file] is optional; if omitted, script is read from stdin
     usage.append(" [file]");
-    // Parse arguments: allow --help, --version, --debug[=component], and a single file
+    // Parse arguments: allow --help, --version, --debug[=component], --gendocs, and a single file
     bool debugLexer       = false;
     bool debugParser      = false;
     bool debugInterp      = false;
@@ -113,7 +114,6 @@ int main(int argc, char * argv[]) {
         filename = std::filesystem::canonical(file).string();
     }
 
-    // Initialize and run with debug options, tag filtering (and optional suppress outside), and script arguments
     VoidScript voidscript(filename,
                          debugLexer,
                          debugParser,

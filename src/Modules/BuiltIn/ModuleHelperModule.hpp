@@ -3,6 +3,7 @@
 #define MODULES_MODULEHELPERMODULE_HPP
 
 #include "Modules/BaseModule.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 
 namespace Modules {
 
@@ -11,7 +12,9 @@ namespace Modules {
  */
 class ModuleHelperModule : public BaseModule {
   public:
-    void registerModule() override;
+    void                      registerModule() override;
+    Symbols::Value::ObjectMap buildModuleInfoMap(BaseModule * module, const std::string & path,
+                                                 const UnifiedModuleManager & umm);
 };
 
 }  // namespace Modules

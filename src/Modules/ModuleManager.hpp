@@ -3,7 +3,6 @@
 
 #include <filesystem>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -33,7 +32,7 @@ class ModuleManager : public IModuleContext {
     /**
      * @brief Retrieve singleton instance.
      */
-    static ModuleManager & instance() {
+    [[deprecated("Use UnifiedModuleManager instead")]] static ModuleManager & instance() {
         static ModuleManager mgr;
         return mgr;
     }
@@ -50,7 +49,7 @@ class ModuleManager : public IModuleContext {
     void registerAll() {
         for (const auto & module : modules_) {
             currentModule_ = module.get();
-            module->registerModule(*this);  // pass IModuleContext
+            module->registerModule();
         }
         currentModule_ = nullptr;
     }
@@ -58,8 +57,9 @@ class ModuleManager : public IModuleContext {
     /**
      * @brief Register a function (e.g., from a module) to the symbol table.
      */
-    void registerFunction(const std::string & name, CallbackFunction cb,
-                          const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE) override {
+    [[deprecated("Use instead UnifiedModuleManager")]] void registerFunction(
+        const std::string & name, CallbackFunction cb,
+        const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE) override {
         callbacks_[name]             = std::move(cb);
         callbacks_return_type_[name] = returnType;
         functionModuleMap_[name]     = currentModule_;

@@ -1,6 +1,6 @@
 // CurlModule: declares a module that provides 'curl' function via libcurl
-#ifndef CURLMODULE_CURLMODULE_HPP
-#define CURLMODULE_CURLMODULE_HPP
+#ifndef CURLMODULE_HPP
+#define CURLMODULE_HPP
 
 #include <curl/curl.h>
 
@@ -17,9 +17,9 @@ class CurlClient {
     CURL *              curl;
     std::string         response;
     struct curl_slist * headers;
-    long                timeoutSec;
-    bool                followRedirects;
-    bool                initialized;
+    long                timeoutSec = 20;
+    bool                followRedirects = false;
+    bool                initialized = false;
 
     static size_t write_callback(void * ptr, size_t size, size_t nmemb, void * userdata);
 
@@ -49,14 +49,17 @@ class CurlClient {
     std::string performRequest();
 };
 
-class CurlModule : public BaseModule {
+/**
+ *
+ */
+class CurlModule final : public BaseModule {
   public:
     CurlModule() { setModuleName("Curl"); }
 
     /**
      * @brief Register this module's symbols (HTTP GET and POST functions).
      */
-    void registerModule(IModuleContext & context) override;
+    void registerModule() override;
 
     /**
      * @brief Perform HTTP GET: curlGet(url [, options])
@@ -65,7 +68,7 @@ class CurlModule : public BaseModule {
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    Symbols::Value curlGet(FunctionArguments & args);
+    static Symbols::Value curlGet(FunctionArguments & args);
 
     /**
      * @brief Perform HTTP POST: curlPost(url, data [, options])
@@ -74,7 +77,7 @@ class CurlModule : public BaseModule {
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    Symbols::Value curlPost(FunctionArguments & args);
+    static Symbols::Value curlPost(FunctionArguments & args);
 
     Symbols::Value curlPut(FunctionArguments & args);
     Symbols::Value curlDelete(FunctionArguments & args);
@@ -82,4 +85,4 @@ class CurlModule : public BaseModule {
 
 }  // namespace Modules
 
-#endif  // CURLMODULE_CURLMODULE_HPP
+#endif  // CURLMODULE_HPP

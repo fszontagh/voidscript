@@ -4,9 +4,8 @@
 #include <map>
 #include <stdexcept>
 #include <string>
-
-#include "../BaseException.hpp"
 #include "IModuleContext.hpp"
+#include "../BaseException.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {
@@ -26,7 +25,7 @@ class BaseModule {
     BaseModule()          = default;
     virtual ~BaseModule() = default;
 
-    virtual void registerModule(IModuleContext & context) = 0;
+    virtual void registerModule() = 0;
 
     void setModuleName(const std::string & name) { this->moduleName = name; }
 
@@ -83,15 +82,6 @@ class Exception : public ::BaseException {
   public:
     explicit Exception(const std::string & msg) : BaseException(msg) {}
 };
-
-/**
- * @brief Macro for registering module functions and documenting them using the provided context.
- */
-#define REGISTER_MODULE_FUNCTION(context, modName, fnName, retType, paramListVec, docStr, lambda) \
-    do {                                                                                          \
-        (context).registerFunction(fnName, lambda, retType);                                        \
-        (context).registerDoc(modName, FunctionDoc{ fnName, retType, paramListVec, docStr });       \
-    } while (0)
 
 }  // namespace Modules
 

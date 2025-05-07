@@ -7,8 +7,8 @@
 
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Parser/ParsedExpression.hpp"
-#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/Value.hpp"
 
 // Forward declaration for expression builder
@@ -38,7 +38,7 @@ class NewExpressionNode : public ExpressionNode {
         column_(column) {}
 
     Symbols::Value evaluate(Interpreter & interpreter) const override {
-        auto & registry = Symbols::ClassRegistry::instance();
+        auto & registry = Modules::UnifiedModuleManager::instance();
         // Ensure class is defined
         if (!registry.hasClass(className_)) {
             throw Exception("Class not found: " + className_, filename_, line_, column_);

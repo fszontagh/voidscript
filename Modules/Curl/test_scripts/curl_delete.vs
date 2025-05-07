@@ -9,7 +9,7 @@ object $options = {
     "follow_redirects": true,
     "headers": {
         "Accept": "application/json",
-        "User-Agent": "SoniScript/1.0"
+        "User-Agent": "VoidScript/1.0"
     }
 };
 

@@ -13,7 +13,7 @@ class FormatModule : public BaseModule {
     /**
      * @brief Register this module's symbols
      */
-    void registerModule(IModuleContext & context);
+    void registerModule();
 };
 
 }  // namespace Modules

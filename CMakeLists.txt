@@ -13,19 +13,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(NEED_CLI ON)
 
-option(BUILD_CLI, "Build example commandline intrepeter" ${NEED_CLI})
+option(BUILD_CLI, "Build example commandline interpreter" ${NEED_CLI})
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
-
-
-
-
-
-
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
-
 option(BUILD_TESTS "Build the test cases" OFF)
-
-
 
 if (BUILD_CLI)
     set(NEED_CLI ${BUILD_CLI})
@@ -125,9 +116,9 @@ add_library(voidscript
             src/Parser/Parser.cpp
             src/Lexer/Lexer.cpp
             src/Lexer/Operators.cpp
-            src/Symbols/ClassRegistry.cpp
             src/Symbols/SymbolContainer.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
+            src/Modules/UnifiedModuleManager.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")

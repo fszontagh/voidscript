@@ -1,28 +1,82 @@
 #include "ImagickModule.hpp"
 
-#include "Symbols/ClassRegistry.hpp"
-#include "Symbols/Value.hpp"
 #include "Modules/ModuleManager.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/Value.hpp"
 
-void Modules::ImagickModule::registerModule(IModuleContext & context) {
-    // Regisztráljuk az osztályt és a metódusokat a UnifiedModuleManager segítségével
-    auto & umm = Modules::UnifiedModuleManager::instance();
+void Modules::ImagickModule::registerModule() {
+    std::vector<FunctParameterInfo> params = {
+        { "filename", Symbols::Variables::Type::STRING },
+    };
 
-    // Regisztráljuk az osztályt
-    REGISTER_CLASS("Imagick");
+    REGISTER_CLASS(this->name());
 
-    // Regisztráljuk a metódusokat a makrókkal
-    REGISTER_METHOD("Imagick", "read", [this](const std::vector<Symbols::Value> & args) { return this->read(args); }, Symbols::Variables::Type::CLASS, "Olvas egy képet fájlból");
-    REGISTER_METHOD("Imagick", "crop", [this](const std::vector<Symbols::Value> & args) { return this->crop(args); }, Symbols::Variables::Type::NULL_TYPE, "Képet vág");
-    REGISTER_METHOD("Imagick", "resize", [this](const std::vector<Symbols::Value> & args) { return this->resize(args); }, Symbols::Variables::Type::NULL_TYPE, "Képet méretez");
-    REGISTER_METHOD("Imagick", "write", [this](const std::vector<Symbols::Value> & args) { return this->write(args); }, Symbols::Variables::Type::NULL_TYPE, "Képet ment");
-    REGISTER_METHOD("Imagick", "mode", [this](const std::vector<Symbols::Value> & args) { return this->mode(args); }, Symbols::Variables::Type::NULL_TYPE, "Képmód beállítása");
-    REGISTER_METHOD("Imagick", "blur", [this](const std::vector<Symbols::Value> & args) { return this->blur(args); }, Symbols::Variables::Type::NULL_TYPE, "Képet elhomályosít");
-    REGISTER_METHOD("Imagick", "rotate", [this](const std::vector<Symbols::Value> & args) { return this->rotate(args); }, Symbols::Variables::Type::NULL_TYPE, "Képet forgat");
-    REGISTER_METHOD("Imagick", "flip", [this](const std::vector<Symbols::Value> & args) { return this->flip(args); }, Symbols::Variables::Type::NULL_TYPE, "Képet tükröz");
-    REGISTER_METHOD("Imagick", "getWidth", [this](const std::vector<Symbols::Value> & args) { return this->getWidth(args); }, Symbols::Variables::Type::INTEGER, "Kép szélességét adja vissza");
-    REGISTER_METHOD("Imagick", "getHeight", [this](const std::vector<Symbols::Value> & args) { return this->getHeight(args); }, Symbols::Variables::Type::INTEGER, "Kép magasságát adja vissza");
-    REGISTER_METHOD("Imagick", "composite", [this](const std::vector<Symbols::Value> & args) { return this->composite(args); }, Symbols::Variables::Type::NULL_TYPE, "Képeket kombinál");
+    REGISTER_METHOD(
+        this->name(), "read", params, [this](const std::vector<Symbols::Value> & args) { return this->read(args); },
+        Symbols::Variables::Type::CLASS, "Read an image file");
+
+    REGISTER_METHOD(
+        this->name(), "write", params, [this](const std::vector<Symbols::Value> & args) { return this->write(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Save the image");
+
+    params = {
+        { "width",   Symbols::Variables::Type::INTEGER },
+        { "height",  Symbols::Variables::Type::INTEGER },
+        { "xOffset", Symbols::Variables::Type::INTEGER },
+        { "yOffset", Symbols::Variables::Type::INTEGER },
+    };
+
+    REGISTER_METHOD(
+        this->name(), "crop", params, [this](const std::vector<Symbols::Value> & args) { return this->crop(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Crop the image");
+
+    params = {
+        { "width",  Symbols::Variables::Type::INTEGER },
+        { "height", Symbols::Variables::Type::INTEGER }
+    };
+
+    REGISTER_METHOD(
+        this->name(), "resize", params, [this](const std::vector<Symbols::Value> & args) { return this->resize(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Resize an image");
+
+    //params = {
+    //    { "mode", Symbols::Variables::Type::STRING },
+    //};
+
+    //    REGISTER_METHOD(
+    //        this->name(), "mode",params, [this](const std::vector<Symbols::Value> & args) { return this->mode(args); },
+    //        Symbols::Variables::Type::NULL_TYPE, "Change image mode");
+
+    params = {
+        { "radius", Symbols::Variables::Type::DOUBLE },
+        { "sigma",  Symbols::Variables::Type::DOUBLE },
+    };
+
+    REGISTER_METHOD(
+        this->name(), "blur", params, [this](const std::vector<Symbols::Value> & args) { return this->blur(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Blur an image");
+
+    params = {
+        { "degrees", Symbols::Variables::Type::DOUBLE },
+    };
+
+    REGISTER_METHOD(
+        this->name(), "rotate", params, [this](const std::vector<Symbols::Value> & args) { return this->rotate(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Rotate image");
+
+    REGISTER_METHOD(
+        this->name(), "flip", params, [this](const std::vector<Symbols::Value> & args) { return this->flip(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Flip image");
+    REGISTER_METHOD(
+        this->name(), "getWidth", {}, [this](const std::vector<Symbols::Value> & args) { return this->getWidth(args); },
+        Symbols::Variables::Type::INTEGER, "Get the width of the image");
+    REGISTER_METHOD(
+        this->name(), "getHeight", {},
+        [this](const std::vector<Symbols::Value> & args) { return this->getHeight(args); },
+        Symbols::Variables::Type::INTEGER, "Get the height of the image");
+    //REGISTER_METHOD(
+    //    this->name(), "composite", [this](const std::vector<Symbols::Value> & args) { return this->composite(args); },
+    //    Symbols::Variables::Type::NULL_TYPE, "Composite image");
 }
 
 Symbols::Value Modules::ImagickModule::read(FunctionArguments & args) {
@@ -34,8 +88,8 @@ Symbols::Value Modules::ImagickModule::read(FunctionArguments & args) {
         throw std::runtime_error("Imagick::read must be called on Imagick instance");
     }
 
-    auto        objMap   = std::get<Symbols::Value::ObjectMap>(args[0].get());
-    // Kapcsolati paraméterek
+    auto objMap = std::get<Symbols::Value::ObjectMap>(args[0].get());
+
     std::string filename = Symbols::Value::to_string(args[1].get());
 
     if (!std::filesystem::exists(filename)) {
@@ -90,14 +144,14 @@ Symbols::Value Modules::ImagickModule::resize(Modules::FunctionArguments & args)
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::resize must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::resoze: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::resize: image not found");
@@ -160,14 +214,14 @@ Symbols::Value Modules::ImagickModule::mode(Modules::FunctionArguments & args) {
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::mode must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::mode: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::mode: image not found");
@@ -195,21 +249,21 @@ Symbols::Value Modules::ImagickModule::blur(Modules::FunctionArguments & args) {
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::blur must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::blur: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::blur: image not found");
     }
 
     const double radius = args[1].get<double>();
-    const double sigma = args[2].get<double>();
+    const double sigma  = args[2].get<double>();
     imgIt->second.blur(radius, sigma);
 
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
@@ -223,14 +277,14 @@ Symbols::Value Modules::ImagickModule::rotate(Modules::FunctionArguments & args)
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::rotate must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::rotate: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::rotate: image not found");
@@ -250,14 +304,14 @@ Symbols::Value Modules::ImagickModule::flip(Modules::FunctionArguments & args) {
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::flip must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::flip: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::flip: image not found");
@@ -283,14 +337,14 @@ Symbols::Value Modules::ImagickModule::getWidth(Modules::FunctionArguments & arg
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::getWidth must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::getWidth: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::getWidth: image not found");
@@ -307,14 +361,14 @@ Symbols::Value Modules::ImagickModule::getHeight(Modules::FunctionArguments & ar
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::getHeight must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::getHeight: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::getHeight: image not found");
@@ -331,14 +385,14 @@ Symbols::Value Modules::ImagickModule::composite(Modules::FunctionArguments & ar
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::composite must be called on Imagick instance");
     }
-    auto objMap = std::get<Symbols::Value::ObjectMap>(objVal.get());
-    int handle = 0;
+    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::composite: no valid image");
     }
 
-    handle = itHandle->second.get<int>();
+    handle     = itHandle->second.get<int>();
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::composite: image not found");
@@ -346,17 +400,18 @@ Symbols::Value Modules::ImagickModule::composite(Modules::FunctionArguments & ar
 
     // Forrás kép lekérése
     const auto & sourceVal = args[1];
-    if (sourceVal.getType() != Symbols::Variables::Type::CLASS && sourceVal.getType() != Symbols::Variables::Type::OBJECT) {
+    if (sourceVal.getType() != Symbols::Variables::Type::CLASS &&
+        sourceVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::composite: source must be an Imagick instance");
     }
-    auto sourceMap = std::get<Symbols::Value::ObjectMap>(sourceVal.get());
+    auto sourceMap    = std::get<Symbols::Value::ObjectMap>(sourceVal.get());
     auto sourceHandle = sourceMap.find("__image_id__");
     if (sourceHandle == sourceMap.end() || sourceHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::composite: no valid source image");
     }
 
-    int sourceImageHandle = sourceHandle->second.get<int>();
-    auto sourceImgIt = images_.find(sourceImageHandle);
+    int  sourceImageHandle = sourceHandle->second.get<int>();
+    auto sourceImgIt       = images_.find(sourceImageHandle);
     if (sourceImgIt == images_.end()) {
         throw std::runtime_error("Imagick::composite: source image not found");
     }

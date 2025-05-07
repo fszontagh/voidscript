@@ -1,6 +1,5 @@
 #ifndef VOIDSCRIPT_HPP
 #define VOIDSCRIPT_HPP
-#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -12,16 +11,10 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
 #include "Modules/BuiltIn/PrintModule.hpp"
-#include "Modules/ModuleManager.hpp"
-// Variable helper functions (typeof)
 #include "Modules/BuiltIn/VariableHelpersModule.hpp"
-// String helper functions
 #include "Modules/BuiltIn/StringModule.hpp"
-// Array helper functions (sizeof)
 #include "Modules/BuiltIn/ArrayModule.hpp"
-// File I/O
 #include "Modules/BuiltIn/FileModule.hpp"
-// JSON encode/decode
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
 #ifdef FCGI
@@ -86,30 +79,30 @@ class VoidScript {
         scriptArgs_(std::move(scriptArgs)),
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
-        
+
         // Initialize SymbolContainer with the main script file path
         // Assuming 'file' parameter is the absolute path desired for the scope name.
         Symbols::SymbolContainer::initialize(file);
 
         // Register built-in modules (print, etc.)
         // print functions
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
         // variable helpers (typeof)
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::VariableHelpersModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::VariableHelpersModule>());
         // string helper functions
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::StringModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::StringModule>());
         // array helper functions (sizeof)
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::ArrayModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ArrayModule>());
         // file I/O builtin
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::FileModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::FileModule>());
         // JSON encode/decode builtin
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::JsonModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::JsonModule>());
 #ifdef FCGI
         // FastCGI header() function module
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::HeaderModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::HeaderModule>());
 #endif
         // Module helper builtin (list, exists, info for plugin modules)
-        Modules::ModuleManager::instance().addModule(std::make_unique<Modules::ModuleHelperModule>());
+        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ModuleHelperModule>());
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
@@ -118,10 +111,10 @@ class VoidScript {
     int run() {
         try {
             // Load plugin modules from 'modules' directory (case-insensitive)
-            Modules::ModuleManager::instance().loadPlugins("Modules");
-            Modules::ModuleManager::instance().loadPlugins(MODULES_FOLDER);
+            Modules::UnifiedModuleManager::instance().loadPlugins("Modules");
+            Modules::UnifiedModuleManager::instance().loadPlugins(MODULES_FOLDER);
             // Register all built-in and plugin modules before execution
-            Modules::ModuleManager::instance().registerAll();
+            Modules::UnifiedModuleManager::instance().registerAll();
             while (!files.empty()) {
                 std::string       file         = files.back();
                 const std::string file_content = readFile(file);
@@ -165,7 +158,7 @@ class VoidScript {
                     }
                 }
 
-                std::string current_file_scope_name = file;
+                const std::string& current_file_scope_name = file;
                 Symbols::SymbolContainer::instance()->create(current_file_scope_name);
 
                 const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();

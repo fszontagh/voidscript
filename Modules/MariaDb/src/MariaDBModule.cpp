@@ -7,7 +7,7 @@
 #include <string>
 
 #include "Modules/ModuleManager.hpp"
-#include "Symbols/ClassRegistry.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {
@@ -16,57 +16,42 @@ namespace Modules {
 static std::map<int, MYSQL *> connMap;
 static int                    nextConnId = 1;
 
-void MariaDBModule::registerModule(IModuleContext & context) {
+void MariaDBModule::registerModule() {
     // Register MariaDB class and its methods
-    auto & registry = Symbols::ClassRegistry::instance();
-    registry.registerClass(this->name());
-    registry.addMethod(this->name(), "connect");
-    registry.addMethod(this->name(), "query");
-    registry.addMethod(this->name(), "close");
+    REGISTER_CLASS(this->name());
 
-    // shrtcut helpers
-    registry.addMethod(this->name(), "insert");
-
-    //const std::vector<FunctParameterInfo> paramList = { "host", "user", "pass", "db" };
-    const std::vector<FunctParameterInfo> paramList = {
-        { "host", Symbols::Variables::Type::STRING, false },
-        { "user", Symbols::Variables::Type::STRING, false },
-        { "pass", Symbols::Variables::Type::STRING, false },
-        { "db",   Symbols::Variables::Type::STRING, false },
+    std::vector<FunctParameterInfo> params = {
+        { "host", Symbols::Variables::Type::STRING, "Database host to connect",  false },
+        { "user", Symbols::Variables::Type::STRING, "Username to authnenticate", false },
+        { "pass", Symbols::Variables::Type::STRING, "Password to authenticate",  false },
+        { "db",   Symbols::Variables::Type::STRING, "Database name",             false },
     };
 
-    REGISTER_MODULE_FUNCTION(context, this->name(), "connect", Symbols::Variables::Type::CLASS, paramList,
-                             "Connect to MariaDB",
-                             [this](const std::vector<Symbols::Value> & args) { return this->connect(args); });
+    REGISTER_METHOD(
+        this->name(), "connect", params,
+        [this](const std::vector<Symbols::Value> & args) { return this->connect(args); },
+        Symbols::Variables::Type::CLASS, "Connect to MariaDB host");
 
+    params = {
+        { "query_string", Symbols::Variables::Type::STRING, "SQL query string to execute", false },
+    };
 
-                             paramList = {
-                                { "query", Symbols::Variables::Type::STRING, false }
-                            };
+    REGISTER_METHOD(
+        this->name(), "query", params, [this](const std::vector<Symbols::Value> & args) { return this->query(args); },
+        Symbols::Variables::Type::OBJECT, "Execute MariaDB query");
 
-    REGISTER_MODULE_FUNCTION(context, this->name(), "query", Symbols::Variables::Type::OBJECT, paramList,
-                             "Execute MariaDB query",
-                             [this](const std::vector<Symbols::Value> & args) { return this->query(args); });
+    REGISTER_METHOD(
+        this->name(), "close", {}, [this](const std::vector<Symbols::Value> & args) { return this->close(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Close MariaDB connection");
 
-    REGISTER_MODULE_FUNCTION(context, this->name(), "close", Symbols::Variables::Type::NULL_TYPE, {},
-                             "Close MariaDB connection",
-                             [this](const std::vector<Symbols::Value> & args) { return this->close(args); });
+    params = {
+        { "data",       Symbols::Variables::Type::OBJECT, "INSERT INTO data",          false },
+        { "table_name", Symbols::Variables::Type::STRING, "Table name to insert into", false },
+    };
 
-    // Register native callbacks for class methods
-    /*auto & mgr = ModuleManager::instance();
-    mgr.registerFunction(
-        "MariaDB::connect", [this](const std::vector<Value> & args) { return this->connect(args); },
-        Symbols::Variables::Type::CLASS);
-    mgr.registerFunction(
-        "MariaDB::query", [this](const std::vector<Value> & args) { return this->query(args); },
-        Symbols::Variables::Type::OBJECT);
-    mgr.registerFunction(
-        "MariaDB::close", [this](const std::vector<Value> & args) { return this->close(args); },
-        Symbols::Variables::Type::NULL_TYPE);
-
-    mgr.registerFunction(
-        "MariaDB::insert", [this](const std::vector<Value> & args) { return this->insert(args); },
-        Symbols::Variables::Type::INTEGER);*/
+    REGISTER_METHOD(
+        this->name(), "insert", params, [this](const std::vector<Symbols::Value> & args) { return this->insert(args); },
+        Symbols::Variables::Type::INTEGER, "Insert data into MariaDB table");
 }
 
 Symbols::Value MariaDBModule::connect(FunctionArguments & args) {

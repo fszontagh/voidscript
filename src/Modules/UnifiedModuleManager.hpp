@@ -1,12 +1,12 @@
 #ifndef MODULES_UNIFIEDMODULEMANAGER_HPP
 #define MODULES_UNIFIEDMODULEMANAGER_HPP
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <filesystem>
 
 #ifndef _WIN32
 #    include <dlfcn.h>
@@ -79,7 +79,7 @@ class UnifiedModuleManager : public IModuleContext {
     std::string               getCurrentModuleName() const;
 
     // New method for generating markdown documentation
-    void generateMarkdownDocs(const std::string& outputDir) const;
+    void generateMarkdownDocs(const std::string & outputDir) const;
 
     BaseModule * getClassModule(const std::string & clsname) const {
         auto it = functions_.find(clsname);
@@ -125,7 +125,7 @@ class UnifiedModuleManager : public IModuleContext {
     do {                                                                            \
         UnifiedModuleManager::instance().registerFunction(fnName, lambda, retType); \
         UnifiedModuleManager::instance().registerDoc(                               \
-            Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),     \
+            Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),   \
             FunctionDoc{ fnName, retType, paramListVec, docStr });                  \
     } while (0)
 

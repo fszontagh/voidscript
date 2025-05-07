@@ -9,7 +9,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
-#include "Modules/ModuleManager.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -48,7 +48,7 @@ class CallExpressionNode : public ExpressionNode {
             }
 
             // Built-in function
-            auto & mgr = Modules::ModuleManager::instance();
+            auto & mgr = Modules::UnifiedModuleManager::instance();
             if (mgr.hasFunction(functionName_)) {
                 return mgr.callFunction(functionName_, argValues);
             }
@@ -59,8 +59,8 @@ class CallExpressionNode : public ExpressionNode {
             std::shared_ptr<FunctionSymbol> funcSym;
             // Search for function symbol in current and parent scopes
             while (true) {
-                auto scope_table = sc->getScopeTable(lookupNs); 
-                Symbols::SymbolPtr sym = nullptr;
+                auto               scope_table = sc->getScopeTable(lookupNs);
+                Symbols::SymbolPtr sym         = nullptr;
                 if (scope_table) {
                     sym = scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_);
                 }
@@ -71,16 +71,18 @@ class CallExpressionNode : public ExpressionNode {
                 }
                 // Move to parent scope by finding the last '::'
                 // This assumes scope names are hierarchical like /file/path::class::method or a top-level file scope
-                auto pos = lookupNs.rfind("::"); 
+                auto pos = lookupNs.rfind("::");
                 if (pos == std::string::npos) {
                     // If lookupNs doesn't contain "::", it means we've reached the top-level scope (e.g., a file path).
                     // If the function wasn't found by now, it's not in any accessible parent scope.
-                    break; 
+                    break;
                 }
                 lookupNs = lookupNs.substr(0, pos);
                 // If substr results in an empty string (e.g. if lookupNs was "::foo"),
                 // it implies an invalid scope name, so break.
-                if (lookupNs.empty()) break; 
+                if (lookupNs.empty()) {
+                    break;
+                }
             }
             if (!funcSym) {
                 throw std::runtime_error("Function not found: " + functionName_);
@@ -92,24 +94,26 @@ class CallExpressionNode : public ExpressionNode {
             }
 
             // Create unique scope for this function call
-            const std::string canonical_fn_scope_name = funcSym->context().empty() ? functionName_ : funcSym->context() + "::" + functionName_;
-            std::string unique_call_scope_name = canonical_fn_scope_name + "::call_" + std::to_string(Interpreter::get_unique_call_id());
-            
-            sc->create(unique_call_scope_name); // Creates and enters the new unique scope
+            const std::string canonical_fn_scope_name =
+                funcSym->context().empty() ? functionName_ : funcSym->context() + "::" + functionName_;
+            std::string unique_call_scope_name =
+                canonical_fn_scope_name + "::call_" + std::to_string(Interpreter::get_unique_call_id());
+
+            sc->create(unique_call_scope_name);  // Creates and enters the new unique scope
 
             // Bind parameters in the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
                 const auto &  p      = params[i];
                 const Value & v      = argValues[i];
                 // Symbol's context is this specific call's scope
-                auto varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
-                sc->add(varSym); // Adds to the current scope (unique_call_scope_name)
+                auto          varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
+                sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 
             // Execute function body operations. These operations will use the current unique_call_scope_name.
             Symbols::Value returnValue;
             // Operations are associated with the canonical function name (where they are defined/parsed)
-            auto ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
+            auto           ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
             for (const auto & op : ops) {
                 try {
                     interpreter.runOperation(*op);
@@ -118,7 +122,7 @@ class CallExpressionNode : public ExpressionNode {
                     break;
                 }
             }
-            sc->enterPreviousScope(); // Exit unique_call_scope_name
+            sc->enterPreviousScope();  // Exit unique_call_scope_name
             return returnValue;
         } catch (const std::exception & e) {
             throw ::Interpreter::Exception(e.what(), filename_, line_, column_);

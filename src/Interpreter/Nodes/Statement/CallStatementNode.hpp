@@ -9,7 +9,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/StatementNode.hpp"
-#include "Modules/ModuleManager.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -40,7 +40,7 @@ class CallStatementNode : public StatementNode {
                 argValues.push_back(expr->evaluate(interpreter));
             }
             {
-                auto & mgr = Modules::ModuleManager::instance();
+                auto & mgr = Modules::UnifiedModuleManager::instance();
                 if (mgr.hasFunction(functionName_)) {
                     mgr.callFunction(functionName_, argValues);
                     return;
@@ -67,7 +67,7 @@ class CallStatementNode : public StatementNode {
                 auto pos = lookupNs.rfind("::");
                 if (pos == std::string::npos) {
                     // Reached top-level scope (e.g., a file path). If not found, it's not in accessible parent scopes.
-                    break; 
+                    break;
                 }
                 lookupNs = lookupNs.substr(0, pos);
                 // If substr results in an empty string (e.g. if lookupNs was "::foo"), implies invalid scope.

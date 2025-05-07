@@ -2,7 +2,6 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch_all.hpp>
 #include <filesystem>
-#include <fstream>
 #include <sstream>
 
 #include "Modules/BuiltIn/ArrayModule.hpp"
@@ -19,7 +18,7 @@ using namespace Modules;
 using namespace Symbols;
 
 TEST_CASE("BuiltInModules all functions", "[built_in]") {
-    auto & mm = ModuleManager::instance();
+    auto & mm = UnifiedModuleManager::instance();
     // Register modules
     mm.addModule(std::make_unique<ArrayModule>());
     mm.addModule(std::make_unique<FileModule>());

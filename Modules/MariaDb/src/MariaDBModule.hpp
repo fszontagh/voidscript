@@ -12,7 +12,7 @@ namespace Modules {
  */
 class MariaDBModule : public BaseModule {
   public:
-    void registerModule(IModuleContext & context) override;
+    void registerModule() override;
 
   private:
     // Methods exposed for MariaDB class

@@ -1,10 +1,10 @@
 // PluginInit.cpp
 #include <memory>
 
+#include "Modules/UnifiedModuleManager.hpp"
 #include "XmlModule.hpp"
-#include "Modules/ModuleManager.hpp"
 
 extern "C" void plugin_init() {
     // Register MariaDBModule
-    Modules::ModuleManager::instance().addModule(std::make_unique<Modules::XmlModule>());
+    Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::XmlModule>());
 }

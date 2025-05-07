@@ -4,7 +4,7 @@ const object $options = {
     object headers: {
         string ContentType: "application/json",
         string Accept: "application/json",
-        string UserAgent: "SoniScript/1.0"
+        string UserAgent: "VoidScript/1.0"
     }
 };
 

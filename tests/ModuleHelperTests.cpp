@@ -2,14 +2,14 @@
 #include <catch2/catch_all.hpp>
 
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
-#include "Modules/ModuleManager.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
 using namespace Modules;
 using namespace Symbols;
 
 TEST_CASE("ModuleHelperModule functions without plugins", "[module_helper]") {
-    auto & mm = ModuleManager::instance();
+    auto & mm = UnifiedModuleManager::instance();
     // Register only the ModuleHelperModule
     mm.addModule(std::make_unique<ModuleHelperModule>());
     mm.registerAll();

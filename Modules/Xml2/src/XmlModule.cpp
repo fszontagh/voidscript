@@ -5,41 +5,37 @@
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
-void Modules::XmlModule::registerModule(IModuleContext & context) {
+void Modules::XmlModule::registerModule() {
     // Register classes using UnifiedModuleManager macros
-    REGISTER_CLASS(context, "Xml2", this->moduleName);
-    REGISTER_CLASS(context, "Xml2", "XmlNode");
-    REGISTER_CLASS(context, "Xml2", "XmlAttr");
-
-    // Register methods using UnifiedModuleManager macros
-    std::vector<FunctParameterInfo> paramsReadFile = {
+    REGISTER_CLASS(this->moduleName);
+    REGISTER_CLASS("XmlNode");
+    REGISTER_CLASS("XmlAttr");
+    std::vector<Modules::FunctParameterInfo> params = {
         { "filename", Symbols::Variables::Type::STRING }
     };
+
     REGISTER_METHOD(
-        context, this->moduleName, "readFile", paramsReadFile,
+        this->moduleName, "readFile", params,
         [this](const FunctionArguments & args) -> Symbols::Value { return this->readFile(args); },
         Symbols::Variables::Type::CLASS, "Read an XML file from disk");
 
-    std::vector<FunctParameterInfo> paramsReadMemory = {
-        { "xmlcontent", Symbols::Variables::Type::STRING },
-        { "size",       Symbols::Variables::Type::INTEGER, true },
-        { "basename",   Symbols::Variables::Type::STRING, true }
+    params = {
+        { "string", Symbols::Variables::Type::STRING }
     };
-    REGISTER_METHOD(
-        context, this->moduleName, "readMemory", paramsReadMemory,
-        [this](const FunctionArguments & args) -> Symbols::Value { return this->readMemory(args); },
-        Symbols::Variables::Type::CLASS, "Parse XML from memory");
 
-    std::vector<FunctParameterInfo> paramsGetRootElement = {};
     REGISTER_METHOD(
-        context, this->moduleName, "getRootElement", paramsGetRootElement,
+        this->moduleName, "readMemory", params,
+        [this](const FunctionArguments & args) { return this->readMemory(args); }, Symbols::Variables::Type::CLASS,
+        "Parse XML from memory");
+
+    REGISTER_METHOD(
+        this->moduleName, "getRootElement", {},
         [this](const FunctionArguments & args) -> Symbols::Value { return this->GetRootElement(args); },
         Symbols::Variables::Type::CLASS, "Get the root element of the XML document");
 
-    std::vector<FunctParameterInfo> paramsGetNodeAttributes = {};
     REGISTER_METHOD(
-        context, "XmlNode", "getAttributes", paramsGetNodeAttributes,
-        [this](const FunctionArguments & args) -> Symbols::Value { return this->GetNodeAttributes(args); },
+        "XmlNode", "getAttributes", {},
+        [this](const FunctionArguments & args) { return this->GetNodeAttributes(args); },
         Symbols::Variables::Type::OBJECT, "Get attributes and children of an XML node");
 }
 
@@ -118,6 +114,9 @@ Symbols::Value Modules::XmlModule::GetRootElement(FunctionArguments & args) {
 }
 
 Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
+    if (args.size() != 1) {
+        throw std::runtime_error(this->moduleName + "::getNodeAttributes: must be called with no arguments");
+    }
     auto val    = this->getObjectValue(args, "__xml_node_handler_id__");
     int  handle = val.get<int>();
 
@@ -152,6 +151,7 @@ Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
                     this->storeObject(args, Symbols::Value{ childHandle }, "__xml_node_handler_id__");
                 childObj["__class__"] = "XmlNode";
 
+                //childrenArray.push_back(Symbols::Value::makeClassInstance(childObj));
                 childrenArray[std::to_string(i++)] = Symbols::Value::makeClassInstance(childObj);
             }
 

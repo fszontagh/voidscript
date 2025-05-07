@@ -41,85 +41,83 @@ Symbols::Value::ObjectMap ModuleHelperModule::buildModuleInfoMap(BaseModule * mo
     return infoMap;
 }
 
-void ModuleHelperModule::registerModule(IModuleContext & context) {
-    auto &                          umm    = UnifiedModuleManager::instance();
+void ModuleHelperModule::registerModule() {
     std::vector<FunctParameterInfo> params = {};
-    REGISTER_FUNCTION_WITH_DOC(context, this->name(), "module_list", Symbols::Variables::Type::OBJECT, params,
-                               "List all available modules", [](FunctionArguments & args) -> Symbols::Value {
-                                   if (!args.empty()) {
-                                       throw std::runtime_error("module_list expects no arguments");
-                                   }
+    REGISTER_FUNCTION("module_list", Symbols::Variables::Type::OBJECT, params, "List all available modules",
+                      [this](const FunctionArguments & args) -> Symbols::Value {
+                          if (!args.empty()) {
+                              throw std::runtime_error("module_list expects no arguments");
+                          }
 
-                                   auto &                    umm     = UnifiedModuleManager::instance();
-                                   auto                      modules = umm.getPluginModules();
-                                   auto                      paths   = umm.getPluginPaths();
-                                   Symbols::Value::ObjectMap modulesMap;
-                                   for (size_t i = 0; i < modules.size(); ++i) {
-                                       BaseModule * mod  = modules[i];
-                                       std::string  path = (i < paths.size() ? paths[i] : std::string());
-                                       std::string  name = std::filesystem::path(path).stem().string();
-                                       if (name.rfind("lib", 0) == 0) {
-                                           name = name.substr(3);
-                                       }
-                                       // Build info object
-                                       Symbols::Value::ObjectMap infoMap =
-                                           buildModuleInfoMap(mod, path, umm);
-                                       modulesMap[std::to_string(i)] = Symbols::Value(infoMap);
-                                   }
-                                   return Symbols::Value(modulesMap);
-                               });
+                          auto &                    umm     = UnifiedModuleManager::instance();
+                          auto                      modules = umm.getPluginModules();
+                          auto                      paths   = umm.getPluginPaths();
+                          Symbols::Value::ObjectMap modulesMap;
+                          for (size_t i = 0; i < modules.size(); ++i) {
+                              BaseModule * mod  = modules[i];
+                              std::string  path = (i < paths.size() ? paths[i] : std::string());
+                              std::string  name = std::filesystem::path(path).stem().string();
+                              if (name.rfind("lib", 0) == 0) {
+                                  name = name.substr(3);
+                              }
+                              // Build info object
+                              Symbols::Value::ObjectMap infoMap = buildModuleInfoMap(mod, path, umm);
+                              modulesMap[std::to_string(i)]     = Symbols::Value(infoMap);
+                          }
+                          return Symbols::Value(modulesMap);
+                      });
 
     params = {
         { "name", Symbols::Variables::Type::STRING }
     };
-    REGISTER_FUNCTION_WITH_DOC(context, this->name(), "module_exists", Symbols::Variables::Type::BOOLEAN, params, "",
-                               [](FunctionArguments & args) -> Symbols::Value {
-                                   using namespace Symbols;
-                                   if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
-                                       throw std::runtime_error("module_exists expects exactly one string argument");
-                                   }
-                                   std::string query = Value::to_string(args[0].get());
-                                   auto &      umm   = UnifiedModuleManager::instance();
-                                   auto        paths = umm.getPluginPaths();
-                                   for (const auto & path : paths) {
-                                       std::string name = std::filesystem::path(path).stem().string();
-                                       if (name.rfind("lib", 0) == 0) {
-                                           name = name.substr(3);
-                                       }
-                                       if (name == query) {
-                                           return Value(true);
-                                       }
-                                   }
-                                   return Value(false);
-                               });
+    REGISTER_FUNCTION("module_exists", Symbols::Variables::Type::BOOLEAN, params, "",
+                      [this](const FunctionArguments & args) -> Symbols::Value {
+                          using namespace Symbols;
+                          if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
+                              throw std::runtime_error("module_exists expects exactly one string argument");
+                          }
+                          std::string query = Value::to_string(args[0].get());
+                          auto &      umm   = UnifiedModuleManager::instance();
+                          auto        paths = umm.getPluginPaths();
+                          for (const auto & path : paths) {
+                              std::string name = std::filesystem::path(path).stem().string();
+                              if (name.rfind("lib", 0) == 0) {
+                                  name = name.substr(3);
+                              }
+                              if (name == query) {
+                                  return Value(true);
+                              }
+                          }
+                          return Value(false);
+                      });
 
-    REGISTER_FUNCTION_WITH_DOC(
-        context, this->name(), "module_info", Symbols::Variables::Type::OBJECT,
-        std::vector<FunctParameterInfo>{
-            { "name", Symbols::Variables::Type::STRING }
-        }, "Retrieve information about a specific module",
-        [](FunctionArguments & args) -> Symbols::Value {
-            using namespace Symbols;
-            if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
-                throw std::runtime_error("module_info expects exactly one string argument");
-            }
-            std::string query   = Value::to_string(args[0].get());
-            auto &      umm     = UnifiedModuleManager::instance();
-            auto        modules = umm.getPluginModules();
-            auto        paths   = umm.getPluginPaths();
-            for (size_t i = 0; i < modules.size(); ++i) {
-                BaseModule * mod  = modules[i];
-                std::string  path = (i < paths.size() ? paths[i] : std::string());
-                std::string  name = std::filesystem::path(path).stem().string();
-                if (name.rfind("lib", 0) == 0) {
-                    name = name.substr(3);
-                }
-                if (name == query) {
-                    return Symbols::Value(buildModuleInfoMap(mod, path, umm));
-                }
-            }
-            return Value::ObjectMap{};
-        });
+    params = {
+        { "name", Symbols::Variables::Type::STRING }
+    };
+    REGISTER_FUNCTION("module_info", Symbols::Variables::Type::OBJECT, params,
+                      "Retrieve information about a specific module",
+                      [this](FunctionArguments & args) -> Symbols::Value {
+                          using namespace Symbols;
+                          if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
+                              throw std::runtime_error("module_info expects exactly one string argument");
+                          }
+                          std::string query   = Value::to_string(args[0].get());
+                          auto &      umm     = UnifiedModuleManager::instance();
+                          auto        modules = umm.getPluginModules();
+                          auto        paths   = umm.getPluginPaths();
+                          for (size_t i = 0; i < modules.size(); ++i) {
+                              BaseModule * mod  = modules[i];
+                              std::string  path = (i < paths.size() ? paths[i] : std::string());
+                              std::string  name = std::filesystem::path(path).stem().string();
+                              if (name.rfind("lib", 0) == 0) {
+                                  name = name.substr(3);
+                              }
+                              if (name == query) {
+                                  return Symbols::Value(buildModuleInfoMap(mod, path, umm));
+                              }
+                          }
+                          return Value::ObjectMap{};
+                      });
 }
 
 }  // namespace Modules

@@ -1,18 +1,16 @@
 #ifndef INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
 #define INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
 
-
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
+
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
-#include "Interpreter/ReturnException.hpp"
-// Access to recorded operations for class methods (method bodies)
 #include "Interpreter/OperationContainer.hpp"
-#include "Modules/ModuleManager.hpp"
-#include "Symbols/ClassRegistry.hpp"
+#include "Interpreter/ReturnException.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 #include "Symbols/Value.hpp"
@@ -72,7 +70,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
             std::string className = it->second.get<std::string>();
             // Verify method exists
-            auto &      registry  = ClassRegistry::instance();
+            auto &      registry  = Modules::UnifiedModuleManager::instance();
             if (!registry.hasMethod(className, methodName_)) {
                 throw Exception("Method not found: " + methodName_ + " in class " + className, filename_, line_,
                                 column_);
@@ -85,9 +83,9 @@ class MethodCallExpressionNode : public ExpressionNode {
             for (const auto & arg : args_) {
                 argValues.push_back(arg->evaluate(interpreter));
             }
-            // Native method override via ModuleManager
+            // Native method override via UnifiedModuleManager
             {
-                auto &      mgr      = Modules::ModuleManager::instance();
+                auto &      mgr      = Modules::UnifiedModuleManager::instance();
                 std::string fullName = className + "::" + methodName_;
                 if (mgr.hasFunction(fullName)) {
                     Value           ret     = mgr.callFunction(fullName, argValues);
@@ -107,27 +105,29 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
 
             // Locate function symbol in class namespace
-            auto *            sc_instance = SymbolContainer::instance(); // Renamed to avoid conflict with outer sc
+            auto *            sc_instance = SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
             // Lookup method symbol in class namespace.
             // classNs is the scope where the class's methods are defined.
             // This often takes the form: current_file_scope_name + "::" + className
-            const std::string current_file_scope = sc_instance->currentScopeName(); // Or derive from filename if more reliable
+            const std::string current_file_scope =
+                sc_instance->currentScopeName();  // Or derive from filename if more reliable
             const std::string class_scope_name = current_file_scope + "::" + className;
 
-            Symbols::SymbolPtr sym = nullptr;
-            auto class_scope_table = sc_instance->getScopeTable(class_scope_name);
+            Symbols::SymbolPtr sym               = nullptr;
+            auto               class_scope_table = sc_instance->getScopeTable(class_scope_name);
             if (class_scope_table) {
                 sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
             }
 
             if (!sym || sym->getKind() != Kind::Function) {
-                throw Exception("Function symbol not found for method: '" + methodName_ + "' in class scope '" + class_scope_name + "'", filename_,
-                                line_, column_);
+                throw Exception("Function symbol not found for method: '" + methodName_ + "' in class scope '" +
+                                    class_scope_name + "'",
+                                filename_, line_, column_);
             }
-            auto         funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
+            auto            funcSym    = std::static_pointer_cast<FunctionSymbol>(sym);
             Variables::Type returnType = funcSym->returnType();
             // Check argument count
-            const auto & params  = funcSym->parameters();
+            const auto &    params     = funcSym->parameters();
             if (params.size() != args_.size()) {
                 throw Exception("Method '" + methodName_ + "' expects " + std::to_string(params.size()) +
                                     " args, got " + std::to_string(args_.size()),
@@ -151,7 +151,8 @@ class MethodCallExpressionNode : public ExpressionNode {
                     if (origSym) {
                         auto method_scope_table = sc_instance->getScopeTable(methodNs);
                         if (method_scope_table) {
-                            auto thisSym = method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+                            auto thisSym =
+                                method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
                             if (thisSym) {
                                 origSym->setValue(thisSym->getValue());
                             } else {
@@ -185,7 +186,9 @@ class MethodCallExpressionNode : public ExpressionNode {
             if (returnType == Variables::Type::NULL_TYPE) {
                 return Value::makeNull(Variables::Type::NULL_TYPE);
             } else {
-                throw Exception("Method '" + methodName_ + "' (return type: " + Variables::TypeToString(returnType) + ") did not return a value", filename_, line_, column_);
+                throw Exception("Method '" + methodName_ + "' (return type: " + Variables::TypeToString(returnType) +
+                                    ") did not return a value",
+                                filename_, line_, column_);
             }
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);

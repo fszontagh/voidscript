@@ -1,10 +1,9 @@
 #include "Modules/UnifiedModuleManager.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <stdexcept>
 #include <utility>
-#include <fstream>
-#include <sstream>
 
 using namespace Modules;
 
@@ -15,7 +14,7 @@ void UnifiedModuleManager::addModule(std::unique_ptr<BaseModule> module) {
 void UnifiedModuleManager::registerAll() {
     for (const auto & module : modules_) {
         currentModule_ = module.get();
-        module->registerModule(*this);  // Requires BaseModule's registerModule() to use this as context
+        module->registerModule();
     }
     currentModule_ = nullptr;
 }
@@ -91,7 +90,7 @@ void UnifiedModuleManager::registerFunction(const std::string & name, CallbackFu
     functions_[name].module     = currentModule_;
 }
 
-void UnifiedModuleManager::registerDoc(const std::string &  /*ModeName*/, const FunctionDoc & doc) {
+void UnifiedModuleManager::registerDoc(const std::string & /*ModeName*/, const FunctionDoc & doc) {
     functions_[doc.name].doc = doc;
 }
 
@@ -203,26 +202,32 @@ std::string UnifiedModuleManager::getCurrentModuleName() const {
     return currentModule_ ? currentModule_->name() : "";
 }
 
-void UnifiedModuleManager::generateMarkdownDocs(const std::string& outputDir) const {
+void UnifiedModuleManager::generateMarkdownDocs(const std::string & outputDir) const {
     std::filesystem::create_directories(outputDir);
 
     std::unordered_map<std::string, std::vector<std::string>> moduleFunctions;
     std::unordered_map<std::string, std::vector<std::string>> moduleClasses;
 
-    for (const auto& [name, entry] : functions_) {
+    for (const auto & [name, entry] : functions_) {
         if (entry.module) {
+            std::cout << "Registering function '" << name << "' for module '" << entry.module->name() << "'\n";
             moduleFunctions[entry.module->name()].push_back(name);
         }
     }
 
-    for (const auto& [name, entry] : classes_) {
+    for (const auto & [name, entry] : classes_) {
         if (entry.module) {
             moduleClasses[entry.module->name()].push_back(name);
         }
     }
 
-    for (const auto& [moduleName, functionNames] : moduleFunctions) {
-        std::string filename = outputDir + "/" + moduleName + ".md";
+    for (const auto & [moduleName, functionNames] : moduleFunctions) {
+        std::string filename = outputDir;
+        filename += "/";
+        filename += moduleName;
+        filename += ".md";
+        std::cout << "Generating documentation for module '" << moduleName << "'...\n";
+
         std::ofstream file(filename);
         if (!file.is_open()) {
             continue;
@@ -230,12 +235,14 @@ void UnifiedModuleManager::generateMarkdownDocs(const std::string& outputDir) co
 
         file << "# Module: " << moduleName << "\n\n";
 
-        for (const auto& name : functionNames) {
+        for (const auto & name : functionNames) {
             auto it = functions_.find(name);
-            if (it == functions_.end()) continue;
+            if (it == functions_.end()) {
+                continue;
+            }
 
-            const auto& entry = it->second;
-            const auto& doc = entry.doc;
+            const auto & entry = it->second;
+            const auto & doc   = entry.doc;
 
             file << "## Function: " << name << "\n";
             file << "Return Type: " << Symbols::Variables::TypeToString(entry.returnType) << "\n\n";
@@ -245,33 +252,38 @@ void UnifiedModuleManager::generateMarkdownDocs(const std::string& outputDir) co
             }
 
             file << "Parameters:\n";
-            for (const auto& param : doc.parameterList) {
-                file << "- `" << param.name << "`: " << Symbols::Variables::TypeToString(param.type) << " - " << param.description << "\n";
+            for (const auto & param : doc.parameterList) {
+                file << "- `" << param.name << "`: " << Symbols::Variables::TypeToString(param.type) << " - "
+                     << param.description << "\n";
             }
 
             file << "\n";
         }
 
-        for (const auto& className : moduleClasses[moduleName]) {
+        for (const auto & className : moduleClasses[moduleName]) {
             auto classIt = classes_.find(className);
-            if (classIt == classes_.end()) continue;
+            if (classIt == classes_.end()) {
+                continue;
+            }
 
-            const auto& classEntry = classIt->second;
-            const auto& module = classEntry.module;
+            const auto & classEntry = classIt->second;
+            const auto & module     = classEntry.module;
 
             file << "## Class: " << className << "\n";
 
-            for (const auto& prop : classEntry.info.properties) {
+            for (const auto & prop : classEntry.info.properties) {
                 file << "### Property: " << prop.name << "\n";
                 file << "Type: " << Symbols::Variables::TypeToString(prop.type) << "\n\n";
             }
 
-            for (const auto& methodName : classEntry.info.methodNames) {
+            for (const auto & methodName : classEntry.info.methodNames) {
                 auto methodIt = functions_.find(methodName);
-                if (methodIt == functions_.end()) continue;
+                if (methodIt == functions_.end()) {
+                    continue;
+                }
 
-                const auto& methodEntry = methodIt->second;
-                const auto& methodDoc = methodEntry.doc;
+                const auto & methodEntry = methodIt->second;
+                const auto & methodDoc   = methodEntry.doc;
 
                 file << "### Method: " << methodName << "\n";
                 file << "Return Type: " << Symbols::Variables::TypeToString(methodEntry.returnType) << "\n\n";
@@ -281,8 +293,9 @@ void UnifiedModuleManager::generateMarkdownDocs(const std::string& outputDir) co
                 }
 
                 file << "Parameters:\n";
-                for (const auto& param : methodDoc.parameterList) {
-                    file << "- `" << param.name << "`: " << Symbols::Variables::TypeToString(param.type) << " - " << param.description << "\n";
+                for (const auto & param : methodDoc.parameterList) {
+                    file << "- `" << param.name << "`: " << Symbols::Variables::TypeToString(param.type) << " - "
+                         << param.description << "\n";
                 }
 
                 file << "\n";
@@ -294,7 +307,7 @@ void UnifiedModuleManager::generateMarkdownDocs(const std::string& outputDir) co
 }
 
 UnifiedModuleManager::~UnifiedModuleManager() {
-    // Cleanup resources (plugins, handles, etc.)
+    // Cleanup plugin handles
     for (void * handle : pluginHandles_) {
 #ifndef _WIN32
         dlclose(handle);
@@ -302,10 +315,16 @@ UnifiedModuleManager::~UnifiedModuleManager() {
         FreeLibrary((HMODULE) handle);
 #endif
     }
+
+    functions_.clear();
     pluginHandles_.clear();
     pluginPaths_.clear();
+
+
     pluginModules_.clear();
-    functions_.clear();
+
+
     classes_.clear();
-    modules_.clear();
+
+    modules_.clear(); // std::unique_ptr free them
 }
