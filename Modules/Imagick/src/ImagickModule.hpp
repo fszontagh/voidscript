@@ -10,25 +10,27 @@ namespace Modules {
 
 class ImagickModule : public BaseModule {
   public:
+    ImagickModule() { setModuleName("Imagick"); }
+
     /**
      * @brief Register this module's symbols
      */
-    void registerModule() override;
+    void registerModule(IModuleContext & context) override;
 
   private:
     std::unordered_map<int, Magick::Image> images_;
     unsigned int                           next_image_id = 0;
-    Symbols::Value                         read(FuncionArguments & args);
-    Symbols::Value                         crop(FuncionArguments & args);
-    Symbols::Value                         resize(FuncionArguments & args);
-    Symbols::Value                         write(FuncionArguments & args);
-    Symbols::Value                         mode(FuncionArguments & args);
-    Symbols::Value                         blur(FuncionArguments & args);
-    Symbols::Value                         rotate(FuncionArguments & args);
-    Symbols::Value                         flip(FuncionArguments & args);
-    Symbols::Value                         getWidth(FuncionArguments & args);
-    Symbols::Value                         getHeight(FuncionArguments & args);
-    Symbols::Value                         composite(FuncionArguments & args);
+    Symbols::Value                         read(FunctionArguments & args);
+    Symbols::Value                         crop(FunctionArguments & args);
+    Symbols::Value                         resize(FunctionArguments & args);
+    Symbols::Value                         write(FunctionArguments & args);
+    Symbols::Value                         mode(FunctionArguments & args);
+    Symbols::Value                         blur(FunctionArguments & args);
+    Symbols::Value                         rotate(FunctionArguments & args);
+    Symbols::Value                         flip(FunctionArguments & args);
+    Symbols::Value                         getWidth(FunctionArguments & args);
+    Symbols::Value                         getHeight(FunctionArguments & args);
+    Symbols::Value                         composite(FunctionArguments & args);
 
 };  // Class ImagickModule
 }  // namespace Modules

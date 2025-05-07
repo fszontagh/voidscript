@@ -2,19 +2,18 @@
 #ifndef FORMATMODULE_HPP
 #define FORMATMODULE_HPP
 
-#include <vector>
-
 #include "Modules/BaseModule.hpp"
-#include "Symbols/Value.hpp"
 
 namespace Modules {
 
 class FormatModule : public BaseModule {
   public:
+    FormatModule() { setModuleName("Format"); }
+
     /**
-     * @brief Register this module's symbols (HTTP GET and POST functions).
+     * @brief Register this module's symbols
      */
-    void registerModule() override;
+    void registerModule(IModuleContext & context);
 };
 
 }  // namespace Modules

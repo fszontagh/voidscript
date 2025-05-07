@@ -18,21 +18,21 @@ class PrintModule : public BaseModule {
   public:
     void registerModule() override {
         auto & mgr = ModuleManager::instance();
-        mgr.registerFunction("print", [](FuncionArguments & args) {
+        mgr.registerFunction("print", [](FunctionArguments & args) {
             for (const auto & v : args) {
                 std::cout << Symbols::Value::to_string(v);
             }
             return Symbols::Value();
         });
-        mgr.registerFunction("printnl", [](FuncionArguments & args) {
+        mgr.registerFunction("printnl", [](FunctionArguments & args) {
             for (const auto & v : args) {
                  std::string valStr = Symbols::Value::to_string(v);
                  std::cout << valStr;
             }
-            std::cout << "\n" << std::flush; 
+            std::cout << "\n" << std::flush;
             return Symbols::Value();
         });
-        mgr.registerFunction("error", [](FuncionArguments & args) {
+        mgr.registerFunction("error", [](FunctionArguments & args) {
             for (const auto & v : args) {
                 std::cerr << Symbols::Value::to_string(v);
             }
@@ -40,7 +40,7 @@ class PrintModule : public BaseModule {
             return Symbols::Value();
         });
         // Built-in error thrower: throws a module exception with provided message
-        mgr.registerFunction("throw_error", [](FuncionArguments & args) {
+        mgr.registerFunction("throw_error", [](FunctionArguments & args) {
             if (args.size() != 1 || args[0].getType() != Symbols::Variables::Type::STRING) {
                 throw Exception("throw_error requires exactly one string argument");
             }

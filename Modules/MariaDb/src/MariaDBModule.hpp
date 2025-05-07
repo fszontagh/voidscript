@@ -12,14 +12,14 @@ namespace Modules {
  */
 class MariaDBModule : public BaseModule {
   public:
-    void registerModule() override;
+    void registerModule(IModuleContext & context) override;
 
   private:
     // Methods exposed for MariaDB class
-    Symbols::Value connect(FuncionArguments & args);
-    Symbols::Value query(FuncionArguments & args);
-    Symbols::Value close(FuncionArguments & args);
-    Symbols::Value insert(FuncionArguments & args);
+    Symbols::Value connect(FunctionArguments & args);
+    Symbols::Value query(FunctionArguments & args);
+    Symbols::Value close(FunctionArguments & args);
+    Symbols::Value insert(FunctionArguments & args);
 };
 
 }  // namespace Modules

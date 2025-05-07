@@ -4,7 +4,7 @@
 #include "Symbols/Value.hpp"
 #include "Modules/ModuleManager.hpp"
 
-void Modules::ImagickModule::registerModule() {
+void Modules::ImagickModule::registerModule(IModuleContext & context) {
     auto & registry = Symbols::ClassRegistry::instance();
     registry.registerClass("Imagick");
     registry.addMethod("Imagick", "read");
@@ -64,7 +64,7 @@ void Modules::ImagickModule::registerModule() {
         Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::read(FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::read(FunctionArguments & args) {
     if (args.size() != 2) {
         throw std::runtime_error("Imagick::read expects (filename), got: " + std::to_string(args.size() - 1));
     }
@@ -88,7 +88,7 @@ Symbols::Value Modules::ImagickModule::read(FuncionArguments & args) {
     return Symbols::Value::makeClassInstance(objMap);
 }
 
-Symbols::Value Modules::ImagickModule::crop(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::crop(Modules::FunctionArguments & args) {
     if (args.size() != 5) {
         throw std::invalid_argument(
             "Imagick::crop missing argument: (int width, int height, int xOffset, int , int yOffset)");
@@ -119,7 +119,7 @@ Symbols::Value Modules::ImagickModule::crop(Modules::FuncionArguments & args) {
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::resize(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::resize(Modules::FunctionArguments & args) {
     if (args.size() < 2) {
         throw std::invalid_argument(
             "Imagick::crop missing argument: (string $sizes | int $width, int $height, int $xOffset = 0, int $yOffset "
@@ -165,7 +165,7 @@ Symbols::Value Modules::ImagickModule::resize(Modules::FuncionArguments & args) 
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::write(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::write(Modules::FunctionArguments & args) {
     if (args.size() != 2) {
         throw std::invalid_argument("Imagick::write missing argument: (string $filename)");
     }
@@ -191,7 +191,7 @@ Symbols::Value Modules::ImagickModule::write(Modules::FuncionArguments & args) {
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::mode(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::mode(Modules::FunctionArguments & args) {
     if (args.size() != 2) {
         throw std::invalid_argument("Imagick::mode missing argument: (string $mode)");
     }
@@ -226,7 +226,7 @@ Symbols::Value Modules::ImagickModule::mode(Modules::FuncionArguments & args) {
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::blur(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::blur(Modules::FunctionArguments & args) {
     if (args.size() != 3) {
         throw std::invalid_argument("Imagick::blur missing argument: (double radius, double sigma)");
     }
@@ -254,7 +254,7 @@ Symbols::Value Modules::ImagickModule::blur(Modules::FuncionArguments & args) {
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::rotate(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::rotate(Modules::FunctionArguments & args) {
     if (args.size() != 2) {
         throw std::invalid_argument("Imagick::rotate missing argument: (double degrees)");
     }
@@ -281,7 +281,7 @@ Symbols::Value Modules::ImagickModule::rotate(Modules::FuncionArguments & args) 
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::flip(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::flip(Modules::FunctionArguments & args) {
     if (args.size() != 2) {
         throw std::invalid_argument("Imagick::flip missing argument: (string direction)");
     }
@@ -314,7 +314,7 @@ Symbols::Value Modules::ImagickModule::flip(Modules::FuncionArguments & args) {
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value Modules::ImagickModule::getWidth(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::getWidth(Modules::FunctionArguments & args) {
     if (args.size() != 1) {
         throw std::invalid_argument("Imagick::getWidth takes no arguments");
     }
@@ -338,7 +338,7 @@ Symbols::Value Modules::ImagickModule::getWidth(Modules::FuncionArguments & args
     return Symbols::Value(static_cast<int>(imgIt->second.columns()));
 }
 
-Symbols::Value Modules::ImagickModule::getHeight(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::getHeight(Modules::FunctionArguments & args) {
     if (args.size() != 1) {
         throw std::invalid_argument("Imagick::getHeight takes no arguments");
     }
@@ -362,7 +362,7 @@ Symbols::Value Modules::ImagickModule::getHeight(Modules::FuncionArguments & arg
     return Symbols::Value(static_cast<int>(imgIt->second.rows()));
 }
 
-Symbols::Value Modules::ImagickModule::composite(Modules::FuncionArguments & args) {
+Symbols::Value Modules::ImagickModule::composite(Modules::FunctionArguments & args) {
     if (args.size() != 4) {
         throw std::invalid_argument("Imagick::composite missing arguments: (Imagick source, int x, int y)");
     }

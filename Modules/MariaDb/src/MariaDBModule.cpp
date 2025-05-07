@@ -16,20 +16,44 @@ namespace Modules {
 static std::map<int, MYSQL *> connMap;
 static int                    nextConnId = 1;
 
-void MariaDBModule::registerModule() {
-    using namespace Symbols;
+void MariaDBModule::registerModule(IModuleContext & context) {
     // Register MariaDB class and its methods
-    auto & registry = ClassRegistry::instance();
-    registry.registerClass("MariaDB");
-    registry.addMethod("MariaDB", "connect");
-    registry.addMethod("MariaDB", "query");
-    registry.addMethod("MariaDB", "close");
+    auto & registry = Symbols::ClassRegistry::instance();
+    registry.registerClass(this->name());
+    registry.addMethod(this->name(), "connect");
+    registry.addMethod(this->name(), "query");
+    registry.addMethod(this->name(), "close");
 
     // shrtcut helpers
-    registry.addMethod("MariaDB", "insert");
+    registry.addMethod(this->name(), "insert");
+
+    //const std::vector<FunctParameterInfo> paramList = { "host", "user", "pass", "db" };
+    const std::vector<FunctParameterInfo> paramList = {
+        { "host", Symbols::Variables::Type::STRING, false },
+        { "user", Symbols::Variables::Type::STRING, false },
+        { "pass", Symbols::Variables::Type::STRING, false },
+        { "db",   Symbols::Variables::Type::STRING, false },
+    };
+
+    REGISTER_MODULE_FUNCTION(context, this->name(), "connect", Symbols::Variables::Type::CLASS, paramList,
+                             "Connect to MariaDB",
+                             [this](const std::vector<Symbols::Value> & args) { return this->connect(args); });
+
+
+                             paramList = {
+                                { "query", Symbols::Variables::Type::STRING, false }
+                            };
+
+    REGISTER_MODULE_FUNCTION(context, this->name(), "query", Symbols::Variables::Type::OBJECT, paramList,
+                             "Execute MariaDB query",
+                             [this](const std::vector<Symbols::Value> & args) { return this->query(args); });
+
+    REGISTER_MODULE_FUNCTION(context, this->name(), "close", Symbols::Variables::Type::NULL_TYPE, {},
+                             "Close MariaDB connection",
+                             [this](const std::vector<Symbols::Value> & args) { return this->close(args); });
 
     // Register native callbacks for class methods
-    auto & mgr = ModuleManager::instance();
+    /*auto & mgr = ModuleManager::instance();
     mgr.registerFunction(
         "MariaDB::connect", [this](const std::vector<Value> & args) { return this->connect(args); },
         Symbols::Variables::Type::CLASS);
@@ -42,10 +66,10 @@ void MariaDBModule::registerModule() {
 
     mgr.registerFunction(
         "MariaDB::insert", [this](const std::vector<Value> & args) { return this->insert(args); },
-        Symbols::Variables::Type::INTEGER);
+        Symbols::Variables::Type::INTEGER);*/
 }
 
-Symbols::Value MariaDBModule::connect(FuncionArguments & args) {
+Symbols::Value MariaDBModule::connect(FunctionArguments & args) {
     using namespace Symbols;
     if (args.size() != 5) {
         throw std::runtime_error("MariaDB::connect expects (host, user, pass, db), got: " +
@@ -78,7 +102,7 @@ Symbols::Value MariaDBModule::connect(FuncionArguments & args) {
     return Value::makeClassInstance(objMap);
 }
 
-Symbols::Value MariaDBModule::query(FuncionArguments & args) {
+Symbols::Value MariaDBModule::query(FunctionArguments & args) {
     using namespace Symbols;
     if (args.size() < 2) {
         throw std::runtime_error("MariaDB::query expects (this, sql)");
@@ -139,7 +163,7 @@ Symbols::Value MariaDBModule::query(FuncionArguments & args) {
     return result;
 }
 
-Symbols::Value MariaDBModule::close(FuncionArguments & args) {
+Symbols::Value MariaDBModule::close(FunctionArguments & args) {
     using namespace Symbols;
     if (args.size() < 1) {
         throw std::runtime_error("MariaDB::close expects (this)");
@@ -161,7 +185,7 @@ Symbols::Value MariaDBModule::close(FuncionArguments & args) {
     return Value::makeNull(Variables::Type::NULL_TYPE);
 }
 
-Symbols::Value MariaDBModule::insert(FuncionArguments & args) {
+Symbols::Value MariaDBModule::insert(FunctionArguments & args) {
     if (args.size() < 3) {
         throw std::invalid_argument("MariaDB::insert expects table_name, object");
     }

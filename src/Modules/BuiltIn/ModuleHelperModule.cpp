@@ -15,7 +15,7 @@ namespace Modules {
 void ModuleHelperModule::registerModule() {
     auto & mgr = ModuleManager::instance();
     // List all loaded plugin modules
-    mgr.registerFunction("module_list", [](FuncionArguments & args) -> Symbols::Value {
+    mgr.registerFunction("module_list", [](FunctionArguments & args) -> Symbols::Value {
         if (!args.empty()) {
             throw std::runtime_error("module_list expects no arguments");
         }
@@ -63,7 +63,7 @@ void ModuleHelperModule::registerModule() {
     });
 
     // Check if a module exists by name
-    mgr.registerFunction("module_exists", [](FuncionArguments & args) -> Symbols::Value {
+    mgr.registerFunction("module_exists", [](FunctionArguments & args) -> Symbols::Value {
         using namespace Symbols;
         if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
             throw std::runtime_error("module_exists expects exactly one string argument");
@@ -84,7 +84,7 @@ void ModuleHelperModule::registerModule() {
     });
 
     // Get info for a specific module
-    mgr.registerFunction("module_info", [](FuncionArguments & args) -> Symbols::Value {
+    mgr.registerFunction("module_info", [](FunctionArguments & args) -> Symbols::Value {
         using namespace Symbols;
         if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
             throw std::runtime_error("module_info expects exactly one string argument");

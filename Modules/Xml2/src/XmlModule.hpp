@@ -15,10 +15,12 @@ static int                                        nextDoc = 1;
 
 class XmlModule : public BaseModule {
   public:
+    XmlModule() { setModuleName("Xml2"); }
+
     /**
      * @brief Register this module's symbols
      */
-    void registerModule() override;
+    void registerModule(IModuleContext & context) override;
 
     ~XmlModule() {
         for (auto dox : docHolder) {
@@ -66,10 +68,10 @@ class XmlModule : public BaseModule {
 
     // example: https://gitlab.gnome.org/GNOME/libxml2/-/blob/master/example/parse1.c
 
-    Symbols::Value readFile(FuncionArguments & args);
-    Symbols::Value readMemory(FuncionArguments & args);
-    Symbols::Value GetRootElement(FuncionArguments & args);
-    Symbols::Value GetNodeAttributes(FuncionArguments & args);
+    Symbols::Value readFile(FunctionArguments & args);
+    Symbols::Value readMemory(FunctionArguments & args);
+    Symbols::Value GetRootElement(FunctionArguments & args);
+    Symbols::Value GetNodeAttributes(FunctionArguments & args);
 
 };  // Class
 }  // namespace Modules

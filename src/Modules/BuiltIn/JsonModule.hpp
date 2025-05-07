@@ -24,7 +24,7 @@ class JsonModule : public BaseModule {
     void registerModule() override {
         auto & mgr = ModuleManager::instance();
         // json_encode: serialize a Value to JSON string
-        mgr.registerFunction("json_encode", [](FuncionArguments & args) {
+        mgr.registerFunction("json_encode", [](FunctionArguments & args) {
             using namespace Symbols;
             if (args.size() != 1) {
                 throw std::runtime_error("json_encode expects 1 argument");
@@ -140,7 +140,7 @@ class JsonModule : public BaseModule {
             return Symbols::Value(result);
         });
         // json_decode: parse JSON string to Value (object/value)
-        mgr.registerFunction("json_decode", [](FuncionArguments & args) {
+        mgr.registerFunction("json_decode", [](FunctionArguments & args) {
             using namespace Symbols;
             if (args.size() != 1) {
                 throw std::runtime_error("json_decode expects 1 argument");

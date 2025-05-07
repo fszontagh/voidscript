@@ -5,7 +5,7 @@
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/Value.hpp"
 
-void Modules::XmlModule::registerModule() {
+void Modules::XmlModule::registerModule(IModuleContext & context) {
     auto & registry = Symbols::ClassRegistry::instance();
     registry.registerClass(this->moduleName);
     registry.registerClass("XmlNode");
@@ -22,11 +22,11 @@ void Modules::XmlModule::registerModule() {
         Symbols::Variables::Type::CLASS);
 
     registry.addMethod(
-        "XmlNode", "getAttributes", [this](FuncionArguments & args) { return this->GetNodeAttributes(args); },
+        "XmlNode", "getAttributes", [this](FunctionArguments & args) { return this->GetNodeAttributes(args); },
         Symbols::Variables::Type::OBJECT);
 }
 
-Symbols::Value Modules::XmlModule::readFile(FuncionArguments & args) {
+Symbols::Value Modules::XmlModule::readFile(FunctionArguments & args) {
     if (args.size() != 2) {
         throw std::runtime_error("XML2 expects one parameter (string $filename), got: " +
                                  std::to_string(args.size() - 1));
@@ -44,7 +44,7 @@ Symbols::Value Modules::XmlModule::readFile(FuncionArguments & args) {
     return Symbols::Value::makeClassInstance(objMap);
 }
 
-Symbols::Value Modules::XmlModule::readMemory(FuncionArguments & args) {
+Symbols::Value Modules::XmlModule::readMemory(FunctionArguments & args) {
     if (args.size() < 2) {
         throw std::runtime_error(
             "XML2 expects one parameter (string $xmlcontent, int $size = -1, string $basename = \"noname.xml\"), "
@@ -79,7 +79,7 @@ Symbols::Value Modules::XmlModule::readMemory(FuncionArguments & args) {
     return Symbols::Value::makeClassInstance(objMap);
 }
 
-Symbols::Value Modules::XmlModule::GetRootElement(FuncionArguments & args) {
+Symbols::Value Modules::XmlModule::GetRootElement(FunctionArguments & args) {
     if (args.size() != 1) {
         throw std::runtime_error(this->moduleName + "::getRootElement: must be called with no arguments");
     }
@@ -100,7 +100,7 @@ Symbols::Value Modules::XmlModule::GetRootElement(FuncionArguments & args) {
     return Symbols::Value::makeClassInstance(obj);
 }
 
-Symbols::Value Modules::XmlModule::GetNodeAttributes(FuncionArguments & args) {
+Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
     auto val    = this->getObjectValue(args, "__xml_node_handler_id__");
     int  handle = val.get<int>();
 

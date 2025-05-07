@@ -23,7 +23,7 @@ class VariableHelpersModule : public BaseModule {
   public:
     void registerModule() override {
         auto & mgr = ModuleManager::instance();
-        mgr.registerFunction("typeof", [](FuncionArguments & args) {
+        mgr.registerFunction("typeof", [](FunctionArguments & args) {
             using namespace Symbols;
             if (args.size() == 1) {
                 auto t = args[0].getType();

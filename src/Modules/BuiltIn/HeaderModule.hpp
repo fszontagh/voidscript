@@ -18,7 +18,7 @@ class HeaderModule : public BaseModule {
   public:
     void registerModule() override {
         auto &mgr = ModuleManager::instance();
-        mgr.registerFunction("header", [](FuncionArguments &args) {
+        mgr.registerFunction("header", [](FunctionArguments &args) {
             if (args.size() != 2 || args[0].getType() != Symbols::Variables::Type::STRING ||
                 args[1].getType() != Symbols::Variables::Type::STRING) {
                 throw Exception("header(key, value) requires two string arguments");
