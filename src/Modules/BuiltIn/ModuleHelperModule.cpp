@@ -63,7 +63,7 @@ void ModuleHelperModule::registerModule(IModuleContext & context) {
                                        }
                                        // Build info object
                                        Symbols::Value::ObjectMap infoMap =
-                                           buildModuleInfoMap(mod, path, umm, Symbols::ClassRegistry::instance());
+                                           buildModuleInfoMap(mod, path, umm);
                                        modulesMap[std::to_string(i)] = Symbols::Value(infoMap);
                                    }
                                    return Symbols::Value(modulesMap);
@@ -94,10 +94,11 @@ void ModuleHelperModule::registerModule(IModuleContext & context) {
                                });
 
     REGISTER_FUNCTION_WITH_DOC(
-        umm, "ModuleHelperModule", "module_info", Symbols::Variables::Type::OBJECT,
+        context, this->name(), "module_info", Symbols::Variables::Type::OBJECT,
         std::vector<FunctParameterInfo>{
-            params,
-        "", [](FunctionArguments & args) -> Symbols::Value {
+            { "name", Symbols::Variables::Type::STRING }
+        }, "Retrieve information about a specific module",
+        [](FunctionArguments & args) -> Symbols::Value {
             using namespace Symbols;
             if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
                 throw std::runtime_error("module_info expects exactly one string argument");
@@ -114,7 +115,7 @@ void ModuleHelperModule::registerModule(IModuleContext & context) {
                     name = name.substr(3);
                 }
                 if (name == query) {
-                    return Symbols::Value(buildModuleInfoMap(mod, path, umm, Symbols::ClassRegistry::instance()));
+                    return Symbols::Value(buildModuleInfoMap(mod, path, umm));
                 }
             }
             return Value::ObjectMap{};
