@@ -6,23 +6,22 @@
 #include <string>
 #include <vector>
 
-#include "Modules/ModuleManager.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {
 
-void ModuleHelperModule::registerModule() {
-    auto & mgr = ModuleManager::instance();
-    // List all loaded plugin modules
-    mgr.registerFunction("module_list", [](FunctionArguments & args) -> Symbols::Value {
+void ModuleHelperModule::registerModule(IModuleContext & context) {
+    auto & umm = UnifiedModuleManager::instance();
+    REGISTER_FUNCTION_WITH_DOC(umm, "module_list", Symbols::Variables::Type::OBJECT, {}, "", [](FunctionArguments & args) -> Symbols::Value {
         if (!args.empty()) {
             throw std::runtime_error("module_list expects no arguments");
         }
 
-        auto &                    mm      = ModuleManager::instance();
-        auto                      modules = mm.getPluginModules();
-        auto                      paths   = mm.getPluginPaths();
+        auto &                    umm     = UnifiedModuleManager::instance();
+        auto                      modules = umm.getPluginModules();
+        auto                      paths   = umm.getPluginPaths();
         Symbols::Value::ObjectMap modulesMap;
         for (size_t i = 0; i < modules.size(); ++i) {
             BaseModule * mod  = modules[i];
@@ -43,7 +42,7 @@ void ModuleHelperModule::registerModule() {
             }
             // Collect functions
             Symbols::Value::ObjectMap funcsMap;
-            auto                      funcNames = mm.getFunctionNamesForModule(mod);
+            auto                      funcNames = umm.getFunctionNamesForModule(mod);
             int                       fi        = 0;
             for (const auto & fn : funcNames) {
                 funcsMap[std::to_string(fi++)] = Symbols::Value(fn);
@@ -62,15 +61,21 @@ void ModuleHelperModule::registerModule() {
         return Symbols::Value(modulesMap);
     });
 
-    // Check if a module exists by name
-    mgr.registerFunction("module_exists", [](FunctionArguments & args) -> Symbols::Value {
+    REGISTER_FUNCTION_WITH_DOC(
+        UnifiedModuleManager::instance(),
+        "ModuleHelperModule",
+        "module_exists",
+        Symbols::Variables::Type::BOOLEAN,
+        std::vector<FunctParameterInfo>{FunctParameterInfo{Symbols::Variables::Type::STRING, "name"}},
+        "",
+        [](FunctionArguments & args) -> Symbols::Value {
         using namespace Symbols;
         if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
             throw std::runtime_error("module_exists expects exactly one string argument");
         }
         std::string query = Value::to_string(args[0].get());
-        auto &      mm    = ModuleManager::instance();
-        auto        paths = mm.getPluginPaths();
+        auto &      umm    = UnifiedModuleManager::instance();
+        auto        paths = umm.getPluginPaths();
         for (const auto & path : paths) {
             std::string name = std::filesystem::path(path).stem().string();
             if (name.rfind("lib", 0) == 0) {
@@ -83,16 +88,22 @@ void ModuleHelperModule::registerModule() {
         return Value(false);
     });
 
-    // Get info for a specific module
-    mgr.registerFunction("module_info", [](FunctionArguments & args) -> Symbols::Value {
+    REGISTER_FUNCTION_WITH_DOC(
+        UnifiedModuleManager::instance(),
+        "ModuleHelperModule",
+        "module_info",
+        Symbols::Variables::Type::OBJECT,
+        std::vector<FunctParameterInfo>{FunctParameterInfo{Symbols::Variables::Type::STRING, "name"}},
+        "",
+        [](FunctionArguments & args) -> Symbols::Value {
         using namespace Symbols;
         if (args.size() != 1 || args[0].getType() != Variables::Type::STRING) {
             throw std::runtime_error("module_info expects exactly one string argument");
         }
         std::string query   = Value::to_string(args[0].get());
-        auto &      mm      = ModuleManager::instance();
-        auto        modules = mm.getPluginModules();
-        auto        paths   = mm.getPluginPaths();
+        auto &      umm     = UnifiedModuleManager::instance();
+        auto        modules = umm.getPluginModules();
+        auto        paths   = umm.getPluginPaths();
         for (size_t i = 0; i < modules.size(); ++i) {
             BaseModule * mod  = modules[i];
             std::string  path = (i < paths.size() ? paths[i] : std::string());
@@ -103,7 +114,7 @@ void ModuleHelperModule::registerModule() {
             if (name == query) {
                 // Build same infoMap as module_list
                 Value::ObjectMap classesMap;
-                auto &           cr         = ClassRegistry::instance();
+                auto &           cr         = Symbols::ClassRegistry::instance();
                 auto             classNames = cr.getClassNames();
                 int              ci         = 0;
                 for (const auto & cls : classNames) {
@@ -112,7 +123,7 @@ void ModuleHelperModule::registerModule() {
                     }
                 }
                 Value::ObjectMap funcsMap;
-                auto             funcNames = mm.getFunctionNamesForModule(mod);
+                auto             funcNames = umm.getFunctionNamesForModule(mod);
                 int              fi        = 0;
                 for (const auto & fn : funcNames) {
                     funcsMap[std::to_string(fi++)] = Value(fn);
