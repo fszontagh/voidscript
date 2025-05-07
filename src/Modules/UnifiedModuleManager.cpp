@@ -1,0 +1,226 @@
+#include "Modules/UnifiedModuleManager.hpp"
+
+#include <filesystem>
+#include <stdexcept>
+#include <utility>
+
+using namespace Modules;
+
+void UnifiedModuleManager::addModule(std::unique_ptr<BaseModule> module) {
+    modules_.push_back(std::move(module));
+}
+
+void UnifiedModuleManager::registerAll() {
+    for (const auto & module : modules_) {
+        currentModule_ = module.get();
+        module->registerModule(*this);  // Requires BaseModule's registerModule() to use this as context
+    }
+    currentModule_ = nullptr;
+}
+
+#include <filesystem>
+using namespace std::filesystem;
+
+void UnifiedModuleManager::loadPlugins(const std::string & directory) {
+    if (!exists(directory) || !is_directory(directory)) {
+        return;
+    }
+    for (const auto & entry : recursive_directory_iterator(directory)) {
+        if (!entry.is_regular_file()) {
+            continue;
+        }
+#ifndef _WIN32
+        if (entry.path().extension() != ".so") {
+            continue;
+        }
+#else
+        if (entry.path().extension() != ".dll") {
+            continue;
+        }
+#endif
+        loadPlugin(entry.path().string());
+    }
+}
+
+void UnifiedModuleManager::loadPlugin(const std::string & path) {
+    void * handle;
+#ifndef _WIN32
+    handle = dlopen(path.c_str(), RTLD_NOW);
+    if (!handle) {
+        throw std::runtime_error("Failed to load plugin: " + std::string(dlerror()));
+    }
+#else
+    handle = LoadLibraryA(path.c_str());
+    if (!handle) {
+        throw std::runtime_error("Failed to load plugin: " + path);
+    }
+#endif
+
+    pluginHandles_.push_back(handle);
+
+    using PluginInitFunc = void (*)();
+#ifndef _WIN32
+    dlerror();  // Clear any existing errors
+    PluginInitFunc init        = reinterpret_cast<PluginInitFunc>(dlsym(handle, "plugin_init"));
+    const char *   dlsym_error = dlerror();
+    if (dlsym_error) {
+        dlclose(handle);
+        pluginHandles_.pop_back();
+        throw std::runtime_error("Plugin missing 'plugin_init' symbol: " + path + ": " + std::string(dlsym_error));
+    }
+    init();
+#else
+    PluginInitFunc init = reinterpret_cast<PluginInitFunc>(GetProcAddress((HMODULE) handle, "plugin_init"));
+    if (!init) {
+        FreeLibrary((HMODULE) handle);
+        pluginHandles_.pop_back();
+        throw std::runtime_error("Plugin missing 'plugin_init' symbol: " + path);
+    }
+    init();
+#endif
+
+    pluginPaths_.push_back(path);
+    if (!modules_.empty()) {
+        pluginModules_.push_back(modules_.back().get());
+    }
+}
+
+void UnifiedModuleManager::registerFunction(const std::string & name, CallbackFunction cb,
+                                            const Symbols::Variables::Type & returnType) {
+    functions_[name].callback   = cb;
+    functions_[name].returnType = returnType;
+    functions_[name].module     = currentModule_;
+}
+
+void UnifiedModuleManager::registerDoc(const std::string & modName, const FunctionDoc & doc) {
+    functions_[doc.name].doc = doc;
+}
+
+bool UnifiedModuleManager::hasFunction(const std::string & name) const {
+    return functions_.find(name) != functions_.end();
+}
+
+Symbols::Value UnifiedModuleManager::callFunction(const std::string & name, FunctionArguments & args) const {
+    auto it = functions_.find(name);
+    if (it == functions_.end()) {
+        throw std::runtime_error("Function not found: " + name);
+    }
+    return it->second.callback(args);
+}
+
+Symbols::Variables::Type UnifiedModuleManager::getFunctionReturnType(const std::string & name) {
+    auto it = functions_.find(name);
+    if (it == functions_.end()) {
+        return Symbols::Variables::Type::NULL_TYPE;
+    }
+    return it->second.returnType;
+}
+
+Symbols::Value UnifiedModuleManager::getFunctionNullValue(const std::string & name) {
+    auto it = functions_.find(name);
+    if (it == functions_.end()) {
+        return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+    }
+    return Symbols::Value::makeNull(it->second.returnType);
+}
+
+bool UnifiedModuleManager::hasClass(const std::string & className) const {
+    return classes_.find(className) != classes_.end();
+}
+
+void UnifiedModuleManager::registerClass(const std::string & className) {
+    classes_[className].info   = ClassInfo();
+    classes_[className].module = currentModule_;
+}
+
+ClassInfo & UnifiedModuleManager::getClassInfo(const std::string & className) {
+    return classes_.at(className).info;
+}
+
+void UnifiedModuleManager::addProperty(const std::string & className, const std::string & propertyName,
+                                       Symbols::Variables::Type type, Parser::ParsedExpressionPtr defaultValueExpr) {
+    ClassInfo & cls = classes_.at(className).info;
+    cls.properties.push_back({ propertyName, type, std::move(defaultValueExpr) });
+}
+
+void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName) {
+    classes_.at(className).info.methodNames.push_back(methodName);
+}
+
+void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName,
+                                     std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb,
+                                     const Symbols::Variables::Type &                                   returnType) {
+    // Note: Current ClassInfo lacks storage for method callbacks.
+    // To fully implement this, ClassInfo needs a MethodInfo struct storing callback and returnType
+    // Add the method name as placeholder for now
+    addMethod(className, methodName);  // Keep existing name registration
+    // TODO: Update ClassInfo to store method callbacks and returnType
+}
+
+bool UnifiedModuleManager::hasProperty(const std::string & className, const std::string & propertyName) const {
+    const auto & props = classes_.at(className).info.properties;
+    for (const auto & prop : props) {
+        if (prop.name == propertyName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool UnifiedModuleManager::hasMethod(const std::string & className, const std::string & methodName) const {
+    const auto & methods = classes_.at(className).info.methodNames;
+    return std::find(methods.begin(), methods.end(), methodName) != methods.end();
+}
+
+std::vector<std::string> UnifiedModuleManager::getClassNames() const {
+    std::vector<std::string> names;
+    names.reserve(classes_.size());
+for (const auto & pair : classes_) {
+        names.push_back(pair.first);
+    }
+    return names;
+}
+
+std::vector<std::string> UnifiedModuleManager::getFunctionNamesForModule(BaseModule * module) const {
+    std::vector<std::string> names;
+    for (const auto & pair : functions_) {
+        if (pair.second.module == module) {
+            names.push_back(pair.first);
+        }
+    }
+    return names;
+}
+
+std::vector<std::string> UnifiedModuleManager::getPluginPaths() const {
+    return pluginPaths_;
+}
+
+std::vector<BaseModule *> UnifiedModuleManager::getPluginModules() const {
+    return pluginModules_;
+}
+
+BaseModule * UnifiedModuleManager::getCurrentModule() const {
+    return currentModule_;
+}
+
+std::string UnifiedModuleManager::getCurrentModuleName() const {
+    return currentModule_ ? currentModule_->name() : "";
+}
+
+// Define the private destructor
+UnifiedModuleManager::~UnifiedModuleManager() {
+    // Cleanup resources (plugins, handles, etc.)
+    for (void * handle : pluginHandles_) {
+#ifndef _WIN32
+        dlclose(handle);
+#else
+        FreeLibrary((HMODULE) handle);
+#endif
+    }
+    pluginHandles_.clear();
+    pluginPaths_.clear();
+    pluginModules_.clear();
+    functions_.clear();
+    classes_.clear();
+    modules_.clear();
+}
