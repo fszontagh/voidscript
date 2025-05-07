@@ -7,9 +7,9 @@
 
 void Modules::XmlModule::registerModule(IModuleContext & context) {
     // Register classes using UnifiedModuleManager macros
-    REGISTER_CLASS(context, this->moduleName);
-    REGISTER_CLASS(context, "XmlNode");
-    REGISTER_CLASS(context, "XmlAttr");
+    REGISTER_CLASS(context, "Xml2", this->moduleName);
+    REGISTER_CLASS(context, "Xml2", "XmlNode");
+    REGISTER_CLASS(context, "Xml2", "XmlAttr");
 
     // Register methods using UnifiedModuleManager macros
     std::vector<FunctParameterInfo> paramsReadFile = {
