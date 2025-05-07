@@ -7,19 +7,25 @@
 
 void Modules::XmlModule::registerModule(IModuleContext & context) {
     // Register classes using UnifiedModuleManager macros
-    REGISTER_CLASS(context, this->moduleName);
-    REGISTER_CLASS(context, "XmlNode");
-    REGISTER_CLASS(context, "XmlAttr");
+    REGISTER_CLASS(this->moduleName);
+    REGISTER_CLASS("XmlNode");
+    REGISTER_CLASS("XmlAttr");
+    std::vector<Modules::FunctParameterInfo> params = {
+        { "filename", Symbols::Variables::Type::STRING }
+    };
 
-    // Register methods using UnifiedModuleManager macros
-    REGISTER_METHOD(context, this->moduleName, "readFile", &XmlModule::readFile, Symbols::Variables::Type::CLASS,
-                   "Read an XML file from disk");
-    REGISTER_METHOD(context, this->moduleName, "readMemory", &XmlModule::readMemory, Symbols::Variables::Type::CLASS,
-                   "Parse XML from memory");
-    REGISTER_METHOD(context, this->moduleName, "getRootElement", &XmlModule::GetRootElement,
-                   Symbols::Variables::Type::CLASS, "Get the root element of the XML document");
-    REGISTER_METHOD(context, "XmlNode", "getAttributes", &XmlModule::GetNodeAttributes, Symbols::Variables::Type::OBJECT,
-                   "Get attributes and children of an XML node");
+    REGISTER_METHOD(
+        this->moduleName, "readFile", params,
+        [this](const FunctionArguments & args) -> Symbols::Value { return this->readFile(args); },
+        Symbols::Variables::Type::CLASS, "Read an XML file from disk");
+
+
+    REGISTER_METHOD(this->moduleName, "readMemory", &XmlModule::readMemory, Symbols::Variables::Type::CLASS,
+                    "Parse XML from memory");
+    REGISTER_METHOD(this->moduleName, "getRootElement", &XmlModule::GetRootElement, Symbols::Variables::Type::CLASS,
+                    "Get the root element of the XML document");
+    REGISTER_METHOD("XmlNode", "getAttributes", &XmlModule::GetNodeAttributes, Symbols::Variables::Type::OBJECT,
+                    "Get attributes and children of an XML node");
 }
 
 Symbols::Value Modules::XmlModule::readFile(FunctionArguments & args) {
