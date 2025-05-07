@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <filesystem>
 
 #ifndef _WIN32
 #    include <dlfcn.h>
@@ -48,7 +49,6 @@ class UnifiedModuleManager : public IModuleContext {
     void loadPlugin(const std::string & path);
 
     // Function registration
-
     void                     registerFunction(const std::string & name, CallbackFunction cb,
                                               const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
     void                     registerDoc(const std::string & ModName, const FunctionDoc & doc);
@@ -78,11 +78,9 @@ class UnifiedModuleManager : public IModuleContext {
     BaseModule *              getCurrentModule() const;
     std::string               getCurrentModuleName() const;
 
-    /*
-    * @brief Returns the module that owns the class with the given name.
-    * @param clsname The name of the class to find the module for.
-    * @return A pointer to the module that owns the class, or nullptr if no such module is found.
-    */
+    // New method for generating markdown documentation
+    void generateMarkdownDocs(const std::string& outputDir) const;
+
     BaseModule * getClassModule(const std::string & clsname) const {
         auto it = functions_.find(clsname);
         if (it != functions_.end()) {
@@ -103,7 +101,6 @@ class UnifiedModuleManager : public IModuleContext {
     BaseModule *                             currentModule_ = nullptr;
 
     // Function registry
-
     struct FunctionEntry {
         CallbackFunction         callback;
         Symbols::Variables::Type returnType;

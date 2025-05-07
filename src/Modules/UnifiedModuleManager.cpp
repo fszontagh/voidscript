@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
+#include <fstream>
+#include <sstream>
 
 using namespace Modules;
 
@@ -201,7 +203,96 @@ std::string UnifiedModuleManager::getCurrentModuleName() const {
     return currentModule_ ? currentModule_->name() : "";
 }
 
-// Define the private destructor
+void UnifiedModuleManager::generateMarkdownDocs(const std::string& outputDir) const {
+    std::filesystem::create_directories(outputDir);
+
+    std::unordered_map<std::string, std::vector<std::string>> moduleFunctions;
+    std::unordered_map<std::string, std::vector<std::string>> moduleClasses;
+
+    for (const auto& [name, entry] : functions_) {
+        if (entry.module) {
+            moduleFunctions[entry.module->name()].push_back(name);
+        }
+    }
+
+    for (const auto& [name, entry] : classes_) {
+        if (entry.module) {
+            moduleClasses[entry.module->name()].push_back(name);
+        }
+    }
+
+    for (const auto& [moduleName, functionNames] : moduleFunctions) {
+        std::string filename = outputDir + "/" + moduleName + ".md";
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            continue;
+        }
+
+        file << "# Module: " << moduleName << "\n\n";
+
+        for (const auto& name : functionNames) {
+            auto it = functions_.find(name);
+            if (it == functions_.end()) continue;
+
+            const auto& entry = it->second;
+            const auto& doc = entry.doc;
+
+            file << "## Function: " << name << "\n";
+            file << "Return Type: " << Symbols::Variables::TypeToString(entry.returnType) << "\n\n";
+
+            if (!doc.description.empty()) {
+                file << "Description: " << doc.description << "\n\n";
+            }
+
+            file << "Parameters:\n";
+            for (const auto& param : doc.parameterList) {
+                file << "- `" << param.name << "`: " << Symbols::Variables::TypeToString(param.type) << " - " << param.description << "\n";
+            }
+
+            file << "\n";
+        }
+
+        for (const auto& className : moduleClasses[moduleName]) {
+            auto classIt = classes_.find(className);
+            if (classIt == classes_.end()) continue;
+
+            const auto& classEntry = classIt->second;
+            const auto& module = classEntry.module;
+
+            file << "## Class: " << className << "\n";
+
+            for (const auto& prop : classEntry.info.properties) {
+                file << "### Property: " << prop.name << "\n";
+                file << "Type: " << Symbols::Variables::TypeToString(prop.type) << "\n\n";
+            }
+
+            for (const auto& methodName : classEntry.info.methodNames) {
+                auto methodIt = functions_.find(methodName);
+                if (methodIt == functions_.end()) continue;
+
+                const auto& methodEntry = methodIt->second;
+                const auto& methodDoc = methodEntry.doc;
+
+                file << "### Method: " << methodName << "\n";
+                file << "Return Type: " << Symbols::Variables::TypeToString(methodEntry.returnType) << "\n\n";
+
+                if (!methodDoc.description.empty()) {
+                    file << "Description: " << methodDoc.description << "\n\n";
+                }
+
+                file << "Parameters:\n";
+                for (const auto& param : methodDoc.parameterList) {
+                    file << "- `" << param.name << "`: " << Symbols::Variables::TypeToString(param.type) << " - " << param.description << "\n";
+                }
+
+                file << "\n";
+            }
+        }
+
+        file.close();
+    }
+}
+
 UnifiedModuleManager::~UnifiedModuleManager() {
     // Cleanup resources (plugins, handles, etc.)
     for (void * handle : pluginHandles_) {
