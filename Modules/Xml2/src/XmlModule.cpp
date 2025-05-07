@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-#include "Symbols/ClassRegistry.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
 void Modules::XmlModule::registerModule(IModuleContext & context) {
