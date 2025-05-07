@@ -6,24 +6,16 @@
 #include "Symbols/Value.hpp"
 
 void Modules::XmlModule::registerModule(IModuleContext & context) {
-    auto & registry = Symbols::ClassRegistry::instance();
-    registry.registerClass(this->moduleName);
-    registry.registerClass("XmlNode");
-    registry.registerClass("XmlAttr");
+    // Register classes using UnifiedModuleManager macros
+    REGISTER_CLASS(context, this->moduleName);
+    REGISTER_CLASS(context, "XmlNode");
+    REGISTER_CLASS(context, "XmlAttr");
 
-    registry.addMethod(this->moduleName, "readFile",
-                       [this](const std::vector<Symbols::Value> & args) { return this->readFile(args); });
-    registry.addMethod(this->moduleName, "readMemory",
-                       [this](const std::vector<Symbols::Value> & args) { return this->readMemory(args); });
-
-    registry.addMethod(
-        this->moduleName, "getRootElement",
-        [this](const std::vector<Symbols::Value> & args) { return this->GetRootElement(args); },
-        Symbols::Variables::Type::CLASS);
-
-    registry.addMethod(
-        "XmlNode", "getAttributes", [this](FunctionArguments & args) { return this->GetNodeAttributes(args); },
-        Symbols::Variables::Type::OBJECT);
+    // Register methods using UnifiedModuleManager macros
+    REGISTER_METHOD(context, this->moduleName, "readFile", &XmlModule::readFile);
+    REGISTER_METHOD(context, this->moduleName, "readMemory", &XmlModule::readMemory);
+    REGISTER_METHOD(context, this->moduleName, "getRootElement", &XmlModule::GetRootElement);
+    REGISTER_METHOD(context, "XmlNode", "getAttributes", &XmlModule::GetNodeAttributes);
 }
 
 Symbols::Value Modules::XmlModule::readFile(FunctionArguments & args) {
