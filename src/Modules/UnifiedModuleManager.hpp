@@ -102,10 +102,10 @@ class UnifiedModuleManager : public IModuleContext {
 
     // Function registry
     struct FunctionEntry {
-        CallbackFunction         callback;
-        Symbols::Variables::Type returnType;
-        BaseModule *             module;
-        FunctionDoc              doc;
+        std::shared_ptr<CallbackFunction> callback;
+        Symbols::Variables::Type          returnType;
+        BaseModule *                      module;
+        FunctionDoc                       doc;
     };
 
     std::unordered_map<std::string, FunctionEntry> functions_;

@@ -85,7 +85,7 @@ void UnifiedModuleManager::loadPlugin(const std::string & path) {
 
 void UnifiedModuleManager::registerFunction(const std::string & name, CallbackFunction cb,
                                             const Symbols::Variables::Type & returnType) {
-    functions_[name].callback   = cb;
+    functions_[name].callback   = std::make_shared<CallbackFunction>(std::move(cb));
     functions_[name].returnType = returnType;
     functions_[name].module     = currentModule_;
 }
@@ -103,7 +103,7 @@ Symbols::Value UnifiedModuleManager::callFunction(const std::string & name, Func
     if (it == functions_.end()) {
         throw std::runtime_error("Function not found: " + name);
     }
-    return it->second.callback(args);
+    return (*it->second.callback)(args);
 }
 
 Symbols::Variables::Type UnifiedModuleManager::getFunctionReturnType(const std::string & name) {
@@ -307,7 +307,14 @@ void UnifiedModuleManager::generateMarkdownDocs(const std::string & outputDir) c
 }
 
 UnifiedModuleManager::~UnifiedModuleManager() {
-    // Cleanup plugin handles
+    pluginHandles_.clear();
+    pluginPaths_.clear();
+
+    pluginModules_.clear();
+
+    classes_.clear();
+    functions_.clear();
+    modules_.clear();  // std::unique_ptr free them
     for (void * handle : pluginHandles_) {
 #ifndef _WIN32
         dlclose(handle);
@@ -315,16 +322,4 @@ UnifiedModuleManager::~UnifiedModuleManager() {
         FreeLibrary((HMODULE) handle);
 #endif
     }
-
-    functions_.clear();
-    pluginHandles_.clear();
-    pluginPaths_.clear();
-
-
-    pluginModules_.clear();
-
-
-    classes_.clear();
-
-    modules_.clear(); // std::unique_ptr free them
 }
