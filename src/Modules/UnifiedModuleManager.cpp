@@ -18,14 +18,11 @@ void UnifiedModuleManager::registerAll() {
     currentModule_ = nullptr;
 }
 
-#include <filesystem>
-using namespace std::filesystem;
-
 void UnifiedModuleManager::loadPlugins(const std::string & directory) {
-    if (!exists(directory) || !is_directory(directory)) {
+    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
         return;
     }
-    for (const auto & entry : recursive_directory_iterator(directory)) {
+    for (const auto & entry : std::filesystem::recursive_directory_iterator(directory)) {
         if (!entry.is_regular_file()) {
             continue;
         }
@@ -92,7 +89,7 @@ void UnifiedModuleManager::registerFunction(const std::string & name, CallbackFu
     functions_[name].module     = currentModule_;
 }
 
-void UnifiedModuleManager::registerDoc(const std::string & modName, const FunctionDoc & doc) {
+void UnifiedModuleManager::registerDoc(const std::string &  /*ModeName*/, const FunctionDoc & doc) {
     functions_[doc.name].doc = doc;
 }
 
@@ -150,11 +147,8 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
 void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName,
                                      std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb,
                                      const Symbols::Variables::Type &                                   returnType) {
-    // Note: Current ClassInfo lacks storage for method callbacks.
-    // To fully implement this, ClassInfo needs a MethodInfo struct storing callback and returnType
-    // Add the method name as placeholder for now
-    addMethod(className, methodName);  // Keep existing name registration
-    // TODO: Update ClassInfo to store method callbacks and returnType
+    this->registerFunction(methodName, std::move(cb), returnType);
+    classes_.at(className).info.methodNames.push_back(methodName);
 }
 
 bool UnifiedModuleManager::hasProperty(const std::string & className, const std::string & propertyName) const {
@@ -175,7 +169,7 @@ bool UnifiedModuleManager::hasMethod(const std::string & className, const std::s
 std::vector<std::string> UnifiedModuleManager::getClassNames() const {
     std::vector<std::string> names;
     names.reserve(classes_.size());
-for (const auto & pair : classes_) {
+    for (const auto & pair : classes_) {
         names.push_back(pair.first);
     }
     return names;
