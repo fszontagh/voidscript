@@ -1,6 +1,5 @@
 #include "ImagickModule.hpp"
 
-#include "Modules/ModuleManager.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 

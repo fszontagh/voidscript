@@ -21,6 +21,8 @@ namespace Modules {
  */
 class JsonModule : public BaseModule {
   public:
+    JsonModule() { setModuleName("Json"); }
+
     void registerModule() override {
         std::vector<FunctParameterInfo> params = {
             { "object", Symbols::Variables::Type::OBJECT, "The object / array to serialize" },

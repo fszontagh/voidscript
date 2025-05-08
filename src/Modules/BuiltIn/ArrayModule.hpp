@@ -20,6 +20,8 @@ namespace Modules {
  */
 class ArrayModule : public BaseModule {
   public:
+    ArrayModule() { setModuleName("Array"); }
+
     void registerModule() override {
         std::vector<FunctParameterInfo> params = {
             { "array", Symbols::Variables::Type::OBJECT, "The array/object to get the size of" }

@@ -6,7 +6,6 @@
 #include <stdexcept>
 #include <string>
 
-#include "Modules/ModuleManager.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
@@ -81,9 +80,18 @@ Symbols::Value MariaDBModule::connect(FunctionArguments & args) {
         throw std::runtime_error("MariaDB connect failed: " + err);
     }
     // Store connection handle
-    int handle            = nextConnId++;
-    connMap[handle]       = conn;
-    objMap["__conn_id__"] = Value(handle);
+    int handle = nextConnId++;
+    connMap[handle] = conn;
+
+    // Use the new property management system
+    auto& manager = UnifiedModuleManager::instance();
+    manager.setObjectProperty(this->name(), "__conn_id__", Value(handle));
+    manager.setObjectProperty(this->name(), "__class__", Value(std::string(this->name())));
+
+    // Copy properties to the object map for backward compatibility
+    objMap["__conn_id__"] = manager.getObjectProperty(this->name(), "__conn_id__");
+    objMap["__class__"] = manager.getObjectProperty(this->name(), "__class__");
+
     return Value::makeClassInstance(objMap);
 }
 
@@ -96,14 +104,15 @@ Symbols::Value MariaDBModule::query(FunctionArguments & args) {
     if (objVal.getType() != Variables::Type::CLASS && objVal.getType() != Variables::Type::OBJECT) {
         throw std::runtime_error("MariaDB::query must be called on MariaDB instance");
     }
-    auto objMap   = std::get<Value::ObjectMap>(objVal.get());
-    // Get connection handle
-    int  handle   = 0;
-    auto itHandle = objMap.find("__conn_id__");
-    if (itHandle == objMap.end() || itHandle->second.getType() != Variables::Type::INTEGER) {
+    auto objMap = std::get<Value::ObjectMap>(objVal.get());
+    
+    // Get connection handle using the new property management system
+    auto& manager = UnifiedModuleManager::instance();
+    if (!manager.hasObjectProperty(this->name(), "__conn_id__")) {
         throw std::runtime_error("MariaDB query: no valid connection");
     }
-    handle      = itHandle->second.get<int>();
+    
+    int handle = std::get<int>(manager.getObjectProperty(this->name(), "__conn_id__").get());
     auto connIt = connMap.find(handle);
     if (connIt == connMap.end()) {
         throw std::runtime_error("MariaDB query: connection not found");
@@ -116,10 +125,6 @@ Symbols::Value MariaDBModule::query(FunctionArguments & args) {
     }
     MYSQL_RES * res = mysql_store_result(conn);
     if (!res) {
-        // No result set or error
-        //if (mysql_field_count(conn) == 0) {
-        //    return Value(Value::ObjectMap{});
-        // }
         throw std::runtime_error(std::string("MariaDB query store_result failed: ") + mysql_error(conn));
     }
     // Fetch field names
@@ -157,15 +162,19 @@ Symbols::Value MariaDBModule::close(FunctionArguments & args) {
     if (objVal.getType() != Variables::Type::CLASS && objVal.getType() != Variables::Type::OBJECT) {
         throw std::runtime_error("MariaDB::close must be called on MariaDB instance");
     }
-    auto objMap   = std::get<Value::ObjectMap>(objVal.get());
-    auto itHandle = objMap.find("__conn_id__");
-    if (itHandle != objMap.end() && itHandle->second.getType() == Variables::Type::INTEGER) {
-        int  handle = itHandle->second.get<int>();
+    auto objMap = std::get<Value::ObjectMap>(objVal.get());
+    
+    // Use the new property management system
+    auto& manager = UnifiedModuleManager::instance();
+    if (manager.hasObjectProperty(this->name(), "__conn_id__")) {
+        int handle = std::get<int>(manager.getObjectProperty(this->name(), "__conn_id__").get());
         auto connIt = connMap.find(handle);
         if (connIt != connMap.end()) {
             mysql_close(connIt->second);
             connMap.erase(connIt);
         }
+        // Clear the connection property
+        manager.deleteObjectProperty(this->name(), "__conn_id__");
     }
     return Value::makeNull(Variables::Type::NULL_TYPE);
 }

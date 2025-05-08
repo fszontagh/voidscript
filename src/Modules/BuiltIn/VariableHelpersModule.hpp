@@ -20,6 +20,8 @@ namespace Modules {
  */
 class VariableHelpersModule : public BaseModule {
   public:
+    VariableHelpersModule() { setModuleName("VariableHelpers"); }
+
     void registerModule() override {
         std::vector<FunctParameterInfo> param_list = {
             { "string", Symbols::Variables::Type::STRING, "The string to calculate the length of" },

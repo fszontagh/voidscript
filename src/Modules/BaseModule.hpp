@@ -1,12 +1,17 @@
 #ifndef MODULES_BASEMODULE_HPP
 #define MODULES_BASEMODULE_HPP
 
+#include <functional>
 #include <map>
 #include <stdexcept>
 #include <string>
-#include "IModuleContext.hpp"
+#include <vector>
+
 #include "../BaseException.hpp"
 #include "Symbols/Value.hpp"
+
+using FunctionArguments = const std::vector<Symbols::Value>;
+using CallbackFunction  = std::function<Symbols::Value(FunctionArguments &)>;
 
 namespace Modules {
 

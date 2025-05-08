@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/ModuleManager.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 

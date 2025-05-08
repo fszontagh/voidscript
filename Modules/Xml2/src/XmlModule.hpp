@@ -15,7 +15,12 @@ static int                                        nextDoc = 1;
 
 class XmlModule : public BaseModule {
   public:
-    XmlModule() { setModuleName("Xml2"); }
+    XmlModule() { 
+        setModuleName("Xml2");
+        this->className = "Xml2";
+        LIBXML_TEST_VERSION
+        xmlInitParser();
+    }
 
     /**
      * @brief Register this module's symbols
@@ -27,6 +32,8 @@ class XmlModule : public BaseModule {
             xmlFreeDoc(dox.second);
         }
         docHolder.clear();
+        nodeHolder.clear();
+        xmlCleanupParser();
     }
 
     static std::string xmlElementTypeToString(int type) {
@@ -63,14 +70,14 @@ class XmlModule : public BaseModule {
     }
 
   private:
-    std::string       moduleName      = "Xml2";
     const std::string objectStoreName = "__xml2_handler_id__";
+    std::string className;
 
     // example: https://gitlab.gnome.org/GNOME/libxml2/-/blob/master/example/parse1.c
 
     Symbols::Value readFile(FunctionArguments & args);
     Symbols::Value readMemory(FunctionArguments & args);
-    Symbols::Value GetRootElement(FunctionArguments & args);
+    Symbols::Value GetRootElement(const FunctionArguments & args);
     Symbols::Value GetNodeAttributes(FunctionArguments & args);
 
 };  // Class

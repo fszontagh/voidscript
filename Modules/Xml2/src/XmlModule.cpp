@@ -1,52 +1,62 @@
 #include "XmlModule.hpp"
 
 #include <cstring>
+#include <iostream>
 
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
 void Modules::XmlModule::registerModule() {
+
     // Register classes using UnifiedModuleManager macros
-    REGISTER_CLASS(this->moduleName);
+    REGISTER_CLASS(this->className);
     REGISTER_CLASS("XmlNode");
     REGISTER_CLASS("XmlAttr");
+
+    // Register methods for Xml2 class
     std::vector<Modules::FunctParameterInfo> params = {
         { "filename", Symbols::Variables::Type::STRING }
     };
 
     REGISTER_METHOD(
-        this->moduleName, "readFile", params,
+        this->className, "readFile", params,
         [this](const FunctionArguments & args) -> Symbols::Value { return this->readFile(args); },
-        Symbols::Variables::Type::CLASS, "Read an XML file from disk");
+        Symbols::Variables::Type::CLASS, "Read XML from a file");
 
     params = {
         { "string", Symbols::Variables::Type::STRING }
     };
 
     REGISTER_METHOD(
-        this->moduleName, "readMemory", params,
-        [this](const FunctionArguments & args) { return this->readMemory(args); }, Symbols::Variables::Type::CLASS,
-        "Parse XML from memory");
+        this->className, "readMemory", params,
+        [this](const FunctionArguments & args) -> Symbols::Value { return this->readMemory(args); },
+        Symbols::Variables::Type::CLASS, "Read XML from a string");
 
     REGISTER_METHOD(
-        this->moduleName, "getRootElement", {},
+        this->className, "getRootElement", {},
         [this](const FunctionArguments & args) -> Symbols::Value { return this->GetRootElement(args); },
         Symbols::Variables::Type::CLASS, "Get the root element of the XML document");
 
+    // Register methods for XmlNode class
     REGISTER_METHOD(
         "XmlNode", "getAttributes", {},
-        [this](const FunctionArguments & args) { return this->GetNodeAttributes(args); },
-        Symbols::Variables::Type::OBJECT, "Get attributes and children of an XML node");
+        [this](const FunctionArguments & args) -> Symbols::Value { return this->GetNodeAttributes(args); },
+        Symbols::Variables::Type::OBJECT, "Get the attributes of an XML node");
+
+    // Register properties for Xml2 class
+    REGISTER_PROPERTY(this->className, "__xml2_handler_id__", Symbols::Variables::Type::INTEGER, nullptr);
+    REGISTER_PROPERTY("XmlNode", "__xml_node_handler_id__", Symbols::Variables::Type::INTEGER, nullptr);
+
 }
 
 Symbols::Value Modules::XmlModule::readFile(FunctionArguments & args) {
     if (args.size() != 2) {
-        throw std::runtime_error("XML2 expects one parameter (string $filename), got: " +
-                                 std::to_string(args.size() - 1));
+        throw std::runtime_error(this->className +
+                                 " expects one parameter (string $filename), got: " + std::to_string(args.size() - 1));
     }
 
     if (args[1].getType() != Symbols::Variables::Type::STRING) {
-        throw std::invalid_argument(this->moduleName + "::readFile: invalid parameter, must be string");
+        throw std::invalid_argument(this->className + "::readFile: invalid parameter, must be string");
     }
     int handler = nextDoc++;
 
@@ -54,68 +64,118 @@ Symbols::Value Modules::XmlModule::readFile(FunctionArguments & args) {
     xmlDocPtr         doc            = xmlReadFile(filename.c_str(), NULL, 0);
     docHolder[handler]               = doc;
     Symbols::Value::ObjectMap objMap = this->storeObject(args, Symbols::Value{ handler }, this->objectStoreName);
+    objMap["__class__"]              = this->className;
     return Symbols::Value::makeClassInstance(objMap);
 }
 
 Symbols::Value Modules::XmlModule::readMemory(FunctionArguments & args) {
-    if (args.size() < 2) {
+    if (args.size() != 2 && args.size() != 3 && args.size() != 4) {
         throw std::runtime_error(
-            "XML2 expects one parameter (string $xmlcontent, int $size = -1, string $basename = \"noname.xml\"), "
+            this->className +
+            " expects one parameter (string $xmlcontent, int $size = -1, string $basename = \"noname.xml\"), "
             "got: " +
             std::to_string(args.size() - 1));
     }
-    std::string content;
+
+    if (args[1].getType() != Symbols::Variables::Type::STRING) {
+        throw std::invalid_argument(this->className + "::readMemory: invalid first parameter, must be string");
+    }
+
+    std::string content  = args[1].get<std::string>();
     std::string basename = "noname.xml";
     int         size     = -1;
 
-    if (args[1].getType() != Symbols::Variables::Type::STRING) {
-        throw std::invalid_argument(this->moduleName + "::readMemory: invalid first parameter, must be string");
-    }
-    content = args[1].get<std::string>();
-    if (args.size() == 3) {
+    if (args.size() >= 3) {
         if (args[2].getType() != Symbols::Variables::Type::INTEGER) {
-            throw std::invalid_argument(this->moduleName + "::readMemory: size parameter must be integer");
+            throw std::invalid_argument(this->className + "::readMemory: size parameter must be integer");
         }
         size = args[2].get<int>();
     }
+
     if (args.size() == 4) {
         if (args[3].getType() != Symbols::Variables::Type::STRING) {
-            throw std::invalid_argument(this->moduleName + "::readmemory: basename parameter must be string");
+            throw std::invalid_argument(this->className + "::readmemory: basename parameter must be string");
         }
         basename = args[3].get<std::string>();
     }
-    int handler = nextDoc++;
 
-    xmlDocPtr doc      = xmlReadMemory(content.c_str(), size == -1 ? content.size() : size, basename.c_str(), NULL, 0);
+    int       handler = nextDoc++;
+    xmlDocPtr doc     = xmlReadMemory(content.c_str(), size == -1 ? content.size() : size, basename.c_str(), NULL, 0);
+    if (doc == NULL) {
+        throw std::runtime_error(this->className + "::readMemory: failed to parse XML");
+    }
     docHolder[handler] = doc;
-    Symbols::Value::ObjectMap objMap = this->storeObject(args, Symbols::Value{ handler }, this->objectStoreName);
+
+    // Create a new object map for the XML document
+    Symbols::Value::ObjectMap objMap;
+    if (args.size() > 0 && (args[0].getType() == Symbols::Variables::Type::CLASS ||
+                            args[0].getType() == Symbols::Variables::Type::OBJECT)) {
+        // If this is a method call on an existing object, use its map
+        objMap = std::get<Symbols::Value::ObjectMap>(args[0].get());
+    }
+
+    // Use the new property management system
+    auto & manager = UnifiedModuleManager::instance();
+    manager.setObjectProperty(this->className, "__xml2_handler_id__", Symbols::Value(handler));
+    manager.setObjectProperty(this->className, "__class__", Symbols::Value(std::string(this->className)));
+    manager.setObjectProperty(this->className, "__type__", Symbols::Value(std::string(this->className)));
+
+    // Copy properties to the object map for backward compatibility
+    objMap["__xml2_handler_id__"] = manager.getObjectProperty(this->className, "__xml2_handler_id__");
+    objMap["__class__"]           = manager.getObjectProperty(this->className, "__class__");
+    objMap["__type__"]            = manager.getObjectProperty(this->className, "__type__");
+
     return Symbols::Value::makeClassInstance(objMap);
 }
 
-Symbols::Value Modules::XmlModule::GetRootElement(FunctionArguments & args) {
+Symbols::Value Modules::XmlModule::GetRootElement(const FunctionArguments & args) {
     if (args.size() != 1) {
-        throw std::runtime_error(this->moduleName + "::getRootElement: must be called with no arguments");
+        throw std::runtime_error("Xml2::getRootElement: expected 1 argument");
     }
-    auto objMap   = this->getObjectMap(args, "getRootElement");
-    int  handle   = 0;
-    auto itHandle = objMap.find(this->objectStoreName);
-    if (itHandle == objMap.end()) {
-        throw std::runtime_error(this->moduleName + "::getRootElement: no handle found");
+
+    if (args[0].getType() != Symbols::Variables::Type::CLASS && args[0].getType() != Symbols::Variables::Type::OBJECT) {
+        throw std::runtime_error("Xml2::getRootElement: invalid object type");
     }
-    handle          = itHandle->second.get<int>();
-    xmlNodePtr root = xmlDocGetRootElement(docHolder[handle]);
+
+    auto & manager = UnifiedModuleManager::instance();
+    if (!manager.hasObjectProperty(this->className, "__xml2_handler_id__")) {
+        throw std::runtime_error("Xml2::getRootElement: invalid object");
+    }
+
+    int handlerId = std::get<int>(manager.getObjectProperty(this->className, "__xml2_handler_id__").get());
+
+    auto docIt = docHolder.find(handlerId);
+    if (docIt == docHolder.end()) {
+        throw std::runtime_error("Xml2::getRootElement: document not found");
+    }
+
+    // Get the root element
+    xmlNodePtr root = xmlDocGetRootElement(docHolder[handlerId]);
     if (root == NULL) {
-        throw std::runtime_error(this->moduleName + "::getRootElement: invalid root");
+        throw std::runtime_error(this->className + "::getRootElement: invalid root");
     }
-    nodeHolder[handle] = root;
-    auto obj           = this->storeObject(args, Symbols::Value{ handle }, "__xml_node_handler_id__");
-    obj["__class__"]   = "XmlNode";  // add the class too, to make it callable
-    return Symbols::Value::makeClassInstance(obj);
+
+    // Store the root node and create a new object for it
+    int nodeHandle         = nextDoc++;
+    nodeHolder[nodeHandle] = root;
+
+    // Create a new object map for the XML node
+    Symbols::Value::ObjectMap nodeObjMap;
+
+    // Use the new property management system for the XmlNode class
+    manager.setObjectProperty("XmlNode", "__xml_node_handler_id__", Symbols::Value(nodeHandle));
+    manager.setObjectProperty("XmlNode", "__class__", Symbols::Value(std::string("XmlNode")));
+
+    // Copy properties to the object map for backward compatibility
+    nodeObjMap["__xml_node_handler_id__"] = manager.getObjectProperty("XmlNode", "__xml_node_handler_id__");
+    nodeObjMap["__class__"]               = manager.getObjectProperty("XmlNode", "__class__");
+
+    return Symbols::Value::makeClassInstance(nodeObjMap);
 }
 
 Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
     if (args.size() != 1) {
-        throw std::runtime_error(this->moduleName + "::getNodeAttributes: must be called with no arguments");
+        throw std::runtime_error(this->className + "::getNodeAttributes: must be called with no arguments");
     }
     auto val    = this->getObjectValue(args, "__xml_node_handler_id__");
     int  handle = val.get<int>();
@@ -167,5 +227,5 @@ Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
         return map;
     }
 
-    throw std::runtime_error(this->moduleName + ":getNodeAttributes: invalid handler");
+    throw std::runtime_error(this->className + "::getNodeAttributes: invalid handler");
 }

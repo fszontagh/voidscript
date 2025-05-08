@@ -5,7 +5,6 @@
 #include <iostream>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/ModuleManager.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
@@ -16,6 +15,8 @@ namespace Modules {
  */
 class PrintModule : public BaseModule {
   public:
+    PrintModule() { setModuleName("Print"); }
+
     void registerModule() override {
         std::vector<FunctParameterInfo> params = {
             { "msg", Symbols::Variables::Type::STRING, "The error message to throw" }

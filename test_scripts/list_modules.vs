@@ -1,46 +1,77 @@
-printnl("--- LOADED DYNAMIC MODULES ---");
+printnl("=== MODULE LISTING TEST ===");
+printnl("\n--- DYNAMIC MODULES ---");
 
-object $z = module_list();
-for (object $module : $z) {
-    if (typeof($module,"object") == false) {
-        throw_error("There is something wrong...");
-    }
-
-    printnl("Name: ", $module->name);
-    printnl("Path: ", $module->path);
-
-    if (sizeof($module->classes) > 0) {
-        printnl("\t -- Registered classes: ", sizeof($module->classes));
-        for (string $classes_name : $module->classes ) {
-            printnl("\t\t - Name: ", $classes_name);
-        }
-    }
-
-    if (sizeof($module->functions) > 0) {
-        printnl("\t -- Registered functions: ", sizeof($module->functions));
-        for (string $function_name : $module->functions ) {
-            printnl("\t\t - Name: ", $function_name);
-        }
-    }
-
-
-    if (sizeof($module->variables) > 0) {
-        printnl("\t -- Registered variables: ", sizeof($module->variables));
-        for (string $variable_name : $module->variables ) {
-            printnl("\t\t - Name: ", $variable_name);
-        }
-    }
-
-    // …
+object $modules = module_list();
+if (typeof($modules, "object") == false) {
+    throw_error("module_list() did not return an object");
 }
 
-bool $CurlModuleExists = module_exists("modules-curl");
+object $module_classes = {};
+object $module_functions = {};
+object $module_variables = {};
 
-printnl("modules-curl exists: ", $CurlModuleExists);    # e.g., true or false
+for (string $module_key, object $module : $modules) {
+    if (typeof($module, "object") == false) {
+        throw_error("Invalid module object in list");
+    }
 
-if ($CurlModuleExists) {
-    object $info = module_info("modules-curl");
-    printnl("Path: ", $info->path);
+    printnl("\nModule: ", $module["name"]);
+    printnl("Path: ", $module["path"]);
+
+    $module_classes = $module["classes"];
+    if (sizeof($module_classes) > 0) {
+        printnl("\n  Classes (", sizeof($module_classes), "):");
+        for (string $class_key, object $class_info : $module_classes) {
+            printnl("    - ", $class_info["name"]);
+        }
+    }
+
+    $module_functions = $module["functions"];
+    if (sizeof($module_functions) > 0) {
+        printnl("\n  Functions (", sizeof($module_functions), "):");
+        for (string $func_key, object $func_info : $module_functions) {
+            printnl("    - ", $func_info["name"]);
+        }
+    }
+
+    $module_variables = $module["variables"];
+    if (sizeof($module_variables) > 0) {
+        printnl("\n  Variables (", sizeof($module_variables), "):");
+        for (string $var_key, object $var_info : $module_variables) {
+            printnl("    - ", $var_info["name"]);
+        }
+    }
+    printnl("\n--------------------------------------------------");
 }
+
+printnl("\n--- MODULE EXISTENCE TESTS ---");
+
+// Test dynamic module
+string $test_module = "modules-curl";
+bool $exists = module_exists($test_module);
+printnl("\nChecking dynamic module '", $test_module, "':");
+printnl("Exists: ", $exists);
+
+if ($exists) {
+    object $info = module_info($test_module);
+    printnl("Module info:");
+    printnl("  Name: ", $info["name"]);
+    printnl("  Path: ", $info["path"]);
+}
+
+// Test built-in module
+string $builtin_module = "ModuleHelper";
+bool $builtin_exists = module_exists($builtin_module);
+printnl("\nChecking built-in module '", $builtin_module, "':");
+printnl("Exists: ", $builtin_exists);
+
+if ($builtin_exists) {
+    object $builtin_info = module_info($builtin_module);
+    printnl("Module info:");
+    printnl("  Name: ", $builtin_info["name"]);
+    printnl("  Path: ", $builtin_info["path"]);
+}
+
+printnl("\n=== TEST COMPLETE ===");
 
 

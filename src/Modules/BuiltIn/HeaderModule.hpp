@@ -5,7 +5,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "Modules/ModuleManager.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 

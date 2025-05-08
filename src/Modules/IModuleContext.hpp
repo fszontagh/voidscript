@@ -11,16 +11,7 @@ namespace Modules {
 using FunctionArguments = const std::vector<Symbols::Value>;
 using CallbackFunction  = std::function<Symbols::Value(FunctionArguments &)>;
 
-/**
- * @brief Documentation structure for function parameters.
- */
-struct FunctParameterInfo {
-    std::string              name;                 // the name of the parameter
-    Symbols::Variables::Type type;                 // the type of the parameter
-    std::string              description;          // the description of the parameter
-    bool                     optional    = false;  // if the parameter is optional
-    bool                     interpolate = false;  // if the parameter is interpolated
-};
+
 
 /**
  * @brief Documentation structure for module functions.

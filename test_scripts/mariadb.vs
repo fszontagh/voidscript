@@ -12,6 +12,12 @@ if ($argc == 2) {
     $limit = $argv[1];
 }
 
+if (module_exists("MariaDB")) {
+    throw_error("MariaDB module not found");
+}
+for (object $module : module_list()) {
+    printnl("Module: ", $module->name);
+}
 
 MariaDB $db = new MariaDB();
 $db->connect( $hostname, $username, $password, $database);

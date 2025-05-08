@@ -11,7 +11,7 @@
 #include "Modules/BuiltIn/PrintModule.hpp"
 #include "Modules/BuiltIn/StringModule.hpp"
 #include "Modules/BuiltIn/VariableHelpersModule.hpp"
-#include "Modules/ModuleManager.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
 
 using namespace Modules;
