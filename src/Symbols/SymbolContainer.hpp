@@ -206,26 +206,41 @@ class SymbolContainer {
      * @return Shared pointer to the found symbol, or nullptr if not found.
      */
     SymbolPtr findSymbol(const std::string & name) {
-        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
-            const std::string & current_scope_name = *it;
+        // Helper to check if a scope is a loop scope
+        auto isLoopScope = [](const std::string& scope) {
+            return scope.find("for_") != std::string::npos || 
+                   scope.find("while_") != std::string::npos;
+        };
 
-            auto table_it = scopes_.find(current_scope_name);
+        // Search through all scopes from innermost to outermost
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const std::string & scope_name = *it;
+            auto table_it = scopes_.find(scope_name);
             if (table_it == scopes_.end()) {
                 continue;
             }
 
-            // Check variables namespace first (assuming "variables" is the namespace key)
+            // Check variables namespace first
             SymbolPtr symbol = table_it->second->get(DEFAULT_VARIABLES_SCOPE, name);
             if (symbol) {
                 return symbol;
             }
 
-            // Check constants namespace next (assuming "constants" is the namespace key)
+            // Check constants namespace next
             symbol = table_it->second->get(DEFAULT_CONSTANTS_SCOPE, name);
             if (symbol) {
                 return symbol;
             }
+
+            // If we're in any loop scope, continue searching parent scopes
+            if (isLoopScope(scope_name)) {
+                continue;
+            }
+
+            // For non-loop scopes, stop at the first scope that doesn't have the symbol
+            break;
         }
+
         // If not found in any scope
         return nullptr;
     }

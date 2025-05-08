@@ -1,5 +1,5 @@
-#ifndef INTERPRETER_CSTYLEFORSTATEMENTNODE_HPP
-#define INTERPRETER_CSTYLEFORSTATEMENTNODE_HPP
+#ifndef INTERPRETER_CSTYLE_FOR_STATEMENT_NODE_HPP
+#define INTERPRETER_CSTYLE_FOR_STATEMENT_NODE_HPP
 
 #include <vector>
 #include <memory>
@@ -23,6 +23,7 @@ private:
     std::unique_ptr<ExpressionNode> condExpr_;
     std::unique_ptr<StatementNode> incrStmt_;
     std::vector<std::unique_ptr<StatementNode>> body_;
+    std::string loopScopeName_;
 
 public:
     CStyleForStatementNode(std::unique_ptr<StatementNode> initStmt,
@@ -36,29 +37,24 @@ public:
         initStmt_(std::move(initStmt)),
         condExpr_(std::move(condExpr)),
         incrStmt_(std::move(incrStmt)),
-        body_(std::move(body)) {}
+        body_(std::move(body)) {
+        // Create a unique scope name for this for loop
+        loopScopeName_ = Symbols::SymbolContainer::instance()->currentScopeName() + "::for_" + 
+                        std::to_string(line) + "_" + std::to_string(column);
+    }
 
     void interpret(Interpreter & interpreter) const override {
-        std::string loop_scope_name; // Keep track of scope to exit
         bool entered_scope = false;
         try {
             using namespace Symbols;
             auto * symContainer = SymbolContainer::instance();
-            // Get loop scope name from the init declaration statement
-            if (auto* declStmt = dynamic_cast<const DeclareVariableStatementNode*>(initStmt_.get())) {
-                 loop_scope_name = declStmt->getNamespace(); 
-                 if (!loop_scope_name.empty()) {
-                    // Enter the scope created by the parser
-                    symContainer->enter(loop_scope_name); 
-                    entered_scope = true;
-                 } else {
-                    //  std::cerr << "[ERROR][CStyleFor] Init declaration node missing namespace!" << std::endl;
-                     throw Exception("C-style loop init declaration node missing namespace.", filename_, line_, column_);
-                 }
-            } else {
-                 // std::cerr << "[ERROR][CStyleFor] Init statement is not a DeclareVariableStatementNode!" << std::endl;
-                 throw Exception("C-style for loop internal error: init statement is not a declaration.", filename_, line_, column_);
+            
+            // Create and enter the loop scope only once
+            if (!symContainer->getScopeTable(loopScopeName_)) {
+                symContainer->create(loopScopeName_);
             }
+            symContainer->enter(loopScopeName_);
+            entered_scope = true;
             
             initStmt_->interpret(interpreter);
             
@@ -83,27 +79,20 @@ public:
                     incrStmt_->interpret(interpreter);
                 }
             }
-            
-            // --- Scope Cleanup ---
-            if (entered_scope) {
-                 symContainer->enterPreviousScope(); // Exit the loop scope
-            }
-             
         } catch (const Exception &e) {
-             //std::cerr << "[ERROR][CStyleFor] Exception caught: " << e.what() << std::endl;
             if (entered_scope) {
                 Symbols::SymbolContainer::instance()->enterPreviousScope(); // Ensure exit on exception
             }
             throw;
         } catch (const std::exception & e) {
-             //std::cerr << "[ERROR][CStyleFor] std::exception caught: " << e.what() << std::endl;
-             if (entered_scope) {
+            if (entered_scope) {
                 Symbols::SymbolContainer::instance()->enterPreviousScope(); // Ensure exit on exception
             }
             throw Exception(e.what(), filename_, line_, column_);
         }
-        if (entered_scope) {
         
+        // Exit the loop scope only once at the end
+        if (entered_scope) {
             Symbols::SymbolContainer::instance()->enterPreviousScope();
         }
     }
@@ -115,4 +104,4 @@ public:
 
 } // namespace Interpreter
 
-#endif // INTERPRETER_CSTYLEFORSTATEMENTNODE_HPP
+#endif // INTERPRETER_CSTYLE_FOR_STATEMENT_NODE_HPP

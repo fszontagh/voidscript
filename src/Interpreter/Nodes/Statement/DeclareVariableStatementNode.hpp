@@ -49,14 +49,22 @@ class DeclareVariableStatementNode : public StatementNode {
                 throw Exception("Current runtime scope '" + current_runtime_scope_name + "' for variable declaration does not exist", filename_, line_, column_);
             }
 
-
-            // Check if variable/constant already exists in the target (current runtime) scope's table
-            if (targetTable->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, variableName_)) { 
+            // Check if variable/constant already exists in the target scope's table
+            auto existing_var = targetTable->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, variableName_);
+            if (existing_var) {
+                // If we're in a loop scope (scope name contains "for_" or "while_"), allow redeclaration
+                if (current_runtime_scope_name.find("for_") != std::string::npos || 
+                    current_runtime_scope_name.find("while_") != std::string::npos) {
+                    // Update the existing variable's value
+                    existing_var->setValue(value);
+                    return;
+                }
                 throw Exception("Variable '" + variableName_ + "' already declared in scope '" + current_runtime_scope_name + "'", filename_, line_, column_);
             }
+
             Symbols::SymbolPtr existing_const_check = targetTable->get(Symbols::SymbolContainer::DEFAULT_CONSTANTS_SCOPE, variableName_);
             if (existing_const_check) {
-                 throw Exception("Cannot redefine constant '" + variableName_ + "' in scope '" + current_runtime_scope_name + "'", filename_, line_, column_);
+                throw Exception("Cannot redefine constant '" + variableName_ + "' in scope '" + current_runtime_scope_name + "'", filename_, line_, column_);
             }
 
             if (value.getType() == Symbols::Variables::Type::NULL_TYPE) {

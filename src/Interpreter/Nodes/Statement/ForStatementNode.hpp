@@ -38,7 +38,12 @@ class ForStatementNode : public StatementNode {
         valueName_(std::move(valueName)),
         iterableExpr_(std::move(iterableExpr)),
         body_(std::move(body)),
-        loopScopeName_(std::move(loopScopeName)) {}
+        loopScopeName_(std::move(loopScopeName)) {
+        // Ensure the loop scope name contains "for_" for proper scope handling
+        if (loopScopeName_.find("for_") == std::string::npos) {
+            loopScopeName_ = loopScopeName_ + "::for_" + std::to_string(line) + "_" + std::to_string(column);
+        }
+    }
 
     void interpret(Interpreter & interpreter) const override {
         bool entered_scope = false;
@@ -51,47 +56,46 @@ class ForStatementNode : public StatementNode {
             const auto &      objMap       = std::get<Value::ObjectMap>(iterableVal.get());
             auto *            symContainer = SymbolContainer::instance();
             
-            if (!loopScopeName_.empty()) {
-                symContainer->enter(loopScopeName_);
-                entered_scope = true;
-            } else {
-                throw Exception("Internal error: ForStatementNode missing loop scope name.", filename_, line_, column_);
+            // Create and enter the loop scope only once
+            if (!symContainer->getScopeTable(loopScopeName_)) {
+                symContainer->create(loopScopeName_);
             }
+            symContainer->enter(loopScopeName_);
+            entered_scope = true;
+            
+            // Create the key and value variables once before the loop
+            auto keySym = SymbolFactory::createVariable(keyName_, Value(""), loopScopeName_);
+            auto valSym = SymbolFactory::createVariable(valueName_, Value::makeNull(Variables::Type::NULL_TYPE), loopScopeName_);
+            symContainer->add(keySym);
+            symContainer->add(valSym);
             
             for (const auto & entry : objMap) {
                 const std::string & key = entry.first;
                 Value               keyVal(key);
-                if (!symContainer->findSymbol(keyName_)) {
-                    auto sym = SymbolFactory::createVariable(keyName_, keyVal, loopScopeName_);
-                    symContainer->add(sym);
-                } else {
-                    auto sym = symContainer->findSymbol(keyName_);
-                    if(sym) sym->setValue(keyVal);
-                }
+                keySym->setValue(keyVal);
                 
                 Value valVal = entry.second;
-                if (!symContainer->findSymbol(valueName_)) {
-                    auto sym = SymbolFactory::createVariable(valueName_, valVal, loopScopeName_);
-                    symContainer->add(sym);
-                } else {
-                    auto sym = symContainer->findSymbol(valueName_);
-                    if(sym) sym->setValue(valVal);
-                }
+                valSym->setValue(valVal);
                 
                 for (const auto & stmt : body_) {
                     stmt->interpret(interpreter);
                 }
             }
-            
+        } catch (const Exception &) {
             if (entered_scope) {
-                symContainer->enterPreviousScope();
+                Symbols::SymbolContainer::instance()->enterPreviousScope();
             }
-        } catch (const Exception &e) {
-            if (entered_scope) Symbols::SymbolContainer::instance()->enterPreviousScope();
             throw;
         } catch (const std::exception & e) {
-            if (entered_scope) Symbols::SymbolContainer::instance()->enterPreviousScope();
+            if (entered_scope) {
+                Symbols::SymbolContainer::instance()->enterPreviousScope();
+            }
             throw Exception(e.what(), filename_, line_, column_);
+        }
+        
+        // Exit the loop scope
+        if (entered_scope) {
+            Symbols::SymbolContainer::instance()->enterPreviousScope();
         }
     }
 
