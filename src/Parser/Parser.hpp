@@ -6,6 +6,7 @@
 
 #include "BaseException.hpp"
 #include "Interpreter/StatementNode.hpp"
+#include "Lexer/Lexer.hpp"
 #include "Lexer/Token.hpp"
 #include "Lexer/TokenType.hpp"
 #include "Parser/ParsedExpression.hpp"
@@ -135,6 +136,8 @@ class Parser {
     void                                        parseWhileStatement();
     // Parse an empty statement (just a semicolon)
     void                                        parseEmptyStatement();
+    // Parse an include statement
+    void                                        parseIncludeStatement();
     // Parse an if-else conditional block and return a StatementNode (for nested blocks)
     std::unique_ptr<Interpreter::StatementNode> parseIfStatementNode();
     // Parse a for-in loop over object members and return a StatementNode (for nested blocks)

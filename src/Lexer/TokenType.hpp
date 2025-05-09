@@ -39,6 +39,7 @@ enum class Type : std::uint8_t {
     KEYWORD_PRIVATE,
     KEYWORD_PUBLIC,
     KEYWORD_NEW,
+    KEYWORD_INCLUDE,  // New include keyword type
     UNKNOWN  // Ismeretlen karakter/szekvencia
 };
 
@@ -106,6 +107,8 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_FOR";
         case Lexer::Tokens::Type::KEYWORD_CONST:
             return "KEYWORD_CONST";
+        case Lexer::Tokens::Type::KEYWORD_INCLUDE:
+            return "KEYWORD_INCLUDE";
         case Lexer::Tokens::Type::UNKNOWN:
             return "UNKNOWN";
         default:

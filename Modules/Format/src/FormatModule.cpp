@@ -1,7 +1,10 @@
 // FormatModule implementation: String formatting using fmt library
+
 #include "FormatModule.hpp"
 
 #include <fmt/args.h>
+
+#include <iostream>
 
 #include "Modules/UnifiedModuleManager.hpp"
 

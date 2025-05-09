@@ -190,7 +190,6 @@ Symbols::Value MariaDBModule::insert(FunctionArguments & args) {
         throw std::invalid_argument("Second parameter needs object, object array");
     }
     std::string query = "INSERT INTO `" + Symbols::Value::to_string(args[1]) + "` VALUES ()";
-    std::cout << "QUERY: " << query << "\n";
     return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
 }
 

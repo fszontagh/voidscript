@@ -79,12 +79,18 @@ class Interpreter {
                 break;
 
             case Operations::Type::FunctionCall:
+                if (op.statement) {
+                    op.statement->interpret(*this);
+                } else {
+                    throw Exception("Function call statement is null", op.targetName, 0, 0);
+                }
+                break;
             case Operations::Type::Return:
             case Operations::Type::Conditional:
                 if (op.statement) {
                     op.statement->interpret(*this);
-                    break;
                 }
+                break;
             case Operations::Type::Loop:
             case Operations::Type::While:
                 // for-in or while loop

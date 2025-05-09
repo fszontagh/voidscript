@@ -103,6 +103,10 @@ class VoidScript {
 #endif
         // Module helper builtin (list, exists, info for plugin modules)
         Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ModuleHelperModule>());
+
+        // Register all modules immediately
+        Modules::UnifiedModuleManager::instance().registerAll();
+
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
@@ -115,7 +119,7 @@ class VoidScript {
             Modules::UnifiedModuleManager::instance().loadPlugins("build/Modules");
             Modules::UnifiedModuleManager::instance().loadPlugins(MODULES_FOLDER);
             // Register all built-in and plugin modules before execution
-            Modules::UnifiedModuleManager::instance().registerAll();
+            // Modules::UnifiedModuleManager::instance().registerAll();  // No longer needed here
             while (!files.empty()) {
                 std::string       file         = files.back();
                 const std::string file_content = readFile(file);

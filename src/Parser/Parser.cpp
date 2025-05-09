@@ -2,6 +2,7 @@
 // Static filename for unified error reporting in Parser::Exception
 std::string Parser::Parser::Exception::current_filename_;
 
+#include <fstream>
 #include <stack>
 
 #include "Interpreter/ExpressionBuilder.hpp"
@@ -17,6 +18,7 @@ std::string Parser::Parser::Exception::current_filename_;
 #include "Interpreter/Nodes/Statement/WhileStatementNode.hpp"
 #include "Interpreter/OperationsFactory.hpp"
 #include "Lexer/Operators.hpp"
+#include "ParsedExpression.hpp"
 #include "Parser.hpp"
 #include "Symbols/SymbolContainer.hpp"
 
@@ -37,6 +39,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "private",  Lexer::Tokens::Type::KEYWORD_PRIVATE              },
     { "public",   Lexer::Tokens::Type::KEYWORD_PUBLIC               },
     { "new",      Lexer::Tokens::Type::KEYWORD_NEW                  },
+    { "include",  Lexer::Tokens::Type::KEYWORD_INCLUDE              },
     { "true",     Lexer::Tokens::Type::KEYWORD                      },
     { "false",    Lexer::Tokens::Type::KEYWORD                      },
     // variable types
@@ -192,7 +195,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     // --- Create loop scope ONCE at the beginning ---
     const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
     //const std::string loopScope =
-//        currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
+    //        currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
     //Symbols::SymbolContainer::instance()->create(loopScope);  // Create & Enter loopScope
     // --- End scope creation ---
 
@@ -702,13 +705,11 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseCallStatement() {
     // Create CallStatementNode
     auto stmt = std::make_unique<Interpreter::CallStatementNode>(func_name, std::move(exprs), this->current_filename_,
                                                                  id_token.line_number, id_token.column_number);
-    // REMOVE Add to operations container
-    /*
+    // Add to operations container
     Operations::Container::instance()->add(
         Symbols::SymbolContainer::instance()->currentScopeName(),
         Operations::Operation{ Operations::Type::FunctionCall, func_name, std::move(stmt) });
-    */
-    return stmt;  // RETURN THE NODE
+    return nullptr;  // Return nullptr since we've moved stmt into the operations container
 }
 
 // Parse a return statement, e.g., return; or return expression;
@@ -1256,12 +1257,38 @@ void Parser::parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::
     current_token_index_                           = 0;
     current_filename_                              = filename;
 
+    // Store current scope to restore later
+    std::string current_scope = Symbols::SymbolContainer::instance()->currentScopeName();
+
+    // Create and enter a new scope for this script
+    std::string script_ns = filename;
+    Symbols::SymbolContainer::instance()->create(script_ns);
+    Symbols::SymbolContainer::instance()->enter(script_ns);
+
     while (!isAtEnd() && currentToken().type != Lexer::Tokens::Type::END_OF_FILE) {
         parseTopLevelStatement();
     }
     if (!isAtEnd() && currentToken().type != Lexer::Tokens::Type::END_OF_FILE) {
         reportError("Unexpected tokens after program end");
     }
+
+    // Get all operations from this script
+    auto script_operations = Operations::Container::instance()->getAll(script_ns);
+
+    // Move all operations from script scope to current scope
+    for (const auto & operation : script_operations) {
+        Operations::Container::instance()->add(current_scope, std::move(*operation));
+    }
+
+    // Clear operations from the script scope
+    Operations::Container::instance()->clear(script_ns);
+
+    // Exit script scope and return to current scope
+    Symbols::SymbolContainer::instance()->enterPreviousScope();
+
+    // Add an import operation to track the script
+    Operations::Container::instance()->add(current_scope,
+                                           Operations::Operation{ Operations::Type::Import, filename, nullptr });
 }
 
 Symbols::Variables::Type Parser::parseType() {
@@ -1570,68 +1597,56 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseReturnStatementNode() {
 
 void Parser::parseTopLevelStatement() {
     const auto & currentTok = currentToken();
-    const auto & token_type = currentTok.type;
-    const auto & token_val  = currentTok.value;
+    auto         token_type = currentTok.type;
+    auto         token_val  = currentTok.value;
 
-    // Top-level keywords
-    if (token_type == Lexer::Tokens::Type::KEYWORD_IF) {
-        parseIfStatement();
-    } else if (token_type == Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION) {
-        parseFunctionDefinition();
-    } else if (token_type == Lexer::Tokens::Type::KEYWORD_RETURN) {
-        // Top-level return is generally invalid, but parse it and let interpreter potentially error.
-        parseReturnStatement();
-    } else if (token_type == Lexer::Tokens::Type::KEYWORD_FOR) {
-        parseForStatement();
-    } else if (token_type == Lexer::Tokens::Type::KEYWORD_WHILE) {
-        parseWhileStatement();
-    } else if (token_type == Lexer::Tokens::Type::KEYWORD_CLASS) {
-        parseClassDefinition();
-    } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
+    // Constant variable definition
+    if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
     }
-    // Variable definition (type keyword or known class name followed by variable identifier)
-    else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
-              (token_type == Lexer::Tokens::Type::IDENTIFIER &&
-               Modules::UnifiedModuleManager::instance().hasClass(token_val)))) {
-        // Check if it's an array declaration: Type[] $var = ...
-        bool is_array_decl = (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
-                              peekToken(2).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(2).value == "]" &&
-                              (peekToken(3).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-                               peekToken(3).type == Lexer::Tokens::Type::IDENTIFIER) &&
-                              peekToken(4).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
-
-        // Check if it's a simple variable declaration: Type $var = ...
-        bool is_simple_decl = ((peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-                                peekToken().type == Lexer::Tokens::Type::IDENTIFIER) &&
-                               peekToken(2).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
-
-        if (is_array_decl || is_simple_decl) {
-            parseVariableDefinition();  // This function should handle both cases now (since parseType consumes [])
-        }
-        // If it starts with a type but isn't a declaration, it might be an expression statement (like a class method call)
-        else {
-            // Fall through to expression statement parsing
-            auto stmtNode = parseStatementNode();
-            if (stmtNode) {
-                Operations::Container::instance()->add(
-                    Symbols::SymbolContainer::instance()->currentScopeName(),
-                    Operations::Operation{ Operations::Type::Expression, "", std::move(stmtNode) });
-            } else {
-                reportError("Invalid statement starting with type keyword", currentTok);
-            }
-        }
+    // Variable type keyword (int, string, etc.)
+    else if (Parser::variable_types.find(token_type) != Parser::variable_types.end()) {
+        parseVariableDefinition();
     }
-    // Prefix increment/decrement statement (++$var; or --$var;)
-    else if (token_type == Lexer::Tokens::Type::OPERATOR_INCREMENT &&
-             peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
-        auto        opTok    = consumeToken();  // Consume ++ or --
+    // Function declaration
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION) {
+        parseFunctionDefinition();
+    }
+    // Class declaration
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_CLASS) {
+        parseClassDefinition();
+    }
+    // If statement
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_IF) {
+        parseIfStatement();
+    }
+    // While loop
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_WHILE) {
+        parseWhileStatement();
+    }
+    // For loop
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_FOR) {
+        parseForStatement();
+    }
+    // Return statement
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_RETURN) {
+        parseReturnStatement();
+    }
+    // Include statement
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_INCLUDE) {
+        parseIncludeStatement();
+    }
+    // Prefix increment/decrement
+    else if (token_type == Lexer::Tokens::Type::OPERATOR_INCREMENT) {
+        // Handle prefix increment/decrement directly here as a statement
+        auto        opTok    = expect(Lexer::Tokens::Type::OPERATOR_INCREMENT);  // Consume ++ or --
         auto        idTok    = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
         std::string baseName = parseIdentifierName(idTok);
         expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
-        // Build assignment: $var = $var OP 1
-        auto        lhs   = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
+        // Build the assignment $var = $var OP 1
+        std::unique_ptr<Interpreter::ExpressionNode> lhs =
+            std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
         auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::Value(1));
         std::string binOp = (opTok.value == "++") ? "+" : "-";
         auto assignRhs    = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
@@ -1709,18 +1724,13 @@ void Parser::parseTopLevelStatement() {
     // Function call (identifier followed directly by '(')
     else if (token_type == Lexer::Tokens::Type::IDENTIFIER && peekToken().type == Lexer::Tokens::Type::PUNCTUATION &&
              peekToken().value == "(") {
-        // parseCallStatement now returns the node directly
+        std::cerr << "[Debug][Parser] Found function call: " << currentToken().value << std::endl;
+        // parseCallStatement now handles adding the operation internally
         auto stmtNode = parseCallStatement();
-        if (stmtNode) {
-            // Add the call statement operation for top-level calls
-            Operations::Container::instance()->add(
-                Symbols::SymbolContainer::instance()->currentScopeName(),
-                Operations::Operation{ Operations::Type::FunctionCall, "",
-                                       std::move(stmtNode) });  // Assuming FunctionCall type is appropriate
-        } else {
-            // Should not happen if parseCallStatement succeeded
-            reportError("Failed to parse function call statement", currentTok);
-        }
+        //if (!stmtNode) {
+        // Should not happen if parseCallStatement succeeded
+        //reportError("Failed to parse function call statement", currentTok);
+        //}
     }
     // If none of the above specific top-level constructs match,
     // try parsing as a general expression statement (e.g., `5;` - valid but useless, or an error).
@@ -1767,5 +1777,89 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseVariableDefinitionNode(
     return std::make_unique<Interpreter::DeclareVariableStatementNode>(var_name, ns, var_type, std::move(initExprNode),
                                                                        this->current_filename_, id_token.line_number,
                                                                        id_token.column_number);
+}
+
+void Parser::parseIncludeStatement() {
+    // Consume the 'include' keyword
+    expect(Lexer::Tokens::Type::KEYWORD_INCLUDE);
+
+    // Expect a string literal with the filename
+    auto        filename_token = expect(Lexer::Tokens::Type::STRING_LITERAL);
+    std::string filename       = filename_token.value;
+
+    // Expect semicolon
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+
+    // Read the included file
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        reportError("Could not open included file: " + filename, filename_token);
+        return;
+    }
+
+    // Read the file content
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    // Create a new namespace for the included file
+    std::string include_ns = current_filename_ + "::" + filename;
+
+    // Store current scope to restore later
+    std::string current_scope = Symbols::SymbolContainer::instance()->currentScopeName();
+
+    // Create and enter the include scope
+    Symbols::SymbolContainer::instance()->create(include_ns);
+    Symbols::SymbolContainer::instance()->enter(include_ns);
+
+    // Add the file content to the lexer
+    auto lexer = std::make_shared<Lexer::Lexer>();
+    lexer->setKeyWords(keywords);
+    lexer->addNamespaceInput(include_ns, content);
+
+    // Tokenize the included file
+    auto tokens = lexer->tokenizeNamespace(include_ns);
+
+    // Parse the included file
+    parseScript(tokens, content, filename);
+
+    // Get all symbols from the included file
+    auto included_symbols = Symbols::SymbolContainer::instance()->getAll(include_ns);
+
+    // Check for conflicts with current scope
+    for (const auto & symbol : included_symbols) {
+        if (Symbols::SymbolContainer::instance()->exists(symbol->name(), current_scope)) {
+            reportError("Symbol '" + symbol->name() + "' already defined in current scope", filename_token);
+            return;
+        }
+    }
+
+    // Move all symbols from include scope to current scope
+    for (const auto & symbol : included_symbols) {
+        Symbols::SymbolContainer::instance()->defineInScope(current_scope, symbol);
+    }
+
+    // Get all operations from the included file
+    auto included_operations = Operations::Container::instance()->getAll(include_ns);
+
+    // Execute operations from the included file immediately
+    Interpreter::Interpreter interpreter(false);  // No debug output
+    for (const auto & operation : included_operations) {
+        interpreter.runOperation(*operation);
+    }
+
+    // Move all operations from include scope to current scope
+    for (const auto & operation : included_operations) {
+        Operations::Container::instance()->add(current_scope, std::move(*operation));
+    }
+
+    // Clear operations from the include scope
+    Operations::Container::instance()->clear(include_ns);
+
+    // Exit include scope and return to current scope
+    Symbols::SymbolContainer::instance()->enterPreviousScope();
+
+    // Add an import operation to track the include statement
+    Operations::Container::instance()->add(current_scope,
+                                           Operations::Operation{ Operations::Type::Import, filename, nullptr });
 }
 }  // namespace Parser

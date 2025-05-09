@@ -16,9 +16,14 @@
 #endif
 
 #include "BaseModule.hpp"
-#include "Parser/ParsedExpression.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
+
+// Forward declarations
+namespace Parser {
+    struct ParsedExpression;
+    using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
+}
 
 namespace Modules {
 
@@ -198,10 +203,10 @@ class UnifiedModuleManager {
     do {                                                                                      \
         std::string fullMethodName = std::string(className) + "::" + std::string(methodName);\
         UnifiedModuleManager::instance().registerFunction(fullMethodName, callback, retType); \
-        UnifiedModuleManager::instance().addMethod(className, methodName, callback, retType); \
         UnifiedModuleManager::instance().registerDoc(                                         \
             Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),             \
-            FunctionDoc{ fullMethodName, retType, paramList, docStr });                      \
+            FunctionDoc{ fullMethodName, retType, paramList, docStr });                       \
+        UnifiedModuleManager::instance().addMethod(className, methodName);                    \
     } while (0)
 
 #define REGISTER_PROPERTY(className, propertyName, type, defaultValue) \

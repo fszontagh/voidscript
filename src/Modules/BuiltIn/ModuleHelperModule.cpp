@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
