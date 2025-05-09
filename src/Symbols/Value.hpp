@@ -75,6 +75,34 @@ class Value {
     void setNULL() { this->is_null = true; }
 
     /**
+     * @brief Create a default value for a given variable type.
+     * @param type The variable type to create a default value for.
+     * @return A Value object with the default value for the given type.
+     */
+    static Symbols::Value makeDefaultForType(const Variables::Type & type) {
+        switch (type) {
+            case Variables::Type::INTEGER:
+                return Value(0);
+            case Variables::Type::DOUBLE:
+                return Value(0.0);
+            case Variables::Type::FLOAT:
+                return Value(0.0f);
+            case Variables::Type::BOOLEAN:
+                return Value(false);
+            case Variables::Type::STRING:
+                return Value("");
+            case Variables::Type::OBJECT:
+            case Variables::Type::CLASS:
+                return Value(ObjectMap{});
+            case Variables::Type::NULL_TYPE:
+                return makeNull(Variables::Type::NULL_TYPE);
+            case Variables::Type::UNDEFINED_TYPE:
+            default:
+                throw std::invalid_argument("Cannot create default value for UNDEFINED_TYPE");
+        }
+    }
+
+    /**
      * @brief Construct a class instance value from a map of member names to Values,
      *        setting its type to CLASS.
      */
