@@ -729,6 +729,13 @@ void Parser::parseClassDefinition() {
                         paramName = paramName.substr(1);
                     }
                     params.push_back({ paramName, paramType });
+                    
+                    // Add parameter to method scope immediately
+                    auto paramSymbol = Symbols::SymbolFactory::createVariable(
+                        paramName, Symbols::Value(), Symbols::SymbolContainer::instance()->currentScopeName(), paramType);
+                    Symbols::SymbolContainer::instance()->defineInScope(
+                        Symbols::SymbolContainer::instance()->currentScopeName(), paramSymbol);
+
                     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
                         continue;
                     }
