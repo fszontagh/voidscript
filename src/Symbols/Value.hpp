@@ -148,7 +148,17 @@ class Value {
             v);
     }
 
-    static std::string to_string(const Value & val) { return to_string(val.value_); }
+    static std::string to_string(const Value & val) {
+        if (val.type_ == Symbols::Variables::Type::CLASS) {
+            const auto& obj = std::get<ObjectMap>(val.value_);
+            auto it = obj.find("$class");
+            if (it != obj.end()) {
+                return "[class " + it->second.get<std::string>() + "]";
+            }
+            return "[object]";
+        }
+        return to_string(val.value_);
+    }
 
     static Value fromString(const std::string & str, bool autoDetectType) {
         if (!autoDetectType) {
