@@ -48,6 +48,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "boolean",  Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
     { "bool",     Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
     { "object",   Lexer::Tokens::Type::KEYWORD_OBJECT               },
+    { "include",  Lexer::Tokens::Type::KEYWORD_INCLUDE              },
     // ... other keywords ...
 };
 
@@ -1589,6 +1590,8 @@ void Parser::parseTopLevelStatement() {
         parseClassDefinition();
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
+    } else if (token_type == Lexer::Tokens::Type::KEYWORD_INCLUDE) {
+        parseIncludeStatement();
     }
     // Variable definition (type keyword or known class name followed by variable identifier)
     else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
