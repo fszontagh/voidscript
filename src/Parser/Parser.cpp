@@ -1593,7 +1593,20 @@ void Parser::parseIncludeStatement() {
     lexer.setKeyWords(Parser::Parser::keywords);
     lexer.addNamespaceInput(currentNs, includedCode);
     auto includedTokens = lexer.tokenizeNamespace(currentNs);
+    // Save the current state
+    size_t saved_token_index = current_token_index_;
+    std::vector<Lexer::Tokens::Token> saved_tokens = tokens_;
+    std::string_view saved_input_str_view = input_str_view_;
+    std::string saved_current_filename = current_filename_;
+
+    // Parse the included file
     this->parseScript(includedTokens, includedCode, filename);
+
+    // Restore the original state
+    current_token_index_ = saved_token_index;
+    tokens_ = saved_tokens;
+    input_str_view_ = saved_input_str_view;
+    current_filename_ = saved_current_filename;
 }
 
 void Parser::parseTopLevelStatement() {
