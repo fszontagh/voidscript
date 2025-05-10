@@ -50,7 +50,7 @@ Lexer::Tokens::Token Lexer::Lexer::nextToken() {
 
     char c = peek();
     if (isalpha(c) || c == '_') {
-        return matchIdentifierOrKeyword(start);
+        return matchIdentifierOrKeyword(start, Tokens::Type::IDENTIFIER);
     }
     if (isdigit(c) || (isdigit(c) && peek(1) == '.') || (c == '.' && isdigit(peek(1)))) {
         return matchNumber(start);

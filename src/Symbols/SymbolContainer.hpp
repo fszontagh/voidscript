@@ -114,6 +114,48 @@ class SymbolContainer {
         return result;
     }
 
+    /**
+     * @brief Merge all symbols from a source scope into a target scope.
+     * @param sourceScope Name of the source scope.
+     * @param targetScope Name of the target scope.
+     * @return Number of symbols merged.
+     * @throws std::runtime_error if either scope does not exist.
+     */
+    size_t mergeScope(const std::string & sourceScope, const std::string & targetScope) {
+        auto sourceIt = scopes_.find(sourceScope);
+        if (sourceIt == scopes_.end()) {
+            throw std::runtime_error("Source scope does not exist: " + sourceScope);
+        }
+
+        auto targetIt = scopes_.find(targetScope);
+        if (targetIt == scopes_.end()) {
+            throw std::runtime_error("Target scope does not exist: " + targetScope);
+        }
+
+        size_t mergedCount = 0;
+        
+        // Get all symbols from the source scope
+        auto sourceSymbols = sourceIt->second->listAll();
+        
+        // For each symbol in the source scope
+        for (const auto & symbol : sourceSymbols) {
+            try {
+                // Get the appropriate namespace for this symbol type
+                const std::string ns = getNamespaceForSymbol(symbol);
+                
+                // Define the symbol in the target scope
+                targetIt->second->define(ns, symbol);
+                
+                mergedCount++;
+            } catch (const std::exception & e) {
+                std::cerr << "[Warning][SymbolContainer] Failed to merge symbol '" << symbol->name() 
+                          << "': " << e.what() << std::endl;
+            }
+        }
+        
+        return mergedCount;
+    }
+
     // --- Symbol operations ---
 
     /**
@@ -231,17 +273,30 @@ class SymbolContainer {
             if (symbol) {
                 return symbol;
             }
-
-            // If we're in any loop scope, continue searching parent scopes
-            if (isLoopScope(scope_name)) {
-                continue;
+            
+            // Check functions namespace
+            symbol = table_it->second->get(DEFAULT_FUNCTIONS_SCOPE, name);
+            if (symbol) {
+                return symbol;
             }
-
-            // For non-loop scopes, stop at the first scope that doesn't have the symbol
-            break;
         }
 
-        // If not found in any scope
+        // If not found in any scope, try one more pass looking only for functions
+        // This helps with top-level function resolution
+        for (const auto & [scope_name, table] : scopes_) {
+            // Skip loop scopes
+            if (scope_name.find("for_") != std::string::npos || 
+                scope_name.find("while_") != std::string::npos) {
+                continue;
+            }
+            
+            // Check specifically for functions
+            SymbolPtr symbol = table->get(DEFAULT_FUNCTIONS_SCOPE, name);
+            if (symbol) {
+                return symbol;
+            }
+        }
+
         return nullptr;
     }
 
@@ -258,12 +313,15 @@ class SymbolContainer {
             if (tablePtr) {
                 // Iterate all symbols in this table using the flat structure
                 for (const auto & symbol : tablePtr->listAll()) {  // listAll doesn't need prefix now
-                    result += symbol->dump() + '\n';
+                    result += "  Symbol: '" + symbol->name() + "' (";
+                    result += "Type: " + Symbols::Variables::TypeToString(symbol->getValue().getType()) + ", ";
+                    result += "Value: '" + Symbols::Value::to_string(symbol->getValue()) + "')\n";
+                    
                     // Recursively dump object properties
                     dumpValue(symbol->getValue(), result, 2);  // Reduced indent slightly
                 }
             } else {
-                result += "\t(Error: Scope table not found)\n";
+                result += "  (Error: Scope table not found)\n";
             }
         }
         result += "--- End Dump ---\n";
@@ -271,12 +329,25 @@ class SymbolContainer {
     }
 
     /** @brief Get the SymbolTable for a specific scope name, if it exists. */
-    std::shared_ptr<SymbolTable> getScopeTable(const std::string & scopeName) const {
-        auto it = scopes_.find(scopeName);
+    std::shared_ptr<SymbolTable> getScopeTable(const std::string & scope_name) const {
+        auto it = scopes_.find(scope_name);
         if (it != scopes_.end()) {
-            return it->second;  // Return the shared_ptr to the table
+            return it->second;
         }
-        return nullptr;         // Scope not found
+        return nullptr;
+    }
+
+    // Check if a scope exists
+    bool scopeExists(const std::string & scope_name) const {
+        return scopes_.find(scope_name) != scopes_.end();
+    }
+    
+    // Remove a symbol from a scope
+    void remove(const std::string & scope_name, const std::string & symbol_name) {
+        auto it = scopes_.find(scope_name);
+        if (it != scopes_.end()) {
+            it->second->remove(DEFAULT_VARIABLES_SCOPE, symbol_name);
+        }
     }
 
   private:

@@ -54,39 +54,76 @@ class CallExpressionNode : public ExpressionNode {
             }
 
             // User-defined function: lookup through scope hierarchy
-            SymbolContainer *               sc       = SymbolContainer::instance();
-            std::string                     lookupNs = sc->currentScopeName();
+            SymbolContainer* sc = SymbolContainer::instance();
+            
+            // Debug current scope
+            interpreter.debugLog("Looking for function '" + functionName_ + "' starting from scope: " + sc->currentScopeName());
+            
+            // First try direct function lookup in functions namespace
             std::shared_ptr<FunctionSymbol> funcSym;
-            // Search for function symbol in current and parent scopes
-            while (true) {
-                auto               scope_table = sc->getScopeTable(lookupNs);
-                Symbols::SymbolPtr sym         = nullptr;
-                if (scope_table) {
-                    sym = scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_);
-                }
-
-                if (sym && sym->getKind() == Kind::Function) {
-                    funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
-                    break;
-                }
-                // Move to parent scope by finding the last '::'
-                // This assumes scope names are hierarchical like /file/path::class::method or a top-level file scope
-                auto pos = lookupNs.rfind("::");
-                if (pos == std::string::npos) {
-                    // If lookupNs doesn't contain "::", it means we've reached the top-level scope (e.g., a file path).
-                    // If the function wasn't found by now, it's not in any accessible parent scope.
-                    break;
-                }
-                lookupNs = lookupNs.substr(0, pos);
-                // If substr results in an empty string (e.g. if lookupNs was "::foo"),
-                // it implies an invalid scope name, so break.
-                if (lookupNs.empty()) {
-                    break;
+            
+            // Try to find the function in any accessible scope
+            for (auto scopeName : sc->getScopeNames()) {
+                auto scopeTable = sc->getScopeTable(scopeName);
+                if (scopeTable) {
+                    // Check in the functions namespace first
+                    auto sym = scopeTable->get(SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_);
+                    if (sym && sym->getKind() == Kind::Function) {
+                        funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
+                        interpreter.debugLog("Found function '" + functionName_ + "' in scope: " + scopeName + 
+                                            " (namespace: " + SymbolContainer::DEFAULT_FUNCTIONS_SCOPE + ")");
+                        break;
+                    }
+                    
+                    // If not found in functions namespace, try other standard namespaces
+                    const std::vector<std::string> namespaces = {
+                        SymbolContainer::DEFAULT_VARIABLES_SCOPE,
+                        SymbolContainer::DEFAULT_CONSTANTS_SCOPE,
+                        SymbolContainer::DEFAULT_OTHERS_SCOPE
+                    };
+                    
+                    for (const auto& ns : namespaces) {
+                        sym = scopeTable->get(ns, functionName_);
+                        if (sym && sym->getKind() == Kind::Function) {
+                            funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
+                            interpreter.debugLog("Found function '" + functionName_ + "' in scope: " + scopeName + 
+                                                " (namespace: " + ns + ")");
+                            break;
+                        }
+                    }
+                    
+                    if (funcSym) break; // Exit outer loop if function found
                 }
             }
+            
             if (!funcSym) {
+                // Debug output of all available functions in all scopes
+                interpreter.debugLog("Function not found: " + functionName_ + ". Available functions:");
+                for (auto scopeName : sc->getScopeNames()) {
+                    auto scopeTable = sc->getScopeTable(scopeName);
+                    if (scopeTable) {
+                        // Check for functions in all standard namespaces
+                        const std::vector<std::string> namespaces = {
+                            SymbolContainer::DEFAULT_FUNCTIONS_SCOPE,
+                            SymbolContainer::DEFAULT_VARIABLES_SCOPE,
+                            SymbolContainer::DEFAULT_CONSTANTS_SCOPE,
+                            SymbolContainer::DEFAULT_OTHERS_SCOPE
+                        };
+                        
+                        for (const auto& ns : namespaces) {
+                            auto symbols = scopeTable->listAll(ns);
+                            for (auto sym : symbols) {
+                                if (sym->getKind() == Kind::Function) {
+                                    interpreter.debugLog("  - " + sym->name() + " in scope: " + scopeName + 
+                                                        " (namespace: " + ns + ")");
+                                }
+                            }
+                        }
+                    }
+                }
                 throw std::runtime_error("Function not found: " + functionName_);
             }
+            
             const auto & params = funcSym->parameters();
             if (params.size() != argValues.size()) {
                 throw std::runtime_error("Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
@@ -97,7 +134,7 @@ class CallExpressionNode : public ExpressionNode {
             const std::string canonical_fn_scope_name =
                 funcSym->context().empty() ? functionName_ : funcSym->context() + "::" + functionName_;
             std::string unique_call_scope_name =
-                canonical_fn_scope_name + "::call_" + std::to_string(Interpreter::get_unique_call_id());
+                canonical_fn_scope_name + "::call_" + std::to_string(interpreter.getUniqueCallId());
 
             sc->create(unique_call_scope_name);  // Creates and enters the new unique scope
 
@@ -139,3 +176,4 @@ class CallExpressionNode : public ExpressionNode {
 }  // namespace Interpreter
 
 #endif  // INTERPRETER_CALL_EXPRESSION_NODE_HPP
+

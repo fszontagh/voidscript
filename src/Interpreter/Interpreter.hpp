@@ -3,11 +3,16 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <atomic>
+#include <cstdint>
+#include <string>
 
 #include "BaseException.hpp"
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
+#include "Interpreter/ReturnException.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/Value.hpp"
 
 // Exception type for runtime errors, includes file, line, and column context
 namespace Interpreter {
@@ -32,10 +37,13 @@ class Exception : public BaseException {
 
 namespace Interpreter {
 
+inline std::atomic<std::uint64_t> call_id_counter = 0;
+
+inline std::uint64_t get_unique_call_id() { return call_id_counter.fetch_add(1, std::memory_order_relaxed); }
+
 class Interpreter {
   private:
-    bool debug_ = false;
-    static inline unsigned long long next_call_id_ = 0;
+    bool                             debug_        = false;
 
   public:
     /**
@@ -44,8 +52,12 @@ class Interpreter {
      */
     Interpreter(bool debug = false) : debug_(debug) {}
 
-    static unsigned long long get_unique_call_id() {
-        return next_call_id_++;
+    /**
+     * @brief Get a unique call ID for function calls
+     * @return A unique integer ID
+     */
+    std::uint64_t getUniqueCallId() const {
+        return get_unique_call_id();
     }
 
     /**
@@ -55,58 +67,35 @@ class Interpreter {
         // Determine namespace to execute
         const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
         for (const auto & operation : Operations::Container::instance()->getAll(ns)) {
-            runOperation(*operation);
+            try {
+                runOperation(*operation);
+            } catch (const ReturnException & re) {
+                // Ignore return exceptions at top level
+                debugLog("Caught return exception at top level, ignoring");
+            } catch (const std::exception & e) {
+                debugLog(std::string("Error executing operation: ") + e.what());
+            }
         }
     }
 
     void runOperation(const Operations::Operation & op) {
         if (debug_) {
-            std::cerr << "[Debug][Interpreter] Operation: " << op.toString() << "\n";
+            std::cerr << "[Debug][Interpreter] Running operation: " << op.toString() << std::endl;
         }
+        if (op.statement) {
+            op.statement->interpret(*this);
+        } else {
+            throw std::runtime_error("Null statement in operation: " + op.targetName);
+        }
+    }
 
-        switch (op.type) {
-            case Operations::Type::Declaration:
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                }
-                break;
-            case Operations::Type::Assignment:
-            case Operations::Type::Expression:
-            case Operations::Type::FuncDeclaration:
-                {
-                    op.statement->interpret(*this);
-                }
-                break;
-
-            case Operations::Type::FunctionCall:
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                } else {
-                    throw Exception("Function call statement is null", op.targetName, 0, 0);
-                }
-                break;
-            case Operations::Type::Return:
-            case Operations::Type::Conditional:
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                }
-                break;
-            case Operations::Type::Loop:
-            case Operations::Type::While:
-                // for-in or while loop
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                }
-                break;
-            case Operations::Type::Break:
-            case Operations::Type::Continue:
-            case Operations::Type::Block:
-            case Operations::Type::Import:
-            case Operations::Type::Error:
-                // TODO: implement these operations later
-                break;
-            default:
-                throw std::runtime_error("Not implemented operation type");
+    /**
+     * @brief Output a debug message if debug mode is enabled.
+     * @param message The message to output.
+     */
+    void debugLog(const std::string & message) const {
+        if (debug_) {
+            std::cerr << "[Debug][Interpreter] " << message << std::endl;
         }
     }
 

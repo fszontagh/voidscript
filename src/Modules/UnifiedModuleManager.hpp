@@ -53,9 +53,18 @@ struct ClassInfo {
         std::string                 name;
         Symbols::Variables::Type    type;
         Parser::ParsedExpressionPtr defaultValueExpr;
+        bool                        isPublic = true;
     };
+    
+    struct MethodInfo {
+        std::string              name;
+        Symbols::Variables::Type returnType;
+        bool                     isPublic = true;
+    };
+    
     std::vector<PropertyInfo> properties;
     std::vector<std::string>  methodNames;
+    std::vector<MethodInfo>   methods;
     std::unordered_map<std::string, Symbols::Value> objectProperties;  // Store object-specific properties
 };
 
@@ -85,10 +94,14 @@ class UnifiedModuleManager {
     ClassInfo & getClassInfo(const std::string & className);
     void addProperty(const std::string & className, const std::string & propertyName, Symbols::Variables::Type type,
                     Parser::ParsedExpressionPtr defaultValueExpr = nullptr);
+    void registerProperty(const std::string & className, const std::string & propertyName, 
+                         Symbols::Variables::Type type, bool isPublic = true);
     void addMethod(const std::string & className, const std::string & methodName);
     void addMethod(const std::string & className, const std::string & methodName,
                   std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb,
                   const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
+    void registerMethod(const std::string & className, const std::string & methodName, 
+                       const Symbols::Variables::Type & returnType, bool isPublic = true);
     bool hasProperty(const std::string & className, const std::string & propertyName) const;
     bool hasMethod(const std::string & className, const std::string & methodName) const;
     std::vector<std::string> getClassNames() const;

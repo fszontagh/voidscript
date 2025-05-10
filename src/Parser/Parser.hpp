@@ -6,7 +6,6 @@
 
 #include "BaseException.hpp"
 #include "Interpreter/StatementNode.hpp"
-#include "Lexer/Lexer.hpp"
 #include "Lexer/Token.hpp"
 #include "Lexer/TokenType.hpp"
 #include "Parser/ParsedExpression.hpp"
@@ -173,10 +172,13 @@ class Parser {
     ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type);
 
     // Helper to parse an identifier name, stripping leading '$' if present
-    std::string parseIdentifierName(const Lexer::Tokens::Token& token);
+    std::string parseIdentifierName(const Lexer::Tokens::Token & token);
 
     // Helper to parse this->$property access as a special case
     ParsedExpressionPtr parseThisPropertyAccess();
+
+    // Helper to add a 'this' variable to a method scope
+    void addThisToMethodScope(const std::string & methodScope);
 
 };  // class Parser
 

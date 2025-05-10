@@ -1,4 +1,6 @@
 #include "Parser/Parser.hpp"
+
+#include "Lexer/Lexer.hpp"
 // Static filename for unified error reporting in Parser::Exception
 std::string Parser::Parser::Exception::current_filename_;
 
@@ -17,7 +19,6 @@ std::string Parser::Parser::Exception::current_filename_;
 #include "Interpreter/Nodes/Statement/ReturnStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/WhileStatementNode.hpp"
 #include "Interpreter/OperationsFactory.hpp"
-#include "Interpreter/ReturnException.hpp"
 #include "Lexer/Operators.hpp"
 #include "ParsedExpression.hpp"
 #include "Parser.hpp"
@@ -88,28 +89,28 @@ void Parser::parseConstVariableDefinition() {
     expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
     // Parse initializer expression
     auto expr = parseParsedExpression(var_type);
-    
+
     // Create a constant definition statement node
     auto stmt = std::make_unique<Interpreter::DeclareVariableStatementNode>(
-        var_name, ns, var_type, buildExpressionFromParsed(expr), current_filename_,
-        id_token.line_number, id_token.column_number, /*isConst=*/true);
-    
+        var_name, ns, var_type, buildExpressionFromParsed(expr), current_filename_, id_token.line_number,
+        id_token.column_number, /*isConst=*/true);
+
     // Add the operation to the container
     Operations::Container::instance()->add(
         ns, Operations::Operation{ Operations::Type::Declaration, var_name, std::move(stmt) });
-    
-    // Also directly add the constant to the symbol table for immediate access    
+
+    // Also directly add the constant to the symbol table for immediate access
     // Create a constant symbol directly
-    auto exprNode = buildExpressionFromParsed(expr);
+    auto                     exprNode = buildExpressionFromParsed(expr);
     Interpreter::Interpreter tempInterpreter(false);
     try {
-        Symbols::Value value = exprNode->evaluate(tempInterpreter);
-        auto symbol = Symbols::SymbolFactory::createConstant(var_name, value, ns);
+        Symbols::Value value  = exprNode->evaluate(tempInterpreter);
+        auto           symbol = Symbols::SymbolFactory::createConstant(var_name, value, ns);
         Symbols::SymbolContainer::instance()->defineInScope(ns, symbol);
-    } catch (const std::exception& e) {
+    } catch (const std::exception & e) {
         throw std::runtime_error("Failed to evaluate constant expression: " + std::string(e.what()));
     }
-        
+
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
 
@@ -134,60 +135,60 @@ void Parser::parseVariableDefinition() {
 
     // Check if there's an initializer
     std::unique_ptr<Interpreter::ExpressionNode> initExprNode;
-    Symbols::Value value;
+    Symbols::Value                               value;
     if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
-        auto expr = parseParsedExpression(var_type);
+        auto expr                         = parseParsedExpression(var_type);
         // Build expression node FIRST
-        initExprNode = buildExpressionFromParsed(expr);
+        initExprNode                      = buildExpressionFromParsed(expr);
         // Create a variable symbol directly
-        auto exprNode = buildExpressionFromParsed(expr);
+        auto                     exprNode = buildExpressionFromParsed(expr);
         Interpreter::Interpreter tempInterpreter(false);
         value = exprNode->evaluate(tempInterpreter);
     } else {
         // Create a default value based on the type
         switch (var_type) {
             case Symbols::Variables::Type::INTEGER:
-                value = Symbols::Value(0);
+                value        = Symbols::Value(0);
                 initExprNode = std::make_unique<Interpreter::LiteralExpressionNode>(value);
                 break;
             case Symbols::Variables::Type::DOUBLE:
             case Symbols::Variables::Type::FLOAT:
-                value = Symbols::Value(0.0);
+                value        = Symbols::Value(0.0);
                 initExprNode = std::make_unique<Interpreter::LiteralExpressionNode>(value);
                 break;
             case Symbols::Variables::Type::STRING:
-                value = Symbols::Value("");
+                value        = Symbols::Value("");
                 initExprNode = std::make_unique<Interpreter::LiteralExpressionNode>(value);
                 break;
             case Symbols::Variables::Type::BOOLEAN:
-                value = Symbols::Value(false);
+                value        = Symbols::Value(false);
                 initExprNode = std::make_unique<Interpreter::LiteralExpressionNode>(value);
                 break;
             case Symbols::Variables::Type::OBJECT:
             case Symbols::Variables::Type::CLASS:
-                value = Symbols::Value();
+                value        = Symbols::Value();
                 initExprNode = std::make_unique<Interpreter::LiteralExpressionNode>(value);
                 break;
             default:
-                value = Symbols::Value();
+                value        = Symbols::Value();
                 initExprNode = std::make_unique<Interpreter::LiteralExpressionNode>(value);
                 break;
         }
     }
-    
+
     // Create a variable definition statement node
     auto stmt = std::make_unique<Interpreter::DeclareVariableStatementNode>(
-        var_name, ns, var_type, std::move(initExprNode), current_filename_,
-        id_token.line_number, id_token.column_number);
-    
+        var_name, ns, var_type, std::move(initExprNode), current_filename_, id_token.line_number,
+        id_token.column_number);
+
     // Add the operation to the container
     Operations::Container::instance()->add(
         ns, Operations::Operation{ Operations::Type::Declaration, var_name, std::move(stmt) });
-    
+
     // Also directly add the variable to the symbol table for immediate access
     auto symbol = Symbols::SymbolFactory::createVariable(var_name, value, ns, var_type);
     Symbols::SymbolContainer::instance()->defineInScope(ns, symbol);
-    
+
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
 
@@ -493,11 +494,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                 auto expr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
                 if (expr) {
                     auto stmtNode = std::make_unique<Interpreter::ExpressionStatementNode>(
-                        buildExpressionFromParsed(expr),
-                        this->current_filename_,
-                        currentToken().line_number,
+                        buildExpressionFromParsed(expr), this->current_filename_, currentToken().line_number,
                         currentToken().column_number);
-                    
+
                     Operations::Container::instance()->add(
                         Symbols::SymbolContainer::instance()->currentScopeName(),
                         Operations::Operation{ Operations::Type::Expression, "", std::move(stmtNode) });
@@ -514,9 +513,8 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     bool is_class_name   = (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
                           Modules::UnifiedModuleManager::instance().hasClass(currentToken().value));
 
-    if ((is_type_keyword || is_class_name) &&
-        (peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-         peekToken().type == Lexer::Tokens::Type::IDENTIFIER)) {
+    if ((is_type_keyword || is_class_name) && (peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                                               peekToken().type == Lexer::Tokens::Type::IDENTIFIER)) {
         // Always parse as variable definition if we have a type followed by identifier
         // This ensures we handle method calls and other complex expressions in initializers
         auto stmt = parseVariableDefinitionNode();
@@ -527,11 +525,11 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     // <<< END VARIABLE DEFINITION CHECK >>>
 
     // Function call (identifier followed directly by '(')
-    if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER && peekToken().type == Lexer::Tokens::Type::PUNCTUATION &&
-             peekToken().value == "(") {
+    if (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
+        peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "(") {
         std::string func_name = currentToken().value;
         // parseCallStatement now handles adding the operation internally
-        auto stmtNode = parseCallStatement();
+        auto        stmtNode  = parseCallStatement();
         if (!stmtNode) {
             reportError("Failed to parse function call statement", currentToken());
         }
@@ -567,9 +565,9 @@ void Parser::parseFunctionDefinition() {
 
     if (currentToken().type != Lexer::Tokens::Type::PUNCTUATION || currentToken().value != ")") {
         while (true) {
-            Symbols::Variables::Type param_type = parseType();
-            Lexer::Tokens::Token param_id_token = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-            std::string param_name = param_id_token.value;
+            Symbols::Variables::Type param_type     = parseType();
+            Lexer::Tokens::Token     param_id_token = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+            std::string              param_name     = param_id_token.value;
             if (!param_name.empty() && param_name[0] == '$') {
                 param_name = param_name.substr(1);
             }
@@ -592,10 +590,11 @@ void Parser::parseFunctionDefinition() {
     }
 
     expect(Lexer::Tokens::Type::PUNCTUATION, "{");
-    size_t opening_brace_idx = current_token_index_ - 1;
-    std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
+    size_t      opening_brace_idx = current_token_index_ - 1;
+    std::string currentScope      = Symbols::SymbolContainer::instance()->currentScopeName();
     // Register the function symbol only (do not evaluate body)
-    auto funcSymbol = Symbols::SymbolFactory::createFunction(func_name, currentScope, param_infos, "", func_return_type);
+    auto        funcSymbol =
+        Symbols::SymbolFactory::createFunction(func_name, currentScope, param_infos, "", func_return_type);
     Symbols::SymbolContainer::instance()->defineInScope(currentScope, funcSymbol);
     // Parse the function/method body using the brace index (do not evaluate at parse time)
     parseFunctionBody(opening_brace_idx, func_name, func_return_type, param_infos);
@@ -619,8 +618,8 @@ void Parser::parseClassDefinition() {
     // Gather class members (registration happens at interpretation)
     std::vector<Modules::ClassInfo::PropertyInfo> privateProps;
     std::vector<Modules::ClassInfo::PropertyInfo> publicProps;
-    std::vector<Modules::ClassInfo::MethodInfo> privateMethods;
-    std::vector<Modules::ClassInfo::MethodInfo> publicMethods;
+    std::vector<Modules::ClassInfo::MethodInfo>   privateMethods;
+    std::vector<Modules::ClassInfo::MethodInfo>   publicMethods;
 
     enum AccessLevel : std::uint8_t { PRIVATE, PUBLIC } currentAccess = PRIVATE;
 
@@ -671,7 +670,8 @@ void Parser::parseClassDefinition() {
                 defaultValue = parseParsedExpression(propType);
             }
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
-            Modules::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue), (currentAccess == PUBLIC) };
+            Modules::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue),
+                                                   (currentAccess == PUBLIC) };
             if (currentAccess == PRIVATE) {
                 privateProps.push_back(std::move(info));
             } else {
@@ -701,7 +701,8 @@ void Parser::parseClassDefinition() {
                 defaultValue = parseParsedExpression(propType);
             }
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
-            Modules::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue), (currentAccess == PUBLIC) };
+            Modules::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue),
+                                                   (currentAccess == PUBLIC) };
             if (currentAccess == PRIVATE) {
                 privateProps.push_back(std::move(info));
             } else {
@@ -729,10 +730,11 @@ void Parser::parseClassDefinition() {
                         paramName = paramName.substr(1);
                     }
                     params.push_back({ paramName, paramType });
-                    
+
                     // Add parameter to method scope immediately
                     auto paramSymbol = Symbols::SymbolFactory::createVariable(
-                        paramName, Symbols::Value(), Symbols::SymbolContainer::instance()->currentScopeName(), paramType);
+                        paramName, Symbols::Value(), Symbols::SymbolContainer::instance()->currentScopeName(),
+                        paramType);
                     Symbols::SymbolContainer::instance()->defineInScope(
                         Symbols::SymbolContainer::instance()->currentScopeName(), paramSymbol);
 
@@ -753,14 +755,10 @@ void Parser::parseClassDefinition() {
             expect(Lexer::Tokens::Type::PUNCTUATION, "{");
             size_t opening_brace_idx = current_token_index_ - 1;
             parseFunctionBody(opening_brace_idx, methodName, returnType, params);
-            
+
             // Create a MethodInfo object and add it to the appropriate list
-            Modules::ClassInfo::MethodInfo methodInfo{
-                methodName,
-                returnType,
-                (currentAccess == PUBLIC)
-            };
-            
+            Modules::ClassInfo::MethodInfo methodInfo{ methodName, returnType, (currentAccess == PUBLIC) };
+
             if (currentAccess == PRIVATE) {
                 privateMethods.push_back(methodInfo);
             } else {
@@ -777,8 +775,7 @@ void Parser::parseClassDefinition() {
     Symbols::SymbolContainer::instance()->enterPreviousScope();
     // Enqueue class definition for interpretation
     auto stmt = std::make_unique<Interpreter::ClassDefinitionStatementNode>(
-        className, std::move(privateProps), std::move(publicProps), 
-        std::move(publicMethods), std::move(privateMethods),
+        className, std::move(privateProps), std::move(publicProps), std::move(publicMethods), std::move(privateMethods),
         this->current_filename_, nameToken.line_number, nameToken.column_number);
     Operations::Container::instance()->add(
         Symbols::SymbolContainer::instance()->currentScopeName(),
@@ -914,14 +911,14 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
     // Enter new namespace for the function body (use :: separator)
     const std::string newns = Symbols::SymbolContainer::instance()->currentScopeName() + "::" + function_name;
     Symbols::SymbolContainer::instance()->create(newns);
-    
+
     // Check if this is a class method by looking for a double-colon in the current scope name
     std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
     if (currentScope.find("::") != std::string::npos) {
         // This might be a class method, add 'this' variable to the method scope
         addThisToMethodScope(newns);
     }
-    
+
     // Parse function body in its own parser instance
     Parser innerParser;
     innerParser.parseScript(filtered_tokens, input_string, this->current_filename_);
@@ -1078,7 +1075,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
                 currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
                 Lexer::Tokens::Token propToken = consumeToken();
-                std::string propName = propToken.value;
+                std::string          propName  = propToken.value;
                 // Remove $ prefix from property name if present
                 if (!propName.empty() && propName[0] == '$') {
                     propName = propName.substr(1);
@@ -1092,18 +1089,18 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 output_queue.pop_back();
 
                 // Create member access expression
-                auto memberExpr = ParsedExpression::makeMember(
-                    std::move(objExpr), propName, this->current_filename_,
-                    currentToken().line_number, currentToken().column_number);
+                auto memberExpr =
+                    ParsedExpression::makeMember(std::move(objExpr), propName, this->current_filename_,
+                                                 currentToken().line_number, currentToken().column_number);
                 output_queue.push_back(std::move(memberExpr));
 
                 expect_unary = false;
-                atStart = false;
+                atStart      = false;
 
                 // If next token is '(', parse method call
                 if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "(") {
                     consumeToken();  // consume '('
-                    
+
                     // Parse arguments
                     std::vector<ParsedExpressionPtr> args;
                     if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
@@ -1117,14 +1114,14 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                         }
                     }
                     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
-                    
+
                     // Get the object expression from the output queue
                     if (output_queue.empty()) {
                         reportError("Missing object for method call");
                     }
                     auto objExpr = std::move(output_queue.back());
                     output_queue.pop_back();
-                    
+
                     // Create method call expression directly
                     auto callExpr = ParsedExpression::makeMethodCall(
                         std::move(objExpr), propName, std::move(args), this->current_filename_,
@@ -1132,9 +1129,9 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     output_queue.push_back(std::move(callExpr));
                 }
                 continue;
-            } else {
-                reportError("Expected property name after '->'");
             }
+            reportError("Expected property name after '->'");
+
         }
         // Method or function call: expression followed by '('
         else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "(") {
@@ -1144,8 +1141,9 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 while (!operator_stack.empty() && operator_stack.top() != "(") {
                     std::string op = operator_stack.top();
                     operator_stack.pop();
-                    
-                    if (op == "u-" || op == "u+" || op == "u!" || op == "u++" || op == "u--" || op == "p++" || op == "p--") {
+
+                    if (op == "u-" || op == "u+" || op == "u!" || op == "u++" || op == "u--" || op == "p++" ||
+                        op == "p--") {
                         if (output_queue.empty()) {
                             reportError("Missing operand for unary operator");
                         }
@@ -1163,10 +1161,10 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                         output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
                     }
                 }
-                
+
                 // Consume '('
                 consumeToken();
-                
+
                 // Parse arguments
                 std::vector<ParsedExpressionPtr> args;
                 if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
@@ -1180,17 +1178,17 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     }
                 }
                 expect(Lexer::Tokens::Type::PUNCTUATION, ")");
-                
+
                 // Build call expression
                 auto callee = std::move(output_queue.back());
                 output_queue.pop_back();
                 ParsedExpressionPtr callExpr;
-                
+
                 if (callee->kind == ParsedExpression::Kind::Member) {
                     // Method call: object->method(args)
-                    callExpr = ParsedExpression::makeMethodCall(
-                        std::move(callee->lhs), callee->name, std::move(args), this->current_filename_,
-                        currentToken().line_number, currentToken().column_number);
+                    callExpr = ParsedExpression::makeMethodCall(std::move(callee->lhs), callee->name, std::move(args),
+                                                                this->current_filename_, currentToken().line_number,
+                                                                currentToken().column_number);
                 } else if (callee->kind == ParsedExpression::Kind::Variable) {
                     // Function call
                     callExpr = ParsedExpression::makeCall(callee->name, std::move(args), this->current_filename_,
@@ -1200,7 +1198,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 }
                 output_queue.push_back(std::move(callExpr));
                 expect_unary = false;
-                atStart = false;
+                atStart      = false;
                 continue;
             }
             // Fallback grouping: treat '(' as usual
@@ -1262,7 +1260,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             // Process operators on the stack with higher precedence
             while (!operator_stack.empty()) {
                 const std::string & top = operator_stack.top();
-                if (top == "(" || 
+                if (top == "(" ||
                     (!Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) >= Lexer::getPrecedence(top)) ||
                     (Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) > Lexer::getPrecedence(top))) {
                     break;
@@ -1310,24 +1308,25 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
                     if (currentScope.find("::") != std::string::npos) {
                         // If 'this' doesn't exist in the current scope, create a dummy one
-                        auto sc = Symbols::SymbolContainer::instance();
-                        auto thisSymbol = sc->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+                        auto * sc         = Symbols::SymbolContainer::instance();
+                        auto   thisSymbol = sc->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
                         if (!thisSymbol) {
                             // Create a dummy 'this' object with __class__ metadata
                             Symbols::Value::ObjectMap thisObj;
                             // Extract class name from scope (format: file::className::methodName)
-                            std::string className;
-                            size_t lastColonPos = currentScope.rfind("::");
+                            std::string               className;
+                            size_t                    lastColonPos = currentScope.rfind("::");
                             if (lastColonPos != std::string::npos) {
                                 size_t prevColonPos = currentScope.rfind("::", lastColonPos - 1);
                                 if (prevColonPos != std::string::npos) {
                                     className = currentScope.substr(prevColonPos + 2, lastColonPos - prevColonPos - 2);
                                 }
                             }
-                            
+
                             if (!className.empty()) {
                                 thisObj["__class__"] = Symbols::Value(className);
-                                sc->add(Symbols::SymbolFactory::createVariable("this", Symbols::Value(thisObj), currentScope));
+                                sc->add(Symbols::SymbolFactory::createVariable("this", Symbols::Value(thisObj),
+                                                                               currentScope));
                             }
                         }
                     }
@@ -1510,8 +1509,9 @@ Symbols::Value Parser::parseValue(Symbols::Variables::Type expected_var_type) {
 }
 
 bool Parser::isAtEnd() const {
-    return current_token_index_ >= tokens_.size() || 
-           (current_token_index_ < tokens_.size() && tokens_[current_token_index_].type == Lexer::Tokens::Type::END_OF_FILE);
+    return current_token_index_ >= tokens_.size() ||
+           (current_token_index_ < tokens_.size() &&
+            tokens_[current_token_index_].type == Lexer::Tokens::Type::END_OF_FILE);
 }
 
 Lexer::Tokens::Token Parser::expect(Lexer::Tokens::Type expected_type, const std::string & expected_value) {
@@ -1656,9 +1656,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
     // Extract target name and property path from the target expression
-    std::string targetName;
+    std::string              targetName;
     std::vector<std::string> propertyPath;
-    
+
     if (target->kind == ParsedExpression::Kind::Variable) {
         targetName = target->name;
     } else if (target->kind == ParsedExpression::Kind::Binary && target->op == "->") {
@@ -1673,11 +1673,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
 
     // Create and return the assignment statement node
     return std::make_unique<Interpreter::AssignmentStatementNode>(
-        targetName,
-        propertyPath,
-        buildExpressionFromParsed(value),
-        this->current_filename_,
-        currentToken().line_number,
+        targetName, propertyPath, buildExpressionFromParsed(value), this->current_filename_, currentToken().line_number,
         currentToken().column_number);
 }
 
@@ -1817,11 +1813,9 @@ void Parser::parseTopLevelStatement() {
                 auto expr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
                 if (expr) {
                     auto stmtNode = std::make_unique<Interpreter::ExpressionStatementNode>(
-                        buildExpressionFromParsed(expr),
-                        this->current_filename_,
-                        currentToken().line_number,
+                        buildExpressionFromParsed(expr), this->current_filename_, currentToken().line_number,
                         currentToken().column_number);
-                    
+
                     Operations::Container::instance()->add(
                         Symbols::SymbolContainer::instance()->currentScopeName(),
                         Operations::Operation{ Operations::Type::Expression, "", std::move(stmtNode) });
@@ -1876,11 +1870,11 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseVariableDefinitionNode(
         return nullptr;
     }
     std::string var_name = this->parseIdentifierName(id_token);
-    const auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
+    const auto  ns       = Symbols::SymbolContainer::instance()->currentScopeName();
 
     // Check if there's an initializer
     std::unique_ptr<Interpreter::ExpressionNode> initExprNode;
-    
+
     if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
         // Parse the initializer expression with NULL_TYPE to allow any valid expression
         // This includes method calls, object member access, etc.
@@ -1922,9 +1916,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseVariableDefinitionNode(
     this->expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
     // Create and return the node
-    return std::make_unique<Interpreter::DeclareVariableStatementNode>(
-        var_name, ns, var_type, std::move(initExprNode), this->current_filename_,
-        id_token.line_number, id_token.column_number);
+    return std::make_unique<Interpreter::DeclareVariableStatementNode>(var_name, ns, var_type, std::move(initExprNode),
+                                                                       this->current_filename_, id_token.line_number,
+                                                                       id_token.column_number);
 }
 
 void Parser::parseIncludeStatement() {
@@ -1944,7 +1938,7 @@ void Parser::parseIncludeStatement() {
         // Extract directory from current_filename_
         size_t last_slash = current_filename_.find_last_of('/');
         if (last_slash != std::string::npos) {
-            std::string dir = current_filename_.substr(0, last_slash + 1);
+            std::string dir   = current_filename_.substr(0, last_slash + 1);
             resolved_filename = dir + filename;
         }
     }
@@ -1952,7 +1946,8 @@ void Parser::parseIncludeStatement() {
     // Read the included file
     std::ifstream file(resolved_filename);
     if (!file.is_open()) {
-        reportError("Could not open included file: " + filename + " (resolved to " + resolved_filename + ")", filename_token);
+        reportError("Could not open included file: " + filename + " (resolved to " + resolved_filename + ")",
+                    filename_token);
         return;
     }
 
@@ -1983,10 +1978,10 @@ void Parser::parseIncludeStatement() {
 
     // Get all symbols from the included file
     auto included_symbols = Symbols::SymbolContainer::instance()->getAll(include_ns);
-    
+
     // Get all operations from the included file
     auto included_operations = Operations::Container::instance()->getAll(include_ns);
-    
+
     // Move all operations from include scope to current scope
     for (const auto & operation : included_operations) {
         Operations::Container::instance()->add(current_scope, std::move(*operation));
@@ -2014,7 +2009,7 @@ void Parser::parseIncludeStatement() {
                     targetNamespace = Symbols::SymbolContainer::DEFAULT_OTHERS_SCOPE;
                     break;
             }
-            
+
             // Get the target scope's symbol table
             auto targetTable = Symbols::SymbolContainer::instance()->getScopeTable(current_scope);
             if (targetTable) {
@@ -2031,10 +2026,10 @@ void Parser::parseIncludeStatement() {
 }
 
 // Helper to add a 'this' variable to a method scope
-void Parser::addThisToMethodScope(const std::string& methodScope) {
+void Parser::addThisToMethodScope(const std::string & methodScope) {
     // Extract the class name from the method scope (format: file::className::methodName)
     std::string className;
-    size_t lastColonPos = methodScope.rfind("::");
+    size_t      lastColonPos = methodScope.rfind("::");
     if (lastColonPos != std::string::npos) {
         size_t prevColonPos = methodScope.rfind("::", lastColonPos - 1);
         if (prevColonPos != std::string::npos) {
@@ -2051,13 +2046,13 @@ void Parser::addThisToMethodScope(const std::string& methodScope) {
     thisObj["__class__"] = Symbols::Value(className);
 
     // Create a 'this' variable with the empty object
-    auto thisSymbol = Symbols::SymbolFactory::createVariable(
-        "this", Symbols::Value(thisObj), methodScope, Symbols::Variables::Type::OBJECT);
+    auto thisSymbol = Symbols::SymbolFactory::createVariable("this", Symbols::Value(thisObj), methodScope,
+                                                             Symbols::Variables::Type::OBJECT);
 
     try {
         // Add the 'this' variable to the method scope
         Symbols::SymbolContainer::instance()->defineInScope(methodScope, thisSymbol);
-    } catch (const std::exception& e) {
+    } catch (const std::exception & e) {
         // Failed to add 'this' to method scope
     }
 }

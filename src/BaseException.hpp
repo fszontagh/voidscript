@@ -8,9 +8,9 @@ class BaseException : public std::exception {
     BaseException(const std::string & msg, const std::string & context = "") : rawMessage_(msg), context_(context) {
         formattedMessage_ = formatMessage();
     }
-    BaseException() = default;
-    BaseException(const BaseException&) = default;
 
+    BaseException()                      = default;
+    BaseException(const BaseException &) = default;
 
     const char * what() const noexcept override { return formattedMessage_.c_str(); }
 

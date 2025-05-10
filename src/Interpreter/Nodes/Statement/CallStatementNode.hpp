@@ -85,7 +85,7 @@ class CallStatementNode : public StatementNode {
 
             // Create unique scope for this function call
             const std::string canonical_fn_scope_name = funcSym->context().empty() ? functionName_ : funcSym->context() + "::" + functionName_;
-            std::string unique_call_scope_name = canonical_fn_scope_name + "::call_" + std::to_string(Interpreter::get_unique_call_id());
+            std::string unique_call_scope_name = canonical_fn_scope_name + "::call_" + std::to_string(interpreter.getUniqueCallId());
 
             sc->create(unique_call_scope_name); // Creates and enters the new unique scope
 

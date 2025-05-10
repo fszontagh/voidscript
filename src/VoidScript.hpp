@@ -80,9 +80,20 @@ class VoidScript {
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
 
-        // Initialize SymbolContainer with the main script file path
-        // Assuming 'file' parameter is the absolute path desired for the scope name.
-        Symbols::SymbolContainer::initialize(file);
+        // Convert the script path to an absolute path to ensure consistent include resolution
+        std::string absoluteScriptPath = file;
+        if (!file.empty() && file[0] != '/' && file != "-") {
+            // If it's not already an absolute path or stdin, convert it
+            try {
+                absoluteScriptPath = std::filesystem::absolute(file).string();
+            } catch (const std::exception& e) {
+                // Fall back to the original path
+                absoluteScriptPath = file;
+            }
+        }
+
+        // Initialize SymbolContainer with the absolute script file path
+        Symbols::SymbolContainer::initialize(absoluteScriptPath);
 
         // Register built-in modules (print, etc.)
         // print functions
@@ -118,12 +129,22 @@ class VoidScript {
             Modules::UnifiedModuleManager::instance().loadPlugins("Modules");
             Modules::UnifiedModuleManager::instance().loadPlugins("build/Modules");
             Modules::UnifiedModuleManager::instance().loadPlugins(MODULES_FOLDER);
-            // Register all built-in and plugin modules before execution
-            // Modules::UnifiedModuleManager::instance().registerAll();  // No longer needed here
             while (!files.empty()) {
-                std::string       file         = files.back();
-                const std::string file_content = readFile(file);
+                std::string file = files.back();
                 files.pop_back();
+                
+                // Convert to absolute path if it's not already one and not stdin
+                std::string absoluteFilePath = file;
+                if (file != "-" && !file.empty() && file[0] != '/') {
+                    try {
+                        absoluteFilePath = std::filesystem::absolute(file).string();
+                    } catch (const std::exception& e) {
+                        absoluteFilePath = file;
+                    }
+                }
+                
+                const std::string file_content = readFile(file); // Still use original path for reading
+                
                 // Split content into segments: code inside tags and outside tags
                 std::vector<std::pair<bool, std::string>> segments;
                 if (!enableTags_) {
@@ -163,7 +184,7 @@ class VoidScript {
                     }
                 }
 
-                const std::string& current_file_scope_name = file;
+                const std::string& current_file_scope_name = absoluteFilePath;
                 Symbols::SymbolContainer::instance()->create(current_file_scope_name);
 
                 const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
@@ -173,7 +194,9 @@ class VoidScript {
                     using namespace Symbols;
                     // Define argc (including the script name)
                     int argc_val = static_cast<int>(scriptArgs_.size()) + 1;
+                    
                     OperationsFactory::defineSimpleConstantVariable("argc", Value(argc_val), ns, file, 0, 0);
+                    
                     // Define argv as object map: argv[0] = script name, then parameters
                     Value::ObjectMap argv_map;
                     // Script filename at index 0
@@ -182,7 +205,12 @@ class VoidScript {
                     for (size_t i = 0; i < scriptArgs_.size(); ++i) {
                         argv_map[std::to_string(i + 1)] = Value(scriptArgs_[i]);
                     }
+                    
                     OperationsFactory::defineSimpleConstantVariable("argv", Value(argv_map), ns, file, 0, 0);
+                    
+                    // Execute these operations immediately to ensure symbols are in the table
+                    Interpreter::Interpreter init_interpreter(debugInterpreter_);
+                    init_interpreter.run();
                 }
 
                 // Process each segment: either plain text or code to execute
@@ -194,26 +222,32 @@ class VoidScript {
                         // Inside tag code: tokenize, parse, and execute
                         this->lexer->addNamespaceInput(ns, seg.second);
                         const auto tokens = this->lexer->tokenizeNamespace(ns);
-                        if (debugLexer_) {
-                            std::cerr << "[Debug][Lexer] Tokens for namespace '" << ns << "':\n";
-                            for (const auto & tok : tokens) {
-                                std::cerr << tok.dump();
-                            }
-                        }
-                        parser->parseScript(tokens, file_content, file);
-                        if (debugParser_) {
-                            std::cerr << "[Debug][Parser] Operations for namespace '" << ns << "':\n";
-                            for (const auto & op : Operations::Container::instance()->getAll(ns)) {
-                                std::cerr << op->toString() << "\n";
-                            }
-                        }
+                        
+                        // Parse the script but don't execute operations yet
+                        parser->parseScript(tokens, file_content, absoluteFilePath);
+                        
+                        // Get all operations for this namespace
+                        auto operations = Operations::Container::instance()->getAll(ns);
+                        
+                        // Execute the operations
                         Interpreter::Interpreter interpreter(debugInterpreter_);
-                        interpreter.run();
-                        // Clear operations after execution to avoid re-running
-                        Operations::Container::instance()->clear(ns);
+                        
+                        // Execute each operation individually
+                        for (const auto& op : operations) {
+                            try {
+                                interpreter.runOperation(*op);
+                            } catch (const std::exception& e) {
+                                std::cerr << "[Error][VoidScript] Error executing operation: " << e.what() << std::endl;
+                            }
+                        }
+                        
+                        // Debug symbol table before clearing operations
                         if (debugSymbolTable_) {
                             std::cout << Symbols::SymbolContainer::dump() << "\n";
                         }
+                        
+                        // Clear operations after execution to avoid re-running
+                        Operations::Container::instance()->clear(ns);
                     }
                 }
             }  // while (!files.empty())

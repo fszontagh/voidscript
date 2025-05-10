@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+The project directory is: /home/fszontagh/soniscript
+The build directory is: /home/fszontagh/soniscript/build
+Build command (in the project root dir): cmake --build build 
+Test command (select a script from the test_scripts/*.vs): cd build; ./voidscript script.vs
+Do not delete the build folder. 

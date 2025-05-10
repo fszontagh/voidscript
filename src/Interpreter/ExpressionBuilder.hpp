@@ -139,17 +139,29 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
         case Kind::Member:
             {
                 // Handle member access expressions created using makeMember
-                // Get the object and property name from the first entry in objectMembers
-                auto objectExpr = buildExpressionFromParsed(expr->objectMembers[0].second);
-                std::string propName = expr->objectMembers[0].first;
-                
+                auto objectExpr = buildExpressionFromParsed(expr->lhs);
                 return std::make_unique<Interpreter::MemberExpressionNode>(
-                    std::move(objectExpr), propName,
+                    std::move(objectExpr), expr->name,
                     expr->filename, expr->line, expr->column);
             }
-    }
 
-    throw std::runtime_error("Unknown ParsedExpression kind");
+        case Kind::MethodCall:
+            {
+                // Handle method call expressions
+                auto objectExpr = buildExpressionFromParsed(expr->lhs);
+                std::vector<std::unique_ptr<Interpreter::ExpressionNode>> methodArgs;
+                methodArgs.reserve(expr->args.size());
+                for (const auto & arg : expr->args) {
+                    methodArgs.push_back(buildExpressionFromParsed(arg));
+                }
+                return std::make_unique<Interpreter::MethodCallExpressionNode>(
+                    std::move(objectExpr), expr->name, std::move(methodArgs),
+                    expr->filename, expr->line, expr->column);
+            }
+
+        default:
+            throw Interpreter::Exception("Unknown ParsedExpression kind", expr->filename, expr->line, expr->column);
+    }
 }
 
 inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {

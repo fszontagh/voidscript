@@ -46,30 +46,75 @@ class NewExpressionNode : public ExpressionNode {
         // Initialize object fields from class definition
         const auto &              info = registry.getClassInfo(className_);
         Symbols::Value::ObjectMap obj;
-        // Default initialization for all properties
-        size_t                    propCount = info.properties.size();
-        for (size_t i = 0; i < propCount; ++i) {
-            const auto &   prop  = info.properties[i];
+        
+        // First, initialize all properties with their default values
+        for (const auto & prop : info.properties) {
             Symbols::Value value = Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
             if (prop.defaultValueExpr) {
                 // Build and evaluate default expression
                 auto exprNode = Parser::buildExpressionFromParsed(prop.defaultValueExpr);
-                value         = exprNode->evaluate(interpreter);
+                value = exprNode->evaluate(interpreter);
             }
             obj[prop.name] = value;
         }
-        // Override with constructor arguments
-        if (args_.size() > info.properties.size()) {
-            throw Exception("Too many constructor arguments for class: " + className_, filename_, line_, column_);
-        }
-        for (size_t j = 0; j < args_.size(); ++j) {
-            Symbols::Value val           = args_[j]->evaluate(interpreter);
-            obj[info.properties[j].name] = val;
-        }
+        
         // Embed class metadata for method dispatch
         obj["__class__"] = Symbols::Value(className_);
-        // Return class instance value (distinct from plain object)
-        return Symbols::Value::makeClassInstance(obj);
+        
+        // Create the initial class instance
+        Symbols::Value instance = Symbols::Value::makeClassInstance(obj);
+        
+        // Check if there's a constructor method
+        bool hasConstructor = false;
+        const Modules::ClassInfo::MethodInfo* constructorMethod = nullptr;
+        for (const auto & method : info.methods) {
+            if (method.name == "construct") {
+                hasConstructor = true;
+                constructorMethod = &method;
+                break;
+            }
+        }
+        
+        if (hasConstructor) {
+            // Call the constructor method
+            std::vector<Symbols::Value> constructorArgs;
+            constructorArgs.push_back(instance); // 'this' argument
+            
+            // Add the provided arguments
+            for (const auto & arg : args_) {
+                constructorArgs.push_back(arg->evaluate(interpreter));
+            }
+            
+            // Call the constructor through UnifiedModuleManager
+            std::string constructorName = className_ + "::construct";
+            try {
+                // Call the constructor function
+                auto result = registry.callFunction(constructorName, constructorArgs);
+                // Update our instance with any changes made by the constructor
+                if (result.getType() == Symbols::Variables::Type::CLASS) {
+                    instance = result;
+                }
+            } catch (const std::exception & e) {
+                throw Exception(std::string("Constructor error: ") + e.what(), filename_, line_, column_);
+            }
+        } else if (!args_.empty()) {
+            // No constructor but we have arguments - apply them to properties in order
+            size_t propIndex = 0;
+            for (const auto & prop : info.properties) {
+                if (propIndex < args_.size()) {
+                    Symbols::Value val = args_[propIndex]->evaluate(interpreter);
+                    obj[prop.name] = val;
+                    propIndex++;
+                } else {
+                    break;
+                }
+            }
+            
+            // Update the instance with the modified object map
+            instance = Symbols::Value::makeClassInstance(obj);
+        }
+        
+        return instance;
     }
 
     std::string toString() const override { return "NewExpression{ class=" + className_ + " }"; }

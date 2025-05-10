@@ -142,8 +142,29 @@ void UnifiedModuleManager::addProperty(const std::string & className, const std:
     cls.properties.push_back({ propertyName, type, std::move(defaultValueExpr) });
 }
 
+void UnifiedModuleManager::registerProperty(const std::string & className, const std::string & propertyName,
+                                          Symbols::Variables::Type type, bool isPublic) {
+    ClassInfo & cls = findOrThrow(classes_, className, "Class not found").info;
+    ClassInfo::PropertyInfo info{propertyName, type, nullptr, isPublic};
+    cls.properties.push_back(std::move(info));
+}
+
 void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName) {
     findOrThrow(classes_, className, "Class not found").info.methodNames.push_back(methodName);
+}
+
+void UnifiedModuleManager::registerMethod(const std::string & className, const std::string & methodName,
+                                         const Symbols::Variables::Type & returnType, bool isPublic) {
+    ClassInfo & cls = findOrThrow(classes_, className, "Class not found").info;
+    
+    // Add to methodNames for backward compatibility
+    if (std::find(cls.methodNames.begin(), cls.methodNames.end(), methodName) == cls.methodNames.end()) {
+        cls.methodNames.push_back(methodName);
+    }
+    
+    // Add to methods list
+    ClassInfo::MethodInfo methodInfo{methodName, returnType, isPublic};
+    cls.methods.push_back(methodInfo);
 }
 
 void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName,
@@ -162,8 +183,16 @@ bool UnifiedModuleManager::hasProperty(const std::string & className, const std:
 }
 
 bool UnifiedModuleManager::hasMethod(const std::string & className, const std::string & methodName) const {
-    const auto & methods = findOrThrow(classes_, className, "Class not found").info.methodNames;
-    return std::find(methods.begin(), methods.end(), methodName) != methods.end();
+    const auto & classInfo = findOrThrow(classes_, className, "Class not found").info;
+    
+    // Check in methodNames list (backward compatibility)
+    if (std::find(classInfo.methodNames.begin(), classInfo.methodNames.end(), methodName) != classInfo.methodNames.end()) {
+        return true;
+    }
+    
+    // Check in methods list
+    return std::any_of(classInfo.methods.begin(), classInfo.methods.end(),
+                      [&methodName](const auto& method) { return method.name == methodName; });
 }
 
 std::vector<std::string> UnifiedModuleManager::getClassNames() const {

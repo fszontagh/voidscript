@@ -8,7 +8,7 @@ class test1 {
     // const variables allowed too
     const string $test = "This is a test";
     // private method only inner usage
-    function WhatIsTheAge() : int {
+    function WhatIsTheAge() int {
         return this->$age;
     }
 
@@ -22,15 +22,15 @@ class test1 {
     }
 
     // other public methods
-    function getAge() : int {
+    function getAge() int {
         return this->$age;
     }
 
-    function getName() : string {
+    function getName() string {
         return this->$name;
     }
 
-    function isAdult() : bool {
+    function isAdult() bool {
         return this->$age >= 18;
     }
 
@@ -38,14 +38,14 @@ class test1 {
         this->$name = $new_name;
     }
 
-    function incrementAge(int $incremental) : int {
+    function incrementAge(int $incremental) int {
         this->$age += $incremental; // Modify the age
         return this->$age; // Return the *new* age
     }
 }
 
 
-function getInt() : int {
+function getInt() int {
     return 10;
 }
 // create an instance of the class, where the $testClass variable type is the class name, adding parameters based on the constructor
@@ -57,7 +57,7 @@ printnl("Z: ", $z);
 
 if ($testclass->isAdult() == false) {
     printnl($testclass->getName(), " is not adult.. incrementing the age");
-    int $new_age = $testclass->incrementAge(1);
+    // int $new_age = $testclass->incrementAge(1);
     printnl("New age would be: ", $testclass->incrementAge(1));
 }
 

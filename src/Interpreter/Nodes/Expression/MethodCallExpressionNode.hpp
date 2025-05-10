@@ -54,6 +54,7 @@ class MethodCallExpressionNode : public ExpressionNode {
         try {
             // Evaluate target object (produces a copy)
             Value objVal = objectExpr_->evaluate(interpreter);
+            interpreter.debugLog("Evaluated object for method call: " + methodName_);
 
             // Allow method calls on class instances (and plain objects with class metadata)
             if (objVal.getType() != Variables::Type::OBJECT && objVal.getType() != Variables::Type::CLASS) {
@@ -65,10 +66,12 @@ class MethodCallExpressionNode : public ExpressionNode {
             // Extract class name
             auto it = objMap.find("__class__");
             if (it == objMap.end() || it->second.getType() != Variables::Type::STRING) {
-                throw std::invalid_argument("Object is missing class metadata for method: " + methodName_);
-                //throw Exception("Object is missing class metadata for method: '" + methodName_ + "'", filename_, line_,                                column_);
+                throw Exception("Object is missing class metadata for method: " + methodName_, filename_, line_,
+                                column_);
             }
             std::string className = it->second.get<std::string>();
+            interpreter.debugLog("Found class name: " + className + " for method call: " + methodName_);
+            
             // Verify method exists
             auto &      registry  = Modules::UnifiedModuleManager::instance();
             if (!registry.hasMethod(className, methodName_)) {
@@ -83,6 +86,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             for (const auto & arg : args_) {
                 argValues.push_back(arg->evaluate(interpreter));
             }
+            
             // Native method override via UnifiedModuleManager
             {
                 auto &      mgr      = Modules::UnifiedModuleManager::instance();
@@ -96,25 +100,19 @@ class MethodCallExpressionNode : public ExpressionNode {
                         if (origSym->getValue().getType() == ret.getType()) {
                             origSym->setValue(ret);
                         }
-                        //origSym->setValue(ret);
                     }
                     return ret;
-                    //return mgr.getFunctionNullValue(fullName);
-                    //return Value::makeNull(Variables::Type::NULL_TYPE);
                 }
             }
 
             // Locate function symbol in class namespace
-            auto *            sc_instance = SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
+            auto *            sc_instance = SymbolContainer::instance();
             // Lookup method symbol in class namespace.
-            // classNs is the scope where the class's methods are defined.
-            // This often takes the form: current_file_scope_name + "::" + className
-            const std::string current_file_scope =
-                sc_instance->currentScopeName();  // Or derive from filename if more reliable
+            const std::string current_file_scope = sc_instance->currentScopeName();
             const std::string class_scope_name = current_file_scope + "::" + className;
 
-            Symbols::SymbolPtr sym               = nullptr;
-            auto               class_scope_table = sc_instance->getScopeTable(class_scope_name);
+            Symbols::SymbolPtr sym = nullptr;
+            auto class_scope_table = sc_instance->getScopeTable(class_scope_name);
             if (class_scope_table) {
                 sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
             }
@@ -124,72 +122,72 @@ class MethodCallExpressionNode : public ExpressionNode {
                                     class_scope_name + "'",
                                 filename_, line_, column_);
             }
-            auto            funcSym    = std::static_pointer_cast<FunctionSymbol>(sym);
+            
+            auto funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
             Variables::Type returnType = funcSym->returnType();
+            
             // Check argument count
-            const auto &    params     = funcSym->parameters();
+            const auto & params = funcSym->parameters();
             if (params.size() != args_.size()) {
                 throw Exception("Method '" + methodName_ + "' expects " + std::to_string(params.size()) +
                                     " args, got " + std::to_string(args_.size()),
                                 filename_, line_, column_);
             }
+            
             // Enter method scope under class namespace
             const std::string methodNs = class_scope_name + "::" + methodName_;
+            
+            // Create the method scope if it doesn't exist
+            if (!sc_instance->scopeExists(methodNs)) {
+                sc_instance->create(methodNs);
+                interpreter.debugLog("Created method scope: " + methodNs);
+            }
+            
             sc_instance->enter(methodNs);
-            // Bind 'this'
-            sc_instance->add(SymbolFactory::createVariable("this", objVal, methodNs));
-            // Bind parameters
+            interpreter.debugLog("Entered method scope: " + methodNs);
+            
+            // Always create a fresh 'this' variable for each method call
+            // First, check if we need to remove an existing one
+            if (sc_instance->exists(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this")) {
+                sc_instance->remove(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+            }
+            
+            // Create new 'this' variable
+            auto thisSymbol = SymbolFactory::createVariable("this", objVal, methodNs);
+            sc_instance->add(thisSymbol);
+            
+            // Create parameter variables - with bounds checking
+            if (argValues.size() != params.size() + 1) { // +1 for 'this'
+                throw Exception("Internal error: argument count mismatch in method call", filename_, line_, column_);
+            }
+            
             for (size_t i = 0; i < params.size(); ++i) {
-                sc_instance->add(SymbolFactory::createVariable(params[i].name, argValues[i + 1], methodNs));
+                if (i + 1 >= argValues.size()) {
+                    throw Exception("Internal error: argument index out of bounds", filename_, line_, column_);
+                }
+                auto paramSymbol = SymbolFactory::createVariable(params[i].name, argValues[i + 1], methodNs);
+                sc_instance->add(paramSymbol);
             }
+            
             // Execute method body
-            for (const auto & op : Operations::Container::instance()->getAll(methodNs)) {
-                try {
+            Value result;
+            try {
+                for (const auto & op : Operations::Container::instance()->getAll(methodNs)) {
                     interpreter.runOperation(*op);
-                } catch (const ReturnException & re) {
-                    // Write back modified object state before returning
-                    if (origSym) {
-                        auto method_scope_table = sc_instance->getScopeTable(methodNs);
-                        if (method_scope_table) {
-                            auto thisSym =
-                                method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
-                            if (thisSym) {
-                                origSym->setValue(thisSym->getValue());
-                            } else {
-                                // Log error or handle: 'this' not found in method scope where expected
-                            }
-                        } else {
-                            // Log error or handle: method scope table not found
-                        }
-                    }
-                    sc_instance->enterPreviousScope();
-                    return re.value();
                 }
+            } catch (const ReturnException & e) {
+                result = e.value();
             }
-            // Write back modified object state after method execution
-            if (origSym) {
-                auto method_scope_table = sc_instance->getScopeTable(methodNs);
-                if (method_scope_table) {
-                    auto thisSym = method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
-                    if (thisSym) {
-                        origSym->setValue(thisSym->getValue());
-                    } else {
-                        // Log error or handle: 'this' not found in method scope where expected
-                    }
-                } else {
-                    // Log error or handle: method scope table not found
-                }
-            }
+            
             // Exit method scope
             sc_instance->enterPreviousScope();
-            // Return type checking: if method declares a non-null return type, error if no value was returned
-            if (returnType == Variables::Type::NULL_TYPE) {
-                return Value::makeNull(Variables::Type::NULL_TYPE);
-            } else {
-                throw Exception("Method '" + methodName_ + "' (return type: " + Variables::TypeToString(returnType) +
-                                    ") did not return a value",
-                                filename_, line_, column_);
+            
+            // Write back modified object if needed
+            if (origSym && result.getType() == Variables::Type::OBJECT) {
+                origSym->setValue(result);
             }
+            
+            return result;
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }

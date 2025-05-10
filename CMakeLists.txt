@@ -105,9 +105,6 @@ configure_file("cmake/options.h.in" "include/options.h" @ONLY)
     configure_file("test_scripts/variables.vs" "test_scripts/variables.vs" @ONLY)
     configure_file("test_scripts/expressions.vs" "test_scripts/expressions.vs" @ONLY)
 
-
-
-
 include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_SOURCE_DIR}/src)
 
 

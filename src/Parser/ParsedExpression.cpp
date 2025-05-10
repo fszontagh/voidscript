@@ -129,7 +129,7 @@ std::string ParsedExpression::toString() const {
                 return result;
             }
         case Kind::Member:
-            return objectMembers[0].second->toString() + "->" + objectMembers[0].first;
+            return lhs->toString() + "->" + name;
         default:
             return "Unknown expression kind";
     }

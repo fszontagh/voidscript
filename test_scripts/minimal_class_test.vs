@@ -1,11 +1,11 @@
-class SimpleTest {
-    public: string $name = "Test";
-    public: int $value = 42;
+class Test {
+    public:
+    string $name = "Test";
+    
+    function getName() string {
+        return this->$name;
+    }
 }
 
-// Create an instance
-SimpleTest $test = new SimpleTest();
-
-// Access public properties
-printnl("Name: ", $test->name);
-printnl("Value: ", $test->value); 
+Test $test = new Test();
+printnl($test->getName()); 

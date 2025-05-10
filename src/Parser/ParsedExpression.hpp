@@ -134,14 +134,15 @@ struct ParsedExpression {
         return expr;
     }
 
-    static ParsedExpressionPtr makeMember(ParsedExpressionPtr object, const std::string &propName, const std::string &filename, int line, size_t column) {
+    // Constructor for member access: object->property
+    static ParsedExpressionPtr makeMember(ParsedExpressionPtr object, const std::string &propertyName, const std::string &filename, int line, size_t column) {
         auto expr = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Member;
-        expr->objectMembers.push_back({propName, std::move(object)});
+        expr->lhs = std::move(object);
+        expr->name = propertyName;
         expr->filename = filename;
-        expr->line     = line;
-        expr->column   = column;
-
+        expr->line = line;
+        expr->column = column;
         return expr;
     }
 
