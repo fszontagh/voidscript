@@ -39,6 +39,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "new",      Lexer::Tokens::Type::KEYWORD_NEW                  },
     { "true",     Lexer::Tokens::Type::KEYWORD                      },
     { "false",    Lexer::Tokens::Type::KEYWORD                      },
+    { "include",  Lexer::Tokens::Type::KEYWORD_INCLUDE              },
     // variable types
     { "null",     Lexer::Tokens::Type::KEYWORD_NULL                 },
     { "int",      Lexer::Tokens::Type::KEYWORD_INT                  },
@@ -1569,6 +1570,30 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseReturnStatementNode() {
     return stmt;
 }
 
+void Parser::parseIncludeStatement() {
+    auto includeToken = expect(Lexer::Tokens::Type::KEYWORD_INCLUDE, "include");
+    expect(Lexer::Tokens::Type::STRING_LITERAL, "\"");
+    auto filenameToken = expect(Lexer::Tokens::Type::STRING_LITERAL);
+    std::string filename = filenameToken.value;
+    expect(Lexer::Tokens::Type::STRING_LITERAL, "\"");
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+
+    // Read the contents of the included file
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        reportError("Failed to open included file: " + filename, includeToken);
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string includedCode = buffer.str();
+
+    // Parse the included code
+    Lexer lexer;
+    auto includedTokens = lexer.tokenize(includedCode);
+    Parser includedParser;
+    includedParser.parseScript(includedTokens, includedCode, filename);
+}
+
 void Parser::parseTopLevelStatement() {
     const auto & currentTok = currentToken();
     const auto & token_type = currentTok.type;
@@ -1588,6 +1613,8 @@ void Parser::parseTopLevelStatement() {
         parseWhileStatement();
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CLASS) {
         parseClassDefinition();
+    } else if (token_type == Lexer::Tokens::Type::KEYWORD_INCLUDE) {
+        parseIncludeStatement();
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_INCLUDE) {
