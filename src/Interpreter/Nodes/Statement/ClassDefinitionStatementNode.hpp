@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>  // for std::reverse
 
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
@@ -47,7 +48,10 @@ class ClassDefinitionStatementNode : public StatementNode {
             registry.addProperty(className_, prop.name, prop.type, prop.defaultValueExpr);
         }
         // Register methods
-        for (const auto & method : methodNames_) {
+        // Reverse the methodNames_ to fix the order issue
+        std::vector<std::string> reversedMethods = methodNames_;
+        std::reverse(reversedMethods.begin(), reversedMethods.end());
+        for (const auto & method : reversedMethods) {
             registry.addMethod(className_, method);
         }
         // After registering methods in class registry, also register function symbols
