@@ -1578,8 +1578,15 @@ void Parser::parseIncludeStatement() {
 
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
+    // Get the base directory of the initial script
+    std::filesystem::path initialScriptPath(current_filename_);
+    std::string baseDir = initialScriptPath.parent_path().string();
+
+    // Construct the full path to the included file
+    std::string fullPath = baseDir + "/" + filename;
+
     // Read the contents of the included file
-    std::ifstream file(filename);
+    std::ifstream file(fullPath);
     if (!file.is_open()) {
         reportError("Failed to open included file: " + filename, includeToken);
     }
