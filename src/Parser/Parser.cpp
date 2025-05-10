@@ -16,6 +16,7 @@ std::string Parser::Parser::Exception::current_filename_;
 #include "Interpreter/Nodes/Statement/ReturnStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/WhileStatementNode.hpp"
 #include "Interpreter/OperationsFactory.hpp"
+#include "Lexer/Lexer.hpp"
 #include "Lexer/Operators.hpp"
 #include "Parser.hpp"
 #include "Symbols/SymbolContainer.hpp"
@@ -194,7 +195,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     // --- Create loop scope ONCE at the beginning ---
     const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
     //const std::string loopScope =
-//        currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
+    //        currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
     //Symbols::SymbolContainer::instance()->create(loopScope);  // Create & Enter loopScope
     // --- End scope creation ---
 
@@ -1571,11 +1572,10 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseReturnStatementNode() {
 }
 
 void Parser::parseIncludeStatement() {
-    auto includeToken = expect(Lexer::Tokens::Type::KEYWORD_INCLUDE, "include");
-    expect(Lexer::Tokens::Type::STRING_LITERAL, "\"");
-    auto filenameToken = expect(Lexer::Tokens::Type::STRING_LITERAL);
-    std::string filename = filenameToken.value;
-    expect(Lexer::Tokens::Type::STRING_LITERAL, "\"");
+    auto        includeToken  = expect(Lexer::Tokens::Type::KEYWORD_INCLUDE, "include");
+    auto        filenameToken = expect(Lexer::Tokens::Type::STRING_LITERAL);
+    std::string filename      = filenameToken.value;
+
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
     // Read the contents of the included file
@@ -1585,13 +1585,15 @@ void Parser::parseIncludeStatement() {
     }
     std::stringstream buffer;
     buffer << file.rdbuf();
-    std::string includedCode = buffer.str();
+    const std::string includedCode = buffer.str();
 
-    // Parse the included code
-    Lexer lexer;
-    auto includedTokens = lexer.tokenize(includedCode);
-    Parser includedParser;
-    includedParser.parseScript(includedTokens, includedCode, filename);
+    const auto currentNs = Symbols::SymbolContainer::instance()->currentScopeName();
+
+    Lexer::Lexer lexer;
+    lexer.setKeyWords(Parser::Parser::keywords);
+    lexer.addNamespaceInput(currentNs, includedCode);
+    auto includedTokens = lexer.tokenizeNamespace(currentNs);
+    this->parseScript(includedTokens, includedCode, filename);
 }
 
 void Parser::parseTopLevelStatement() {
@@ -1617,8 +1619,6 @@ void Parser::parseTopLevelStatement() {
         parseIncludeStatement();
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
-    } else if (token_type == Lexer::Tokens::Type::KEYWORD_INCLUDE) {
-        parseIncludeStatement();
     }
     // Variable definition (type keyword or known class name followed by variable identifier)
     else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||

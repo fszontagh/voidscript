@@ -34,6 +34,7 @@ enum class Type : std::uint8_t {
     KEYWORD_FOR,
     KEYWORD_WHILE,
     KEYWORD_CONST,
+    KEYWORD_INCLUDE,
     // Class-related keywords
     KEYWORD_CLASS,
     KEYWORD_PRIVATE,
@@ -106,6 +107,8 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_FOR";
         case Lexer::Tokens::Type::KEYWORD_CONST:
             return "KEYWORD_CONST";
+        case Lexer::Tokens::Type::KEYWORD_INCLUDE:
+            return "KEYWORD_INCLUDE";
         case Lexer::Tokens::Type::UNKNOWN:
             return "UNKNOWN";
         default:

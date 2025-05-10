@@ -116,6 +116,8 @@ class Parser {
 
     // Parse a top-level constant variable definition (e.g., const <type> $name = expr;)
     void                                        parseConstVariableDefinition();
+    // Parse a top-level include
+    void                                        parseIncludeStatement();
     // Parse a top-level variable definition (e.g., <type> $name = expr;)
     void                                        parseVariableDefinition();
     void                                        parseFunctionDefinition();
@@ -170,7 +172,7 @@ class Parser {
     ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type);
 
     // Helper to parse an identifier name, stripping leading '$' if present
-    std::string parseIdentifierName(const Lexer::Tokens::Token& token);
+    std::string parseIdentifierName(const Lexer::Tokens::Token & token);
 
     // Helper to parse this->$property access as a special case
     ParsedExpressionPtr parseThisPropertyAccess();
