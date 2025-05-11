@@ -2,7 +2,6 @@
 #ifndef MODULES_FILEMODULE_HPP
 #define MODULES_FILEMODULE_HPP
 
-#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -12,6 +11,7 @@
 #include "Modules/BaseModule.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
+#include "utils.h"
 
 namespace Modules {
 
@@ -40,7 +40,7 @@ class FileModule : public BaseModule {
                                   throw std::runtime_error("file_get_contents expects string filename");
                               }
                               const std::string filename = args[0].get<std::string>();
-                              if (!std::filesystem::exists(filename)) {
+                              if (!utils::exists(filename)) {
                                   throw std::runtime_error("File does not exist: " + filename);
                               }
                               std::ifstream input(filename, std::ios::in | std::ios::binary);
@@ -73,7 +73,7 @@ class FileModule : public BaseModule {
                               const std::string filename  = args[0].get<std::string>();
                               const std::string content   = args[1].get<std::string>();
                               const bool        overwrite = args[2].get<bool>();
-                              if (!overwrite && std::filesystem::exists(filename)) {
+                              if (!overwrite && utils::exists(filename)) {
                                   throw std::runtime_error("File already exists: " + filename);
                               }
                               std::ofstream output(filename, std::ios::out | std::ios::binary | std::ios::trunc);
@@ -102,7 +102,7 @@ class FileModule : public BaseModule {
                                   throw std::runtime_error("file_exists expects string filename");
                               }
                               const std::string filename = args[0].get<std::string>();
-                              bool              exists   = std::filesystem::exists(filename);
+                              bool              exists   = utils::exists(filename);
                               return Value(exists);
                           });
 
@@ -119,13 +119,13 @@ class FileModule : public BaseModule {
                                   throw std::runtime_error("file_get_contents expects string filename");
                               }
                               const std::string filename = args[0].get<std::string>();
-                              if (std::filesystem::exists(filename) == false) {
+                              if (utils::exists(filename) == false) {
                                   throw std::runtime_error("file_size: file not found: " + filename);
                               }
-                              if (std::filesystem::is_directory((filename))) {
+                              if (utils::is_directory((filename))) {
                                   return Symbols::Value(4096);
                               }
-                              size_t size = std::filesystem::file_size(filename);
+                              size_t size = utils::file_size(filename);
                               return Symbols::Value(static_cast<int>(size));
                           });
     }

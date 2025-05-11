@@ -4,53 +4,58 @@ class Person {
     private: string $name = "Unknown";
     private: int $age = 0;
     private: bool $isStudent = false;
-    
+
     // Constructor
     function construct(string $name, int $age, bool $isStudent) {
-        $this->name = $name;
-        $this->age = $age;
-        $this->isStudent = $isStudent;
+        this->$name = $name;
+        this->$age = $age;
+        this->$isStudent = $isStudent;
     }
-    
+
     // Getters
     function getName() string {
-        return $this->name;
+        return this->$name;
     }
-    
+
     function getAge() int {
-        return $this->age;
+        return this->$age;
     }
-    
+
     function isStudent() bool {
-        return $this->isStudent;
+        return this->$isStudent;
     }
-    
+
     // Setters
     function setName(string $newName) {
-        $this->name = $newName;
+        this->$name = $newName;
     }
-    
+
     function setAge(int $newAge) {
-        $this->age = $newAge;
+        this->$age = $newAge;
     }
-    
+
     function setIsStudent(bool $status) {
-        $this->isStudent = $status;
+        this->$isStudent = $status;
     }
-    
+
     // Other methods
     function celebrateBirthday() int {
-        $this->age = $this->age + 1;
-        return $this->age;
+        this->age++;
+        return this->$age;
     }
-    
+
     function canVote() bool {
-        return $this->age >= 18;
+        return this->$age >= 18;
     }
-    
+
     function getDescription() string {
-        string $status = $this->isStudent ? "is" : "is not";
-        return $this->name + " is " + $this->age + " years old and " + $status + " a student.";
+        string $status = "";
+        if (this->$isStrudent) {
+            $status = "is";
+        }else{
+            $status = "is not";
+        }
+        return this->$name + " is " + this->$age + " years old and " + $status + " a student.";
     }
 }
 
@@ -76,4 +81,4 @@ printnl("Is Alice a student now? ", $person1->isStudent() ? "Yes" : "No");
 
 // Get descriptions
 printnl("Description 1: ", $person1->getDescription());
-printnl("Description 2: ", $person2->getDescription()); 
+printnl("Description 2: ", $person2->getDescription());

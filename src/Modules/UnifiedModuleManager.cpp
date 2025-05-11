@@ -2,9 +2,11 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <utility>
-#include <iostream>
+
+#include "utils.h"
 
 using namespace Modules;
 
@@ -28,7 +30,7 @@ void UnifiedModuleManager::registerAll() {
 }
 
 void UnifiedModuleManager::loadPlugins(const std::string & directory) {
-    if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
+    if (!utils::exists(directory) || !utils::is_directory(directory)) {
         return;
     }
     for (const auto & entry : std::filesystem::recursive_directory_iterator(directory)) {
@@ -58,8 +60,8 @@ void UnifiedModuleManager::loadPlugin(const std::string & path) {
 
     using PluginInitFunc = void (*)();
     dlerror();  // Clear any existing errors
-    PluginInitFunc init = reinterpret_cast<PluginInitFunc>(dlsym(handle, "plugin_init"));
-    const char * dlsym_error = dlerror();
+    PluginInitFunc init        = reinterpret_cast<PluginInitFunc>(dlsym(handle, "plugin_init"));
+    const char *   dlsym_error = dlerror();
     if (dlsym_error) {
         dlclose(handle);
         throw std::runtime_error("Plugin missing 'plugin_init' symbol: " + path + ": " + std::string(dlsym_error));
@@ -72,7 +74,7 @@ void UnifiedModuleManager::loadPlugin(const std::string & path) {
     }
 
     using PluginInitFunc = void (*)();
-    PluginInitFunc init = reinterpret_cast<PluginInitFunc>(GetProcAddress((HMODULE) handle, "plugin_init"));
+    PluginInitFunc init  = reinterpret_cast<PluginInitFunc>(GetProcAddress((HMODULE) handle, "plugin_init"));
     if (!init) {
         FreeLibrary((HMODULE) handle);
         throw std::runtime_error("Plugin missing 'plugin_init' symbol: " + path);
@@ -81,8 +83,8 @@ void UnifiedModuleManager::loadPlugin(const std::string & path) {
 #endif
 
     // Store the module pointer before moving it
-    BaseModule* modulePtr = modules_.empty() ? nullptr : modules_.back().get();
-    plugins_.push_back({handle, path, modulePtr});
+    BaseModule * modulePtr = modules_.empty() ? nullptr : modules_.back().get();
+    plugins_.push_back({ handle, path, modulePtr });
 }
 
 // --- Function registration ---
@@ -102,7 +104,7 @@ bool UnifiedModuleManager::hasFunction(const std::string & name) const {
 }
 
 Symbols::Value UnifiedModuleManager::callFunction(const std::string & name, FunctionArguments & args) const {
-    const auto& entry = findOrThrow(functions_, name, "Function not found");
+    const auto & entry = findOrThrow(functions_, name, "Function not found");
     return (*entry.callback)(args);
 }
 
@@ -148,7 +150,7 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
 
 void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName,
                                      std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb,
-                                     const Symbols::Variables::Type & returnType) {
+                                     const Symbols::Variables::Type &                                   returnType) {
     // Create a copy of the callback before registering
     auto callback = cb;
     this->registerFunction(methodName, callback, returnType);
@@ -157,8 +159,8 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
 
 bool UnifiedModuleManager::hasProperty(const std::string & className, const std::string & propertyName) const {
     const auto & props = findOrThrow(classes_, className, "Class not found").info.properties;
-    return std::any_of(props.begin(), props.end(), 
-                      [&propertyName](const auto& prop) { return prop.name == propertyName; });
+    return std::any_of(props.begin(), props.end(),
+                       [&propertyName](const auto & prop) { return prop.name == propertyName; });
 }
 
 bool UnifiedModuleManager::hasMethod(const std::string & className, const std::string & methodName) const {
@@ -176,32 +178,34 @@ std::vector<std::string> UnifiedModuleManager::getClassNames() const {
 }
 
 // --- Object property management ---
-void UnifiedModuleManager::setObjectProperty(const std::string& className, const std::string& propertyName, const Symbols::Value& value) {
-    auto& classEntry = findOrThrow(classes_, className, "Class not found");
+void UnifiedModuleManager::setObjectProperty(const std::string & className, const std::string & propertyName,
+                                             const Symbols::Value & value) {
+    auto & classEntry                              = findOrThrow(classes_, className, "Class not found");
     classEntry.info.objectProperties[propertyName] = value;
 }
 
-Symbols::Value UnifiedModuleManager::getObjectProperty(const std::string& className, const std::string& propertyName) const {
-    const auto& classEntry = findOrThrow(classes_, className, "Class not found");
-    auto it = classEntry.info.objectProperties.find(propertyName);
+Symbols::Value UnifiedModuleManager::getObjectProperty(const std::string & className,
+                                                       const std::string & propertyName) const {
+    const auto & classEntry = findOrThrow(classes_, className, "Class not found");
+    auto         it         = classEntry.info.objectProperties.find(propertyName);
     if (it == classEntry.info.objectProperties.end()) {
         return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
     }
     return it->second;
 }
 
-void UnifiedModuleManager::deleteObjectProperty(const std::string& className, const std::string& propertyName) {
-    auto& classEntry = findOrThrow(classes_, className, "Class not found");
+void UnifiedModuleManager::deleteObjectProperty(const std::string & className, const std::string & propertyName) {
+    auto & classEntry = findOrThrow(classes_, className, "Class not found");
     classEntry.info.objectProperties.erase(propertyName);
 }
 
-bool UnifiedModuleManager::hasObjectProperty(const std::string& className, const std::string& propertyName) const {
-    const auto& classEntry = findOrThrow(classes_, className, "Class not found");
+bool UnifiedModuleManager::hasObjectProperty(const std::string & className, const std::string & propertyName) const {
+    const auto & classEntry = findOrThrow(classes_, className, "Class not found");
     return classEntry.info.objectProperties.find(propertyName) != classEntry.info.objectProperties.end();
 }
 
-void UnifiedModuleManager::clearObjectProperties(const std::string& className) {
-    auto& classEntry = findOrThrow(classes_, className, "Class not found");
+void UnifiedModuleManager::clearObjectProperties(const std::string & className) {
+    auto & classEntry = findOrThrow(classes_, className, "Class not found");
     classEntry.info.objectProperties.clear();
 }
 
@@ -219,7 +223,7 @@ std::vector<std::string> UnifiedModuleManager::getFunctionNamesForModule(BaseMod
 std::vector<std::string> UnifiedModuleManager::getPluginPaths() const {
     std::vector<std::string> paths;
     paths.reserve(plugins_.size());
-    for (const auto& plugin : plugins_) {
+    for (const auto & plugin : plugins_) {
         paths.push_back(plugin.path);
     }
     return paths;
@@ -228,7 +232,7 @@ std::vector<std::string> UnifiedModuleManager::getPluginPaths() const {
 std::vector<BaseModule *> UnifiedModuleManager::getPluginModules() const {
     std::vector<BaseModule *> modules;
     modules.reserve(plugins_.size());
-    for (const auto& plugin : plugins_) {
+    for (const auto & plugin : plugins_) {
         modules.push_back(plugin.module);
     }
     return modules;
@@ -243,11 +247,8 @@ std::string UnifiedModuleManager::getCurrentModuleName() const {
 }
 
 // --- Documentation helpers ---
-void UnifiedModuleManager::writeDoc(std::ofstream& file, 
-                                  const std::string& name,
-                                  const RegistryEntry& entry,
-                                  const std::string& prefix,
-                                  const Symbols::Variables::Type& returnType) const {
+void UnifiedModuleManager::writeDoc(std::ofstream & file, const std::string & name, const RegistryEntry & entry,
+                                    const std::string & prefix, const Symbols::Variables::Type & returnType) const {
     file << prefix << name << "\n";
     file << "Return Type: " << Symbols::Variables::TypeToString(returnType) << "\n\n";
 
@@ -264,7 +265,7 @@ void UnifiedModuleManager::writeDoc(std::ofstream& file,
 }
 
 void UnifiedModuleManager::generateMarkdownDocs(const std::string & outputDir) const {
-    std::filesystem::create_directories(outputDir);
+    utils::create_directories(outputDir);
 
     std::unordered_map<std::string, std::vector<std::string>> moduleFunctions;
     std::unordered_map<std::string, std::vector<std::string>> moduleClasses;
@@ -345,16 +346,15 @@ BaseModule * UnifiedModuleManager::getClassModule(const std::string & clsname) c
 
 // --- Destructor ---
 UnifiedModuleManager::~UnifiedModuleManager() {
-
     plugins_.clear();
     classes_.clear();
     functions_.clear();
     modules_.clear();  // std::unique_ptr free them
-    for (const auto& plugin : plugins_) {
+    for (const auto & plugin : plugins_) {
 #ifndef _WIN32
         dlclose(plugin.handle);
 #else
-        FreeLibrary((HMODULE)plugin.handle);
+        FreeLibrary((HMODULE) plugin.handle);
 #endif
-    }    
+    }
 }

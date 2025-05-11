@@ -172,7 +172,13 @@ class Parser {
     ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type);
 
     // Helper to parse an identifier name, stripping leading '$' if present
-    std::string parseIdentifierName(const Lexer::Tokens::Token & token);
+    static std::string parseIdentifierName(const Lexer::Tokens::Token & token) {
+        std::string name = token.value;
+        if (!name.empty() && name[0] == '$') {
+            return name.substr(1);
+        }
+        return name;
+    }
 
     // Helper to parse this->$property access as a special case
     ParsedExpressionPtr parseThisPropertyAccess();

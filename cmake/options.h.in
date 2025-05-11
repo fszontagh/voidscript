@@ -16,6 +16,7 @@ const static char * VERSION_SYSTEM_NAME = "@CMAKE_SYSTEM_NAME@";
 const static char * VERSION_GIT_HASH    = "@APP_GIT_VERSION@";
 const static char * VERSION_STRING      = "v@CMAKE_PROJECT_VERSION@-@CMAKE_SYSTEM_NAME@-@ARCHITECTURE@-@CMAKE_BUILD_TYPE@";
 const static char * MODULES_FOLDER      = "@MODULES_FOLDER@";
+const static bool   BUILD_EMBEDDED      = @IS_EMBEDDED@;
 #cmakedefine01 DEBUG_BUILD
 
 #endif  // VOIDSCRIPT_OPTIONS_H

@@ -12,15 +12,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(NEED_CLI ON)
+set(NEED_EMBEDDED OFF)
 
 option(BUILD_CLI, "Build example commandline interpreter" ${NEED_CLI})
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
 option(BUILD_TESTS "Build the test cases" OFF)
 
+
 if (BUILD_CLI)
     set(NEED_CLI ${BUILD_CLI})
+    set(NEED_EMBEDDED OFF)
 endif()
+
+option(BUILD_EMBEDDED "Build to use embedded scripting" ${NEED_EMBEDDED})
+
+
+file(TO_CMAKE_PATH "${CMAKE_BINARY_DIR}/CMakeLists.txt" LOC_PATH)
+if(EXISTS "${LOC_PATH}")
+    message(FATAL_ERROR "You cannot build in a source directory (or any directory with a CMakeLists.txt file). Please make a build subdirectory.")
+endif()
+
+
 
 include(cmake/AppVersion.cmake)
 
@@ -33,6 +46,9 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND BUILD_EMBEDDED)
+    status(WARNING "Building embedded version with Debug not recommended!")
+endif()
 
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -100,6 +116,11 @@ set(MODULES_FOLDER "${CMAKE_INSTALL_FULL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules"
 message(STATUS "CMAKE_INSTALL_FULL_DATADIR ${CMAKE_INSTALL_FULL_DATADIR}")
 
 # PACKAGING PROPERTIES END
+set(IS_EMBEDDED false)
+
+if (BUILD_EMBEDDED)
+    set(IS_EMBEDDED true)
+endif()
 
 configure_file("cmake/options.h.in" "include/options.h" @ONLY)
     configure_file("test_scripts/variables.vs" "test_scripts/variables.vs" @ONLY)
@@ -214,6 +235,7 @@ file(GLOB AVAILABLE_MODULES
 
 message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
 message(STATUS "APP_VERSION:           ${CMAKE_PROJECT_VERSION}\n")
+message(STATUS "BUILD_EMBEDDED:        ${BUILD_EMBEDDED}")
 message(STATUS "BUILD_CLI:             ${NEED_CLI}")
 message(STATUS "BUILD_FASTCGI:         ${BUILD_FASTCGI}")
 message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
@@ -221,11 +243,12 @@ message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
 message(STATUS "  PARSER_OPEN_TAG:     '${PARSER_OPEN_TAG}'")
 message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
 
-
-message(STATUS "  MODULES_FOLDER:            ${MODULES_FOLDER}")
-foreach(MODULE IN LISTS AVAILABLE_MODULES)
-    add_dynamic_module(${MODULE})
-endforeach(MODULE AVAILABLE_MODULES)
+if (BUILD_EMBEDDED EQUAL OFF)
+    message(STATUS "  MODULES_FOLDER:            ${MODULES_FOLDER}")
+    foreach(MODULE IN LISTS AVAILABLE_MODULES)
+        add_dynamic_module(${MODULE})
+    endforeach(MODULE AVAILABLE_MODULES)
+endif()
 
 # CPACK CONFIGURATION
 set(CPACK_DEB_COMPONENT_INSTALL ON)

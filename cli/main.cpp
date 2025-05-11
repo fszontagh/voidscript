@@ -1,20 +1,21 @@
-#include <filesystem>
-#include <iostream>
-#include <unordered_map>
 #include <unistd.h>  // for isatty, STDIN_FILENO
 
-#include "options.h"
-#include "VoidScript.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include <iostream>
+#include <unordered_map>
 #include <vector>
+
+#include "options.h"
+#include "utils.h"
+#include "VoidScript.hpp"
 
 // Supported command-line parameters and descriptions
 const std::unordered_map<std::string, std::string> params = {
-    { "--help",    "Print this help message"                                                                     },
-    { "--version", "Print the version of the program"                                                            },
-    { "--debug",       "Enable debug output (all components or use --debug=lexer, parser, interpreter, symboltable)" },
-    { "--enable-tags",            "Only parse tokens between PARSER_OPEN_TAG and PARSER_CLOSE_TAG when enabled"                  },
-    { "--suppress-tags-outside",  "Suppress text outside PARSER_OPEN_TAG/PARSER_CLOSE_TAG when tag filtering is enabled" },
+    { "--help",                  "Print this help message"                                                                     },
+    { "--version",               "Print the version of the program"                                                            },
+    { "--debug",                 "Enable debug output (all components or use --debug=lexer, parser, interpreter, symboltable)" },
+    { "--enable-tags",           "Only parse tokens between PARSER_OPEN_TAG and PARSER_CLOSE_TAG when enabled"                 },
+    { "--suppress-tags-outside",
+     "Suppress text outside PARSER_OPEN_TAG/PARSER_CLOSE_TAG when tag filtering is enabled"                                    },
 };
 
 int main(int argc, char * argv[]) {
@@ -30,9 +31,9 @@ int main(int argc, char * argv[]) {
     bool debugInterp      = false;
     bool debugSymbolTable = false;
 
-    std::string file;
-    bool enableTags = false;
-    bool suppressTagsOutside = false;
+    std::string              file;
+    bool                     enableTags          = false;
+    bool                     suppressTagsOutside = false;
     // Collect script parameters (arguments after script filename)
     std::vector<std::string> scriptArgs;
     for (int i = 1; i < argc; ++i) {
@@ -43,13 +44,15 @@ int main(int argc, char * argv[]) {
                 std::cout << "  " << key << ": " << value << "\n";
             }
             return 0;
-        } if (a == "--version") {
+        }
+        if (a == "--version") {
             std::cout << "Version:      " << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_PATCH << " ("
                       << VERSION_GIT_HASH << ")\n";
             std::cout << "Architecture: " << VERSION_ARCH << "\n";
             std::cout << "System:       " << VERSION_SYSTEM_NAME << "\n";
             return 0;
-        } if (a.rfind("--debug", 0) == 0) {
+        }
+        if (a.rfind("--debug", 0) == 0) {
             if (a == "--debug") {
                 debugLexer = debugParser = debugInterp = true;
             } else if (a.rfind("--debug=", 0) == 0) {
@@ -107,20 +110,14 @@ int main(int argc, char * argv[]) {
         // Read script from standard input
         filename = file;
     } else {
-        if (!std::filesystem::exists(file)) {
+        if (!utils::exists(file)) {
             std::cerr << "Error: File " << file << " does not exist.\n";
             return 1;
         }
-        filename = std::filesystem::canonical(file).string();
+        filename = file;  // there was a canonical
     }
 
-    VoidScript voidscript(filename,
-                         debugLexer,
-                         debugParser,
-                         debugInterp,
-                         debugSymbolTable,
-                         enableTags,
-                         suppressTagsOutside,
-                         scriptArgs);
+    VoidScript voidscript(filename, debugLexer, debugParser, debugInterp, debugSymbolTable, enableTags,
+                          suppressTagsOutside, scriptArgs);
     return voidscript.run();
 }

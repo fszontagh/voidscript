@@ -1,6 +1,5 @@
 #ifndef VOIDSCRIPT_HPP
 #define VOIDSCRIPT_HPP
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -10,21 +9,21 @@
 
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
-#include "Modules/BuiltIn/PrintModule.hpp"
-#include "Modules/BuiltIn/VariableHelpersModule.hpp"
-#include "Modules/BuiltIn/StringModule.hpp"
 #include "Modules/BuiltIn/ArrayModule.hpp"
 #include "Modules/BuiltIn/FileModule.hpp"
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
+#include "Modules/BuiltIn/PrintModule.hpp"
+#include "Modules/BuiltIn/StringModule.hpp"
+#include "Modules/BuiltIn/VariableHelpersModule.hpp"
+#include "options.h"
 #ifdef FCGI
 #    include "Modules/BuiltIn/HeaderModule.hpp"
 #endif
 #include "Interpreter/OperationsFactory.hpp"
-#include "options.h"
 #include "Parser/Parser.hpp"
-#include "Symbols/Value.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/Value.hpp"
 
 class VoidScript {
   private:
@@ -48,7 +47,7 @@ class VoidScript {
         if (file == "-") {
             return std::string(std::istreambuf_iterator<char>(std::cin), std::istreambuf_iterator<char>());
         }
-        if (!std::filesystem::exists(file)) {
+        if (!utils::exists(file)) {
             throw std::runtime_error("File " + file + " does not exist");
         }
         std::ifstream input(file, std::ios::in);
@@ -79,7 +78,6 @@ class VoidScript {
         scriptArgs_(std::move(scriptArgs)),
         lexer(std::make_shared<Lexer::Lexer>()),
         parser(std::make_shared<Parser::Parser>()) {
-
         // Initialize SymbolContainer with the main script file path
         // Assuming 'file' parameter is the absolute path desired for the scope name.
         Symbols::SymbolContainer::initialize(file);
@@ -159,7 +157,7 @@ class VoidScript {
                     }
                 }
 
-                const std::string& current_file_scope_name = file;
+                const std::string & current_file_scope_name = file;
                 Symbols::SymbolContainer::instance()->create(current_file_scope_name);
 
                 const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();

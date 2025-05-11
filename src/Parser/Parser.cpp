@@ -1,4 +1,5 @@
 #include "Parser/Parser.hpp"
+#include "utils.h"
 // Static filename for unified error reporting in Parser::Exception
 std::string Parser::Parser::Exception::current_filename_;
 
@@ -1461,15 +1462,6 @@ ParsedExpressionPtr Parser::parseThisPropertyAccess() {
     return memberExpr;
 }
 
-// Helper to parse an identifier name, stripping leading '$' if present
-std::string Parser::parseIdentifierName(const Lexer::Tokens::Token & token) {
-    std::string name = token.value;
-    if (!name.empty() && name[0] == '$') {
-        return name.substr(1);
-    }
-    return name;
-}
-
 // Parse an assignment statement (variable, object member, 'this' member) and return its node
 std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode() {
     Lexer::Tokens::Token baseToken;
@@ -1579,8 +1571,7 @@ void Parser::parseIncludeStatement() {
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
     // Get the base directory of the initial script
-    std::filesystem::path initialScriptPath(current_filename_);
-    std::string baseDir = initialScriptPath.parent_path().string();
+    const std::string baseDir = utils::get_parent_directory(current_filename_);
 
     // Construct the full path to the included file
     std::string fullPath = baseDir + "/" + filename;
@@ -1599,21 +1590,21 @@ void Parser::parseIncludeStatement() {
     Lexer::Lexer lexer;
     lexer.setKeyWords(Parser::Parser::keywords);
     lexer.addNamespaceInput(currentNs, includedCode);
-    auto includedTokens = lexer.tokenizeNamespace(currentNs);
+    auto                              includedTokens         = lexer.tokenizeNamespace(currentNs);
     // Save the current state
-    size_t saved_token_index = current_token_index_;
-    std::vector<Lexer::Tokens::Token> saved_tokens = tokens_;
-    std::string_view saved_input_str_view = input_str_view_;
-    std::string saved_current_filename = current_filename_;
+    size_t                            saved_token_index      = current_token_index_;
+    std::vector<Lexer::Tokens::Token> saved_tokens           = tokens_;
+    std::string_view                  saved_input_str_view   = input_str_view_;
+    std::string                       saved_current_filename = current_filename_;
 
     // Parse the included file
     this->parseScript(includedTokens, includedCode, filename);
 
     // Restore the original state
     current_token_index_ = saved_token_index;
-    tokens_ = saved_tokens;
-    input_str_view_ = saved_input_str_view;
-    current_filename_ = saved_current_filename;
+    tokens_              = saved_tokens;
+    input_str_view_      = saved_input_str_view;
+    current_filename_    = saved_current_filename;
 }
 
 void Parser::parseTopLevelStatement() {
