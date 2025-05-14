@@ -865,21 +865,20 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             auto &                                   moduleManager = Modules::UnifiedModuleManager::instance();
             if (moduleManager.hasClass(className)) {
                 bool constructorFound = false;
-                for (const auto & scopeNamePattern : sc->getScopeNames()) {  // Iterate all known scopes
-                    if (scopeNamePattern.ends_with("::" + className)) {      // Found a scope for the class
-                        auto classScopeTable = sc->getScopeTable(scopeNamePattern);
-                        if (classScopeTable) {
-                            // Look in both class scope and DEFAULT_FUNCTIONS_SCOPE
-                            auto sym = classScopeTable->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, "construct");
-                            if (!sym) {  // Try class scope directly if not found in functions
-                                sym = classScopeTable->get(scopeNamePattern, "construct");
-                            }
-                            if (sym && sym->getKind() == Symbols::Kind::Function) {
-                                constructorSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
-                                constructorFound  = true;
-                                break;
-                            }
-                        }
+                const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
+                const std::string classScopeName = currentScope + "::" + className;
+                    
+                auto classScopeTable = sc->getScopeTable(classScopeName);
+                if (classScopeTable) {
+                    // Look first in class scope where methods are stored
+                    auto sym = classScopeTable->get(classScopeName, "construct");
+                    if (!sym) {
+                        // Fallback to DEFAULT_FUNCTIONS_SCOPE
+                        sym = classScopeTable->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, "construct");
+                    }
+                    if (sym && sym->getKind() == Symbols::Kind::Function) {
+                        constructorSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
+                        constructorFound = true;
                     }
                 }
 
