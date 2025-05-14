@@ -1055,15 +1055,12 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             operator_stack.push(op);
             consumeToken();
 
-            // Check if the next token is a variable identifier with a $ prefix (e.g., this->$property)
-            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+            // Check if the next token is a variable identifier (e.g., this->$property)
+            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
                 Lexer::Tokens::Token propToken = consumeToken();
-                std::string          propName  = propToken.value;
-                // Remove $ prefix from property name
-                if (!propName.empty() && propName[0] == '$') {
-                    propName = propName.substr(1);
-                }
-                // Create an identifier for the property without $ and push to queue
+                std::string propName = propToken.value;
+                // Keep $ prefix for property names to match class definition
                 output_queue.push_back(ParsedExpression::makeVariable(propName));
                 expect_unary = false;
                 atStart      = false;
