@@ -880,10 +880,13 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     }
                 }
 
-                if (!constructorSymbol && !args.empty()) {  // If args provided, constructor must exist
+                // Only require constructor if arguments are provided
+                if (!constructorSymbol && !args.empty()) {
                     reportError(
                         "Class '" + className + "' does not have a constructor 'construct', or it could not be found.",
                         nameTok);
+                } else if (!constructorSymbol && args.empty()) {
+                    // Allow default construction without a constructor
                 }
 
                 if (constructorSymbol) {
