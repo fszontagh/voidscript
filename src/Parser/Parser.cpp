@@ -869,7 +869,11 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     if (scopeNamePattern.ends_with("::" + className)) {      // Found a scope for the class
                         auto classScopeTable = sc->getScopeTable(scopeNamePattern);
                         if (classScopeTable) {
-                            auto sym = classScopeTable->get(scopeNamePattern, "construct");
+                            // Look in both class scope and DEFAULT_FUNCTIONS_SCOPE
+                            auto sym = classScopeTable->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, "construct");
+                            if (!sym) {  // Try class scope directly if not found in functions
+                                sym = classScopeTable->get(scopeNamePattern, "construct");
+                            }
                             if (sym && sym->getKind() == Symbols::Kind::Function) {
                                 constructorSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
                                 constructorFound  = true;
