@@ -883,7 +883,8 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 // Only require constructor if arguments are provided
                 if (!constructorSymbol && !args.empty()) {
                     reportError(
-                        "Class '" + className + "' does not have a constructor 'construct', or it could not be found.",
+                        "Class '" + className + "' does not have a constructor 'construct', or it could not be found.\n"
+                        "Did you forget to define it as: public function construct(...) { ... } ?",
                         nameTok);
                 } else if (!constructorSymbol && args.empty()) {
                     // Allow default construction without a constructor
