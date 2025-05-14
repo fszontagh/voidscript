@@ -865,17 +865,14 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             auto &                                   moduleManager = Modules::UnifiedModuleManager::instance();
             if (moduleManager.hasClass(className)) {
                 bool constructorFound = false;
-                const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
-                const std::string classScopeName = currentScope + "::" + className;
+                // Get the class's actual file scope from the module manager
+                const std::string fileNs = moduleManager.getClassFileNamespace(className);
+                const std::string classScopeName = fileNs + "::" + className;
                     
                 auto classScopeTable = sc->getScopeTable(classScopeName);
                 if (classScopeTable) {
-                    // Look first in class scope where methods are stored
+                    // Look directly in class scope where methods are stored
                     auto sym = classScopeTable->get(classScopeName, "construct");
-                    if (!sym) {
-                        // Fallback to DEFAULT_FUNCTIONS_SCOPE
-                        sym = classScopeTable->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, "construct");
-                    }
                     if (sym && sym->getKind() == Symbols::Kind::Function) {
                         constructorSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
                         constructorFound = true;
