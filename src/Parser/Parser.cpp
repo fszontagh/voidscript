@@ -865,9 +865,8 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             auto &                                   moduleManager = Modules::UnifiedModuleManager::instance();
             if (moduleManager.hasClass(className)) {
                 bool constructorFound = false;
-                // Get the class's actual file scope from the module manager
-                const std::string fileNs = moduleManager.getClassFileNamespace(className);
-                const std::string classScopeName = fileNs + "::" + className;
+                // Use current scope for class lookup
+                const std::string classScopeName = Symbols::SymbolContainer::instance()->currentScopeName() + "::" + className;
                     
                 auto classScopeTable = sc->getScopeTable(classScopeName);
                 if (classScopeTable) {
