@@ -1,4 +1,5 @@
 #include "Parser/Parser.hpp"
+
 #include "utils.h"
 // Static filename for unified error reporting in Parser::Exception
 std::string Parser::Parser::Exception::current_filename_;
@@ -396,34 +397,32 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                                                                           idTok.line_number, idTok.column_number);
         }
         // If not postfix increment, check for standard assignment
-        else {
-            // Check if it's a standard assignment ($var = ..., $obj->prop = ...)
-            size_t lookahead_idx = current_token_index_ + 1;  // Move past the initial var/this token
-            // Skip -> identifier sequences
-            while (lookahead_idx + 1 < tokens_.size() &&
-                   tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
-                   tokens_[lookahead_idx].value == "->" &&
-                   (tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::IDENTIFIER ||
-                    tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER)) {
-                lookahead_idx += 2;
-            }
-
-            bool is_assignment = (lookahead_idx < tokens_.size() &&
-                                  tokens_[lookahead_idx].type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
-
-            if (is_assignment) {
-                return parseAssignmentStatementNode();  // Parse and return the assignment node
-            }
-            // If it started with var/this but wasn't postfix or standard assignment,
-            // it will fall through to the expression statement parsing below.
+        // Check if it's a standard assignment ($var = ..., $obj->prop = ...)
+        size_t lookahead_idx = current_token_index_ + 1;  // Move past the initial var/this token
+        // Skip -> identifier sequences
+        while (lookahead_idx + 1 < tokens_.size() && tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
+               tokens_[lookahead_idx].value == "->" &&
+               (tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::IDENTIFIER ||
+                tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER)) {
+            lookahead_idx += 2;
         }
+
+        bool is_assignment =
+            (lookahead_idx < tokens_.size() && tokens_[lookahead_idx].type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT);
+
+        if (is_assignment) {
+            return parseAssignmentStatementNode();  // Parse and return the assignment node
+        }
+        // If it started with var/this but wasn't postfix or standard assignment,
+        // it will fall through to the expression statement parsing below.
     }
 
     // <<< ADD VARIABLE DEFINITION CHECK HERE >>>
     // Check if current token is a known type keyword OR a registered class identifier
-    bool is_type_keyword = (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end());
+    bool is_type_keyword = (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) ||
+                           (currentToken().type == Lexer::Tokens::Type::KEYWORD_AUTO);
     bool is_class_name   = (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
-                          Modules::UnifiedModuleManager::instance().hasClass(currentToken().value));
+                           Modules::UnifiedModuleManager::instance().hasClass(currentToken().value));
 
     if ((is_type_keyword || is_class_name) &&
         (peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
@@ -859,10 +858,82 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 }
             }
             // Closing ')'
-            expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+            auto closingParenToken = expect(Lexer::Tokens::Type::PUNCTUATION, ")");  // Capture token for location
+
+            // --- Constructor Argument Count and Type Checking ---
+            auto *                                   sc = Symbols::SymbolContainer::instance();
+            std::shared_ptr<Symbols::FunctionSymbol> constructorSymbol;
+            auto &                                   moduleManager = Modules::UnifiedModuleManager::instance();
+            if (moduleManager.hasClass(className)) {
+                bool constructorFound = false;
+                for (const auto & scopeNamePattern : sc->getScopeNames()) {  // Iterate all known scopes
+                    if (scopeNamePattern.ends_with("::" + className)) {      // Found a scope for the class
+                        auto classScopeTable = sc->getScopeTable(scopeNamePattern);
+                        if (classScopeTable) {
+                            auto sym =
+                                classScopeTable->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, "construct");
+                            if (sym && sym->getKind() == Symbols::Kind::Function) {
+                                constructorSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
+                                constructorFound  = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!constructorSymbol && !args.empty()) {  // If args provided, constructor must exist
+                    reportError(
+                        "Class '" + className + "' does not have a constructor 'construct', or it could not be found.",
+                        nameTok);
+                }
+
+                if (constructorSymbol) {
+                    const auto & expectedParams = constructorSymbol->parameters();
+                    if (args.size() != expectedParams.size()) {
+                        reportError("Constructor for class '" + className + "' expects " +
+                                        std::to_string(expectedParams.size()) + " arguments, but " +
+                                        std::to_string(args.size()) + " were provided.",
+                                    nameTok);  // Use nameTok for location of 'new ClassName'
+                    } else {
+                        // Argument Type Check (for literals)
+                        for (size_t i = 0; i < args.size(); ++i) {
+                            const auto & parsedArgExpr     = args[i];
+                            const auto & expectedParamType = expectedParams[i].type;
+
+                            if (parsedArgExpr->kind == ParsedExpression::Kind::Literal) {
+                                Symbols::Variables::Type actualArgType = parsedArgExpr->value.getType();
+                                if (actualArgType != expectedParamType) {
+                                    // Find the token corresponding to this argument for better error reporting.
+                                    // This is tricky as args are already ParsedExpressionPtrs.
+                                    // We'd need to trace back to the original token.
+                                    // For now, use the 'new ClassName' token.
+                                    reportError("Argument " + std::to_string(i + 1) + " for constructor of class '" +
+                                                    className + "' has type '" +
+                                                    Symbols::Variables::TypeToString(actualArgType) +
+                                                    "', but expected type '" +
+                                                    Symbols::Variables::TypeToString(expectedParamType) + "'.",
+                                                nameTok);  // Ideally, point to the specific argument token
+                                }
+                            }
+                            // Else: type checking for non-literal expressions is complex at parse time.
+                        }
+                    }
+                } else if (args.empty() && !constructorFound) {
+                    // No arguments provided, and no constructor found. This is a valid default construction.
+                    // No error needed here.
+                } else if (!args.empty() && !constructorFound) {
+                    // Arguments provided, but no constructor found. This was handled by the first !constructorSymbol check.
+                }
+
+            } else {
+                reportError("Class '" + className + "' not found.", nameTok);
+            }
+            // --- End Constructor Argument Checking ---
+
             // Create new expression
             output_queue.push_back(ParsedExpression::makeNew(className, std::move(args), this->current_filename_,
-                                                             currentToken().line_number, currentToken().column_number));
+                                                             nameTok.line_number,
+                                                             nameTok.column_number));  // Use nameTok for location
             expect_unary = false;
             atStart      = false;
             continue;
