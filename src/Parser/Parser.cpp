@@ -419,8 +419,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
 
     // <<< ADD VARIABLE DEFINITION CHECK HERE >>>
     // Check if current token is a known type keyword OR a registered class identifier
-    bool is_type_keyword = (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) ||
-                           (currentToken().type == Lexer::Tokens::Type::KEYWORD_AUTO);
+    bool is_type_keyword = (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end());
     bool is_class_name   = (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
                            Modules::UnifiedModuleManager::instance().hasClass(currentToken().value));
 
