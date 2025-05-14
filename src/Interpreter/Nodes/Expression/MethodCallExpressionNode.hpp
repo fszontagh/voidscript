@@ -134,54 +134,63 @@ class MethodCallExpressionNode : public ExpressionNode {
                                 filename_, line_, column_);
             }
             // Enter method scope under class namespace
-            const std::string methodNs = class_scope_name + "::" + methodName_;
-            sc_instance->enter(methodNs);
-            // Bind 'this'
-            sc_instance->add(SymbolFactory::createVariable("this", objVal, methodNs));
-            // Bind parameters
+            const std::string methodDefinitionScopeName = class_scope_name + "::" + methodName_;
+            // Create and enter a unique scope for this specific call
+            const std::string actualMethodCallScope = sc_instance->enterFunctionCallScope(methodDefinitionScopeName);
+
+            // Bind 'this' to the unique call scope
+            // Note: SymbolFactory::createVariable third argument 'context' is for symbol's own context,
+            // SymbolContainer::add will use the *current* scope (actualMethodCallScope) for placement.
+            sc_instance->add(SymbolFactory::createVariable("this", objVal, actualMethodCallScope));
+
+            // Bind parameters to the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
-                sc_instance->add(SymbolFactory::createVariable(params[i].name, argValues[i + 1], methodNs));
+                sc_instance->add(SymbolFactory::createVariable(params[i].name, argValues[i + 1], actualMethodCallScope));
             }
-            // Execute method body
-            for (const auto & op : Operations::Container::instance()->getAll(methodNs)) {
+
+            // Execute method body. Operations are fetched from the method's definition scope.
+            // Local variables declared within these operations will be created in the actualMethodCallScope.
+            for (const auto & op : Operations::Container::instance()->getAll(methodDefinitionScopeName)) {
                 try {
                     interpreter.runOperation(*op);
                 } catch (const ReturnException & re) {
                     // Write back modified object state before returning
                     if (origSym) {
-                        auto method_scope_table = sc_instance->getScopeTable(methodNs);
-                        if (method_scope_table) {
+                        // Retrieve 'this' from the current call's unique scope
+                        auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
+                        if (call_scope_table) {
                             auto thisSym =
-                                method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+                                call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
                             if (thisSym) {
                                 origSym->setValue(thisSym->getValue());
                             } else {
-                                // Log error or handle: 'this' not found in method scope where expected
+                                // Log error or handle: 'this' not found in method call scope where expected
                             }
                         } else {
-                            // Log error or handle: method scope table not found
+                            // Log error or handle: method call scope table not found
                         }
                     }
-                    sc_instance->enterPreviousScope();
+                    sc_instance->enterPreviousScope(); // Exit actualMethodCallScope
                     return re.value();
                 }
             }
             // Write back modified object state after method execution
             if (origSym) {
-                auto method_scope_table = sc_instance->getScopeTable(methodNs);
-                if (method_scope_table) {
-                    auto thisSym = method_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+                 // Retrieve 'this' from the current call's unique scope
+                auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
+                if (call_scope_table) {
+                    auto thisSym = call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
                     if (thisSym) {
                         origSym->setValue(thisSym->getValue());
                     } else {
-                        // Log error or handle: 'this' not found in method scope where expected
+                        // Log error or handle: 'this' not found in method call scope where expected
                     }
                 } else {
-                    // Log error or handle: method scope table not found
+                    // Log error or handle: method call scope table not found
                 }
             }
-            // Exit method scope
-            sc_instance->enterPreviousScope();
+            // Exit method call scope
+            sc_instance->enterPreviousScope(); // Exit actualMethodCallScope
             // Return type checking: if method declares a non-null return type, error if no value was returned
             if (returnType == Variables::Type::NULL_TYPE) {
                 return Value::makeNull(Variables::Type::NULL_TYPE);
