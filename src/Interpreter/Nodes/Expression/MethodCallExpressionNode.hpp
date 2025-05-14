@@ -116,7 +116,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             Symbols::SymbolPtr sym               = nullptr;
             auto               class_scope_table = sc_instance->getScopeTable(class_scope_name);
             if (class_scope_table) {
-                sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
+                sym = class_scope_table->get(class_scope_name, methodName_);
             }
 
             if (!sym || sym->getKind() != Kind::Function) {
