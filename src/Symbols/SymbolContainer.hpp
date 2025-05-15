@@ -1,6 +1,7 @@
 #ifndef SYMBOL_CONTAINER_HPP
 #define SYMBOL_CONTAINER_HPP
 
+#include <atomic>  // Required for std::atomic
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -16,39 +17,45 @@ class SymbolContainer {
     // Stack of active scope names (supports nested scope entry)
     std::vector<std::string>                                      scopeStack_;
 
+    // For unique call frame IDs
+    inline static std::atomic<unsigned long long> next_call_frame_id_ = 0;
+
     // For singleton initialization
     static std::string initial_scope_name_for_singleton_;
     static bool        is_initialized_for_singleton_;
 
     // Private constructor
-    explicit SymbolContainer(const std::string& default_scope_name) {
+    explicit SymbolContainer(const std::string & default_scope_name) {
         if (default_scope_name.empty()) {
             throw std::runtime_error("SymbolContainer default scope name cannot be empty during construction.");
         }
-        create(default_scope_name); // Creates and enters the initial scope
+        create(default_scope_name);  // Creates and enters the initial scope
     }
 
   public:
-    SymbolContainer(const SymbolContainer&) = delete;
-    SymbolContainer& operator=(const SymbolContainer&) = delete;
+    SymbolContainer(const SymbolContainer &)             = delete;
+    SymbolContainer & operator=(const SymbolContainer &) = delete;
 
-    static void initialize(const std::string& initial_scope_name) {
+    static void initialize(const std::string & initial_scope_name) {
         if (initial_scope_name.empty()) {
             throw std::invalid_argument("Initial scope name for SymbolContainer cannot be empty.");
         }
         if (is_initialized_for_singleton_) {
             // Log re-initialization, but allow it for now. Could be an error in stricter scenarios.
-            std::cerr << "Warning: SymbolContainer already initialized. Re-initializing with scope: " << initial_scope_name << std::endl;
+            std::cerr << "Warning: SymbolContainer already initialized. Re-initializing with scope: "
+                      << initial_scope_name << '\n';
         }
         initial_scope_name_for_singleton_ = initial_scope_name;
-        is_initialized_for_singleton_ = true;
+        is_initialized_for_singleton_     = true;
     }
 
-    static SymbolContainer* instance() {
+    static SymbolContainer * instance() {
         if (!is_initialized_for_singleton_) {
             // It's crucial that initialize() is called before the first instance() call.
             // This typically happens at application startup.
-            throw std::runtime_error("SymbolContainer has not been initialized. Call SymbolContainer::initialize() with the top-level script/file name first.");
+            throw std::runtime_error(
+                "SymbolContainer has not been initialized. Call SymbolContainer::initialize() with the top-level "
+                "script/file name first.");
         }
         // Meyer's Singleton: instance_ is constructed on first call using the initialized name
         static SymbolContainer instance_(initial_scope_name_for_singleton_);
@@ -56,10 +63,15 @@ class SymbolContainer {
     }
 
     // default scope names
-    constexpr static const std::string DEFAULT_VARIABLES_SCOPE = "::variables";
+    constexpr static const std::string SCOPE_SEPARATOR         = "::";
+    constexpr static const std::string DEFAULT_VARIABLES_SCOPE = SCOPE_SEPARATOR + "variables";
     constexpr static const std::string DEFAULT_CONSTANTS_SCOPE = "constants";
-    constexpr static const std::string DEFAULT_FUNCTIONS_SCOPE = "::functions";
-    constexpr static const std::string DEFAULT_OTHERS_SCOPE    = "::others";
+    constexpr static const std::string DEFAULT_FUNCTIONS_SCOPE = SCOPE_SEPARATOR + "functions";
+    constexpr static const std::string DEFAULT_OTHERS_SCOPE    = SCOPE_SEPARATOR + "others";
+
+    // other scope names
+
+    constexpr static const std::string CALL_SCOPE = SCOPE_SEPARATOR + "call_";
 
     // The following explicit constructor is now replaced by the private one and initialize() pattern
     // explicit SymbolContainer(const std::string & default_scope_name) { create(default_scope_name); }
@@ -71,7 +83,7 @@ class SymbolContainer {
      * @param name Name of the new scope.
      */
     void create(const std::string & name) {
-        scopes_[name] = std::make_shared<SymbolTable>();
+        scopes_[name] = std::make_shared<SymbolTable>(SCOPE_SEPARATOR);
         scopeStack_.push_back(name);
     }
 
@@ -115,6 +127,19 @@ class SymbolContainer {
     }
 
     // --- Symbol operations ---
+
+    /**
+     * @brief Enters a new, unique scope for a function call.
+     * This scope is used for local variables of that specific call.
+     * @param baseFunctionScopeName The definition scope name of the function being called.
+     * @return The name of the newly created unique call scope.
+     */
+    std::string enterFunctionCallScope(const std::string & baseFunctionScopeName) {
+        unsigned long long call_id       = next_call_frame_id_++;
+        std::string        callScopeName = baseFunctionScopeName + "::call_" + std::to_string(call_id);
+        create(callScopeName);  // create() also enters the scope by pushing to scopeStack_
+        return callScopeName;
+    }
 
     /**
      * @brief Add a symbol to the current scope.
@@ -207,15 +232,14 @@ class SymbolContainer {
      */
     SymbolPtr findSymbol(const std::string & name) {
         // Helper to check if a scope is a loop scope
-        auto isLoopScope = [](const std::string& scope) {
-            return scope.find("for_") != std::string::npos || 
-                   scope.find("while_") != std::string::npos;
+        auto isLoopScope = [](const std::string & scope) {
+            return scope.find("for_") != std::string::npos || scope.find("while_") != std::string::npos;
         };
 
         // Search through all scopes from innermost to outermost
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const std::string & scope_name = *it;
-            auto table_it = scopes_.find(scope_name);
+            auto                table_it   = scopes_.find(scope_name);
             if (table_it == scopes_.end()) {
                 continue;
             }
@@ -295,10 +319,7 @@ class SymbolContainer {
     /**
      * @brief Compute the namespace string for a symbol based on its kind and context.
      */
-    std::string getNamespaceForSymbol(const SymbolPtr & symbol) const {
-        // std::string base = symbol->context().empty() ? currentScopeName() : symbol->context(); // OLD LOGIC
-
-        // const char * sep = "::"; // This is SymbolTable::key_separator // Not needed if using static constants
+    static std::string getNamespaceForSymbol(const SymbolPtr & symbol) {
         switch (symbol->getKind()) {
             case Symbols::Kind::Variable:
                 return DEFAULT_VARIABLES_SCOPE;

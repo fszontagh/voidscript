@@ -9,10 +9,10 @@
 #include "Nodes/Expression/ArrayAccessExpressionNode.hpp"
 #include "Nodes/Expression/BinaryExpressionNode.hpp"
 #include "Nodes/Expression/CallExpressionNode.hpp"
+#include "Nodes/Expression/DynamicMemberExpressionNode.hpp"
 #include "Nodes/Expression/IdentifierExpressionNode.hpp"
 #include "Nodes/Expression/LiteralExpressionNode.hpp"
 #include "Nodes/Expression/MemberExpressionNode.hpp"
-#include "Nodes/Expression/DynamicMemberExpressionNode.hpp"
 #include "Nodes/Expression/MethodCallExpressionNode.hpp"
 #include "Nodes/Expression/NewExpressionNode.hpp"
 #include "Nodes/Expression/ObjectExpressionNode.hpp"
@@ -20,7 +20,6 @@
 #include "Parser/ParsedExpression.hpp"
 
 namespace Parser {
-
 
 inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(const ParsedExpressionPtr & expr) {
     using Kind = ParsedExpression::Kind;
@@ -39,8 +38,7 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                     auto arrExpr = buildExpressionFromParsed(expr->lhs);
                     auto idxExpr = buildExpressionFromParsed(expr->rhs);
                     return std::make_unique<Interpreter::ArrayAccessExpressionNode>(
-                        std::move(arrExpr), std::move(idxExpr),
-                        expr->filename, expr->line, expr->column);
+                        std::move(arrExpr), std::move(idxExpr), expr->filename, expr->line, expr->column);
                 }
                 // Member access or method invocation: '->'
                 if (expr->op == "->") {
@@ -53,11 +51,11 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                             methodArgs.push_back(buildExpressionFromParsed(arg));
                         }
                         return std::make_unique<Interpreter::MethodCallExpressionNode>(
-                            std::move(objectExpr), expr->rhs->name, std::move(methodArgs),
-                            expr->filename, expr->line, expr->column);
+                            std::move(objectExpr), expr->rhs->name, std::move(methodArgs), expr->filename, expr->line,
+                            expr->column);
                     }
                     // Property access on object
-                    else if (expr->rhs->kind == ParsedExpression::Kind::Literal) {
+                    if (expr->rhs->kind == ParsedExpression::Kind::Literal) {
                         // Static member name (string literal or identifier)
                         std::string propName = expr->rhs->value.get<std::string>();
                         // Check if it's a dynamic access marker
@@ -65,29 +63,37 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                             // For dynamic access, we'll create a special marker in the property path
                             // that will be handled by the expression builder
                             return std::make_unique<Interpreter::DynamicMemberExpressionNode>(
-                                std::move(objectExpr), std::make_unique<Interpreter::IdentifierExpressionNode>(propName),
-                                expr->filename, expr->line, expr->column);
+                                std::move(objectExpr),
+                                std::make_unique<Interpreter::IdentifierExpressionNode>(propName), expr->filename,
+                                expr->line, expr->column);
                         }
                         // Regular static member access
                         return std::make_unique<Interpreter::MemberExpressionNode>(
-                            std::move(objectExpr), propName,
-                            expr->filename, expr->line, expr->column);
-                    }
-                    else if (expr->rhs->kind == ParsedExpression::Kind::Variable) {
+                            std::move(objectExpr), propName, expr->filename, expr->line, expr->column);
+                    } else if (expr->rhs->kind == ParsedExpression::Kind::Variable) {
                         // Variable as property name - convert to static member access
                         return std::make_unique<Interpreter::MemberExpressionNode>(
-                            std::move(objectExpr), expr->rhs->name,
-                            expr->filename, expr->line, expr->column);
-                    }
-                    else {
+                            std::move(objectExpr), expr->rhs->name, expr->filename, expr->line, expr->column);
+                    } else {
                         std::string msg = "Invalid member access expression - right side has unexpected kind: ";
                         switch (expr->rhs->kind) {
-                            case ParsedExpression::Kind::Binary: msg += "Binary"; break;
-                            case ParsedExpression::Kind::Unary: msg += "Unary"; break;
-                            case ParsedExpression::Kind::MethodCall: msg += "MethodCall"; break;
-                            case ParsedExpression::Kind::New: msg += "New"; break;
-                            case ParsedExpression::Kind::Object: msg += "Object"; break;
-                            default: msg += "Unknown";
+                            case ParsedExpression::Kind::Binary:
+                                msg += "Binary";
+                                break;
+                            case ParsedExpression::Kind::Unary:
+                                msg += "Unary";
+                                break;
+                            case ParsedExpression::Kind::MethodCall:
+                                msg += "MethodCall";
+                                break;
+                            case ParsedExpression::Kind::New:
+                                msg += "New";
+                                break;
+                            case ParsedExpression::Kind::Object:
+                                msg += "Object";
+                                break;
+                            default:
+                                msg += "Unknown";
                         }
                         throw Interpreter::Exception(msg, expr->filename, expr->line, expr->column);
                     }
@@ -140,12 +146,11 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
             {
                 // Handle member access expressions created using makeMember
                 // Get the object and property name from the first entry in objectMembers
-                auto objectExpr = buildExpressionFromParsed(expr->objectMembers[0].second);
-                std::string propName = expr->objectMembers[0].first;
-                
-                return std::make_unique<Interpreter::MemberExpressionNode>(
-                    std::move(objectExpr), propName,
-                    expr->filename, expr->line, expr->column);
+                auto        objectExpr = buildExpressionFromParsed(expr->objectMembers[0].second);
+                std::string propName   = expr->objectMembers[0].first;
+
+                return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objectExpr), propName,
+                                                                           expr->filename, expr->line, expr->column);
             }
     }
 

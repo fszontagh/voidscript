@@ -30,8 +30,8 @@ class MethodCallExpressionNode : public ExpressionNode {
 
   public:
     MethodCallExpressionNode(std::unique_ptr<ExpressionNode> objectExpr, std::string methodName,
-                             std::vector<std::unique_ptr<ExpressionNode>> args, const std::string & filename, int line,
-                             size_t column) :
+                             std::vector<std::unique_ptr<ExpressionNode>> && args, const std::string & filename,
+                             int line, size_t column) :
         objectExpr_(std::move(objectExpr)),
         methodName_(std::move(methodName)),
         args_(std::move(args)),
@@ -45,7 +45,7 @@ class MethodCallExpressionNode : public ExpressionNode {
         auto *                           sc      = Symbols::SymbolContainer::instance();
         // Determine original variable symbol (only simple identifiers)
         std::string                      fileNs  = sc->currentScopeName();
-        std::string                      varNs   = fileNs + "::variables";
+        std::string                      varNs   = fileNs + Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE;
         std::string                      objName = objectExpr_->toString();
         std::shared_ptr<Symbols::Symbol> origSym;
         if (sc->exists(objName, varNs)) {
@@ -66,13 +66,12 @@ class MethodCallExpressionNode : public ExpressionNode {
             auto it = objMap.find("__class__");
             if (it == objMap.end() || it->second.getType() != Variables::Type::STRING) {
                 throw std::invalid_argument("Object is missing class metadata for method: " + methodName_);
-                //throw Exception("Object is missing class metadata for method: '" + methodName_ + "'", filename_, line_,                                column_);
             }
             std::string className = it->second.get<std::string>();
             // Verify method exists
             auto &      registry  = Modules::UnifiedModuleManager::instance();
             if (!registry.hasMethod(className, methodName_)) {
-                throw Exception("Method not found: " + methodName_ + " in class " + className, filename_, line_,
+                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", filename_, line_,
                                 column_);
             }
 
@@ -86,55 +85,65 @@ class MethodCallExpressionNode : public ExpressionNode {
             // Native method override via UnifiedModuleManager
             {
                 auto &      mgr      = Modules::UnifiedModuleManager::instance();
-                std::string fullName = className + "::" + methodName_;
+                std::string fullName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
                 if (mgr.hasFunction(fullName)) {
                     Value           ret     = mgr.callFunction(fullName, argValues);
                     Variables::Type retType = mgr.getFunctionReturnType(fullName);
+                    if (ret.getType() != retType) {
+                        throw Exception("Method " + methodName_ + " return value type missmatch. Expected: " +
+                                            Symbols::Variables::TypeToString(retType) + " got " +
+                                            Symbols::Variables::TypeToString(ret.getType()),
+                                        filename_, line_, column_);
+                    }
                     // Write back modified object if returned
                     if (origSym &&
                         (ret.getType() == Variables::Type::OBJECT || ret.getType() == Variables::Type::CLASS)) {
                         if (origSym->getValue().getType() == ret.getType()) {
                             origSym->setValue(ret);
                         }
-                        //origSym->setValue(ret);
                     }
                     return ret;
-                    //return mgr.getFunctionNullValue(fullName);
-                    //return Value::makeNull(Variables::Type::NULL_TYPE);
                 }
             }
 
-            // Locate function symbol in class namespace
             auto *            sc_instance = SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
-            // Lookup method symbol in class namespace.
-            // classNs is the scope where the class's methods are defined.
-            // This often takes the form: current_file_scope_name + "::" + className
-            const std::string current_file_scope =
-                sc_instance->currentScopeName();  // Or derive from filename if more reliable
-            const std::string class_scope_name = current_file_scope + "::" + className;
+            const std::string current_file_scope = sc_instance->currentScopeName();
+            const std::string class_scope_name =
+                current_file_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
 
             Symbols::SymbolPtr sym               = nullptr;
             auto               class_scope_table = sc_instance->getScopeTable(class_scope_name);
             if (class_scope_table) {
-                sym = class_scope_table->get(class_scope_name, methodName_);
+                sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
             }
 
             if (!sym || sym->getKind() != Kind::Function) {
-                throw Exception("Function symbol not found for method: '" + methodName_ + "' in class scope '" +
-                                    class_scope_name + "'",
-                                filename_, line_, column_);
+                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", filename_, line_,
+                                column_);
             }
             auto            funcSym    = std::static_pointer_cast<FunctionSymbol>(sym);
             Variables::Type returnType = funcSym->returnType();
             // Check argument count
             const auto &    params     = funcSym->parameters();
             if (params.size() != args_.size()) {
-                throw Exception("Method '" + methodName_ + "' expects " + std::to_string(params.size()) +
-                                    " args, got " + std::to_string(args_.size()),
+                throw Exception("Invalid number of argmuents: '" + className + "->" + methodName_ + "', expects " +
+                                    std::to_string(params.size()) + " args, got " + std::to_string(args_.size()),
                                 filename_, line_, column_);
             }
+            // validate arg types
+            size_t _c = 0;
+            for (const auto & _p : params) {
+                if (_p.type != argValues[_c].getType()) {
+                    throw Exception("Invalid type of argmuent: '" + className + "->" + methodName_ +
+                                        "' unexpected type at " + std::to_string(_c) + " '" + (_p.name) +
+                                        "'. Expected: " + Symbols::Variables::TypeToString(_p.type),
+                                    filename_, line_, column_);
+                }
+                _c++;
+            }
             // Enter method scope under class namespace
-            const std::string methodDefinitionScopeName = class_scope_name + "::" + methodName_;
+            const std::string methodDefinitionScopeName =
+                class_scope_name + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
             // Create and enter a unique scope for this specific call
             const std::string actualMethodCallScope = sc_instance->enterFunctionCallScope(methodDefinitionScopeName);
 
@@ -145,7 +154,8 @@ class MethodCallExpressionNode : public ExpressionNode {
 
             // Bind parameters to the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
-                sc_instance->add(SymbolFactory::createVariable(params[i].name, argValues[i + 1], actualMethodCallScope));
+                sc_instance->add(
+                    SymbolFactory::createVariable(params[i].name, argValues[i + 1], actualMethodCallScope));
             }
 
             // Execute method body. Operations are fetched from the method's definition scope.
@@ -170,13 +180,13 @@ class MethodCallExpressionNode : public ExpressionNode {
                             // Log error or handle: method call scope table not found
                         }
                     }
-                    sc_instance->enterPreviousScope(); // Exit actualMethodCallScope
+                    sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
                     return re.value();
                 }
             }
             // Write back modified object state after method execution
             if (origSym) {
-                 // Retrieve 'this' from the current call's unique scope
+                // Retrieve 'this' from the current call's unique scope
                 auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
                 if (call_scope_table) {
                     auto thisSym = call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
@@ -190,15 +200,15 @@ class MethodCallExpressionNode : public ExpressionNode {
                 }
             }
             // Exit method call scope
-            sc_instance->enterPreviousScope(); // Exit actualMethodCallScope
+            sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
             // Return type checking: if method declares a non-null return type, error if no value was returned
             if (returnType == Variables::Type::NULL_TYPE) {
                 return Value::makeNull(Variables::Type::NULL_TYPE);
-            } else {
-                throw Exception("Method '" + methodName_ + "' (return type: " + Variables::TypeToString(returnType) +
-                                    ") did not return a value",
-                                filename_, line_, column_);
             }
+            throw Exception("Method '" + methodName_ + "' (return type: " + Variables::TypeToString(returnType) +
+                                ") did not return a value",
+                            filename_, line_, column_);
+
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);
         }

@@ -52,8 +52,8 @@ class CallStatementNode : public StatementNode {
             std::shared_ptr<FunctionSymbol> funcSym;
             // Search for function symbol in current and parent scopes
             while (true) {
-                auto scope_table = sc->getScopeTable(lookupNs);
-                Symbols::SymbolPtr sym = nullptr;
+                auto               scope_table = sc->getScopeTable(lookupNs);
+                Symbols::SymbolPtr sym         = nullptr;
                 if (scope_table) {
                     sym = scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_);
                 }
@@ -64,14 +64,16 @@ class CallStatementNode : public StatementNode {
                 }
                 // Move to parent scope by finding the last '::'
                 // This assumes scope names are hierarchical (e.g., /file/path::class::method or a top-level file path)
-                auto pos = lookupNs.rfind("::");
+                auto pos = lookupNs.rfind(Symbols::SymbolContainer::SCOPE_SEPARATOR);
                 if (pos == std::string::npos) {
                     // Reached top-level scope (e.g., a file path). If not found, it's not in accessible parent scopes.
                     break;
                 }
                 lookupNs = lookupNs.substr(0, pos);
                 // If substr results in an empty string (e.g. if lookupNs was "::foo"), implies invalid scope.
-                if (lookupNs.empty()) break;
+                if (lookupNs.empty()) {
+                    break;
+                }
             }
             if (!funcSym) {
                 throw Exception("Function not found: " + functionName_, filename_, line_, column_);
@@ -84,26 +86,28 @@ class CallStatementNode : public StatementNode {
             }
 
             // Create unique scope for this function call
-            const std::string canonical_fn_scope_name = funcSym->context().empty() ? functionName_ : funcSym->context() + "::" + functionName_;
-            std::string unique_call_scope_name = canonical_fn_scope_name + "::call_" + std::to_string(Interpreter::get_unique_call_id());
+            const std::string canonical_fn_scope_name =
+                funcSym->context().empty() ? functionName_ : funcSym->context() + Symbols::SymbolContainer::SCOPE_SEPARATOR + functionName_;
+            std::string unique_call_scope_name =
+                canonical_fn_scope_name +  Symbols::SymbolContainer::CALL_SCOPE + std::to_string(Interpreter::get_unique_call_id());
 
-            sc->create(unique_call_scope_name); // Creates and enters the new unique scope
+            sc->create(unique_call_scope_name);  // Creates and enters the new unique scope
 
             // Bind parameters in the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
                 const auto &  p      = params[i];
                 const Value & v      = argValues[i];
                 // Symbol's context is this specific call's scope
-                auto varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
-                sc->add(varSym); // Adds to the current scope (unique_call_scope_name)
+                auto          varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
+                sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 
             // Operations are associated with the canonical function name
             auto ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
             for (const auto & op : ops) {
-                interpreter.runOperation(*op); // These operations will use the current unique_call_scope_name
+                interpreter.runOperation(*op);  // These operations will use the current unique_call_scope_name
             }
-            sc->enterPreviousScope(); // Exit unique_call_scope_name
+            sc->enterPreviousScope();           // Exit unique_call_scope_name
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

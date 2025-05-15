@@ -24,8 +24,8 @@ class FunctionSymbol : public Symbol {
                    Symbols::Variables::Type returnType = Symbols::Variables::Type::NULL_TYPE) :
         Symbol(name, {}, context, Symbols::Kind::Function),
         parameters_(parameters),
-        plainBody_(plainbody),
-        returnType_(returnType) {}
+        returnType_(returnType),
+        plainBody_(plainbody) {}
 
     Symbols::Kind kind() const override { return Symbols::Kind::Function; }
 
@@ -34,10 +34,15 @@ class FunctionSymbol : public Symbol {
     const FunctionParameterInfo & parameters() const { return parameters_; }
 
     const std::string & plainBody() const { return plainBody_; }
-    
+
     // Dump function symbol: name, context, and declared return type
     std::string dump() const override {
         std::string r = "\t\t  " + kindToString(this->kind_) + " name: '" + name_ + "' \n\t\t\tContext: " + context_;
+        r += "\n\t\t\tArgs (" + std::to_string(this->parameters_.size()) + "): \n";
+        for (const auto & p : parameters_) {
+            r += "\t\t\t - " + p.name;
+            r += Symbols::Variables::TypeToString(p.type) + "\n";
+        }
         r += " \n\t\t\tReturnType: " + Variables::TypeToString(returnType_);
         return r;
     }

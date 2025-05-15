@@ -421,7 +421,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     // Check if current token is a known type keyword OR a registered class identifier
     bool is_type_keyword = (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end());
     bool is_class_name   = (currentToken().type == Lexer::Tokens::Type::IDENTIFIER &&
-                           Modules::UnifiedModuleManager::instance().hasClass(currentToken().value));
+                          Modules::UnifiedModuleManager::instance().hasClass(currentToken().value));
 
     if ((is_type_keyword || is_class_name) &&
         (peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
@@ -518,7 +518,7 @@ void Parser::parseClassDefinition() {
     // Enter class scope for methods and parsing
     const std::string fileNs  = Symbols::SymbolContainer::instance()->currentScopeName();
     // Use :: as namespace separator
-    const std::string classNs = fileNs + "::" + className;
+    const std::string classNs = fileNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
     // Create class scope (automatically enters it)
     Symbols::SymbolContainer::instance()->create(classNs);
     // Gather class members (registration happens at interpretation)
@@ -704,12 +704,6 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseCallStatement() {
     // Create CallStatementNode
     auto stmt = std::make_unique<Interpreter::CallStatementNode>(func_name, std::move(exprs), this->current_filename_,
                                                                  id_token.line_number, id_token.column_number);
-    // REMOVE Add to operations container
-    /*
-    Operations::Container::instance()->add(
-        Symbols::SymbolContainer::instance()->currentScopeName(),
-        Operations::Operation{ Operations::Type::FunctionCall, func_name, std::move(stmt) });
-    */
     return stmt;  // RETURN THE NODE
 }
 
@@ -804,8 +798,8 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
     current_token_index_ = closing_idx;
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
     // Enter new namespace for the function body
-    // Enter new namespace for the function body (use :: separator)
-    const std::string newns = Symbols::SymbolContainer::instance()->currentScopeName() + "::" + function_name;
+    const std::string newns = Symbols::SymbolContainer::instance()->currentScopeName() +
+                              Symbols::SymbolContainer::SCOPE_SEPARATOR + function_name;
     Symbols::SymbolContainer::instance()->create(newns);
     // Parse function body in its own parser instance
     Parser innerParser;
@@ -858,79 +852,6 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             }
             // Closing ')'
             auto closingParenToken = expect(Lexer::Tokens::Type::PUNCTUATION, ")");  // Capture token for location
-
-            // --- Constructor Argument Count and Type Checking ---
-            auto *                                   sc = Symbols::SymbolContainer::instance();
-            std::shared_ptr<Symbols::FunctionSymbol> constructorSymbol;
-            auto &                                   moduleManager = Modules::UnifiedModuleManager::instance();
-            if (moduleManager.hasClass(className)) {
-                bool constructorFound = false;
-                // Use current scope for class lookup
-                const std::string classScopeName = Symbols::SymbolContainer::instance()->currentScopeName() + "::" + className;
-                    
-                auto classScopeTable = sc->getScopeTable(classScopeName);
-                if (classScopeTable) {
-                    // Look directly in class scope where methods are stored
-                    auto sym = classScopeTable->get(classScopeName, "construct");
-                    if (sym && sym->getKind() == Symbols::Kind::Function) {
-                        constructorSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
-                        constructorFound = true;
-                    }
-                }
-
-                // Only require constructor if arguments are provided
-                if (!constructorSymbol && !args.empty()) {
-                    reportError(
-                        "Class '" + className + "' does not have a constructor 'construct', or it could not be found.\n"
-                        "Did you forget to define it as: public function construct(...) { ... } ?",
-                        nameTok);
-                } else if (!constructorSymbol && args.empty()) {
-                    // Allow default construction without a constructor
-                }
-
-                if (constructorSymbol) {
-                    const auto & expectedParams = constructorSymbol->parameters();
-                    if (args.size() != expectedParams.size()) {
-                        reportError("Constructor for class '" + className + "' expects " +
-                                        std::to_string(expectedParams.size()) + " arguments, but " +
-                                        std::to_string(args.size()) + " were provided.",
-                                    nameTok);  // Use nameTok for location of 'new ClassName'
-                    } else {
-                        // Argument Type Check (for literals)
-                        for (size_t i = 0; i < args.size(); ++i) {
-                            const auto & parsedArgExpr     = args[i];
-                            const auto & expectedParamType = expectedParams[i].type;
-
-                            if (parsedArgExpr->kind == ParsedExpression::Kind::Literal) {
-                                Symbols::Variables::Type actualArgType = parsedArgExpr->value.getType();
-                                if (actualArgType != expectedParamType) {
-                                    // Find the token corresponding to this argument for better error reporting.
-                                    // This is tricky as args are already ParsedExpressionPtrs.
-                                    // We'd need to trace back to the original token.
-                                    // For now, use the 'new ClassName' token.
-                                    reportError("Argument " + std::to_string(i + 1) + " for constructor of class '" +
-                                                    className + "' has type '" +
-                                                    Symbols::Variables::TypeToString(actualArgType) +
-                                                    "', but expected type '" +
-                                                    Symbols::Variables::TypeToString(expectedParamType) + "'.",
-                                                nameTok);  // Ideally, point to the specific argument token
-                                }
-                            }
-                            // Else: type checking for non-literal expressions is complex at parse time.
-                        }
-                    }
-                } else if (args.empty() && !constructorFound) {
-                    // No arguments provided, and no constructor found. This is a valid default construction.
-                    // No error needed here.
-                } else if (!args.empty() && !constructorFound) {
-                    // Arguments provided, but no constructor found. This was handled by the first !constructorSymbol check.
-                }
-
-            } else {
-                reportError("Class '" + className + "' not found.", nameTok);
-            }
-            // --- End Constructor Argument Checking ---
-
             // Create new expression
             output_queue.push_back(ParsedExpression::makeNew(className, std::move(args), this->current_filename_,
                                                              nameTok.line_number,
@@ -1058,7 +979,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
                 currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
                 Lexer::Tokens::Token propToken = consumeToken();
-                std::string propName = propToken.value;
+                std::string          propName  = propToken.value;
                 // Keep $ prefix for property names to match class definition
                 output_queue.push_back(ParsedExpression::makeVariable(propName));
                 expect_unary = false;

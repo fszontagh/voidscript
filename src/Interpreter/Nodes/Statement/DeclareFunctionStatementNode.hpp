@@ -36,7 +36,7 @@ class DeclareFunctionStatementNode : public StatementNode {
 
     void interpret(Interpreter & /*interpreter*/) const override {
         try {
-            auto sc = Symbols::SymbolContainer::instance();
+            auto *sc = Symbols::SymbolContainer::instance();
             auto targetTable = sc->getScopeTable(ns); // 'ns' is the current scope for this function
 
             if (!targetTable) {
@@ -48,7 +48,7 @@ class DeclareFunctionStatementNode : public StatementNode {
             if (targetTable->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_)) {
                 throw Exception("Function '" + functionName_ + "' already declared in scope '" + ns + "'", filename_, line_, column_);
             }
-            
+
             // If we are here, the function is not yet defined in the current scope's function namespace.
             // The old check Symbols::SymbolContainer::instance()->exists(functionName_) was too broad and could lead to incorrect shadowing issues or missed re-declarations.
 

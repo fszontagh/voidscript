@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
+#include "../Symbols/FunctionSymbol.hpp"
 #include "../Symbols/SymbolContainer.hpp"
 #include "../Symbols/Value.hpp"
-#include "../Symbols/FunctionSymbol.hpp"
 
 namespace Parser {
 
@@ -24,16 +24,16 @@ struct ParsedExpression {
     std::string    name;
 
     // For operations
-    std::string         op;
-    ParsedExpressionPtr lhs;
-    ParsedExpressionPtr rhs;
+    std::string                                              op;
+    ParsedExpressionPtr                                      lhs;
+    ParsedExpressionPtr                                      rhs;
     // For function call arguments
-    std::vector<ParsedExpressionPtr> args;
+    std::vector<ParsedExpressionPtr>                         args;
     std::vector<std::pair<std::string, ParsedExpressionPtr>> objectMembers;
     // Source location for error reporting
-    std::string filename;
-    int line = 0;
-    size_t column = 0;
+    std::string                                              filename;
+    int                                                      line   = 0;
+    size_t                                                   column = 0;
 
     // Constructor for literal
     static ParsedExpressionPtr makeLiteral(const Symbols::Value & val) {
@@ -52,12 +52,13 @@ struct ParsedExpression {
     }
 
     // Constructor for binary operation
-    static ParsedExpressionPtr makeBinary(std::string op, ParsedExpressionPtr left, ParsedExpressionPtr right, const std::string &filename, int line, size_t column) {
-        auto expr  = std::make_shared<ParsedExpression>();
-        expr->kind = Kind::Binary;
-        expr->op   = std::move(op);
-        expr->lhs  = std::move(left);
-        expr->rhs  = std::move(right);
+    static ParsedExpressionPtr makeBinary(std::string op, ParsedExpressionPtr left, ParsedExpressionPtr right,
+                                          const std::string & filename, int line, size_t column) {
+        auto expr      = std::make_shared<ParsedExpression>();
+        expr->kind     = Kind::Binary;
+        expr->op       = std::move(op);
+        expr->lhs      = std::move(left);
+        expr->rhs      = std::move(right);
         expr->filename = filename;
         expr->line     = line;
         expr->column   = column;
@@ -66,62 +67,56 @@ struct ParsedExpression {
     }
 
     // Constructor for unary operation
-    static ParsedExpressionPtr makeUnary(std::string op, ParsedExpressionPtr operand, const std::string &filename, int line, size_t column) {
-        auto expr  = std::make_shared<ParsedExpression>();
-        expr->kind = Kind::Unary;
-        expr->op   = std::move(op);
-        expr->rhs  = std::move(operand);
+    static ParsedExpressionPtr makeUnary(std::string op, ParsedExpressionPtr operand, const std::string & filename,
+                                         int line, size_t column) {
+        auto expr      = std::make_shared<ParsedExpression>();
+        expr->kind     = Kind::Unary;
+        expr->op       = std::move(op);
+        expr->rhs      = std::move(operand);
         expr->filename = filename;
         expr->line     = line;
         expr->column   = column;
-        
+
         return expr;
     }
+
     // Constructor for function call
-    static ParsedExpressionPtr makeCall(const std::string &name, std::vector<ParsedExpressionPtr> arguments, const std::string &filename, int line, size_t column) {
-        auto expr        = std::make_shared<ParsedExpression>();
-        expr->kind       = Kind::Call;
-        expr->name       = name;
-        expr->args       = std::move(arguments);
-        expr->filename   = filename;
-        expr->line       = line;
-        expr->column     = column;
-        
+    static ParsedExpressionPtr makeCall(const std::string & name, std::vector<ParsedExpressionPtr> arguments,
+                                        const std::string & filename, int line, size_t column) {
+        auto expr      = std::make_shared<ParsedExpression>();
+        expr->kind     = Kind::Call;
+        expr->name     = name;
+        expr->args     = std::move(arguments);
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
+
         return expr;
     }
-    
+
     // Constructor for method call: object->method(args)
-    static ParsedExpressionPtr makeMethodCall(ParsedExpressionPtr object, const std::string &methodName,
-                                              std::vector<ParsedExpressionPtr> arguments, const std::string &filename, int line, size_t column) {
-        auto expr         = std::make_shared<ParsedExpression>();
-        expr->kind        = Kind::MethodCall;
-        expr->lhs         = std::move(object);
-        expr->name        = methodName;
-        expr->args        = std::move(arguments);
-        expr->filename    = filename;
-        expr->line        = line;
-        expr->column      = column;
+    static ParsedExpressionPtr makeMethodCall(ParsedExpressionPtr object, const std::string & methodName,
+                                              std::vector<ParsedExpressionPtr> arguments, const std::string & filename,
+                                              int line, size_t column) {
+        auto expr      = std::make_shared<ParsedExpression>();
+        expr->kind     = Kind::MethodCall;
+        expr->lhs      = std::move(object);
+        expr->name     = methodName;
+        expr->args     = std::move(arguments);
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
 
         return expr;
     }
 
     // Constructor for 'new' expression: instantiate class
-    static ParsedExpressionPtr makeNew(const std::string &className, std::vector<ParsedExpressionPtr> arguments, const std::string &filename, int line, size_t column) {
-        auto expr        = std::make_shared<ParsedExpression>();
-        expr->kind       = Kind::New;
-        expr->name       = className;
-        expr->args       = std::move(arguments);
-        expr->filename    = filename;
-        expr->line        = line;
-        expr->column      = column;
-
-        return expr;
-    }
-    // Constructor for object literal
-    static ParsedExpressionPtr makeObject(std::vector<std::pair<std::string, ParsedExpressionPtr>> members, const std::string &filename, int line, size_t column) {
-        auto expr = std::make_shared<ParsedExpression>();
-        expr->kind = Kind::Object;
-        expr->objectMembers = std::move(members);
+    static ParsedExpressionPtr makeNew(const std::string & className, std::vector<ParsedExpressionPtr> arguments,
+                                       const std::string & filename, int line, size_t column) {
+        auto expr      = std::make_shared<ParsedExpression>();
+        expr->kind     = Kind::New;
+        expr->name     = className;
+        expr->args     = std::move(arguments);
         expr->filename = filename;
         expr->line     = line;
         expr->column   = column;
@@ -129,10 +124,24 @@ struct ParsedExpression {
         return expr;
     }
 
-    static ParsedExpressionPtr makeMember(ParsedExpressionPtr object, const std::string &propName, const std::string &filename, int line, size_t column) {
-        auto expr = std::make_shared<ParsedExpression>();
+    // Constructor for object literal
+    static ParsedExpressionPtr makeObject(std::vector<std::pair<std::string, ParsedExpressionPtr>> members,
+                                          const std::string & filename, int line, size_t column) {
+        auto expr           = std::make_shared<ParsedExpression>();
+        expr->kind          = Kind::Object;
+        expr->objectMembers = std::move(members);
+        expr->filename      = filename;
+        expr->line          = line;
+        expr->column        = column;
+
+        return expr;
+    }
+
+    static ParsedExpressionPtr makeMember(ParsedExpressionPtr object, const std::string & propName,
+                                          const std::string & filename, int line, size_t column) {
+        auto expr  = std::make_shared<ParsedExpression>();
         expr->kind = Kind::Member;
-        expr->objectMembers.push_back({propName, std::move(object)});
+        expr->objectMembers.push_back({ propName, std::move(object) });
         expr->filename = filename;
         expr->line     = line;
         expr->column   = column;
@@ -152,8 +161,8 @@ struct ParsedExpression {
                     auto symbol = Symbols::SymbolContainer::instance()->findSymbol(name);
                     if (!symbol) {
                         // findSymbol searches current scope and up for variables/constants
-                        throw std::runtime_error("Unknown variable or constant: " + name +
-                                                 " (searched from scope: " + Symbols::SymbolContainer::instance()->currentScopeName() + ")" +
+                        throw std::runtime_error("Unknown variable or constant: " + name + " (searched from scope: " +
+                                                 Symbols::SymbolContainer::instance()->currentScopeName() + ")" +
                                                  " File: " + filename + ":" + std::to_string(line));
                     }
                     // findSymbol returns a SymbolPtr, which could be VariableSymbol or ConstantSymbol.
@@ -180,16 +189,17 @@ struct ParsedExpression {
                 {
                     // For getType during parsing, we typically check the current scope for the function.
                     // A more advanced type system might search up the scope chain.
-                    auto sc = Symbols::SymbolContainer::instance();
-                    auto current_scope_table = sc->getScopeTable(sc->currentScopeName());
-                    Symbols::SymbolPtr symbol = nullptr;
+                    auto *             sc                  = Symbols::SymbolContainer::instance();
+                    auto               current_scope_table = sc->getScopeTable(sc->currentScopeName());
+                    Symbols::SymbolPtr symbol              = nullptr;
                     if (current_scope_table) {
                         symbol = current_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, name);
                     }
 
                     if (!symbol) {
-                         throw std::runtime_error("Unknown function: " + name + " in current scope: " + sc->currentScopeName() + 
-                                                 " File: " + filename + ":" + std::to_string(line));
+                        throw std::runtime_error("Unknown function: " + name +
+                                                 " in current scope: " + sc->currentScopeName() + " File: " + filename +
+                                                 ":" + std::to_string(line));
                     }
                     // FunctionSymbol holds return type
                     auto funcSym = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(symbol);
@@ -224,7 +234,9 @@ struct ParsedExpression {
                 {
                     std::string result = name + "(";
                     for (size_t i = 0; i < args.size(); ++i) {
-                        if (i > 0) result += ", ";
+                        if (i > 0) {
+                            result += ", ";
+                        }
                         result += args[i]->toString();
                     }
                     result += ")";
@@ -234,7 +246,9 @@ struct ParsedExpression {
                 {
                     std::string result = lhs->toString() + "->" + name + "(";
                     for (size_t i = 0; i < args.size(); ++i) {
-                        if (i > 0) result += ", ";
+                        if (i > 0) {
+                            result += ", ";
+                        }
                         result += args[i]->toString();
                     }
                     result += ")";
@@ -244,7 +258,9 @@ struct ParsedExpression {
                 {
                     std::string result = "{";
                     for (size_t i = 0; i < objectMembers.size(); ++i) {
-                        if (i > 0) result += ", ";
+                        if (i > 0) {
+                            result += ", ";
+                        }
                         result += objectMembers[i].first + ": " + objectMembers[i].second->toString();
                     }
                     result += "}";
@@ -254,7 +270,9 @@ struct ParsedExpression {
                 {
                     std::string result = "new " + name + "(";
                     for (size_t i = 0; i < args.size(); ++i) {
-                        if (i > 0) result += ", ";
+                        if (i > 0) {
+                            result += ", ";
+                        }
                         result += args[i]->toString();
                     }
                     result += ")";

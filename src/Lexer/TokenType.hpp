@@ -7,19 +7,19 @@
 namespace Lexer::Tokens {
 
 enum class Type : std::uint8_t {
-    IDENTIFIER,           // Pl. változónév: myVar
-    VARIABLE_IDENTIFIER,  // Pl. $
-    KEYWORD,              // Pl. if, else, while
-    NUMBER,               // Pl. 123, 42
-    STRING_LITERAL,       // Pl. "hello world"
-    OPERATOR_RELATIONAL,  // Pl. +, -, *, /, =, ==, <, >
-    OPERATOR_LOGICAL,     // Pl. &&, ||
-    OPERATOR_ASSIGNMENT,  // Pl. +=, -=, *=, /=
-    OPERATOR_INCREMENT,   // Pl. ++, --
-    OPERATOR_ARITHMETIC,  // Pl. +, -, *, /
-    PUNCTUATION,          // Pl. (, ), {, }, ;, ,
-    COMMENT,              // Általában kihagyjuk
-    END_OF_FILE,          // A string végét jelzi
+    IDENTIFIER,           //Eg.variable name: myVar
+    VARIABLE_IDENTIFIER,  //Eg.$
+    KEYWORD,              //Eg.if, else, while
+    NUMBER,               //Eg.123, 42
+    STRING_LITERAL,       //Eg."hello world"
+    OPERATOR_RELATIONAL,  //Eg.+, -, *, /, =, ==, <, >
+    OPERATOR_LOGICAL,     //Eg.&&, ||
+    OPERATOR_ASSIGNMENT,  //Eg.+=, -=, *=, /=
+    OPERATOR_INCREMENT,   //Eg.++, --
+    OPERATOR_ARITHMETIC,  //Eg.+, -, *, /
+    PUNCTUATION,          //Eg.(, ), {, }, ;, ,
+    COMMENT,              // Just skip it
+    END_OF_FILE,          // End of the file / script
     KEYWORD_STRING,
     KEYWORD_INT,
     KEYWORD_DOUBLE,

@@ -29,7 +29,7 @@ class NewExpressionNode : public ExpressionNode {
     size_t                                       column_;
 
   public:
-    NewExpressionNode(const std::string & className, std::vector<std::unique_ptr<ExpressionNode>> args,
+    NewExpressionNode(const std::string & className, std::vector<std::unique_ptr<ExpressionNode>> && args,
                       const std::string & filename, int line, size_t column) :
         className_(className),
         args_(std::move(args)),
@@ -58,7 +58,8 @@ class NewExpressionNode : public ExpressionNode {
             }
             obj[prop.name] = value;
         }
-        // Override with constructor arguments
+
+        /* this part overrides properties from the class definition parameters
         if (args_.size() > info.properties.size()) {
             throw Exception("Too many constructor arguments for class: " + className_, filename_, line_, column_);
         }
@@ -66,6 +67,7 @@ class NewExpressionNode : public ExpressionNode {
             Symbols::Value val           = args_[j]->evaluate(interpreter);
             obj[info.properties[j].name] = val;
         }
+            */
         // Embed class metadata for method dispatch
         obj["__class__"] = Symbols::Value(className_);
         // Return class instance value (distinct from plain object)

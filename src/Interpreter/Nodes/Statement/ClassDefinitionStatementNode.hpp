@@ -1,9 +1,9 @@
 #ifndef INTERPRETER_CLASS_DEFINITION_STATEMENT_NODE_HPP
 #define INTERPRETER_CLASS_DEFINITION_STATEMENT_NODE_HPP
 
+#include <algorithm>  // for std::reverse
 #include <string>
 #include <vector>
-#include <algorithm>  // for std::reverse
 
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
@@ -57,7 +57,7 @@ class ClassDefinitionStatementNode : public StatementNode {
         // After registering methods in class registry, also register function symbols
         // for class methods by executing their declaration operations
         const std::string fileNs  = sc->currentScopeName();
-        const std::string classNs = fileNs + "::" + className_;
+        const std::string classNs = fileNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + className_;
         // Execute all operations in the class namespace to register methods and their bodies
         auto              ops     = Operations::Container::instance()->getAll(classNs);
         for (const auto & op : ops) {

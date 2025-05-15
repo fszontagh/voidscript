@@ -50,12 +50,12 @@ class Person {
 
     function getDescription() string {
         string $status = "";
-        if (this->$isStrudent) {
+        if (this->$isStudent) {
             $status = "is";
         }else{
             $status = "is not";
         }
-        return this->$name + " is " + this->$age + " years old and " + $status + " a student.";
+        return Format("{} is {} years old and {} a student", this->$name, this->$age, $status);
     }
 }
 
@@ -68,16 +68,16 @@ printnl("Person 1: ", $person1->getName(), ", Age: ", $person1->getAge());
 printnl("Person 2: ", $person2->getName(), ", Age: ", $person2->getAge());
 
 // Test methods
-printnl("Is Alice a student? ", $person1->isStudent() ? "Yes" : "No");
-printnl("Can Bob vote? ", $person2->canVote() ? "Yes" : "No");
+printnl("Is Alice a student? ", $person1->isStudent());
+printnl("Can Bob vote? ", $person2->canVote());
 
 // Modify properties
 printnl("Bob celebrates birthday. New age: ", $person2->celebrateBirthday());
-printnl("Can Bob vote now? ", $person2->canVote() ? "Yes" : "No");
+printnl("Can Bob vote now? ", $person2->canVote());
 
 // Change other properties
 $person1->setIsStudent(false);
-printnl("Is Alice a student now? ", $person1->isStudent() ? "Yes" : "No");
+printnl("Is Alice a student now? ", $person1->isStudent());
 
 // Get descriptions
 printnl("Description 1: ", $person1->getDescription());

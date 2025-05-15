@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include "SymbolTypes.hpp"
-#include <iostream>
 #include <unordered_map>
 
 namespace Symbols {
@@ -15,10 +14,11 @@ class SymbolTable {
     const std::string key_separator = "::"; // Separator for flat key
 
   public:
-    void define(const std::string & ns, const SymbolPtr & symbol) { 
+  SymbolTable(const std::string &separator) : key_separator(separator) {}
+    void define(const std::string & ns, const SymbolPtr & symbol) {
         // ns is sub-ns like "variables"
         std::string flat_key = ns + key_separator + symbol->name();
-        flat_symbols_[flat_key] = symbol; 
+        flat_symbols_[flat_key] = symbol;
     }
 
     bool exists(const std::string & ns, const std::string & name) {
@@ -59,7 +59,7 @@ class SymbolTable {
         return result;
     }
 
-    void clear(const std::string & ns) { 
+    void clear(const std::string & ns) {
         // ns is sub-ns like "variables"
         std::string prefix_key = ns + key_separator;
         for (auto it = flat_symbols_.begin(); it != flat_symbols_.end(); /* no increment */) {

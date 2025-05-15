@@ -51,7 +51,7 @@ inline bool isLeftAssociative(const std::string & op) {
 
 inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser::ParsedExpressionPtr rhs,
                                                  Parser::ParsedExpressionPtr lhs = nullptr) {
-    if (op.starts_with("u")) {
+    if (op.starts_with("u") || op.starts_with("p")) {
         std::string real_op = op.substr(1);  // "u!" -> "!"
         auto        result =
             Parser::ParsedExpression::makeUnary(real_op, std::move(rhs), rhs->filename, rhs->line, rhs->column);

@@ -71,7 +71,7 @@ class CallExpressionNode : public ExpressionNode {
                 }
                 // Move to parent scope by finding the last '::'
                 // This assumes scope names are hierarchical like /file/path::class::method or a top-level file scope
-                auto pos = lookupNs.rfind("::");
+                auto pos = lookupNs.rfind(Symbols::SymbolContainer::SCOPE_SEPARATOR);
                 if (pos == std::string::npos) {
                     // If lookupNs doesn't contain "::", it means we've reached the top-level scope (e.g., a file path).
                     // If the function wasn't found by now, it's not in any accessible parent scope.
@@ -87,7 +87,9 @@ class CallExpressionNode : public ExpressionNode {
             if (!funcSym) {
                 throw std::runtime_error("Function not found: " + functionName_);
             }
-            const auto & params = funcSym->parameters();
+            const auto & params  = funcSym->parameters();
+            const auto   retType = funcSym->returnType();
+
             if (params.size() != argValues.size()) {
                 throw std::runtime_error("Function '" + functionName_ + "' expects " + std::to_string(params.size()) +
                                          " args, got " + std::to_string(argValues.size()));
@@ -95,9 +97,11 @@ class CallExpressionNode : public ExpressionNode {
 
             // Create unique scope for this function call
             const std::string canonical_fn_scope_name =
-                funcSym->context().empty() ? functionName_ : funcSym->context() + "::" + functionName_;
-            std::string unique_call_scope_name =
-                canonical_fn_scope_name + "::call_" + std::to_string(Interpreter::get_unique_call_id());
+                funcSym->context().empty() ?
+                    functionName_ :
+                    funcSym->context() + Symbols::SymbolContainer::SCOPE_SEPARATOR + functionName_;
+            std::string unique_call_scope_name = canonical_fn_scope_name + Symbols::SymbolContainer::CALL_SCOPE +
+                                                 std::to_string(Interpreter::get_unique_call_id());
 
             sc->create(unique_call_scope_name);  // Creates and enters the new unique scope
 
@@ -123,6 +127,11 @@ class CallExpressionNode : public ExpressionNode {
                 }
             }
             sc->enterPreviousScope();  // Exit unique_call_scope_name
+            if (returnValue.getType() != retType) {
+                throw std::runtime_error("Function " + functionName_ + " expected return type is " +
+                                         Symbols::Variables::TypeToString(retType) + " got " +
+                                         Symbols::Variables::TypeToString(returnValue.getType()));
+            }
             return returnValue;
         } catch (const std::exception & e) {
             throw ::Interpreter::Exception(e.what(), filename_, line_, column_);

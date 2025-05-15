@@ -9,10 +9,10 @@
 #include <vector>
 #include <fstream>
 
-#ifndef _WIN32
-#    include <dlfcn.h>
-#else
+#if defined(_WIN32) || defined(_WIN64)
 #    include <windows.h>
+#else
+#    include <dlfcn.h>
 #endif
 
 #include "BaseModule.hpp"
@@ -44,12 +44,18 @@ using FunctionArguments = const std::vector<Symbols::Value>;
 using CallbackFunction  = std::function<Symbols::Value(FunctionArguments &)>;
 
 struct ClassInfo {
+    struct MethodInfo {
+        Symbols::Variables::Type returnType;
+        std::vector<FunctParameterInfo> parameters;
+    };
+    // Add methods map to ClassInfo
+    std::unordered_map<std::string, Modules::ClassInfo::MethodInfo> methods;
     struct PropertyInfo {
         std::string                 name;
         Symbols::Variables::Type    type;
         Parser::ParsedExpressionPtr defaultValueExpr;
     };
-    std::vector<PropertyInfo> properties;
+    std::vector<Modules::ClassInfo::PropertyInfo> properties;
     std::vector<std::string>  methodNames;
     std::unordered_map<std::string, Symbols::Value> objectProperties;  // Store object-specific properties
 };
@@ -116,8 +122,8 @@ class UnifiedModuleManager {
 
     // Helper methods to reduce duplication
     template<typename T>
-    const T& findOrThrow(const std::unordered_map<std::string, T>& map, 
-                        const std::string& key, 
+    const T& findOrThrow(const std::unordered_map<std::string, T>& map,
+                        const std::string& key,
                         const std::string& errorMsg) const {
         auto it = map.find(key);
         if (it == map.end()) {
@@ -127,8 +133,8 @@ class UnifiedModuleManager {
     }
 
     template<typename T>
-    T& findOrThrow(std::unordered_map<std::string, T>& map, 
-                   const std::string& key, 
+    T& findOrThrow(std::unordered_map<std::string, T>& map,
+                   const std::string& key,
                    const std::string& errorMsg) {
         auto it = map.find(key);
         if (it == map.end()) {
@@ -175,7 +181,7 @@ class UnifiedModuleManager {
     std::unordered_map<std::string, ClassEntry> classes_;
 
     // Helper for documentation generation
-    void writeDoc(std::ofstream& file, 
+    void writeDoc(std::ofstream& file,
                  const std::string& name,
                  const RegistryEntry& entry,
                  const std::string& prefix,
