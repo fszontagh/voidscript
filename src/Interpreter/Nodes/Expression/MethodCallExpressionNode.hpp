@@ -209,13 +209,21 @@ class MethodCallExpressionNode : public ExpressionNode {
                     if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
                         const auto& objMap = std::get<Symbols::Value::ObjectMap>(thisSym->getValue().get());
                         auto mutableOrigSym = std::const_pointer_cast<Symbols::Symbol>(origSym);
-                        Symbols::Value origValue = mutableOrigSym->getValue();
-                        auto& origObjMap = std::get<Symbols::Value::ObjectMap>(origValue.get());
+                        Symbols::Value origValue = mutableOrigSym->getValue();                        
+                        if(origValue.getType() == Variables::Type::CLASS) {
+                            auto& origObjMap = std::get<Symbols::Value::ObjectMap>(origValue.get());
 
-                        for (const auto& [key, val] : objMap) {
-                            origObjMap[key] = val;
+                            for (const auto& [key, val] : objMap) {
+                                origObjMap[key] = val;
+                            }
+                            mutableOrigSym->setValue(origValue);
+                        } else {
+                            // Handle the case where origValue is not a CLASS type
+                            // This might involve logging an error or taking alternative action
+                            std::cerr << "Warning: origValue is not a CLASS type. Cannot update properties." << std::endl;
                         }
-                        mutableOrigSym->setValue(origValue);
+
+
                     }
                 } else {
                     // Log error or handle: method call scope table not found
