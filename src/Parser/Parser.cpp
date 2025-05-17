@@ -873,10 +873,10 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                         Symbols::Variables::Type expectedType = params[i].type;
                         Symbols::Variables::Type actualType   = Symbols::Variables::Type::NULL_TYPE;
                         if(i < argsc.size() && argsc[i] != nullptr) {
-                            actualType = argsc[i]->getType();
+                            actualType = argsc[i]->getType();                            
                         }
 
-                        if (expectedType != actualType) {
+                        if (expectedType != actualType && expectedType != Symbols::Variables::Type::OBJECT) {
                             reportError("Invalid argument type for constructor of class '" + className +
                                             "'. Argument " + std::to_string(i + 1) + " expected type '" +
                                             Symbols::Variables::TypeToString(expectedType) + "', but got '" +
