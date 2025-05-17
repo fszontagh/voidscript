@@ -1,5 +1,6 @@
 #ifndef INTERPRETER_HPP
 #define INTERPRETER_HPP
+
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -9,7 +10,6 @@
 #include "Interpreter/OperationContainer.hpp"
 #include "Symbols/SymbolContainer.hpp"
 
-// Exception type for runtime errors, includes file, line, and column context
 namespace Interpreter {
 class Exception : public BaseException {
   public:
@@ -23,6 +23,7 @@ class Exception : public BaseException {
         }
         formattedMessage_ = formatMessage();
     }
+    Exception(const BaseException&) = default;
 
     std::string formatMessage() const override {
         return std::string("[Runtime ERROR] >>") + context_ + " << : " + rawMessage_;
@@ -104,6 +105,9 @@ class Interpreter {
         }
     }
 
+    void print(const std::string& message) {
+        std::cout << "Hey " << message << std::endl;
+    }
 };  // class Interpreter
 
 }  // namespace Interpreter
