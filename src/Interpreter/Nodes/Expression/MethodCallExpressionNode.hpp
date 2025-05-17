@@ -201,6 +201,27 @@ class MethodCallExpressionNode : public ExpressionNode {
                 }
             }
             // Exit method call scope
+            if (origSym) {
+                // Retrieve 'this' from the current call's unique scope
+                auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
+                if (call_scope_table) {
+                    auto thisSym = call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
+                    if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
+                        const auto& objMap = std::get<Symbols::Value::ObjectMap>(thisSym->getValue().get());
+                        auto mutableOrigSym = std::const_pointer_cast<Symbols::Symbol>(origSym);
+                        Symbols::Value origValue = mutableOrigSym->getValue();
+                        auto& origObjMap = std::get<Symbols::Value::ObjectMap>(origValue.get());
+
+                        for (const auto& [key, val] : objMap) {
+                            origObjMap[key] = val;
+                        }
+                        mutableOrigSym->setValue(origValue);
+                    }
+                } else {
+                    // Log error or handle: method call scope table not found
+
+                }
+            }
             sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
             // Return type checking: if method declares a non-null return type, error if no value was returned
             if (returnType == Variables::Type::NULL_TYPE) {
