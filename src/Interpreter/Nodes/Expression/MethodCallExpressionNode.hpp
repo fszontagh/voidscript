@@ -169,17 +169,17 @@ class MethodCallExpressionNode : public ExpressionNode {
                     if (origSym) {
                         // Retrieve 'this' from the current call's unique scope
                         auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
-                        if (call_scope_table) {
+                       if (call_scope_table) {
                             auto thisSym =
                                 call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
                             if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
-                                origSym->setValue(objVal);
-                            } else {
-                                // Log error or handle: 'this' not found in method call scope where expected
+                                Value thisValue = thisSym->getValue();
+                                origSym->setValue(thisValue);
                             }
                         } else {
                             // Log error or handle: method call scope table not found
                         }
+
                     }
                     sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
                     return re.value();
@@ -189,15 +189,15 @@ class MethodCallExpressionNode : public ExpressionNode {
             if (origSym) {
                 // Retrieve 'this' from the current call's unique scope
                 auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
-                if (call_scope_table) {
+               if (call_scope_table) {
                     auto thisSym = call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
-                    if (thisSym) {
-                        origSym->setValue(thisSym->getValue());
-                    } else {
-                        // Log error or handle: 'this' not found in method call scope where expected
+                    if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
+                        Value thisValue = thisSym->getValue();
+                        origSym->setValue(thisValue);
                     }
                 } else {
                     // Log error or handle: method call scope table not found
+
                 }
             }
             // Exit method call scope
