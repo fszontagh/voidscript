@@ -1,9 +1,5 @@
 #include "Parser/Parser.hpp"
 
-#include "utils.h"
-// Static filename for unified error reporting in Parser::Exception
-std::string Parser::Parser::Exception::current_filename_;
-
 #include <stack>
 
 #include "Interpreter/ExpressionBuilder.hpp"
@@ -22,9 +18,13 @@ std::string Parser::Parser::Exception::current_filename_;
 #include "Lexer/Operators.hpp"
 #include "Parser.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "utils.h"
 
 // Additional necessary includes, if needed
 namespace Parser {
+
+// Static filename for unified error reporting in Parser::Exception
+std::string Parser::Parser::Exception::current_filename_;
 
 const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "if",       Lexer::Tokens::Type::KEYWORD_IF                   },
@@ -852,10 +852,18 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             }
             // Closing ')'
             auto closingParenToken = expect(Lexer::Tokens::Type::PUNCTUATION, ")");  // Capture token for location
+
+            // copy the args
+            const auto argsc = args;
             // Create new expression
             output_queue.push_back(ParsedExpression::makeNew(className, std::move(args), this->current_filename_,
                                                              nameTok.line_number,
                                                              nameTok.column_number));  // Use nameTok for location
+
+            // add a contructor call, check if exists in the operations
+//            output_queue.push_back(ParsedExpression::makeMethodCall(output_queue.back(), "contruct", argsc, this->current_filename_,
+//                                                                    nameTok.line_number, nameTok.column_number));
+
             expect_unary = false;
             atStart      = false;
             continue;
@@ -1235,7 +1243,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         }
     }
 
-    if (output_queue.size() != 1) {
+    if (output_queue.size() < 1 || output_queue.size() > 2) {
         reportError("Expression could not be parsed cleanly");
     }
 
