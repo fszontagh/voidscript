@@ -6,20 +6,23 @@
 #include <stdexcept>
 #include <string>
 #include <variant>
+#include <memory>
+#include "Symbols/VariableTypes.hpp"
 
 namespace Symbols {
 
 class Value {
-  using ValuePtr = std::shared_ptr<Variant>;
+
 
   public:
     using ObjectMap = std::map<std::string, Value>;
     using Variant   = std::variant<int, double, float, std::string, bool, ObjectMap>;
+    using ValuePtr = std::shared_ptr<Variant>;
 
     /**
      * @brief Default-constructed value is undefined.
      */
-    Value() : type_(Symbols::Variables::Type::UNDEFINED_TYPE), value_(nullptr) {}
+    Value() : value_(nullptr), type_(Symbols::Variables::Type::UNDEFINED_TYPE) {}
 
     Value(const unsigned char * uc, int len = -1) {
         if (uc == nullptr) {
