@@ -861,9 +861,10 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                                                              nameTok.column_number));  // Use nameTok for location
 
             // add a contructor call, check if exists in the operations
-//            output_queue.push_back(ParsedExpression::makeMethodCall(output_queue.back(), "contruct", argsc, this->current_filename_,
-//                                                                    nameTok.line_number, nameTok.column_number));
-
+            if(Modules::UnifiedModuleManager::instance().hasMethod(className, "construct")) {
+                output_queue.push_back(ParsedExpression::makeMethodCall(output_queue.back(), "construct", argsc, this->current_filename_,
+                                                                        nameTok.line_number, nameTok.column_number));
+            }
             expect_unary = false;
             atStart      = false;
             continue;
