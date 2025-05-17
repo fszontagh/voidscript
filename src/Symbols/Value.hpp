@@ -7,11 +7,11 @@
 #include <string>
 #include <variant>
 
-#include "VariableTypes.hpp"
-
 namespace Symbols {
 
 class Value {
+  using ValuePtr = std::shared_ptr<Variant>;
+
   public:
     using ObjectMap = std::map<std::string, Value>;
     using Variant   = std::variant<int, double, float, std::string, bool, ObjectMap>;
@@ -19,11 +19,11 @@ class Value {
     /**
      * @brief Default-constructed value is undefined.
      */
-    Value() : type_(Symbols::Variables::Type::UNDEFINED_TYPE) {}
+    Value() : type_(Symbols::Variables::Type::UNDEFINED_TYPE), value_(nullptr) {}
 
     Value(const unsigned char * uc, int len = -1) {
         if (uc == nullptr) {
-            value_  = std::string();
+            value_ = nullptr;
             is_null = true;
             return;
         }
@@ -51,13 +51,13 @@ class Value {
      * @brief Construct an object value from a map of member names to Values.
      */
     Value(const ObjectMap & v) : value_(v) { type_ = Symbols::Variables::Type::OBJECT; }
-
     Value(const std::string & str, bool autoDetectType) { *this = fromString(str, autoDetectType); }
+
+    const Variant & get() const { return *value_; }
 
     const Variant & get() const { return value_; }
 
     Symbols::Variables::Type getType() const { return type_; }
-
     Variant & get() { return value_; }
 
     template <typename T> T get() const { return std::get<T>(value_); }
@@ -66,9 +66,9 @@ class Value {
         if (type == Variables::Type::UNDEFINED_TYPE) {
             throw std::invalid_argument("Default type can not be UNDEFINED");
         }
-        auto v    = Value();
+        auto v = Value();
         v.is_null = true;
-        v.type_   = type;
+        v.type_ = type;
         return v;
     }
 
@@ -90,7 +90,7 @@ class Value {
             [](auto && a, auto && b) -> Value {
                 using A = std::decay_t<decltype(a)>;
                 using B = std::decay_t<decltype(b)>;
-                if constexpr ((std::is_arithmetic_v<A> && std::is_arithmetic_v<B>) ) {
+                if constexpr ((std::is_arithmetic_v<A> && std::is_arithmetic_v<B>)) {
                     return Value{ a + b };
                 } else {
                     throw std::runtime_error("Invalid types for operator+");
@@ -184,11 +184,11 @@ class Value {
     bool isNULL() const { return is_null; }
   private:
     Variant                  value_;
+    ValuePtr                 value_;
     Symbols::Variables::Type type_;
     bool                     is_null = false;
 
     static Value fromStringToInt(const std::string & str) { return Value(std::stoi(str)); }
-
     static Value fromStringToDouble(const std::string & str) { return Value(std::stod(str)); }
 
     static Value fromStringToFloat(const std::string & str) { return Value(std::stof(str)); }
@@ -211,3 +211,4 @@ class Value {
 }  // namespace Symbols
 
 #endif  // SYMBOL_VALUE_HPP
+
