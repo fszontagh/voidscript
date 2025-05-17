@@ -183,8 +183,7 @@ class Value {
 
     bool isNULL() const { return is_null; }
   private:
-    Variant                  value_;
-    ValuePtr                 value_;
+    std::shared_ptr<Variant> value_;
     Symbols::Variables::Type type_;
     bool                     is_null = false;
 
