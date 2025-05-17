@@ -69,6 +69,7 @@ class UnifiedModuleManager {
     void addModule(std::unique_ptr<BaseModule> module); // Add a module
     void registerAll();                                 // Register all modules
     void loadPlugins(const std::string & directory);    // Load plugins from directory
+    const std::vector<FunctParameterInfo>& getMethodParameters(const std::string & className, const std::string & methodName) const;
     void loadPlugin(const std::string & path);          // Load a single plugin
 
     // --- Function registration ---
