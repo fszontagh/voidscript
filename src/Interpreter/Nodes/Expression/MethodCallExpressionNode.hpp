@@ -172,8 +172,8 @@ class MethodCallExpressionNode : public ExpressionNode {
                         if (call_scope_table) {
                             auto thisSym =
                                 call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
-                            if (thisSym) {
-                                origSym->setValue(thisSym->getValue());
+                            if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
+                                origSym->setValue(objVal);
                             } else {
                                 // Log error or handle: 'this' not found in method call scope where expected
                             }
