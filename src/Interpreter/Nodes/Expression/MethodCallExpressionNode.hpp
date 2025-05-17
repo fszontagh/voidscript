@@ -160,7 +160,6 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
 
             // Execute method body. Operations are fetched from the method's definition scope.
-            // Local variables declared within these operations will be created in the actualMethodCallScope.
             for (const auto & op : Operations::Container::instance()->getAll(methodDefinitionScopeName)) {
                 try {
                     interpreter.runOperation(*op);
@@ -174,6 +173,13 @@ class MethodCallExpressionNode : public ExpressionNode {
                                 call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
                             if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
                                 Value thisValue = thisSym->getValue();
+                                // Directly update the 'name' property
+                                if (thisValue.getType() == Variables::Type::OBJECT) {
+                                    auto& objMap = std::get<Value::ObjectMap>(thisValue.get());
+                                    if (objMap.find("name") != objMap.end()) {
+                                        objMap["name"] = objVal.get<std::string>();
+                                    }
+                                }
                                 origSym->setValue(thisValue);
                             }
                         } else {
@@ -189,29 +195,14 @@ class MethodCallExpressionNode : public ExpressionNode {
             if (origSym) {
                 // Retrieve 'this' from the current call's unique scope
                 auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
-               if (call_scope_table) {
-                    auto thisSym = call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
-                    if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
-                        Value thisValue = thisSym->getValue();
-                        origSym->setValue(thisValue);
-                    }
-                } else {
-                    // Log error or handle: method call scope table not found
-
-                }
-            }
-            // Exit method call scope
-            if (origSym) {
-                // Retrieve 'this' from the current call's unique scope
-                auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
                 if (call_scope_table) {
                     auto thisSym = call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
                     if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
-                        const auto& objMap = std::get<Symbols::Value::ObjectMap>(thisSym->getValue().get());
+                        const auto& objMap = std::get<Value::ObjectMap>(thisSym->getValue().get());
                         auto mutableOrigSym = std::const_pointer_cast<Symbols::Symbol>(origSym);
                         Symbols::Value origValue = mutableOrigSym->getValue();                        
                         if(origValue.getType() == Variables::Type::CLASS) {
-                            auto& origObjMap = std::get<Symbols::Value::ObjectMap>(origValue.get());
+                            auto& origObjMap = std::get<Value::ObjectMap>(origValue.get());
 
                             for (const auto& [key, val] : objMap) {
                                 origObjMap[key] = val;
