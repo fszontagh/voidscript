@@ -16,8 +16,8 @@ UnifiedModuleManager & UnifiedModuleManager::instance() {
 }
 
 const std::vector<Modules::FunctParameterInfo>& UnifiedModuleManager::getMethodParameters(const std::string & className, const std::string & methodName) const {
-    if (classRegistry_.find(className) != classRegistry_.end() && classRegistry_.at(className).methods.find(methodName) != classRegistry_.at(className).methods.end()) {
-        return classRegistry_.at(className).methods.at(methodName).parameters;
+    if (classes_.find(className) != classes_.end() && classes_.at(className).info.methods.find(methodName) != classes_.at(className).info.methods.end()) {
+        return classes_.at(className).info.methods.at(methodName).parameters;
     }
     static std::vector<FunctParameterInfo> empty;
     return empty;
