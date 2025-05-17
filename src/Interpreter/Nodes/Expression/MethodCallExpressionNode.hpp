@@ -126,15 +126,16 @@ class MethodCallExpressionNode : public ExpressionNode {
             // Check argument count
             const auto &    params     = funcSym->parameters();
             if (params.size() != args_.size()) {
-                throw Exception("Invalid number of argmuents: '" + className + "->" + methodName_ + "', expects " +
+                throw Exception("Invalid number of arguments:s: '" + className + "->" + methodName_ + "', expects " +
                                     std::to_string(params.size()) + " args, got " + std::to_string(args_.size()),
                                 filename_, line_, column_);
             }
             // validate arg types
-            size_t _c = 0;
+            size_t _c = 1;
             for (const auto & _p : params) {
-                if (_p.type != argValues[_c].getType()) {
-                    throw Exception("Invalid type of argmuent: '" + className + "->" + methodName_ +
+                const auto argType = argValues[_c].getType();
+                if (_p.type != argType) {
+                    throw Exception("Invalid type of arguments:: '" + className + "->" + methodName_ +
                                         "' unexpected type at " + std::to_string(_c) + " '" + (_p.name) +
                                         "'. Expected: " + Symbols::Variables::TypeToString(_p.type),
                                     filename_, line_, column_);
