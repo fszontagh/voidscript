@@ -860,11 +860,34 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                                                              nameTok.line_number,
                                                              nameTok.column_number));  // Use nameTok for location
 
-            // add a contructor call, check if exists in the operations
-            if(Modules::UnifiedModuleManager::instance().hasMethod(className, "construct")) {
-                output_queue.push_back(ParsedExpression::makeMethodCall(output_queue.back(), "construct", argsc, this->current_filename_,
-                                                                        nameTok.line_number, nameTok.column_number));
+            // Validate constructor arguments
+            if (Modules::UnifiedModuleManager::instance().hasMethod(className, "construct")) {
+                const auto& params = Modules::UnifiedModuleManager::instance().getMethodParameters(className, "construct");
+                if (params.size() != argsc.size()) {
+                    reportError("Invalid number of arguments for constructor of class '" + className +
+                                    "'. Expected " + std::to_string(params.size()) + ", got " +
+                                    std::to_string(argsc.size()),
+                                closingParenToken);
+                } else {
+                    for (size_t i = 0; i < params.size(); ++i) {
+                        Symbols::Variables::Type expectedType = params[i].type;
+                        Symbols::Variables::Type actualType   = Symbols::Variables::Type::NULL_TYPE;
+                        if(i < argsc.size() && argsc[i] != nullptr) {
+                            actualType = argsc[i]->getType();
+                        }
+
+                        if (expectedType != actualType) {
+                            reportError("Invalid argument type for constructor of class '" + className +
+                                            "'. Argument " + std::to_string(i + 1) + " expected type '" +
+                                            Symbols::Variables::TypeToString(expectedType) + "', but got '" +
+                                            Symbols::Variables::TypeToString(actualType) + "'",
+                                        closingParenToken);
+                        }
+                    }
+                }
             }
+            // add a contructor call, check if exists in the operations
+
             expect_unary = false;
             atStart      = false;
             continue;
