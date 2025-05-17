@@ -7,6 +7,7 @@
 #include <string>
 #include <variant>
 #include <memory>
+
 #include "Symbols/VariableTypes.hpp"
 
 namespace Symbols {
@@ -58,17 +59,13 @@ class Value {
 
     const Variant & get() const { return *value_; }
 
-    const Variant & get() const { return value_; }
+    Variant & get() { return value_; }
 
     Symbols::Variables::Type getType() const { return type_; }
-    Variant & get() { return value_; }
 
     template <typename T> T get() const { return std::get<T>(value_); }
 
     static Symbols::Value makeNull(const Variables::Type & type) {
-        if (type == Variables::Type::UNDEFINED_TYPE) {
-            throw std::invalid_argument("Default type can not be UNDEFINED");
-        }
         auto v = Value();
         v.is_null = true;
         v.type_ = type;
@@ -213,4 +210,3 @@ class Value {
 }  // namespace Symbols
 
 #endif  // SYMBOL_VALUE_HPP
-
