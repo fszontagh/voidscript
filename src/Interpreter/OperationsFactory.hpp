@@ -32,24 +32,24 @@ class OperationsFactory {
             ns, Operations::Operation{ Operations::Type::FuncDeclaration, functionName, std::move(stmt) });
     }
 
-    static void defineSimpleVariable(const std::string & varName, const Symbols::Value & value, const std::string & ns,
-                                     const std::string & filename, int line, size_t column) {
+    static void defineSimpleVariable(const std::string & varName, Symbols::Value::ValuePtr value,
+                                     const std::string & ns, const std::string & filename, int line, size_t column) {
         auto literalExpr = std::make_unique<LiteralExpressionNode>(value);
 
         std::unique_ptr<DeclareVariableStatementNode> stmt = std::make_unique<DeclareVariableStatementNode>(
-            varName, ns, value.getType(), std::move(literalExpr), filename, line, column);
+            varName, ns, value->getType(), std::move(literalExpr), filename, line, column);
 
         Operations::Container::instance()->add(
             ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });
     }
 
-    static void defineSimpleConstantVariable(const std::string & varName, const Symbols::Value & value,
+    static void defineSimpleConstantVariable(const std::string & varName, Symbols::Value::ValuePtr value,
                                              const std::string & ns, const std::string & filename, int line,
                                              size_t column) {
         auto literalExpr = std::make_unique<LiteralExpressionNode>(value);
 
         std::unique_ptr<DeclareVariableStatementNode> stmt = std::make_unique<DeclareVariableStatementNode>(
-            varName, ns, value.getType(), std::move(literalExpr), filename, line, column, /*isConst*/ true);
+            varName, ns, value->getType(), std::move(literalExpr), filename, line, column, /*isConst*/ true);
 
         Operations::Container::instance()->add(
             ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });

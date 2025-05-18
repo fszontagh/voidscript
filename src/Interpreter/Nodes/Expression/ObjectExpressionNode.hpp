@@ -17,12 +17,12 @@ class ObjectExpressionNode : public ExpressionNode {
     explicit ObjectExpressionNode(std::vector<std::pair<std::string, std::unique_ptr<ExpressionNode>>> members) :
         members_(std::move(members)) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
+    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
         ObjectMap obj;
         for (const auto & kv : members_) {
             obj[kv.first] = kv.second->evaluate(interpreter);
         }
-        return Symbols::Value(obj);
+        return std::make_shared<Symbols::Value>(obj);
     }
 
     std::string toString() const override { return "[object]"; }

@@ -23,7 +23,6 @@ class Exception : public BaseException {
         }
         formattedMessage_ = formatMessage();
     }
-    Exception(const BaseException&) = default;
 
     std::string formatMessage() const override {
         return std::string("[Runtime ERROR] >>") + context_ + " << : " + rawMessage_;
@@ -103,10 +102,6 @@ class Interpreter {
             default:
                 throw std::runtime_error("Not implemented operation type");
         }
-    }
-
-    void print(const std::string& message) {
-        std::cout << "Hey " << message << std::endl;
     }
 };  // class Interpreter
 

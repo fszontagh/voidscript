@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../Symbols/FunctionSymbol.hpp"
@@ -16,12 +17,29 @@ struct ParsedExpression;
 using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
 
 struct ParsedExpression {
-    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object, Member };
+    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object, Member, Unknown };
+
+    static std::string kindToString(ParsedExpression::Kind kind) {
+        const std::unordered_map<Kind, std::string> kindstringmap = {
+            { Kind::Literal,    "Literal"    },
+            { Kind::Variable,   "Variable"   },
+            { Kind::Binary,     "Binary"     },
+            { Kind::Unary,      "Unary"      },
+            { Kind::Call,       "Call"       },
+            { Kind::MethodCall, "MethodCall" },
+            { Kind::New,        "New"        },
+            { Kind::Object,     "Object"     },
+            { Kind::Member,     "Member"     },
+            { Kind::Unknown,    "Unknown"    }
+        };
+
+        return kindstringmap.at(kind);
+    }
 
     Kind kind;
 
-    Symbols::Value value;
-    std::string    name;
+    Symbols::Value::ValuePtr value;
+    std::string              name;
 
     // For operations
     std::string                                              op;
@@ -36,10 +54,10 @@ struct ParsedExpression {
     size_t                                                   column = 0;
 
     // Constructor for literal
-    static ParsedExpressionPtr makeLiteral(const Symbols::Value & val) {
+    static ParsedExpressionPtr makeLiteral(Symbols::Value::ValuePtr val) {
         auto expr   = std::make_shared<ParsedExpression>();
         expr->kind  = Kind::Literal;
-        expr->value = val;
+        expr->value = std::move(val);
         return expr;
     }
 
@@ -152,7 +170,7 @@ struct ParsedExpression {
     Symbols::Variables::Type getType() const {
         switch (kind) {
             case Kind::Literal:
-                return value.getType();
+                return value->getType();
                 break;
 
             case Kind::Variable:
@@ -167,12 +185,12 @@ struct ParsedExpression {
                     }
                     // findSymbol returns a SymbolPtr, which could be VariableSymbol or ConstantSymbol.
                     // Both have getValue().
-                    return symbol->getValue().getType();
+                    return symbol->getValue()->getType();
                 }
 
             case Kind::Binary:
                 {
-                    auto lhsType = lhs->value.getType();
+                    auto lhsType = lhs->value->getType();
                     //auto rhsType = rhs->value.getType();
                     return lhsType;  // In binary expressions, operand types match, so we can return the left-hand type
                 }

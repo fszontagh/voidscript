@@ -70,7 +70,7 @@ class SymbolContainer {
     constexpr static const std::string DEFAULT_OTHERS_SCOPE    = SCOPE_SEPARATOR + "others";
 
     // other scope names
-
+    // TODO: add for_ and while_ too
     constexpr static const std::string CALL_SCOPE = SCOPE_SEPARATOR + "call_";
 
     // The following explicit constructor is now replaced by the private one and initialize() pattern
@@ -135,8 +135,9 @@ class SymbolContainer {
      * @return The name of the newly created unique call scope.
      */
     std::string enterFunctionCallScope(const std::string & baseFunctionScopeName) {
-        unsigned long long call_id       = next_call_frame_id_++;
-        std::string        callScopeName = baseFunctionScopeName + "::call_" + std::to_string(call_id);
+        unsigned long long call_id = next_call_frame_id_++;
+        std::string        callScopeName =
+            baseFunctionScopeName + Symbols::SymbolContainer::CALL_SCOPE + std::to_string(call_id);
         create(callScopeName);  // create() also enters the scope by pushing to scopeStack_
         return callScopeName;
     }
@@ -166,17 +167,6 @@ class SymbolContainer {
         const std::string ns = getNamespaceForSymbol(symbol);
         it->second->define(ns, symbol);  // Define in the found scope's table
     }
-
-    // /** @brief List the symbol namespaces (categories) within a given scope. */
-    // // THIS METHOD IS NO LONGER VALID AS SymbolTable::listNamespaces was removed
-    // std::vector<std::string> getNamespaces(const std::string & scopeName) const {
-    //     std::vector<std::string> result;
-    //     auto                     it = scopes_.find(scopeName);
-    //     if (it != scopes_.end()) {
-    //         // return it->second->listNamespaces(); // Error: listNamespaces removed from SymbolTable
-    //     }
-    //     return result;
-    // }
 
     std::vector<SymbolPtr> getAll(const std::string & ns = "") const {
         std::vector<SymbolPtr> result;
@@ -304,13 +294,13 @@ class SymbolContainer {
     }
 
   private:
-    // Helper to recursively dump object Value properties
-    static void dumpValue(const Value & value, std::string & result, int indent) {
+
+    static void dumpValue(const Value::ValuePtr & value, std::string & result, int indent) {
         using ObjectMap = Value::ObjectMap;
-        if (value.getType() == Variables::Type::OBJECT) {
-            const auto & objMap = std::get<ObjectMap>(value.get());
+        if (value->getType() == Variables::Type::OBJECT) {
+            const auto & objMap = std::get<ObjectMap>(value->get());
             for (const auto & [key, childVal] : objMap) {
-                result += std::string(indent, '\t') + "- " + key + ": '" + Value::to_string(childVal) + "'\n";
+                result += std::string(indent, '\t') + "- " + key + ": '" + Symbols::Value::to_string(childVal) + "'\n";
                 dumpValue(childVal, result, indent + 1);
             }
         }

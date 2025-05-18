@@ -2,6 +2,8 @@
 #ifndef INTERPRETER_RETURN_EXCEPTION_HPP
 #define INTERPRETER_RETURN_EXCEPTION_HPP
 
+#include <utility>
+
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {
@@ -10,10 +12,11 @@ namespace Interpreter {
  */
 class ReturnException {
   public:
-    explicit ReturnException(const Symbols::Value &value) : value_(value) {}
-    const Symbols::Value &value() const { return value_; }
+    explicit ReturnException(Symbols::Value::ValuePtr value) : value_(std::move(value)) {}
+
+    const Symbols::Value::ValuePtr & value() const { return value_; }
   private:
-    Symbols::Value value_;
+    Symbols::Value::ValuePtr value_;
 };
-} // namespace Interpreter
-#endif // INTERPRETER_RETURN_EXCEPTION_HPP
+}  // namespace Interpreter
+#endif  // INTERPRETER_RETURN_EXCEPTION_HPP

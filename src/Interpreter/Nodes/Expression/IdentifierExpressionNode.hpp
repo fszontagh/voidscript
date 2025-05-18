@@ -13,23 +13,23 @@ class IdentifierExpressionNode : public ExpressionNode {
   public:
     explicit IdentifierExpressionNode(std::string name) : name_(std::move(name)) {}
 
-    Symbols::Value evaluate(Interpreter & /*interpreter*/) const override {
+    Symbols::Value::ValuePtr evaluate(Interpreter & /*interpreter*/) const override {
         auto* sc = Symbols::SymbolContainer::instance();
-        
+
         // Use a hierarchical find method starting from the current scope
         auto symbol = sc->findSymbol(name_); // Now uses the implemented findSymbol
-        
+
         if (symbol) {
              // Check if symbol is accessible (e.g., private members if applicable)
              // For now, assume accessible if found
             return symbol->getValue();
         }
-        
+
         // Handle built-in NULL literal
         if (name_ == "NULL" || name_ == "null") {
             return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
         }
-        
+
         // If not found after hierarchical search, throw error
         // Report the specific scope where the search started for clarity
         throw std::runtime_error("Identifier '" + name_ + "' not found starting from scope: " + sc->currentScopeName());

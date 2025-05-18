@@ -17,64 +17,64 @@ class UnaryExpressionNode : public ExpressionNode {
         op_(std::move(op)),
         operand_(std::move(operand)) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
+        Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
         auto value = operand_->evaluate(interpreter);
-        auto type  = value.getType();
+        auto type  = value->getType();
 
         if (type == Symbols::Variables::Type::INTEGER) {
-            int v = value.get<int>();
+            int v = value->get<int>();
             if (op_ == "-") {
-                return Symbols::Value(-v);
+                return std::make_shared<Symbols::Value>(-v);
             }
             if (op_ == "+") {
-                return Symbols::Value(+v);
+                return std::make_shared<Symbols::Value>(+v);
             }
             if (op_ == "++") {
-                return Symbols::Value(v + 1);
+                return std::make_shared<Symbols::Value>(v + 1);
             }
             if (op_ == "--") {
-                return Symbols::Value(v - 1);
+                return std::make_shared<Symbols::Value>(v - 1);
             }
         } else if (type == Symbols::Variables::Type::DOUBLE) {
-            double v = value.get<double>();
+            double v = value->get<double>();
             if (op_ == "-") {
-                return Symbols::Value(-v);
+                return std::make_shared<Symbols::Value>(-v);
             }
             if (op_ == "+") {
-                return Symbols::Value(+v);
+                return std::make_shared<Symbols::Value>(+v);
             }
             if (op_ == "++") {
-                return Symbols::Value(v + 1);
+                return std::make_shared<Symbols::Value>(v + 1);
             }
             if (op_ == "--") {
-                return Symbols::Value(v - 1);
+                return std::make_shared<Symbols::Value>(v - 1);
             }
         } else if (type == Symbols::Variables::Type::FLOAT) {
-            float v = value.get<float>();
+            float v = value->get<float>();
             if (op_ == "-") {
-                return Symbols::Value(-v);
+                return std::make_shared<Symbols::Value>(-v);
             }
             if (op_ == "+") {
-                return Symbols::Value(+v);
+                return std::make_shared<Symbols::Value>(+v);
             }
             if (op_ == "++") {
-                return Symbols::Value(v + 1);
+                return std::make_shared<Symbols::Value>(v + 1);
             }
             if (op_ == "--") {
-                return Symbols::Value(v - 1);
+                return std::make_shared<Symbols::Value>(v - 1);
             }
         } else if (type == Symbols::Variables::Type::BOOLEAN) {
-            bool v = value.get<bool>();
+            bool v = value->get<bool>();
             if (op_ == "!") {
-                return Symbols::Value(!v);
+                return std::make_shared<Symbols::Value>(!v);
             }
         } else if (type == Symbols::Variables::Type::STRING) {
-            std::string s = value.get<std::string>();
+            std::string s = value->get<std::string>();
             if (op_ == "-") {
-                return Symbols::Value(s);
+                return std::make_shared<Symbols::Value>(s);
             }
             if (op_ == "+") {
-                return Symbols::Value(s);
+                return std::make_shared<Symbols::Value>(s);
             }
         }
 

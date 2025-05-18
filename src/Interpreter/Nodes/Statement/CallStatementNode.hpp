@@ -34,7 +34,7 @@ class CallStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         try {
             using namespace Symbols;
-            std::vector<Value> argValues;
+            std::vector<Symbols::Value::ValuePtr> argValues;
             argValues.reserve(args_.size());
             for (const auto & expr : args_) {
                 argValues.push_back(expr->evaluate(interpreter));
@@ -87,18 +87,20 @@ class CallStatementNode : public StatementNode {
 
             // Create unique scope for this function call
             const std::string canonical_fn_scope_name =
-                funcSym->context().empty() ? functionName_ : funcSym->context() + Symbols::SymbolContainer::SCOPE_SEPARATOR + functionName_;
-            std::string unique_call_scope_name =
-                canonical_fn_scope_name +  Symbols::SymbolContainer::CALL_SCOPE + std::to_string(Interpreter::get_unique_call_id());
+                funcSym->context().empty() ?
+                    functionName_ :
+                    funcSym->context() + Symbols::SymbolContainer::SCOPE_SEPARATOR + functionName_;
+            std::string unique_call_scope_name = canonical_fn_scope_name + Symbols::SymbolContainer::CALL_SCOPE +
+                                                 std::to_string(Interpreter::get_unique_call_id());
 
             sc->create(unique_call_scope_name);  // Creates and enters the new unique scope
 
             // Bind parameters in the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
-                const auto &  p      = params[i];
-                const Value & v      = argValues[i];
+                const auto & p      = params[i];
+                const auto & v      = argValues[i];
                 // Symbol's context is this specific call's scope
-                auto          varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
+                auto         varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
                 sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 

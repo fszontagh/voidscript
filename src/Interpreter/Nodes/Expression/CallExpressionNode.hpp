@@ -37,11 +37,11 @@ class CallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
+    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
         using namespace Symbols;
         try {
             // Evaluate argument expressions
-            std::vector<Value> argValues;
+            std::vector<Symbols::Value::ValuePtr> argValues;
             argValues.reserve(args_.size());
             for (const auto & expr : args_) {
                 argValues.push_back(expr->evaluate(interpreter));
@@ -107,17 +107,17 @@ class CallExpressionNode : public ExpressionNode {
 
             // Bind parameters in the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
-                const auto &  p      = params[i];
-                const Value & v      = argValues[i];
+                const auto & p      = params[i];
+                auto &       v      = argValues[i];
                 // Symbol's context is this specific call's scope
-                auto          varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
+                auto         varSym = Symbols::SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
                 sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 
             // Execute function body operations. These operations will use the current unique_call_scope_name.
-            Symbols::Value returnValue;
+            Symbols::Value::ValuePtr returnValue;
             // Operations are associated with the canonical function name (where they are defined/parsed)
-            auto           ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
+            auto                     ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
             for (const auto & op : ops) {
                 try {
                     interpreter.runOperation(*op);
@@ -127,17 +127,17 @@ class CallExpressionNode : public ExpressionNode {
                 }
             }
             sc->enterPreviousScope();  // Exit unique_call_scope_name
-            if (returnValue.getType() != retType) {
+            if (returnValue->getType() != retType) {
                 throw std::runtime_error("Function " + functionName_ + " expected return type is " +
                                          Symbols::Variables::TypeToString(retType) + " got " +
-                                         Symbols::Variables::TypeToString(returnValue.getType()));
+                                         Symbols::Variables::TypeToString(returnValue->getType()));
             }
             return returnValue;
         } catch (const std::exception & e) {
             throw ::Interpreter::Exception(e.what(), filename_, line_, column_);
         }
         // Unreachable: all paths either return or throw
-        return Symbols::Value();
+        return nullptr;
     }
 
     std::string toString() const override {

@@ -21,22 +21,22 @@ class MemberExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
-        Symbols::Value objVal = objectExpr_->evaluate(interpreter);
-        
+        Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+        auto objVal = objectExpr_->evaluate(interpreter);
+
         // Allow member access on plain objects and class instances
-        if (objVal.getType() != Symbols::Variables::Type::OBJECT &&
-            objVal.getType() != Symbols::Variables::Type::CLASS) {
+        if (objVal->getType() != Symbols::Variables::Type::OBJECT &&
+            objVal->getType() != Symbols::Variables::Type::CLASS) {
             throw Exception("Attempted to access member '" + propertyName_ + "' of non-object", filename_, line_,
                             column_);
         }
-        
-        const auto & map = std::get<Symbols::Value::ObjectMap>(objVal.get());
+
+        auto map = objVal->get<Symbols::Value::ObjectMap>();
         auto it = map.find(propertyName_);
         if (it == map.end()) {
             throw Exception("Property '" + propertyName_ + "' not found in object", filename_, line_, column_);
         }
-        
+
         // Return a copy of the value to ensure proper type handling
         return it->second;
     }

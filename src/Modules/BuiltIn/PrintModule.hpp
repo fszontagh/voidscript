@@ -42,38 +42,38 @@ class PrintModule : public BaseModule {
                           &PrintModule::Print);
     }
 
-    static Symbols::Value ThrowError(const FunctionArguments & args) {
-        if (args.size() != 1 || args[0].getType() != Symbols::Variables::Type::STRING) {
+    static Symbols::Value::ValuePtr ThrowError(const FunctionArguments & args) {
+        if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
             throw Exception("throw_error requires exactly one string argument");
         }
-        std::string msg = args[0].get<std::string>();
+        std::string msg = args[0]->get<std::string>();
         throw Exception(msg);
-        return Symbols::Value();  // never reached
+        return Symbols::Value::null();
     }
 
-    static Symbols::Value Error(const FunctionArguments & args) {
+    static Symbols::Value::ValuePtr Error(const FunctionArguments & args) {
         for (const auto & v : args) {
             std::cerr << Symbols::Value::to_string(v);
         }
         std::cerr << "\n";
-        return Symbols::Value();
+        return Symbols::Value::null();
     }
 
-    static Symbols::Value PrintNL(const FunctionArguments & args) {
+    static Symbols::Value::ValuePtr PrintNL(const FunctionArguments & args) {
         for (const auto & v : args) {
             std::string valStr = Symbols::Value::to_string(v);
             std::cout << valStr;
         }
         std::cout << "\n" << std::flush;
-        return Symbols::Value();
+        return Symbols::Value::null();
     }
 
-    static Symbols::Value Print(const FunctionArguments & args) {
+    static Symbols::Value::ValuePtr Print(const FunctionArguments & args) {
         for (const auto & v : args) {
             std::string valStr = Symbols::Value::to_string(v);
             std::cout << valStr;
         }
-        return Symbols::Value();
+        return Symbols::Value::null();
     }
 };
 

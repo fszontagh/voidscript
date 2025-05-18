@@ -15,8 +15,10 @@ UnifiedModuleManager & UnifiedModuleManager::instance() {
     return mgr;
 }
 
-const std::vector<Modules::FunctParameterInfo>& UnifiedModuleManager::getMethodParameters(const std::string & className, const std::string & methodName) const {
-    if (classes_.find(className) != classes_.end() && classes_.at(className).info.methods.find(methodName) != classes_.at(className).info.methods.end()) {
+const std::vector<Modules::FunctParameterInfo> & UnifiedModuleManager::getMethodParameters(
+    const std::string & className, const std::string & methodName) const {
+    if (classes_.find(className) != classes_.end() &&
+        classes_.at(className).info.methods.find(methodName) != classes_.at(className).info.methods.end()) {
         return classes_.at(className).info.methods.at(methodName).parameters;
     }
     static std::vector<FunctParameterInfo> empty;
@@ -97,6 +99,10 @@ void UnifiedModuleManager::loadPlugin(const std::string & path) {
 // --- Function registration ---
 void UnifiedModuleManager::registerFunction(const std::string & name, CallbackFunction cb,
                                             const Symbols::Variables::Type & returnType) {
+    const auto it = functions_.find(name);
+    if (it != functions_.end()) {
+        throw std::runtime_error("Function already registered: " + name);
+    }
     functions_[name].callback   = std::make_shared<CallbackFunction>(std::move(cb));
     functions_[name].returnType = returnType;
     functions_[name].module     = currentModule_;
@@ -110,7 +116,7 @@ bool UnifiedModuleManager::hasFunction(const std::string & name) const {
     return functions_.find(name) != functions_.end();
 }
 
-Symbols::Value UnifiedModuleManager::callFunction(const std::string & name, FunctionArguments & args) const {
+Symbols::Value::ValuePtr UnifiedModuleManager::callFunction(const std::string & name, FunctionArguments & args) const {
     const auto & entry = findOrThrow(functions_, name, "Function not found");
     return (*entry.callback)(args);
 }
@@ -123,7 +129,7 @@ Symbols::Variables::Type UnifiedModuleManager::getFunctionReturnType(const std::
     return it->second.returnType;
 }
 
-Symbols::Value UnifiedModuleManager::getFunctionNullValue(const std::string & name) {
+Symbols::Value::ValuePtr UnifiedModuleManager::getFunctionNullValue(const std::string & name) {
     auto it = functions_.find(name);
     if (it == functions_.end()) {
         return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
@@ -155,11 +161,12 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
     findOrThrow(classes_, className, "Class not found").info.methodNames.push_back(methodName);
 }
 
-void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName,
-                                     std::function<Symbols::Value(const std::vector<Symbols::Value> &)> cb,
-                                     const Symbols::Variables::Type &                                   returnType) {
+void UnifiedModuleManager::addMethod(
+    const std::string & className, const std::string & methodName,
+    std::function<Symbols::Value::ValuePtr(const std::vector<Symbols::Value::ValuePtr> &)> cb,
+    const Symbols::Variables::Type &                                                       returnType) {
     // Create a copy of the callback before registering
-    auto callback = cb;
+    auto callback = std::move(cb);
     this->registerFunction(methodName, callback, returnType);
     findOrThrow(classes_, className, "Class not found").info.methodNames.push_back(methodName);
 }
@@ -186,13 +193,13 @@ std::vector<std::string> UnifiedModuleManager::getClassNames() const {
 
 // --- Object property management ---
 void UnifiedModuleManager::setObjectProperty(const std::string & className, const std::string & propertyName,
-                                             const Symbols::Value & value) {
+                                             const Symbols::Value::ValuePtr & value) {
     auto & classEntry                              = findOrThrow(classes_, className, "Class not found");
     classEntry.info.objectProperties[propertyName] = value;
 }
 
-Symbols::Value UnifiedModuleManager::getObjectProperty(const std::string & className,
-                                                       const std::string & propertyName) const {
+Symbols::Value::ValuePtr UnifiedModuleManager::getObjectProperty(const std::string & className,
+                                                                 const std::string & propertyName) const {
     const auto & classEntry = findOrThrow(classes_, className, "Class not found");
     auto         it         = classEntry.info.objectProperties.find(propertyName);
     if (it == classEntry.info.objectProperties.end()) {
@@ -365,3 +372,12 @@ UnifiedModuleManager::~UnifiedModuleManager() {
 #endif
     }
 }
+
+const Modules::FunctionDoc & Modules::UnifiedModuleManager::getFunctionDoc(const std::string & funcName) const {
+    //return findOrThrow(functions_, funcName, "Function not found").doc;
+    const auto it = functions_.find(funcName);
+    if (it == functions_.end()) {
+        throw std::runtime_error("function not registered: " + funcName);
+    }
+    return it->second.doc;
+};

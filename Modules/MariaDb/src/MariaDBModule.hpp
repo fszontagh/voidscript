@@ -16,10 +16,10 @@ class MariaDBModule : public BaseModule {
 
   private:
     // Methods exposed for MariaDB class
-    Symbols::Value connect(FunctionArguments & args);
-    Symbols::Value query(FunctionArguments & args);
-    Symbols::Value close(FunctionArguments & args);
-    Symbols::Value insert(FunctionArguments & args);
+    Symbols::Value::ValuePtr connect(FunctionArguments & args);
+    Symbols::Value::ValuePtr query(FunctionArguments & args);
+    Symbols::Value::ValuePtr close(FunctionArguments & args);
+    Symbols::Value::ValuePtr insert(FunctionArguments & args);
 };
 
 }  // namespace Modules

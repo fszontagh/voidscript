@@ -19,13 +19,15 @@ class StringModule : public BaseModule {
             { "string", Symbols::Variables::Type::STRING, "The string to calculate the length of" }
         };
 
-
         REGISTER_FUNCTION("string_length", Symbols::Variables::Type::INTEGER, param_list,
-                          "Calculate the length of a string", [this](FunctionArguments & args) -> Symbols::Value {
-                              if (args.size() != 1 || args[0].getType() != Symbols::Variables::Type::STRING) {
+                          "Calculate the length of a string",
+                          [this](FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                              if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
                                   throw Exception(name() + "::string_length expects one string argument");
                               }
-                              return Symbols::Value(static_cast<int>(args[0].get<std::string>().size()));
+                              const std::string str  = *args[0];
+                              size_t            size = str.size();
+                              return Symbols::Value::create(size);
                           });
 
         // string_replace
@@ -36,18 +38,18 @@ class StringModule : public BaseModule {
         };
         REGISTER_FUNCTION("string_replace", Symbols::Variables::Type::STRING, param_list,
                           "Replace part of a string with another string",
-                          [this](FunctionArguments & args) -> Symbols::Value {
+                          [this](FunctionArguments & args) -> Symbols::Value::ValuePtr {
                               if (args.size() < 3) {
                                   throw Exception(name() + "::string_replace expects at least 3 arguments");
                               }
-                              std::string str  = args[0].get<std::string>();
-                              std::string from = args[1].get<std::string>();
-                              std::string to   = args[2].get<std::string>();
+                              std::string str  = *args[0];
+                              std::string from = *args[1];
+                              std::string to   = *args[2];
                               size_t      pos  = str.find(from);
                               if (pos != std::string::npos) {
                                   str.replace(pos, from.length(), to);
                               }
-                              return Symbols::Value(str);
+                              return Symbols::Value::create(str);
                           });
 
         // string_substr
@@ -57,14 +59,15 @@ class StringModule : public BaseModule {
             { "length", Symbols::Variables::Type::INTEGER, "The length of the substring"            }
         };
         REGISTER_FUNCTION("string_substr", Symbols::Variables::Type::STRING, param_list,
-                          "Extract a substring from a string", [this](FunctionArguments & args) -> Symbols::Value {
+                          "Extract a substring from a string",
+                          [this](FunctionArguments & args) -> Symbols::Value::ValuePtr {
                               if (args.size() != 3) {
                                   throw Exception(name() + "::string_substr expects 3 arguments");
                               }
-                              std::string str    = args[0].get<std::string>();
-                              int         start  = args[1].get<int>();
-                              int         length = args[2].get<int>();
-                              return Symbols::Value(str.substr(start, length));
+                              std::string str    = *args[0];
+                              int         start  = *args[1];
+                              int         length = *args[2];
+                              return Symbols::Value::create(str.substr(start, length));
                           });
     }
 };

@@ -31,34 +31,34 @@ class ArrayModule : public BaseModule {
                           Modules::ArrayModule::SizeOf);
     }
 
-    static Symbols::Value SizeOf(FunctionArguments & args) {
+    static Symbols::Value::ValuePtr SizeOf(FunctionArguments & args) {
         if (args.size() != 1) {
             throw std::runtime_error("sizeof expects exactly one argument");
         }
         const auto & val  = args[0];
-        auto         type = val.getType();
+        auto         type = val->getType();
         switch (type) {
             case Symbols::Variables::Type::OBJECT:
                 {
-                    const auto & map = std::get<Symbols::Value::ObjectMap>(val.get());
-                    return Symbols::Value(static_cast<int>(map.size()));
+                    const auto & map = val->get<Symbols::Value::ObjectMap>();
+                    Symbols::Value::create(static_cast<int>(map.size()));
                 }
             case Symbols::Variables::Type::STRING:
                 {
-                    const auto & str = std::get<std::string>(val.get());
-                    return Symbols::Value(static_cast<int>(str.size()));
+                    const auto & str = val->get<std::string>();
+                    return Symbols::Value::create(static_cast<int>(str.size()));
                 }
             case Symbols::Variables::Type::CLASS:
                 {
-                    const auto & map = std::get<Symbols::Value::ObjectMap>(val.get());
-                    return Symbols::Value(static_cast<int>(map.size()));
+                    const auto & map = val->get<Symbols::Value::ObjectMap>();
+                    return Symbols::Value::create(static_cast<int>(map.size()));
                 }
             case Symbols::Variables::Type::INTEGER:
             case Symbols::Variables::Type::DOUBLE:
             case Symbols::Variables::Type::FLOAT:
             case Symbols::Variables::Type::BOOLEAN:
                 {
-                    return Symbols::Value(1);
+                    return Symbols::Value::create(1);
                 }
             default:
                 throw std::runtime_error("sizeof unsupported type");

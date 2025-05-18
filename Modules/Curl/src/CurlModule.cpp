@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
@@ -65,15 +66,15 @@ void CurlClient::setFollowRedirects(bool follow) {
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, follow ? 1L : 0L);
 }
 
-void CurlClient::setHeaders(const Symbols::Value & headersObj) {
+void CurlClient::setHeaders(Symbols::Value::ValuePtr headersObj) {
     clearHeaders();
-    if (headersObj.getType() != Symbols::Variables::Type::OBJECT) {
+    if (headersObj->getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("headers must be an object");
     }
 
-    const auto & hobj = std::get<Symbols::Value::ObjectMap>(headersObj.get());
+    const Symbols::Value::ObjectMap hobj = *headersObj;
     for (const auto & hk : hobj) {
-        if (hk.second.getType() != Symbols::Variables::Type::STRING) {
+        if (hk.second->getType() != Symbols::Variables::Type::STRING) {
             throw std::runtime_error("header values must be string");
         }
 
@@ -83,7 +84,7 @@ void CurlClient::setHeaders(const Symbols::Value & headersObj) {
             key = key.substr(1, key.size() - 2);
         }
 
-        std::string line = key + ": " + hk.second.get<std::string>();
+        std::string line = key + ": " + hk.second->get<std::string>();
         headers          = curl_slist_append(headers, line.c_str());
     }
     if (headers) {
@@ -109,14 +110,14 @@ void CurlClient::setCommonOptions() {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 }
 
-void CurlClient::parseOptions(const Symbols::Value & options) {
-    if (options.getType() != Symbols::Variables::Type::OBJECT) {
+void CurlClient::parseOptions(Symbols::Value::ValuePtr options) {
+    if (options == nullptr || options->getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("options must be an object");
     }
 
     // Preprocess all keys to remove quotes
     Symbols::Value::ObjectMap cleanedOptions;
-    const auto &              obj = std::get<Symbols::Value::ObjectMap>(options.get());
+    Symbols::Value::ObjectMap obj = *options;
 
     for (const auto & kv : obj) {
         std::string key = kv.first;
@@ -132,29 +133,29 @@ void CurlClient::parseOptions(const Symbols::Value & options) {
 
     // Now process with the cleaned keys
     for (const auto & kv : cleanedOptions) {
-        const std::string &    key = kv.first;
-        const Symbols::Value & v   = kv.second;
+        const std::string & key = kv.first;
+        const auto          v   = kv.second;
 
         if (key == "timeout") {
             using namespace Symbols::Variables;
-            switch (v.getType()) {
+            switch (v->getType()) {
                 case Type::INTEGER:
-                    setTimeout(v.get<int>());
+                    setTimeout(v->get<int>());
                     break;
                 case Type::DOUBLE:
-                    setTimeout(static_cast<long>(v.get<double>()));
+                    setTimeout(static_cast<long>(v->get<double>()));
                     break;
                 case Type::FLOAT:
-                    setTimeout(static_cast<long>(v.get<float>()));
+                    setTimeout(static_cast<long>(v->get<float>()));
                     break;
                 default:
                     throw std::runtime_error("timeout must be a number");
             }
         } else if (key == "follow_redirects" || key == "follow") {
-            if (v.getType() != Symbols::Variables::Type::BOOLEAN) {
+            if (v->getType() != Symbols::Variables::Type::BOOLEAN) {
                 throw std::runtime_error("follow_redirects must be boolean");
             }
-            setFollowRedirects(v.get<bool>());
+            setFollowRedirects(v->get<bool>());
         } else if (key == "headers") {
             setHeaders(v);
         } else {
@@ -174,21 +175,21 @@ std::string CurlClient::performRequest() {
     return response;
 }
 
-std::string CurlClient::get(const std::string & url, const Symbols::Value & options) {
+std::string CurlClient::get(const std::string & url, Symbols::Value::ValuePtr options) {
     setUrl(url);
-    parseOptions(options);
+    parseOptions(std::move(options));
     return performRequest();
 }
 
-std::string CurlClient::post(const std::string & url, const std::string & data, const Symbols::Value & options) {
+std::string CurlClient::post(const std::string & url, const std::string & data, Symbols::Value::ValuePtr options) {
     setUrl(url);
-    parseOptions(options);
+    parseOptions(std::move(options));
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
     return performRequest();
 }
 
-std::string CurlClient::put(const std::string & url, const std::string & data, const Symbols::Value & options) {
+std::string CurlClient::put(const std::string & url, const std::string & data, Symbols::Value::ValuePtr options) {
     setUrl(url);
     parseOptions(options);
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -196,7 +197,7 @@ std::string CurlClient::put(const std::string & url, const std::string & data, c
     return performRequest();
 }
 
-std::string CurlClient::delete_(const std::string & url, const Symbols::Value & options) {
+std::string CurlClient::delete_(const std::string & url, Symbols::Value::ValuePtr options) {
     setUrl(url);
     parseOptions(options);
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -210,56 +211,88 @@ void CurlModule::registerModule() {
         { "options", Symbols::Variables::Type::OBJECT, "Additional options for the request", true }
     };
 
-    REGISTER_FUNCTION("curlGet", Symbols::Variables::Type::STRING, param_list, "Perform HTTP GET",
-                      [this](const FunctionArguments & args) -> Symbols::Value { return this->curlGet(args); });
+    REGISTER_FUNCTION(
+        "curlGet", Symbols::Variables::Type::STRING, param_list, "Perform HTTP GET",
+        [this](const FunctionArguments & args) -> Symbols::Value::ValuePtr { return this->curlGet(args); });
 
-    REGISTER_FUNCTION("curlDelete", Symbols::Variables::Type::STRING, param_list, "Perform HTTP DELETE",
-                      [this](const FunctionArguments & args) -> Symbols::Value { return this->curlDelete(args); });
+    REGISTER_FUNCTION(
+        "curlDelete", Symbols::Variables::Type::STRING, param_list, "Perform HTTP DELETE",
+        [this](const FunctionArguments & args) -> Symbols::Value::ValuePtr { return this->curlDelete(args); });
     param_list = {
         { "url", Symbols::Variables::Type::STRING, "URL to perform query" },
         { "data", Symbols::Variables::Type::STRING, "Data to send" },
         { "options", Symbols::Variables::Type::STRING, "Optional CURL options object", true }
     };
 
-    REGISTER_FUNCTION("curlPost", Symbols::Variables::Type::STRING, param_list, "Perform HTTP POST",
-                      [this](const FunctionArguments & args) -> Symbols::Value { return this->curlPost(args); });
+    REGISTER_FUNCTION(
+        "curlPost", Symbols::Variables::Type::STRING, param_list, "Perform HTTP POST",
+        [this](const FunctionArguments & args) -> Symbols::Value::ValuePtr { return this->curlPost(args); });
 
     REGISTER_FUNCTION("curlPut", Symbols::Variables::Type::STRING, param_list, "Perform HTTP PUT",
-                      [this](FunctionArguments & args) -> Symbols::Value { return this->curlPut(args); });
+                      [this](FunctionArguments & args) -> Symbols::Value::ValuePtr { return this->curlPut(args); });
 }
 
-Symbols::Value CurlModule::curlGet(FunctionArguments & args) {
+Symbols::Value::ValuePtr CurlModule::curlGet(FunctionArguments & args) {
     if (args.empty() || args.size() > 2) {
         throw std::runtime_error("curlGet: expects url and optional options object");
     }
-    CurlClient client;
-    return client.get(Symbols::Value::to_string(args[0]), args.size() == 2 ? args[1] : Symbols::Value());
+    CurlClient               client;
+    const std::string        url     = *args[0];
+    Symbols::Value::ValuePtr options = nullptr;
+
+    if (args.size() == 3) {
+        options = args[1];
+    }
+    return Symbols::Value::create(client.get(url, options));
 }
 
-Symbols::Value CurlModule::curlPost(FunctionArguments & args) {
+Symbols::Value::ValuePtr CurlModule::curlPost(FunctionArguments & args) {
     if (args.size() < 2 || args.size() > 3) {
         throw std::runtime_error("curlPost: expects url, data, and optional options object");
     }
     CurlClient client;
-    return client.post(Symbols::Value::to_string(args[0]), Symbols::Value::to_string(args[1]),
-                       args.size() == 3 ? args[2] : Symbols::Value());
+
+    const std::string        url     = *args[0];
+    const std::string        data    = *args[1];
+    Symbols::Value::ValuePtr options = nullptr;
+
+    if (args.size() == 3) {
+        options = args[1];
+    }
+
+    return Symbols::Value::create(client.post(url, data, options));
 }
 
-Symbols::Value CurlModule::curlPut(FunctionArguments & args) {
+Symbols::Value::ValuePtr CurlModule::curlPut(FunctionArguments & args) {
     if (args.size() < 2 || args.size() > 3) {
         throw std::runtime_error("curlPut: expects url, data, and optional options object");
     }
     CurlClient client;
-    return client.put(Symbols::Value::to_string(args[0]), Symbols::Value::to_string(args[1]),
-                      args.size() == 3 ? args[2] : Symbols::Value());
+
+    const std::string        url     = *args[0];
+    const std::string        data    = *args[1];
+    Symbols::Value::ValuePtr options = nullptr;
+
+    if (args.size() == 3) {
+        options = args[1];
+    }
+
+    return Symbols::Value::create(client.put(url, data, options));
 }
 
-Symbols::Value CurlModule::curlDelete(FunctionArguments & args) {
+Symbols::Value::ValuePtr CurlModule::curlDelete(FunctionArguments & args) {
     if (args.empty() || args.size() > 2) {
         throw std::runtime_error("curlDelete: expects url and optional options object");
     }
-    CurlClient client;
-    return client.delete_(Symbols::Value::to_string(args[0]), args.size() == 2 ? args[1] : Symbols::Value());
+    CurlClient               client;
+    const std::string        url     = *args[0];
+    Symbols::Value::ValuePtr options = nullptr;
+
+    if (args.size() == 3) {
+        options = args[1];
+    }
+
+    return Symbols::Value::create(client.delete_(url, options));
 }
 
 }  // namespace Modules

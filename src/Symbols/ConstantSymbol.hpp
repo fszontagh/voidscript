@@ -13,12 +13,12 @@ class ConstantSymbol : public Symbol {
   protected:
     Symbols::Variables::Type _vartype;
   public:
-    ConstantSymbol(const std::string & name, const Symbols::Value & value, const std::string & context) :
+    ConstantSymbol(const std::string & name, const Symbols::Value::ValuePtr & value, const std::string & context) :
         Symbol(name, value, context, Symbols::Kind::Constant) {}
 
     Symbols::Kind kind() const override { return Symbols::Kind::Constant; }
 
-    void setValue(const Symbols::Value & /*value*/) override {
+    void setValue(const Symbols::Value::ValuePtr & /*value*/) override {
         throw std::logic_error("Cannot modify a constant symbol");
     }
 };

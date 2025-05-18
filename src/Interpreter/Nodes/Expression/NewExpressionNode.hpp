@@ -37,7 +37,7 @@ class NewExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
+    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
         auto & registry = Modules::UnifiedModuleManager::instance();
         // Ensure class is defined
         if (!registry.hasClass(className_)) {
@@ -49,8 +49,8 @@ class NewExpressionNode : public ExpressionNode {
         // Default initialization for all properties
         size_t                    propCount = info.properties.size();
         for (size_t i = 0; i < propCount; ++i) {
-            const auto &   prop  = info.properties[i];
-            Symbols::Value value = Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+            const auto & prop  = info.properties[i];
+            auto         value = Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
             if (prop.defaultValueExpr) {
                 // Build and evaluate default expression
                 auto exprNode = Parser::buildExpressionFromParsed(prop.defaultValueExpr);
@@ -69,7 +69,7 @@ class NewExpressionNode : public ExpressionNode {
         }
             */
         // Embed class metadata for method dispatch
-        obj["__class__"] = Symbols::Value(className_);
+        obj["__class__"] = std::make_shared<Symbols::Value>(className_);
         // Return class instance value (distinct from plain object)
         return Symbols::Value::makeClassInstance(obj);
     }

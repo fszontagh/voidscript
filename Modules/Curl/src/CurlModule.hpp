@@ -4,7 +4,6 @@
 
 #include <curl/curl.h>
 
-#include <memory>
 #include <string>
 
 #include "Modules/BaseModule.hpp"
@@ -17,9 +16,9 @@ class CurlClient {
     CURL *              curl;
     std::string         response;
     struct curl_slist * headers;
-    long                timeoutSec = 20;
+    long                timeoutSec      = 20;
     bool                followRedirects = false;
-    bool                initialized = false;
+    bool                initialized     = false;
 
     static size_t write_callback(void * ptr, size_t size, size_t nmemb, void * userdata);
 
@@ -30,22 +29,20 @@ class CurlClient {
     void setUrl(const std::string & url);
     void setTimeout(long seconds);
     void setFollowRedirects(bool follow);
-    void setHeaders(const Symbols::Value & headersObj);
+    void setHeaders(Symbols::Value::ValuePtr headersObj);
     void addHeader(const std::string & name, const std::string & value);
     void clearHeaders();
 
-    std::string get(const std::string & url, const Symbols::Value & options = Symbols::Value());
-    std::string post(const std::string & url, const std::string & data,
-                     const Symbols::Value & options = Symbols::Value());
-    std::string put(const std::string & url, const std::string & data,
-                    const Symbols::Value & options = Symbols::Value());
-    std::string delete_(const std::string & url, const Symbols::Value & options = Symbols::Value());
+    std::string get(const std::string & url, Symbols::Value::ValuePtr options = nullptr);
+    std::string post(const std::string & url, const std::string & data, Symbols::Value::ValuePtr options = nullptr);
+    std::string put(const std::string & url, const std::string & data, Symbols::Value::ValuePtr options = nullptr);
+    std::string delete_(const std::string & url, Symbols::Value::ValuePtr options = nullptr);
 
   private:
     void        initialize();
     void        cleanup();
     void        setCommonOptions();
-    void        parseOptions(const Symbols::Value & options);
+    void        parseOptions(Symbols::Value::ValuePtr options);
     std::string performRequest();
 };
 
@@ -68,7 +65,7 @@ class CurlModule final : public BaseModule {
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    static Symbols::Value curlGet(FunctionArguments & args);
+    static Symbols::Value::ValuePtr curlGet(FunctionArguments & args);
 
     /**
      * @brief Perform HTTP POST: curlPost(url, data [, options])
@@ -77,10 +74,10 @@ class CurlModule final : public BaseModule {
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    static Symbols::Value curlPost(FunctionArguments & args);
+    static Symbols::Value::ValuePtr curlPost(FunctionArguments & args);
 
-    Symbols::Value curlPut(FunctionArguments & args);
-    Symbols::Value curlDelete(FunctionArguments & args);
+    Symbols::Value::ValuePtr curlPut(FunctionArguments & args);
+    Symbols::Value::ValuePtr curlDelete(FunctionArguments & args);
 };
 
 }  // namespace Modules

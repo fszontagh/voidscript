@@ -39,8 +39,7 @@ class MethodCallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
-        using namespace Symbols;
+    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
         // Evaluate target object and track original symbol for write-back
         auto *                           sc      = Symbols::SymbolContainer::instance();
         // Determine original variable symbol (only simple identifiers)
@@ -53,21 +52,21 @@ class MethodCallExpressionNode : public ExpressionNode {
         }
         try {
             // Evaluate target object (produces a copy)
-            Value objVal = objectExpr_->evaluate(interpreter);
+            Symbols::Value::ValuePtr objVal = objectExpr_->evaluate(interpreter);
 
             // Allow method calls on class instances (and plain objects with class metadata)
-            if (objVal.getType() != Variables::Type::OBJECT && objVal.getType() != Variables::Type::CLASS) {
+            if (objVal->getType() != Symbols::Variables::Type::OBJECT && objVal->getType() != Symbols::Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
                                 column_);
             }
-            const auto & objMap = std::get<Value::ObjectMap>(objVal.get());
+            const auto & objMap = std::get<Symbols::Value::ObjectMap>(objVal->get());
 
             // Extract class name
             auto it = objMap.find("__class__");
-            if (it == objMap.end() || it->second.getType() != Variables::Type::STRING) {
+            if (it == objMap.end() || it->second->getType() != Symbols::Variables::Type::STRING) {
                 throw std::invalid_argument("Object is missing class metadata for method: " + methodName_);
             }
-            std::string className = it->second.get<std::string>();
+            std::string className = it->second->get<std::string>();
             // Verify method exists
             auto &      registry  = Modules::UnifiedModuleManager::instance();
             if (!registry.hasMethod(className, methodName_)) {
@@ -76,7 +75,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
 
             // Evaluate arguments (including 'this')
-            std::vector<Value> argValues;
+            std::vector<Symbols::Value::ValuePtr> argValues;
             argValues.reserve(args_.size() + 1);
             argValues.push_back(objVal);
             for (const auto & arg : args_) {
@@ -87,18 +86,18 @@ class MethodCallExpressionNode : public ExpressionNode {
                 auto &      mgr      = Modules::UnifiedModuleManager::instance();
                 std::string fullName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
                 if (mgr.hasFunction(fullName)) {
-                    Value           ret     = mgr.callFunction(fullName, argValues);
-                    Variables::Type retType = mgr.getFunctionReturnType(fullName);
-                    if (ret.getType() != retType) {
+                    Symbols::Value::ValuePtr ret     = mgr.callFunction(fullName, argValues);
+                    Symbols::Variables::Type          retType = mgr.getFunctionReturnType(fullName);
+                    if (ret->getType() != retType) {
                         throw Exception("Method " + methodName_ + " return value type missmatch. Expected: " +
                                             Symbols::Variables::TypeToString(retType) + " got " +
-                                            Symbols::Variables::TypeToString(ret.getType()),
+                                            Symbols::Variables::TypeToString(ret->getType()),
                                         filename_, line_, column_);
                     }
                     // Write back modified object if returned
                     if (origSym &&
-                        (ret.getType() == Variables::Type::OBJECT || ret.getType() == Variables::Type::CLASS)) {
-                        if (origSym->getValue().getType() == ret.getType()) {
+                        (ret->getType() == Symbols::Variables::Type::OBJECT || ret->getType() == Symbols::Variables::Type::CLASS)) {
+                        if (origSym->getValue()->getType() == ret->getType()) {
                             origSym->setValue(ret);
                         }
                     }
@@ -106,7 +105,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 }
             }
 
-            auto *            sc_instance = SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
+            auto *            sc_instance = Symbols::SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
             const std::string current_file_scope = sc_instance->currentScopeName();
             const std::string class_scope_name =
                 current_file_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
@@ -117,12 +116,12 @@ class MethodCallExpressionNode : public ExpressionNode {
                 sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
             }
 
-            if (!sym || sym->getKind() != Kind::Function) {
+            if (!sym || sym->getKind() != Symbols::Kind::Function) {
                 throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", filename_, line_,
                                 column_);
             }
-            auto            funcSym    = std::static_pointer_cast<FunctionSymbol>(sym);
-            Variables::Type returnType = funcSym->returnType();
+            auto            funcSym    = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
+            Symbols::Variables::Type returnType = funcSym->returnType();
             // Check argument count
             const auto &    params     = funcSym->parameters();
             if (params.size() != args_.size()) {
@@ -133,7 +132,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             // validate arg types
             size_t _c = 1;
             for (const auto & _p : params) {
-                const auto argType = argValues[_c].getType();
+                const auto argType = argValues[_c]->getType();
                 if (_p.type != argType) {
                     throw Exception("Invalid type of arguments:: '" + className + "->" + methodName_ +
                                         "' unexpected type at " + std::to_string(_c) + " '" + (_p.name) +
@@ -151,12 +150,12 @@ class MethodCallExpressionNode : public ExpressionNode {
             // Bind 'this' to the unique call scope
             // Note: SymbolFactory::createVariable third argument 'context' is for symbol's own context,
             // SymbolContainer::add will use the *current* scope (actualMethodCallScope) for placement.
-            sc_instance->add(SymbolFactory::createVariable("this", objVal, actualMethodCallScope));
+            sc_instance->add(Symbols::SymbolFactory::createVariable("this", objVal, actualMethodCallScope));
 
             // Bind parameters to the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
                 sc_instance->add(
-                    SymbolFactory::createVariable(params[i].name, argValues[i + 1], actualMethodCallScope));
+                    Symbols::SymbolFactory::createVariable(params[i].name, argValues[i + 1], actualMethodCallScope));
             }
 
             // Execute method body. Operations are fetched from the method's definition scope.
@@ -165,68 +164,19 @@ class MethodCallExpressionNode : public ExpressionNode {
                     interpreter.runOperation(*op);
                 } catch (const ReturnException & re) {
                     // Write back modified object state before returning
-                    if (origSym) {
-                        // Retrieve 'this' from the current call's unique scope
-                        auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
-                       if (call_scope_table) {
-                            auto thisSym =
-                                call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
-                            if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
-                                Value thisValue = thisSym->getValue();
-                                // Directly update the 'name' property
-                                if (thisValue.getType() == Variables::Type::OBJECT) {
-                                    auto& objMap = std::get<Value::ObjectMap>(thisValue.get());
-                                    if (objMap.find("name") != objMap.end()) {
-                                        objMap["name"] = objVal.get<std::string>();
-                                    }
-                                }
-                                origSym->setValue(thisValue);
-                            }
-                        } else {
-                            // Log error or handle: method call scope table not found
-                        }
 
-                    }
                     sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
                     return re.value();
                 }
             }
             // Write back modified object state after method execution
-            if (origSym) {
-                // Retrieve 'this' from the current call's unique scope
-                auto call_scope_table = sc_instance->getScopeTable(actualMethodCallScope);
-                if (call_scope_table) {
-                    auto thisSym = call_scope_table->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, "this");
-                    if (thisSym && thisSym->getValue().getType() == Variables::Type::CLASS) {
-                        const auto& objMap = std::get<Value::ObjectMap>(thisSym->getValue().get());
-                        auto mutableOrigSym = std::const_pointer_cast<Symbols::Symbol>(origSym);
-                        Symbols::Value origValue = mutableOrigSym->getValue();                        
-                        if(origValue.getType() == Variables::Type::CLASS) {
-                            auto& origObjMap = std::get<Value::ObjectMap>(origValue.get());
 
-                            for (const auto& [key, val] : objMap) {
-                                origObjMap[key] = val;
-                            }
-                            mutableOrigSym->setValue(origValue);
-                        } else {
-                            // Handle the case where origValue is not a CLASS type
-                            // This might involve logging an error or taking alternative action
-                            std::cerr << "Warning: origValue is not a CLASS type. Cannot update properties." << std::endl;
-                        }
-
-
-                    }
-                } else {
-                    // Log error or handle: method call scope table not found
-
-                }
-            }
             sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
             // Return type checking: if method declares a non-null return type, error if no value was returned
-            if (returnType == Variables::Type::NULL_TYPE) {
-                return Value::makeNull(Variables::Type::NULL_TYPE);
+            if (returnType == Symbols::Variables::Type::NULL_TYPE) {
+                return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
             }
-            throw Exception("Method '" + methodName_ + "' (return type: " + Variables::TypeToString(returnType) +
+            throw Exception("Method '" + methodName_ + "' (return type: " + Symbols::Variables::TypeToString(returnType) +
                                 ") did not return a value",
                             filename_, line_, column_);
 

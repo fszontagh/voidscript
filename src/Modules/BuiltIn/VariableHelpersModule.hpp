@@ -29,21 +29,20 @@ class VariableHelpersModule : public BaseModule {
         };
         REGISTER_FUNCTION("typeof", Symbols::Variables::Type::STRING, param_list, "Get the type of a variable",
                           [](const FunctionArguments & args) {
-                              using namespace Symbols;
                               if (args.size() == 1) {
-                                  auto t = args[0].getType();
-                                  return Value(Variables::TypeToString(t));
+                                  auto t = args[0]->getType();
+                                  return Symbols::Value::create(Symbols::Variables::TypeToString(t));
                               }
                               if (args.size() == 2) {
-                                  auto t = args[0].getType();
-                                  if (args[1].getType() != Variables::Type::STRING) {
+                                  auto t = args[0]->getType();
+                                  if (args[1]->getType() != Symbols::Variables::Type::STRING) {
                                       throw std::runtime_error("Second argument to typeof must be string");
                                   }
                                   // Compare against provided type name via mapping
-                                  const std::string provided = args[1].get<std::string>();
-                                  auto              expected = Variables::StringToType(provided);
+                                  const std::string provided = *args[1];
+                                  auto              expected = Symbols::Variables::StringToType(provided);
                                   bool              match    = (t == expected);
-                                  return Value(match);
+                                  return Symbols::Value::create(match);
                               }
                               throw std::runtime_error("typeof expects 1 or 2 arguments");
                           });

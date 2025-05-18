@@ -29,15 +29,17 @@ class AssignmentStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         using namespace Symbols;
         auto * symContainer = SymbolContainer::instance();
-        
+
         // Find the target symbol hierarchically
-        auto symbol = symContainer->findSymbol(targetName_); 
-        
+        auto symbol = symContainer->findSymbol(targetName_);
+
         if (!symbol) {
             // Use the error message from findSymbol which indicates search scope
-             throw Exception("Variable '" + targetName_ + "' not found starting from scope: " + symContainer->currentScopeName(), filename_, line_, column_);
+            throw Exception(
+                "Variable '" + targetName_ + "' not found starting from scope: " + symContainer->currentScopeName(),
+                filename_, line_, column_);
         }
-        
+
         // Check if the found symbol is a constant
         if (symbol->getKind() == Kind::Constant) {
             throw Exception("Cannot assign to constant '" + targetName_ + "'", filename_, line_, column_);
@@ -45,67 +47,73 @@ class AssignmentStatementNode : public StatementNode {
 
         // If propertyPath_ is not empty, we are assigning to an object member
         if (!propertyPath_.empty()) {
-             // Get the object value from the base symbol
-             Value objectValue = symbol->getValue();
-             if (objectValue.getType() != Variables::Type::OBJECT && objectValue.getType() != Variables::Type::CLASS) {
-                 throw Exception("Attempting to assign property on non-object variable '" + targetName_ + "'", filename_, line_, column_);
-             }
-             
-             // Evaluate RHS first
-             Value newValue = rhs_->evaluate(interpreter);
+            // Get the object value from the base symbol
+            Symbols::Value::ValuePtr objectValue = symbol->getValue();
+            if (objectValue->getType() != Variables::Type::OBJECT && objectValue->getType() != Variables::Type::CLASS) {
+                throw Exception("Attempting to assign property on non-object variable '" + targetName_ + "'", filename_,
+                                line_, column_);
+            }
 
-             // Traverse and modify the nested object structure IN PLACE within the Value obtained from the symbol
-             // (Requires Value to allow modification of its internal map, or handle copy-on-write)
-             // Assuming Value allows modification via get() returning a reference or similar mechanism
-             // --- Modification Logic (Needs careful review based on Value implementation) ---
-             Value* currentVal = &objectValue; // Start with the base object value
-             for (size_t i = 0; i < propertyPath_.size(); ++i) {
-                 const auto& key = propertyPath_[i];
-                 if (currentVal->getType() != Variables::Type::OBJECT && currentVal->getType() != Variables::Type::CLASS) {
-                      throw Exception("Intermediate property '" + key + "' is not an object", filename_, line_, column_);
-                 }
-                 
-                 auto& currentMap = std::get<Value::ObjectMap>(currentVal->get()); // Get reference to map
-                 auto it = currentMap.find(key);
-                 if (it == currentMap.end()) {
-                     throw Exception("Property '" + key + "' not found on object", filename_, line_, column_);
-                 }
-                 
-                 if (i == propertyPath_.size() - 1) {
-                     // Last element: perform assignment
-                      // Type check before assignment
-                      if (newValue.getType() != Variables::Type::NULL_TYPE && it->second.getType() != Variables::Type::NULL_TYPE && newValue.getType() != it->second.getType()) {
-                           using namespace Variables;
-                            throw Exception("Type mismatch for property '" + key + "': expected '" +
-                                                TypeToString(it->second.getType()) + "' but got '" + TypeToString(newValue.getType()) +
-                                                "'",
-                                            filename_, line_, column_);
-                      }
-                     it->second = newValue; // Assign the new value to the property in the map
-                 } else {
-                     // Move to the next level
-                     currentVal = &it->second; 
-                 }
-             }
-             // --- End Modification Logic ---
-             
-             // Update the original symbol with the modified objectValue
-             symbol->setValue(objectValue);
-             
+            // Evaluate RHS first
+            Symbols::Value::ValuePtr newValue = rhs_->evaluate(interpreter);
+
+            // Traverse and modify the nested object structure IN PLACE within the Value obtained from the symbol
+            // (Requires Value to allow modification of its internal map, or handle copy-on-write)
+            // Assuming Value allows modification via get() returning a reference or similar mechanism
+            // --- Modification Logic (Needs careful review based on Value implementation) ---
+            auto currentVal = objectValue;  // Start with the base object value
+            for (size_t i = 0; i < propertyPath_.size(); ++i) {
+                const auto & key = propertyPath_[i];
+                if (currentVal->getType() != Variables::Type::OBJECT &&
+                    currentVal->getType() != Variables::Type::CLASS) {
+                    throw Exception("Intermediate property '" + key + "' is not an object", filename_, line_, column_);
+                }
+
+                auto & currentMap = std::get<Value::ObjectMap>(currentVal->get());  // Get reference to map
+                auto   it         = currentMap.find(key);
+                if (it == currentMap.end()) {
+                    throw Exception("Property '" + key + "' not found on object", filename_, line_, column_);
+                }
+
+                if (i == propertyPath_.size() - 1) {
+                    // Last element: perform assignment
+                    // Type check before assignment
+                    if (newValue->getType() != Variables::Type::NULL_TYPE &&
+                        it->second->getType() != Variables::Type::NULL_TYPE &&
+                        newValue->getType() != it->second->getType()) {
+                        using namespace Variables;
+                        throw Exception("Type mismatch for property '" + key + "': expected '" +
+                                            TypeToString(it->second->getType()) + "' but got '" +
+                                            TypeToString(newValue->getType()) + "'",
+                                        filename_, line_, column_);
+                    }
+                    it->second = newValue;  // Assign the new value to the property in the map
+                } else {
+                    // Move to the next level
+                    currentVal = it->second;
+                }
+            }
+            // --- End Modification Logic ---
+
+            // Update the original symbol with the modified objectValue
+            symbol->setValue(objectValue);
+
         } else {
             // Simple variable assignment (targetName_ is the variable itself)
-            Value newValue = rhs_->evaluate(interpreter);
-            Value currentValue = symbol->getValue(); // Get current value for type checking
+            auto newValue     = rhs_->evaluate(interpreter);
+            auto currentValue = symbol->getValue();  // Get current value for type checking
 
             // Type check (allow assigning NULL to anything, otherwise types must match)
-             if (newValue.getType() != Variables::Type::NULL_TYPE && currentValue.getType() != Variables::Type::NULL_TYPE && newValue.getType() != currentValue.getType()) {
+            if (newValue->getType() != Variables::Type::NULL_TYPE &&
+                currentValue->getType() != Variables::Type::NULL_TYPE &&
+                newValue->getType() != currentValue->getType()) {
                 using namespace Variables;
                 throw Exception("Type mismatch assigning to variable '" + targetName_ + "': expected '" +
-                                    TypeToString(currentValue.getType()) + "' but got '" +
-                                    TypeToString(newValue.getType()) + "'",
+                                    TypeToString(currentValue->getType()) + "' but got '" +
+                                    TypeToString(newValue->getType()) + "'",
                                 filename_, line_, column_);
             }
-            symbol->setValue(newValue); // Assign directly to the symbol
+            symbol->setValue(newValue);  // Assign directly to the symbol
         }
     }
 

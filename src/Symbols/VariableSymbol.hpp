@@ -11,9 +11,9 @@ class VariableSymbol : public Symbol {
   protected:
     Symbols::Variables::Type type_;
   public:
-    VariableSymbol(const std::string & name, const std::shared_ptr<Symbols::Value> & value, const std::string & context,
+    VariableSymbol(const std::string & name, Value::ValuePtr & value, const std::string & context,
                    Variables::Type type) :
-        Symbol(name, value, context, Symbols::Kind::Variable),
+        Symbols::Symbol(name, std::move(value), context, Symbols::Kind::Variable),
         type_(type) {}
 
     Symbols::Kind kind() const override { return Symbols::Kind::Variable; }
@@ -23,15 +23,15 @@ class VariableSymbol : public Symbol {
     std::string toString() const {
         std::string r = "VariableSymbol: " + name_ + " Type: " + Symbols::Variables::TypeToString(type_);
         if (type_ == Symbols::Variables::Type::INTEGER) {
-            r += " Value: " + std::to_string(value_.get<int>());
+            r += " Value: " + std::to_string(value_->get<int>());
         } else if (type_ == Symbols::Variables::Type::DOUBLE) {
-            r += " Value: " + std::to_string(value_.get<double>());
+            r += " Value: " + std::to_string(value_->get<double>());
         } else if (type_ == Symbols::Variables::Type::FLOAT) {
-            r += " Value: " + std::to_string(value_.get<float>());
+            r += " Value: " + std::to_string(value_->get<float>());
         } else if (type_ == Symbols::Variables::Type::STRING) {
-            r += " Value: " + value_.get<std::string>();
+            r += " Value: " + value_->get<std::string>();
         } else if (type_ == Symbols::Variables::Type::BOOLEAN) {
-            r += " Value: " + std::to_string(value_.get<bool>());
+            r += " Value: " + std::to_string(value_->get<bool>());
         } else if (type_ == Symbols::Variables::Type::NULL_TYPE) {
             r += " Value: null";
         }

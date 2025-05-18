@@ -87,13 +87,13 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
             expected_var_type != Symbols::Variables::Type::STRING) {
             return false;
         }
-        output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::Value(token.value)));
+        output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::Value::fromString(token.value,Symbols::Variables::Type::STRING)));
         return true;
     }
     if (token.type == Tokens::Type::KEYWORD) {
         // Keyword literal: e.g., true, false, null
         auto val   = Symbols::Value::fromString(token.value, /*autoDetectType*/ true);
-        auto vtype = val.getType();
+        auto vtype = val->getType();
         // only allowed if expected matches or unspecified
         if (expected_var_type != Symbols::Variables::Type::NULL_TYPE && expected_var_type != vtype) {
             return false;

@@ -24,7 +24,7 @@ class WhileStatementNode : public StatementNode {
         conditionExpr_(std::move(conditionExpr)),
         body_(std::move(body)) {
         // Create a unique scope name for this while loop
-        loopScopeName_ = Symbols::SymbolContainer::instance()->currentScopeName() + "::while_" + 
+        loopScopeName_ = Symbols::SymbolContainer::instance()->currentScopeName() + "::while_" +
                         std::to_string(line) + "_" + std::to_string(column);
     }
 
@@ -32,7 +32,7 @@ class WhileStatementNode : public StatementNode {
         bool entered_scope = false;
         try {
             auto* sc = Symbols::SymbolContainer::instance();
-            
+
             // Create and enter the loop scope only once
             if (!sc->getScopeTable(loopScopeName_)) {
                 sc->create(loopScopeName_);
@@ -43,11 +43,11 @@ class WhileStatementNode : public StatementNode {
             bool cond;
             while (true) {
                 auto val = conditionExpr_->evaluate(interpreter);
-                if (val.getType() != Symbols::Variables::Type::BOOLEAN) {
+                if (val->getType() != Symbols::Variables::Type::BOOLEAN) {
                     throw Exception("Condition did not evaluate to boolean: " + conditionExpr_->toString(), filename_,
                                     line_, column_);
                 }
-                cond = val.get<bool>();
+                cond = val->get<bool>();
                 if (!cond) {
                     break;
                 }
@@ -67,7 +67,7 @@ class WhileStatementNode : public StatementNode {
             }
             throw Exception(e.what(), filename_, line_, column_);
         }
-        
+
         // Exit the loop scope
         if (entered_scope) {
             Symbols::SymbolContainer::instance()->enterPreviousScope();

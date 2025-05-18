@@ -243,7 +243,7 @@ message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
 message(STATUS "  PARSER_OPEN_TAG:     '${PARSER_OPEN_TAG}'")
 message(STATUS "  PARSER_CLOSE_TAG:    '${PARSER_CLOSE_TAG}'\n")
 
-if (BUILD_EMBEDDED EQUAL OFF)
+if (NOT BUILD_EMBEDDED)
     message(STATUS "  MODULES_FOLDER:            ${MODULES_FOLDER}")
     foreach(MODULE IN LISTS AVAILABLE_MODULES)
         add_dynamic_module(${MODULE})

@@ -24,7 +24,7 @@ class ReturnStatementNode : public StatementNode {
         expr_(std::move(expr)) {}
 
     void interpret(Interpreter & interpreter) const override {
-        Symbols::Value retVal;
+        Symbols::Value::ValuePtr retVal;
         if (expr_) {
             retVal = expr_->evaluate(interpreter);
         }

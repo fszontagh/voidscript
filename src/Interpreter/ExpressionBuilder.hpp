@@ -1,7 +1,6 @@
 #ifndef PARSEREXPRESSION_BUILDER_HPP
 #define PARSEREXPRESSION_BUILDER_HPP
 
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 
@@ -57,7 +56,7 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                     // Property access on object
                     if (expr->rhs->kind == ParsedExpression::Kind::Literal) {
                         // Static member name (string literal or identifier)
-                        std::string propName = expr->rhs->value.get<std::string>();
+                        std::string propName = expr->rhs->value->get<std::string>();
                         // Check if it's a dynamic access marker
                         if (propName.size() > 3 && propName.substr(0, 2) == "${" && propName.back() == '}') {
                             // For dynamic access, we'll create a special marker in the property path
@@ -70,33 +69,16 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                         // Regular static member access
                         return std::make_unique<Interpreter::MemberExpressionNode>(
                             std::move(objectExpr), propName, expr->filename, expr->line, expr->column);
-                    } else if (expr->rhs->kind == ParsedExpression::Kind::Variable) {
+                    }
+                    if (expr->rhs->kind == ParsedExpression::Kind::Variable) {
                         // Variable as property name - convert to static member access
                         return std::make_unique<Interpreter::MemberExpressionNode>(
                             std::move(objectExpr), expr->rhs->name, expr->filename, expr->line, expr->column);
-                    } else {
-                        std::string msg = "Invalid member access expression - right side has unexpected kind: ";
-                        switch (expr->rhs->kind) {
-                            case ParsedExpression::Kind::Binary:
-                                msg += "Binary";
-                                break;
-                            case ParsedExpression::Kind::Unary:
-                                msg += "Unary";
-                                break;
-                            case ParsedExpression::Kind::MethodCall:
-                                msg += "MethodCall";
-                                break;
-                            case ParsedExpression::Kind::New:
-                                msg += "New";
-                                break;
-                            case ParsedExpression::Kind::Object:
-                                msg += "Object";
-                                break;
-                            default:
-                                msg += "Unknown";
-                        }
-                        throw Interpreter::Exception(msg, expr->filename, expr->line, expr->column);
                     }
+                    std::string msg = "Invalid member access expression - right side has unexpected kind: " +
+                                      ParsedExpression::kindToString(expr->rhs->kind);
+
+                    throw Interpreter::Exception(msg, expr->filename, expr->line, expr->column);
                 }
                 // Default binary operator
                 auto lhs = buildExpressionFromParsed(expr->lhs);
@@ -152,9 +134,15 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                 return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objectExpr), propName,
                                                                            expr->filename, expr->line, expr->column);
             }
+        default:
+            {
+                throw std::runtime_error("Unknown ParsedExpression kind: " +
+                                         ParsedExpression::kindToString(expr->kind));
+            }
+            break;
     }
 
-    throw std::runtime_error("Unknown ParsedExpression kind");
+    throw std::runtime_error("Unknown ParsedExpression kind: " + ParsedExpression::kindToString(expr->kind));
 }
 
 inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {

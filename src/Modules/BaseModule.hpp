@@ -5,13 +5,15 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../BaseException.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
-using FunctionArguments = const std::vector<Symbols::Value>;
-using CallbackFunction  = std::function<Symbols::Value(FunctionArguments &)>;
+using FunctionArguments = const std::vector<Symbols::Value::ValuePtr>;
+using CallbackFunction  = std::function<Symbols::Value::ValuePtr(FunctionArguments &)>;
 
 namespace Modules {
 
@@ -38,14 +40,14 @@ class BaseModule {
 
     Symbols::Value::ObjectMap getObjectMap(const FunctionArguments & args, const std::string & funcName) {
         if (!args.empty()) {
-            if (args[0].getType() != Symbols::Variables::Type::CLASS &&
-                args[0].getType() != Symbols::Variables::Type::OBJECT) {
-                throw std::runtime_error(this->moduleName + "::" + funcName + " must be called on " + this->moduleName +
-                                         " instance");
+            if (args[0]->getType() != Symbols::Variables::Type::CLASS &&
+                args[0]->getType() != Symbols::Variables::Type::OBJECT) {
+                throw std::runtime_error(this->moduleName + Symbols::SymbolContainer::SCOPE_SEPARATOR + funcName +
+                                         " must be called on " + this->moduleName + " instance");
             }
-            return std::get<Symbols::Value::ObjectMap>(args[0].get());
+            return std::get<Symbols::Value::ObjectMap>(args[0]->get());
         }
-        throw std::invalid_argument(this->moduleName + "::" + funcName + ": invalid arguments size");
+        throw std::invalid_argument(this->moduleName +  Symbols::SymbolContainer::SCOPE_SEPARATOR + funcName + ": invalid arguments size");
     }
 
     template <typename T> int storeType(const T & data) {
@@ -63,14 +65,14 @@ class BaseModule {
         throw std::runtime_error("Data not found at index: " + std::to_string(i));
     }
 
-    Symbols::Value::ObjectMap storeObject(const FunctionArguments & args, const Symbols::Value & value,
+    Symbols::Value::ObjectMap storeObject(const FunctionArguments & args, Symbols::Value::ValuePtr value,
                                           const std::string & objName = "__item__") {
         auto objectMap     = this->getObjectMap(args, "");
-        objectMap[objName] = value;
+        objectMap[objName] = std::move(value);
         return objectMap;
     }
 
-    Symbols::Value getObjectValue(const FunctionArguments & args, const std::string & objName = "__item__") {
+    Symbols::Value::ValuePtr getObjectValue(const FunctionArguments & args, const std::string & objName = "__item__") {
         auto objectMap = this->getObjectMap(args, objName);
         auto it        = objectMap.find(objName);
         if (it == objectMap.end()) {

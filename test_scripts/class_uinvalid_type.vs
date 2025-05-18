@@ -2,11 +2,17 @@ class Test {
     string $name = "NoName";
     int $age = 11;
 
-    function construct(string $name, int $age) {
-        this->$name = $name;
-        this->$age = $age;
+    function construct(string $name_, int $age_) {
+        this->$age = $age_;
+        this->$name = $name_;
+        printnl("Test::construct called");
     }
 
+    function setName(string $newName) {
+        printnl("Method: setName: this->$name: ", this->$name, " $newName: ", $newName);
+        this->$name = $newName;
+        printnl("Method: setName: this->$name: ", this->$name, " $newName: ", $newName);
+    }
 
     function getAge() int {
         return this->$age;
@@ -22,7 +28,8 @@ class Test {
 
 }
 
-Test $t1 = new Test();
+Test $t1 = new Test("Batman");
+$t1->setName("New name");
 //$t1->incrementAge(1);
 
 //printnl("Age: ", $t1->getAge());
