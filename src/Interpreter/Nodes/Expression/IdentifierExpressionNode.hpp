@@ -13,7 +13,7 @@ class IdentifierExpressionNode : public ExpressionNode {
   public:
     explicit IdentifierExpressionNode(std::string name) : name_(std::move(name)) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & /*interpreter*/) const override {
+    Symbols::ValuePtr evaluate(Interpreter & /*interpreter*/) const override {
         auto* sc = Symbols::SymbolContainer::instance();
 
         // Use a hierarchical find method starting from the current scope

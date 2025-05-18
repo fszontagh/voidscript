@@ -16,7 +16,7 @@ class BinaryExpressionNode : public ExpressionNode {
         rhs_(std::move(rhs)),
         op_(std::move(op)) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         auto leftVal  = lhs_->evaluate(interpreter);
         auto rightVal = rhs_->evaluate(interpreter);
 

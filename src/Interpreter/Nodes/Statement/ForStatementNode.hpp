@@ -51,7 +51,7 @@ class ForStatementNode : public StatementNode {
             if (iterableVal->getType() != Symbols::Variables::Type::OBJECT) {
                 throw Exception("For-in loop applied to non-object", filename_, line_, column_);
             }
-            const Symbols::Value::ObjectMap & objMap       = *iterableVal;
+            const Symbols::ObjectMap & objMap       = *iterableVal;
             auto *                            symContainer = Symbols::SymbolContainer::instance();
 
             // Create and enter the loop scope only once
@@ -69,7 +69,7 @@ class ForStatementNode : public StatementNode {
 
             for (const auto & entry : objMap) {
                 const std::string & key    = entry.first;
-                auto                keyVal = Symbols::Value::create(key);
+                auto                keyVal = Symbols::ValuePtr::create(key);
                 keySym->setValue(keyVal);
                 valSym->setValue(entry.second);
 

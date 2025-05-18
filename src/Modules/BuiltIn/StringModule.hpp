@@ -21,13 +21,13 @@ class StringModule : public BaseModule {
 
         REGISTER_FUNCTION("string_length", Symbols::Variables::Type::INTEGER, param_list,
                           "Calculate the length of a string",
-                          [this](FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [this](FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
                                   throw Exception(name() + "::string_length expects one string argument");
                               }
                               const std::string str  = *args[0];
                               size_t            size = str.size();
-                              return Symbols::Value::create(size);
+                              return Symbols::ValuePtr::create(size);
                           });
 
         // string_replace
@@ -38,7 +38,7 @@ class StringModule : public BaseModule {
         };
         REGISTER_FUNCTION("string_replace", Symbols::Variables::Type::STRING, param_list,
                           "Replace part of a string with another string",
-                          [this](FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [this](FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() < 3) {
                                   throw Exception(name() + "::string_replace expects at least 3 arguments");
                               }
@@ -49,7 +49,7 @@ class StringModule : public BaseModule {
                               if (pos != std::string::npos) {
                                   str.replace(pos, from.length(), to);
                               }
-                              return Symbols::Value::create(str);
+                              return Symbols::ValuePtr::create(str);
                           });
 
         // string_substr
@@ -60,14 +60,14 @@ class StringModule : public BaseModule {
         };
         REGISTER_FUNCTION("string_substr", Symbols::Variables::Type::STRING, param_list,
                           "Extract a substring from a string",
-                          [this](FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [this](FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 3) {
                                   throw Exception(name() + "::string_substr expects 3 arguments");
                               }
                               std::string str    = *args[0];
                               int         start  = *args[1];
                               int         length = *args[2];
-                              return Symbols::Value::create(str.substr(start, length));
+                              return Symbols::ValuePtr::create(str.substr(start, length));
                           });
     }
 };

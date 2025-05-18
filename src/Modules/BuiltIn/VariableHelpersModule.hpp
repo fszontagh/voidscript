@@ -31,7 +31,7 @@ class VariableHelpersModule : public BaseModule {
                           [](const FunctionArguments & args) {
                               if (args.size() == 1) {
                                   auto t = args[0]->getType();
-                                  return Symbols::Value::create(Symbols::Variables::TypeToString(t));
+                                  return Symbols::ValuePtr::create(Symbols::Variables::TypeToString(t));
                               }
                               if (args.size() == 2) {
                                   auto t = args[0]->getType();
@@ -42,7 +42,7 @@ class VariableHelpersModule : public BaseModule {
                                   const std::string provided = *args[1];
                                   auto              expected = Symbols::Variables::StringToType(provided);
                                   bool              match    = (t == expected);
-                                  return Symbols::Value::create(match);
+                                  return Symbols::ValuePtr::create(match);
                               }
                               throw std::runtime_error("typeof expects 1 or 2 arguments");
                           });

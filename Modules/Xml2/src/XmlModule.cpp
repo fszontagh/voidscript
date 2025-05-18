@@ -63,7 +63,7 @@ Symbols::Value Modules::XmlModule::readFile(FunctionArguments & args) {
     const std::string filename       = args[1].get<std::string>();
     xmlDocPtr         doc            = xmlReadFile(filename.c_str(), NULL, 0);
     docHolder[handler]               = doc;
-    Symbols::Value::ObjectMap objMap = this->storeObject(args, Symbols::Value{ handler }, this->objectStoreName);
+    Symbols::ObjectMap objMap = this->storeObject(args, Symbols::Value{ handler }, this->objectStoreName);
     objMap["__class__"]              = this->className;
     return Symbols::Value::makeClassInstance(objMap);
 }
@@ -107,11 +107,11 @@ Symbols::Value Modules::XmlModule::readMemory(FunctionArguments & args) {
     docHolder[handler] = doc;
 
     // Create a new object map for the XML document
-    Symbols::Value::ObjectMap objMap;
+    Symbols::ObjectMap objMap;
     if (args.size() > 0 && (args[0].getType() == Symbols::Variables::Type::CLASS ||
                             args[0].getType() == Symbols::Variables::Type::OBJECT)) {
         // If this is a method call on an existing object, use its map
-        objMap = std::get<Symbols::Value::ObjectMap>(args[0].get());
+        objMap = std::get<Symbols::ObjectMap>(args[0].get());
     }
 
     // Use the new property management system
@@ -160,7 +160,7 @@ Symbols::Value Modules::XmlModule::GetRootElement(const FunctionArguments & args
     nodeHolder[nodeHandle] = root;
 
     // Create a new object map for the XML node
-    Symbols::Value::ObjectMap nodeObjMap;
+    Symbols::ObjectMap nodeObjMap;
 
     // Use the new property management system for the XmlNode class
     manager.setObjectProperty("XmlNode", "__xml_node_handler_id__", Symbols::Value(nodeHandle));
@@ -187,7 +187,7 @@ Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
         const auto * node_content = node->content;
         const auto   children     = node->children;
 
-        Symbols::Value::ObjectMap map;
+        Symbols::ObjectMap map;
         map["tagName"]    = Symbols::Value(node_name);
         map["tagType"]    = Symbols::Value(XmlModule::xmlElementTypeToString(node_type));
         map["tagContent"] = Symbols::Value(node_content);
@@ -197,7 +197,7 @@ Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
         }
 
         if (children) {
-            Symbols::Value::ObjectMap childrenArray;
+            Symbols::ObjectMap childrenArray;
             unsigned int              i = 0;
             for (xmlNodePtr child = children; child; child = child->next) {
                 if (child->type != XML_ELEMENT_NODE) {
@@ -207,7 +207,7 @@ Symbols::Value Modules::XmlModule::GetNodeAttributes(FunctionArguments & args) {
                 int childHandle         = nextDoc++;
                 nodeHolder[childHandle] = child;
 
-                Symbols::Value::ObjectMap childObj =
+                Symbols::ObjectMap childObj =
                     this->storeObject(args, Symbols::Value{ childHandle }, "__xml_node_handler_id__");
                 childObj["__class__"] = "XmlNode";
 

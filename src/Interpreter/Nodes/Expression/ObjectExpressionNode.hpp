@@ -12,12 +12,12 @@ namespace Interpreter {
 
 class ObjectExpressionNode : public ExpressionNode {
   public:
-    using ObjectMap = Symbols::Value::ObjectMap;
+    using ObjectMap = Symbols::ObjectMap;
 
     explicit ObjectExpressionNode(std::vector<std::pair<std::string, std::unique_ptr<ExpressionNode>>> members) :
         members_(std::move(members)) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         ObjectMap obj;
         for (const auto & kv : members_) {
             obj[kv.first] = kv.second->evaluate(interpreter);

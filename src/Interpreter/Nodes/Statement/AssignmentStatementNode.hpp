@@ -48,14 +48,14 @@ class AssignmentStatementNode : public StatementNode {
         // If propertyPath_ is not empty, we are assigning to an object member
         if (!propertyPath_.empty()) {
             // Get the object value from the base symbol
-            Symbols::Value::ValuePtr objectValue = symbol->getValue();
+            Symbols::ValuePtr objectValue = symbol->getValue();
             if (objectValue->getType() != Variables::Type::OBJECT && objectValue->getType() != Variables::Type::CLASS) {
                 throw Exception("Attempting to assign property on non-object variable '" + targetName_ + "'", filename_,
                                 line_, column_);
             }
 
             // Evaluate RHS first
-            Symbols::Value::ValuePtr newValue = rhs_->evaluate(interpreter);
+            Symbols::ValuePtr newValue = rhs_->evaluate(interpreter);
 
             // Traverse and modify the nested object structure IN PLACE within the Value obtained from the symbol
             // (Requires Value to allow modification of its internal map, or handle copy-on-write)

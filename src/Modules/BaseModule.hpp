@@ -12,8 +12,8 @@
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
-using FunctionArguments = const std::vector<Symbols::Value::ValuePtr>;
-using CallbackFunction  = std::function<Symbols::Value::ValuePtr(FunctionArguments &)>;
+using FunctionArguments = const std::vector<Symbols::ValuePtr>;
+using CallbackFunction  = std::function<Symbols::ValuePtr(FunctionArguments &)>;
 
 namespace Modules {
 
@@ -38,14 +38,14 @@ class BaseModule {
 
     std::string name() const { return this->moduleName; }
 
-    Symbols::Value::ObjectMap getObjectMap(const FunctionArguments & args, const std::string & funcName) {
+    Symbols::ObjectMap getObjectMap(const FunctionArguments & args, const std::string & funcName) {
         if (!args.empty()) {
-            if (args[0]->getType() != Symbols::Variables::Type::CLASS &&
-                args[0]->getType() != Symbols::Variables::Type::OBJECT) {
+            if (args[0] != Symbols::Variables::Type::CLASS &&
+                args[0] != Symbols::Variables::Type::OBJECT) {
                 throw std::runtime_error(this->moduleName + Symbols::SymbolContainer::SCOPE_SEPARATOR + funcName +
                                          " must be called on " + this->moduleName + " instance");
             }
-            return std::get<Symbols::Value::ObjectMap>(args[0]->get());
+            return args[0];
         }
         throw std::invalid_argument(this->moduleName +  Symbols::SymbolContainer::SCOPE_SEPARATOR + funcName + ": invalid arguments size");
     }
@@ -65,14 +65,14 @@ class BaseModule {
         throw std::runtime_error("Data not found at index: " + std::to_string(i));
     }
 
-    Symbols::Value::ObjectMap storeObject(const FunctionArguments & args, Symbols::Value::ValuePtr value,
+    Symbols::ObjectMap storeObject(const FunctionArguments & args, Symbols::ValuePtr value,
                                           const std::string & objName = "__item__") {
         auto objectMap     = this->getObjectMap(args, "");
         objectMap[objName] = std::move(value);
         return objectMap;
     }
 
-    Symbols::Value::ValuePtr getObjectValue(const FunctionArguments & args, const std::string & objName = "__item__") {
+    Symbols::ValuePtr getObjectValue(const FunctionArguments & args, const std::string & objName = "__item__") {
         auto objectMap = this->getObjectMap(args, objName);
         auto it        = objectMap.find(objName);
         if (it == objectMap.end()) {

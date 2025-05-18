@@ -12,11 +12,11 @@ namespace Interpreter {
  */
 class ReturnException {
   public:
-    explicit ReturnException(Symbols::Value::ValuePtr value) : value_(std::move(value)) {}
+    explicit ReturnException(Symbols::ValuePtr value) : value_(std::move(value)) {}
 
-    const Symbols::Value::ValuePtr & value() const { return value_; }
+    const Symbols::ValuePtr & value() const { return value_; }
   private:
-    Symbols::Value::ValuePtr value_;
+    Symbols::ValuePtr value_;
 };
 }  // namespace Interpreter
 #endif  // INTERPRETER_RETURN_EXCEPTION_HPP

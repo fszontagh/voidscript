@@ -26,13 +26,13 @@ class ArrayAccessExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         // Evaluate the container (object or array)
-        Symbols::Value::ValuePtr container = arrayExpr_->evaluate(interpreter);
+        Symbols::ValuePtr container = arrayExpr_->evaluate(interpreter);
         if (container->getType() != Symbols::Variables::Type::OBJECT) {
             throw Exception("Attempted to index non-array", filename_, line_, column_);
         }
-        const auto & map    = container->get<Symbols::Value::ObjectMap>();
+        const auto & map    = container->get<Symbols::ObjectMap>();
         // Evaluate the index
         auto         idxVal = indexExpr_->evaluate(interpreter);
         std::string  key;

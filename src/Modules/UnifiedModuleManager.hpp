@@ -39,8 +39,8 @@ struct FunctionDoc {
     std::string                     description;    // short description
 };
 
-using FunctionArguments = const std::vector<Symbols::Value::ValuePtr>;
-using CallbackFunction  = std::function<Symbols::Value::ValuePtr(FunctionArguments &)>;
+using FunctionArguments = const std::vector<Symbols::ValuePtr>;
+using CallbackFunction  = std::function<Symbols::ValuePtr(FunctionArguments &)>;
 
 struct ClassInfo {
     struct MethodInfo {
@@ -59,7 +59,7 @@ struct ClassInfo {
 
     std::vector<Modules::ClassInfo::PropertyInfo>             properties;
     std::vector<std::string>                                  methodNames;
-    std::unordered_map<std::string, Symbols::Value::ValuePtr> objectProperties;  // Store object-specific properties
+    std::unordered_map<std::string, Symbols::ValuePtr> objectProperties;  // Store object-specific properties
 };
 
 class UnifiedModuleManager {
@@ -82,9 +82,9 @@ class UnifiedModuleManager {
                                               const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
     void                     registerDoc(const std::string & ModName, const FunctionDoc & doc);
     bool                     hasFunction(const std::string & name) const;
-    Symbols::Value::ValuePtr callFunction(const std::string & name, FunctionArguments & args) const;
+    Symbols::ValuePtr callFunction(const std::string & name, FunctionArguments & args) const;
     Symbols::Variables::Type getFunctionReturnType(const std::string & name);
-    Symbols::Value::ValuePtr getFunctionNullValue(const std::string & name);
+    Symbols::ValuePtr getFunctionNullValue(const std::string & name);
 
     // --- Class registration ---
     bool        hasClass(const std::string & className) const;
@@ -94,7 +94,7 @@ class UnifiedModuleManager {
                      Parser::ParsedExpressionPtr defaultValueExpr = nullptr);
     void addMethod(const std::string & className, const std::string & methodName);
     void addMethod(const std::string & className, const std::string & methodName,
-                   std::function<Symbols::Value::ValuePtr(const std::vector<Symbols::Value::ValuePtr> &)> cb,
+                   std::function<Symbols::ValuePtr(const std::vector<Symbols::ValuePtr> &)> cb,
                    const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
     bool hasProperty(const std::string & className, const std::string & propertyName) const;
     bool hasMethod(const std::string & className, const std::string & methodName) const;
@@ -102,8 +102,8 @@ class UnifiedModuleManager {
 
     // --- Object property management ---
     void                     setObjectProperty(const std::string & className, const std::string & propertyName,
-                                               const Symbols::Value::ValuePtr & value);
-    Symbols::Value::ValuePtr getObjectProperty(const std::string & className, const std::string & propertyName) const;
+                                               const Symbols::ValuePtr & value);
+    Symbols::ValuePtr getObjectProperty(const std::string & className, const std::string & propertyName) const;
     void                     deleteObjectProperty(const std::string & className, const std::string & propertyName);
     bool                     hasObjectProperty(const std::string & className, const std::string & propertyName) const;
     void                     clearObjectProperties(const std::string & className);

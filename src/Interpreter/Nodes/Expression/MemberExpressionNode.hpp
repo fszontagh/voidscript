@@ -21,7 +21,7 @@ class MemberExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-        Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+        Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         auto objVal = objectExpr_->evaluate(interpreter);
 
         // Allow member access on plain objects and class instances
@@ -31,7 +31,7 @@ class MemberExpressionNode : public ExpressionNode {
                             column_);
         }
 
-        auto map = objVal->get<Symbols::Value::ObjectMap>();
+        auto map = objVal->get<Symbols::ObjectMap>();
         auto it = map.find(propertyName_);
         if (it == map.end()) {
             throw Exception("Property '" + propertyName_ + "' not found in object", filename_, line_, column_);

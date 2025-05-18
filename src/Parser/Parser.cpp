@@ -1,5 +1,6 @@
 #include "Parser/Parser.hpp"
 
+#include <sstream>
 #include <stack>
 
 #include "Interpreter/ExpressionBuilder.hpp"
@@ -225,16 +226,14 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
 
                 if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "++")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
-                    auto rhs =
-                        std::make_unique<Interpreter::LiteralExpressionNode>(std::make_shared<Symbols::Value>(1));
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "+", std::move(rhs));
                     incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
                         incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
                         incrTok.line_number, incrTok.column_number);
                 } else if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "--")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
-                    auto rhs =
-                        std::make_unique<Interpreter::LiteralExpressionNode>(std::make_shared<Symbols::Value>(1));
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "-", std::move(rhs));
                     incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
                         incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
@@ -364,7 +363,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
 
         // Build assignment: $var = $var OP 1
         auto        lhs   = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
-        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(std::make_shared<Symbols::Value>(1));
+        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
         std::string binOp = (opTok.value == "++") ? "+" : "-";
         auto assignRhs    = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
         // Return the assignment node
@@ -390,7 +389,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
             std::unique_ptr<Interpreter::ExpressionNode> lhs =
                 std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
             std::unique_ptr<Interpreter::ExpressionNode> rhs =
-                std::make_unique<Interpreter::LiteralExpressionNode>(std::make_shared<Symbols::Value>(1));
+                std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
             std::string binOp = (opTok.value == "++") ? "+" : "-";
             auto assignRhs = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
             // Return the assignment statement node
@@ -1697,7 +1696,7 @@ void Parser::parseTopLevelStatement() {
 
         // Build assignment: $var = $var OP 1
         auto        lhs   = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
-        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(std::make_shared<Symbols::Value>(1));
+        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
         std::string binOp = (opTok.value == "++") ? "+" : "-";
         auto assignRhs    = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
         // Add the assignment operation
@@ -1726,7 +1725,7 @@ void Parser::parseTopLevelStatement() {
             std::unique_ptr<Interpreter::ExpressionNode> lhs =
                 std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
             std::unique_ptr<Interpreter::ExpressionNode> rhs =
-                std::make_unique<Interpreter::LiteralExpressionNode>(std::make_shared<Symbols::Value>(1));
+                std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
             std::string binOp = (opTok.value == "++") ? "+" : "-";
             auto assignRhs = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
             // Add the assignment operation

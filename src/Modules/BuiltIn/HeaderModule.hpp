@@ -23,7 +23,7 @@ class HeaderModule : public BaseModule {
 
         REGISTER_FUNCTION("header", Symbols::Variables::Type::NULL_TYPE, params,
                           "FastCGI header management (header setting like PHP header())",
-                          [](const FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 2 || args[0]->getType() != Symbols::Variables::Type::STRING ||
                                   args[1]->getType() != Symbols::Variables::Type::STRING) {
                                   throw Exception("header(key, value) requires two string arguments");
@@ -31,7 +31,7 @@ class HeaderModule : public BaseModule {
                               const std::string & key = args[0]->get<std::string>();
                               const std::string & val = args[1]->get<std::string>();
                               setHeader(key, val);
-                              return std::make_shared<Symbols::Value>();
+                              return Symbols::Value::null();
                           });
     }
 

@@ -42,7 +42,7 @@ class PrintModule : public BaseModule {
                           &PrintModule::Print);
     }
 
-    static Symbols::Value::ValuePtr ThrowError(const FunctionArguments & args) {
+    static Symbols::ValuePtr ThrowError(const FunctionArguments & args) {
         if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
             throw Exception("throw_error requires exactly one string argument");
         }
@@ -51,7 +51,7 @@ class PrintModule : public BaseModule {
         return Symbols::Value::null();
     }
 
-    static Symbols::Value::ValuePtr Error(const FunctionArguments & args) {
+    static Symbols::ValuePtr Error(const FunctionArguments & args) {
         for (const auto & v : args) {
             std::cerr << Symbols::Value::to_string(v);
         }
@@ -59,7 +59,7 @@ class PrintModule : public BaseModule {
         return Symbols::Value::null();
     }
 
-    static Symbols::Value::ValuePtr PrintNL(const FunctionArguments & args) {
+    static Symbols::ValuePtr PrintNL(const FunctionArguments & args) {
         for (const auto & v : args) {
             std::string valStr = Symbols::Value::to_string(v);
             std::cout << valStr;
@@ -68,7 +68,7 @@ class PrintModule : public BaseModule {
         return Symbols::Value::null();
     }
 
-    static Symbols::Value::ValuePtr Print(const FunctionArguments & args) {
+    static Symbols::ValuePtr Print(const FunctionArguments & args) {
         for (const auto & v : args) {
             std::string valStr = Symbols::Value::to_string(v);
             std::cout << valStr;

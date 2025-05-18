@@ -11,7 +11,7 @@ class VariableSymbol : public Symbol {
   protected:
     Symbols::Variables::Type type_;
   public:
-    VariableSymbol(const std::string & name, Value::ValuePtr & value, const std::string & context,
+    VariableSymbol(const std::string & name, ValuePtr & value, const std::string & context,
                    Variables::Type type) :
         Symbols::Symbol(name, std::move(value), context, Symbols::Kind::Variable),
         type_(type) {}

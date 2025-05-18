@@ -32,7 +32,7 @@ class OperationsFactory {
             ns, Operations::Operation{ Operations::Type::FuncDeclaration, functionName, std::move(stmt) });
     }
 
-    static void defineSimpleVariable(const std::string & varName, Symbols::Value::ValuePtr value,
+    static void defineSimpleVariable(const std::string & varName, Symbols::ValuePtr value,
                                      const std::string & ns, const std::string & filename, int line, size_t column) {
         auto literalExpr = std::make_unique<LiteralExpressionNode>(value);
 
@@ -43,7 +43,7 @@ class OperationsFactory {
             ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });
     }
 
-    static void defineSimpleConstantVariable(const std::string & varName, Symbols::Value::ValuePtr value,
+    static void defineSimpleConstantVariable(const std::string & varName, Symbols::ValuePtr value,
                                              const std::string & ns, const std::string & filename, int line,
                                              size_t column) {
         auto literalExpr = std::make_unique<LiteralExpressionNode>(value);

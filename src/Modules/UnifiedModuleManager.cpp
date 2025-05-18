@@ -116,7 +116,7 @@ bool UnifiedModuleManager::hasFunction(const std::string & name) const {
     return functions_.find(name) != functions_.end();
 }
 
-Symbols::Value::ValuePtr UnifiedModuleManager::callFunction(const std::string & name, FunctionArguments & args) const {
+Symbols::ValuePtr UnifiedModuleManager::callFunction(const std::string & name, FunctionArguments & args) const {
     const auto & entry = findOrThrow(functions_, name, "Function not found");
     return (*entry.callback)(args);
 }
@@ -129,7 +129,7 @@ Symbols::Variables::Type UnifiedModuleManager::getFunctionReturnType(const std::
     return it->second.returnType;
 }
 
-Symbols::Value::ValuePtr UnifiedModuleManager::getFunctionNullValue(const std::string & name) {
+Symbols::ValuePtr UnifiedModuleManager::getFunctionNullValue(const std::string & name) {
     auto it = functions_.find(name);
     if (it == functions_.end()) {
         return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
@@ -163,7 +163,7 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
 
 void UnifiedModuleManager::addMethod(
     const std::string & className, const std::string & methodName,
-    std::function<Symbols::Value::ValuePtr(const std::vector<Symbols::Value::ValuePtr> &)> cb,
+    std::function<Symbols::ValuePtr(const std::vector<Symbols::ValuePtr> &)> cb,
     const Symbols::Variables::Type &                                                       returnType) {
     // Create a copy of the callback before registering
     auto callback = std::move(cb);
@@ -193,12 +193,12 @@ std::vector<std::string> UnifiedModuleManager::getClassNames() const {
 
 // --- Object property management ---
 void UnifiedModuleManager::setObjectProperty(const std::string & className, const std::string & propertyName,
-                                             const Symbols::Value::ValuePtr & value) {
+                                             const Symbols::ValuePtr & value) {
     auto & classEntry                              = findOrThrow(classes_, className, "Class not found");
     classEntry.info.objectProperties[propertyName] = value;
 }
 
-Symbols::Value::ValuePtr UnifiedModuleManager::getObjectProperty(const std::string & className,
+Symbols::ValuePtr UnifiedModuleManager::getObjectProperty(const std::string & className,
                                                                  const std::string & propertyName) const {
     const auto & classEntry = findOrThrow(classes_, className, "Class not found");
     auto         it         = classEntry.info.objectProperties.find(propertyName);

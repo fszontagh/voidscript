@@ -37,7 +37,7 @@ class NewExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         auto & registry = Modules::UnifiedModuleManager::instance();
         // Ensure class is defined
         if (!registry.hasClass(className_)) {
@@ -45,7 +45,7 @@ class NewExpressionNode : public ExpressionNode {
         }
         // Initialize object fields from class definition
         const auto &              info = registry.getClassInfo(className_);
-        Symbols::Value::ObjectMap obj;
+        Symbols::ObjectMap obj;
         // Default initialization for all properties
         size_t                    propCount = info.properties.size();
         for (size_t i = 0; i < propCount; ++i) {

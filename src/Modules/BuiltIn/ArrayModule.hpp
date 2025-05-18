@@ -31,7 +31,7 @@ class ArrayModule : public BaseModule {
                           Modules::ArrayModule::SizeOf);
     }
 
-    static Symbols::Value::ValuePtr SizeOf(FunctionArguments & args) {
+    static Symbols::ValuePtr SizeOf(FunctionArguments & args) {
         if (args.size() != 1) {
             throw std::runtime_error("sizeof expects exactly one argument");
         }
@@ -40,25 +40,25 @@ class ArrayModule : public BaseModule {
         switch (type) {
             case Symbols::Variables::Type::OBJECT:
                 {
-                    const auto & map = val->get<Symbols::Value::ObjectMap>();
-                    Symbols::Value::create(static_cast<int>(map.size()));
+                    const auto & map = val->get<Symbols::ObjectMap>();
+                    Symbols::ValuePtr::create(static_cast<int>(map.size()));
                 }
             case Symbols::Variables::Type::STRING:
                 {
                     const auto & str = val->get<std::string>();
-                    return Symbols::Value::create(static_cast<int>(str.size()));
+                    return Symbols::ValuePtr::create(static_cast<int>(str.size()));
                 }
             case Symbols::Variables::Type::CLASS:
                 {
-                    const auto & map = val->get<Symbols::Value::ObjectMap>();
-                    return Symbols::Value::create(static_cast<int>(map.size()));
+                    const auto & map = val->get<Symbols::ObjectMap>();
+                    return Symbols::ValuePtr::create(static_cast<int>(map.size()));
                 }
             case Symbols::Variables::Type::INTEGER:
             case Symbols::Variables::Type::DOUBLE:
             case Symbols::Variables::Type::FLOAT:
             case Symbols::Variables::Type::BOOLEAN:
                 {
-                    return Symbols::Value::create(1);
+                    return Symbols::ValuePtr::create(1);
                 }
             default:
                 throw std::runtime_error("sizeof unsupported type");

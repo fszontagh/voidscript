@@ -37,11 +37,11 @@ class CallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         using namespace Symbols;
         try {
             // Evaluate argument expressions
-            std::vector<Symbols::Value::ValuePtr> argValues;
+            std::vector<Symbols::ValuePtr> argValues;
             argValues.reserve(args_.size());
             for (const auto & expr : args_) {
                 argValues.push_back(expr->evaluate(interpreter));
@@ -115,7 +115,7 @@ class CallExpressionNode : public ExpressionNode {
             }
 
             // Execute function body operations. These operations will use the current unique_call_scope_name.
-            Symbols::Value::ValuePtr returnValue;
+            Symbols::ValuePtr returnValue;
             // Operations are associated with the canonical function name (where they are defined/parsed)
             auto                     ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
             for (const auto & op : ops) {

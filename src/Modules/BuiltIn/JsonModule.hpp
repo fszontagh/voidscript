@@ -28,15 +28,15 @@ class JsonModule : public BaseModule {
             { "object", Symbols::Variables::Type::OBJECT, "The object / array to serialize" },
         };
         REGISTER_FUNCTION("json_encode", Symbols::Variables::Type::STRING, params, "Serialize a value to JSON string",
-                          [](const FunctionArguments & args) -> std::shared_ptr<Symbols::Value> {
+                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
                               using namespace Symbols;
                               if (args.size() != 1) {
                                   throw std::runtime_error("json_encode expects 1 argument");
                               }
                               // forward to encoder
-                              std::function<std::string(Symbols::Value::ValuePtr)> encode;
-                              encode = [&](Symbols::Value::ValuePtr v) -> std::string {
-                                  const auto & var = v->get();
+                              std::function<std::string(Symbols::ValuePtr)> encode;
+                              encode = [&](Symbols::ValuePtr v) -> std::string {
+                                  const auto & var = v.raw()->get<std::string>();
                                   return std::visit(
                                       [&](auto && x) -> std::string {
                                           using T = std::decay_t<decltype(x)>;
@@ -84,7 +84,7 @@ class JsonModule : public BaseModule {
                                               }
                                               out += "\"";
                                               return out;
-                                          } else if constexpr (std::is_same_v<T, Symbols::Value::ObjectMap>) {
+                                          } else if constexpr (std::is_same_v<T, Symbols::ObjectMap>) {
                                               std::string out   = "{";
                                               bool        first = true;
                                               for (const auto & kv : x) {
@@ -141,7 +141,7 @@ class JsonModule : public BaseModule {
                                       var);
                               };
                               std::string result = encode(args.at(0));
-                              return std::make_shared<Symbols::Value>(result);
+                              return Symbols::ValuePtr::create(result);
                           });
 
         params = {
@@ -151,7 +151,7 @@ class JsonModule : public BaseModule {
                           &Modules::JsonModule::JsonDecode);
     }
 
-    static Symbols::Value::ValuePtr JsonDecode(const FunctionArguments & args) {
+    static Symbols::ValuePtr JsonDecode(const FunctionArguments & args) {
         if (args.size() != 1) {
             throw std::runtime_error("json_decode expects 1 argument");
         }
@@ -225,7 +225,7 @@ class JsonModule : public BaseModule {
                 return out;
             }
 
-            Symbols::Value::ValuePtr parseNumber() {
+            Symbols::ValuePtr parseNumber() {
                 skip();
                 size_t start = pos;
                 if (s[pos] == '-') {
@@ -245,28 +245,28 @@ class JsonModule : public BaseModule {
                 std::string num = s.substr(start, pos - start);
                 try {
                     if (isDouble) {
-                        return std::make_shared<Symbols::Value>(std::stod(num));
+                        return Symbols::ValuePtr::create(std::stod(num));
                     }
-                    return std::make_shared<Symbols::Value>(std::stoi(num));
+                    return Symbols::ValuePtr::create(std::stoi(num));
                 } catch (...) {
                     throw std::runtime_error("Invalid JSON number: " + num);
                 }
             }
 
-            Symbols::Value::ValuePtr parseBool() {
+            Symbols::ValuePtr parseBool() {
                 skip();
                 if (s.compare(pos, 4, "true") == 0) {
                     pos += 4;
-                    return std::make_shared<Symbols::Value>(true);
+                    return Symbols::ValuePtr::create(true);
                 }
                 if (s.compare(pos, 5, "false") == 0) {
                     pos += 5;
-                    return std::make_shared<Symbols::Value>(false);
+                    return Symbols::ValuePtr::create(false);
                 }
                 throw std::runtime_error("Invalid JSON boolean");
             }
 
-            Symbols::Value::ValuePtr parseNull() {
+            Symbols::ValuePtr parseNull() {
                 skip();
                 if (s.compare(pos, 4, "null") == 0) {
                     pos += 4;
@@ -275,17 +275,17 @@ class JsonModule : public BaseModule {
                 throw std::runtime_error("Invalid JSON null");
             }
 
-            Symbols::Value::ValuePtr parseObject() {
+            Symbols::ValuePtr parseObject() {
                 skip();
                 if (s[pos] != '{') {
                     throw std::runtime_error("Invalid JSON object");
                 }
                 pos++;
                 skip();
-                Symbols::Value::ObjectMap obj;
+                Symbols::ObjectMap obj;
                 if (s[pos] == '}') {
                     pos++;
-                    return std::make_shared<Symbols::Value>(obj);
+                    return Symbols::ValuePtr::create(obj);
                 }
                 while (pos < s.size()) {
                     skip();
@@ -296,7 +296,7 @@ class JsonModule : public BaseModule {
                     }
                     pos++;
                     skip();
-                    Symbols::Value::ValuePtr val = parseValue();
+                    Symbols::ValuePtr val = parseValue();
                     obj.emplace(key, val);
                     skip();
                     if (s[pos] == ',') {
@@ -309,10 +309,10 @@ class JsonModule : public BaseModule {
                     }
                     throw std::runtime_error("Expected ',' or '}' in object");
                 }
-                return std::make_shared<Symbols::Value>(obj);
+                return Symbols::ValuePtr::create(obj);
             }
 
-            Symbols::Value::ValuePtr parseValue() {
+            Symbols::ValuePtr parseValue() {
                 skip();
                 if (pos >= s.size()) {
                     throw std::runtime_error("Empty JSON");
@@ -323,7 +323,7 @@ class JsonModule : public BaseModule {
                 }
                 if (c == '"') {
                     std::string str = parseString();
-                    return std::make_shared<Symbols::Value>(str);
+                    return Symbols::ValuePtr::create(str);
                 }
                 if (c == 't' || c == 'f') {
                     return parseBool();
@@ -338,7 +338,7 @@ class JsonModule : public BaseModule {
             }
         } parser(s);
 
-        Symbols::Value::ValuePtr result = parser.parseValue();
+        Symbols::ValuePtr result = parser.parseValue();
         return result;
     }
 };

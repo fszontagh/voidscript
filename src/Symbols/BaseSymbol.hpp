@@ -13,19 +13,13 @@ namespace Symbols {
 
 class Symbol {
   protected:
-    std::string     name_;
-    Value::ValuePtr value_;
-    std::string     context_;  // ns
-    Symbols::Kind   kind_;
+    std::string   name_;
+    ValuePtr      value_;
+    std::string   context_;  // ns
+    Symbols::Kind kind_;
 
   public:
-    Symbol(const std::string & name, Value::ValuePtr & value, const std::string & context, Symbols::Kind type) :
-        name_(name),
-        value_(value),
-        context_(context),
-        kind_(type) {}
-
-    Symbol(const std::string & name, Value::ValuePtr value, const std::string & context, Symbols::Kind type) :
+    Symbol(const std::string & name, ValuePtr value, const std::string & context, Symbols::Kind type) :
         name_(name),
         value_(std::move(value)),
         context_(context),
@@ -41,17 +35,19 @@ class Symbol {
 
     Symbols::Kind getKind() const { return kind_; }
 
-    virtual const Value::ValuePtr & getValue() const { return value_; }
+    virtual const ValuePtr & getValue() const { return value_; }
 
     //virtual const Value & getValue() const { return value_; }
 
-    virtual void setValue(const Value::ValuePtr & value) { value_ = value; }
+    virtual void setValue(const ValuePtr & value) { value_ = value; }
 
     // Dump symbol details (default: type and value)
     virtual std::string dump() const {
         std::string r = "\t\t  " + kindToString(this->kind_) + " name: '" + name_ + "' \n\t\t\tContext: " + context_;
-        r += " \n\t\t\tType: " + Symbols::Variables::TypeToString(value_->getType());
-        r += " \n\t\t\tValue: '" + Symbols::Value::to_string(value_->get()) + "'";
+        r += " \n\t\t\tType: " +
+             Symbols::Variables::TypeToString(value_->getType());  // Feltételezve, hogy TypeToString létezik
+        // Biztonságosabb string konverzió:
+        r += " \n\t\t\tValue: '" + Symbols::Value::to_string(value_) + "'";
         return r;
     }
 

@@ -17,7 +17,7 @@ class UnaryExpressionNode : public ExpressionNode {
         op_(std::move(op)),
         operand_(std::move(operand)) {}
 
-        Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+        Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         auto value = operand_->evaluate(interpreter);
         auto type  = value->getType();
 

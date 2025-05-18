@@ -6,7 +6,7 @@
 namespace Interpreter {
 struct ExpressionNode {
     virtual ~ExpressionNode()                                                        = default;
-    virtual Symbols::Value::ValuePtr evaluate(class Interpreter & interpreter) const = 0;
+    virtual Symbols::ValuePtr evaluate(class Interpreter & interpreter) const = 0;
     virtual std::string              toString() const                                = 0;
 };
 

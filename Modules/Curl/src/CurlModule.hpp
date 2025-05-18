@@ -29,20 +29,20 @@ class CurlClient {
     void setUrl(const std::string & url);
     void setTimeout(long seconds);
     void setFollowRedirects(bool follow);
-    void setHeaders(Symbols::Value::ValuePtr headersObj);
+    void setHeaders(Symbols::ValuePtr headersObj);
     void addHeader(const std::string & name, const std::string & value);
     void clearHeaders();
 
-    std::string get(const std::string & url, Symbols::Value::ValuePtr options = nullptr);
-    std::string post(const std::string & url, const std::string & data, Symbols::Value::ValuePtr options = nullptr);
-    std::string put(const std::string & url, const std::string & data, Symbols::Value::ValuePtr options = nullptr);
-    std::string delete_(const std::string & url, Symbols::Value::ValuePtr options = nullptr);
+    std::string get(const std::string & url, Symbols::ValuePtr options = nullptr);
+    std::string post(const std::string & url, const std::string & data, Symbols::ValuePtr options = nullptr);
+    std::string put(const std::string & url, const std::string & data, Symbols::ValuePtr options = nullptr);
+    std::string delete_(const std::string & url, Symbols::ValuePtr options = nullptr);
 
   private:
     void        initialize();
     void        cleanup();
     void        setCommonOptions();
-    void        parseOptions(Symbols::Value::ValuePtr options);
+    void        parseOptions(Symbols::ValuePtr options);
     std::string performRequest();
 };
 
@@ -65,7 +65,7 @@ class CurlModule final : public BaseModule {
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    static Symbols::Value::ValuePtr curlGet(FunctionArguments & args);
+    static Symbols::ValuePtr curlGet(FunctionArguments & args);
 
     /**
      * @brief Perform HTTP POST: curlPost(url, data [, options])
@@ -74,10 +74,10 @@ class CurlModule final : public BaseModule {
      *   follow_redirects (bool),
      *   headers (object mapping header names to values)
      */
-    static Symbols::Value::ValuePtr curlPost(FunctionArguments & args);
+    static Symbols::ValuePtr curlPost(FunctionArguments & args);
 
-    Symbols::Value::ValuePtr curlPut(FunctionArguments & args);
-    Symbols::Value::ValuePtr curlDelete(FunctionArguments & args);
+    Symbols::ValuePtr curlPut(FunctionArguments & args);
+    Symbols::ValuePtr curlDelete(FunctionArguments & args);
 };
 
 }  // namespace Modules

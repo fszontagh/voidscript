@@ -32,7 +32,7 @@ class FileModule : public BaseModule {
         };
 
         REGISTER_FUNCTION("file_get_contents", Symbols::Variables::Type::STRING, params, "Read the content of a file",
-                          [](const FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_get_contents expects 1 argument");
                               }
@@ -50,7 +50,7 @@ class FileModule : public BaseModule {
                               std::string content((std::istreambuf_iterator<char>(input)),
                                                   std::istreambuf_iterator<char>());
                               input.close();
-                              return std::make_shared<Symbols::Value>(content);
+                              return Symbols::ValuePtr::create(content);
                           });
 
         params = {
@@ -60,7 +60,7 @@ class FileModule : public BaseModule {
         };
         // Write content to file, with optional overwrite
         REGISTER_FUNCTION("file_put_contents", Symbols::Variables::Type::NULL_TYPE, params, "Write content into a file",
-                          [](FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [](FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 3) {
                                   throw std::runtime_error("file_put_contents expects 3 arguments");
                               }
@@ -92,7 +92,7 @@ class FileModule : public BaseModule {
 
         // Check if file exists
         REGISTER_FUNCTION("file_exists", Symbols::Variables::Type::BOOLEAN, params, "Check if a file exists or not",
-                          [](FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [](FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_exists expects 1 argument");
                               }
@@ -101,7 +101,7 @@ class FileModule : public BaseModule {
                               }
                               const std::string filename = args[0]->get<std::string>();
                               bool              exists   = utils::exists(filename);
-                              return std::make_shared<Symbols::Value>(exists);
+                              Symbols::ValuePtr::create(exists);
                           });
 
         params = {
@@ -109,7 +109,7 @@ class FileModule : public BaseModule {
         };
 
         REGISTER_FUNCTION("file_size", Symbols::Variables::Type::INTEGER, params, "Get the size of a file",
-                          [](const FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_size expects 1 argument");
                               }
@@ -121,10 +121,10 @@ class FileModule : public BaseModule {
                                   throw std::runtime_error("file_size: file not found: " + filename);
                               }
                               if (utils::is_directory((filename))) {
-                                  return std::make_shared<Symbols::Value>(4096);
+                                  return Symbols::ValuePtr::create(4096);
                               }
                               size_t size = utils::file_size(filename);
-                              return std::make_shared<Symbols::Value>(static_cast<int>(size));
+                              Symbols::ValuePtr::create(static_cast<int>(size));
                           });
     }
 };

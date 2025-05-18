@@ -34,7 +34,7 @@ class CallStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         try {
             using namespace Symbols;
-            std::vector<Symbols::Value::ValuePtr> argValues;
+            std::vector<Symbols::ValuePtr> argValues;
             argValues.reserve(args_.size());
             for (const auto & expr : args_) {
                 argValues.push_back(expr->evaluate(interpreter));

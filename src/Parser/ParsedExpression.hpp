@@ -38,7 +38,7 @@ struct ParsedExpression {
 
     Kind kind;
 
-    Symbols::Value::ValuePtr value;
+    Symbols::ValuePtr value;
     std::string              name;
 
     // For operations
@@ -54,7 +54,7 @@ struct ParsedExpression {
     size_t                                                   column = 0;
 
     // Constructor for literal
-    static ParsedExpressionPtr makeLiteral(Symbols::Value::ValuePtr val) {
+    static ParsedExpressionPtr makeLiteral(Symbols::ValuePtr val) {
         auto expr   = std::make_shared<ParsedExpression>();
         expr->kind  = Kind::Literal;
         expr->value = std::move(val);

@@ -294,13 +294,11 @@ class SymbolContainer {
     }
 
   private:
-
-    static void dumpValue(const Value::ValuePtr & value, std::string & result, int indent) {
-        using ObjectMap = Value::ObjectMap;
-        if (value->getType() == Variables::Type::OBJECT) {
-            const auto & objMap = std::get<ObjectMap>(value->get());
+    static void dumpValue(const Symbols::ValuePtr & value, std::string & result, int indent) {
+        if (value == Variables::Type::OBJECT) {
+            Symbols::ObjectMap objMap = value;
             for (const auto & [key, childVal] : objMap) {
-                result += std::string(indent, '\t') + "- " + key + ": '" + Symbols::Value::to_string(childVal) + "'\n";
+                result += std::string(indent, '\t') + "- " + key + ": '" + childVal->get<std::string>() + "'\n";
                 dumpValue(childVal, result, indent + 1);
             }
         }

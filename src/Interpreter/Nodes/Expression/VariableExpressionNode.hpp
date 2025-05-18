@@ -19,7 +19,7 @@ class VariableExpressionNode : public ExpressionNode {
         variableName_(std::move(varName)),
         ns(std::move(ns)) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & /*interpreter*/) const override {
+    Symbols::ValuePtr evaluate(Interpreter & /*interpreter*/) const override {
         if (!Symbols::SymbolContainer::instance()->exists(variableName_)) {
             throw std::runtime_error("Undefined variable name: " + variableName_);
         }

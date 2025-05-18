@@ -19,7 +19,7 @@ void ModuleHelperModule::registerModule() {
     // List all modules
     REGISTER_FUNCTION("module_list", Symbols::Variables::Type::OBJECT, params,
                       "List all available modules with their registered entities",
-                      [this](const FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
                           if (!args.empty()) {
                               throw std::runtime_error("module_list expects no arguments");
                           }
@@ -27,15 +27,15 @@ void ModuleHelperModule::registerModule() {
                           auto &                    umm     = UnifiedModuleManager::instance();
                           auto                      modules = umm.getPluginModules();
                           auto                      paths   = umm.getPluginPaths();
-                          Symbols::Value::ObjectMap modulesMap;
+                          Symbols::ObjectMap modulesMap;
 
                           for (size_t i = 0; i < modules.size(); ++i) {
                               BaseModule * mod  = modules[i];
                               std::string  path = (i < paths.size() ? paths[i] : std::string());
                               modulesMap[std::to_string(i)] =
-                                  Symbols::Value::create(ModuleHelperModule::buildModuleInfoMap(mod, path, umm));
+                                  Symbols::ValuePtr::create(ModuleHelperModule::buildModuleInfoMap(mod, path, umm));
                           }
-                          return Symbols::Value::create(modulesMap);
+                          return Symbols::ValuePtr::create(modulesMap);
                       });
 
     // Check if module exists
@@ -44,7 +44,7 @@ void ModuleHelperModule::registerModule() {
     };
     REGISTER_FUNCTION("module_exists", Symbols::Variables::Type::BOOLEAN, params,
                       "Check if a module with the given name exists",
-                      [](const FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                      [](const FunctionArguments & args) -> Symbols::ValuePtr {
                           if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
                               throw std::runtime_error("module_exists expects exactly one string argument");
                           }
@@ -62,10 +62,10 @@ void ModuleHelperModule::registerModule() {
                                   name = name.substr(3);
                               }
                               if (name == query || mod->name() == query) {
-                                  return Symbols::Value::create(true);
+                                  return Symbols::ValuePtr::create(true);
                               }
                           }
-                          return Symbols::Value::create(false);
+                          return Symbols::ValuePtr::create(false);
                       });
 
     // Get module info
@@ -74,7 +74,7 @@ void ModuleHelperModule::registerModule() {
     };
     REGISTER_FUNCTION("module_info", Symbols::Variables::Type::OBJECT, params,
                       "Get detailed information about a specific module including its registered entities",
-                      [this](const FunctionArguments & args) -> Symbols::Value::ValuePtr {
+                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
                           if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
                               throw std::runtime_error("module_info expects exactly one string argument");
                           }
@@ -92,10 +92,10 @@ void ModuleHelperModule::registerModule() {
                                   name = name.substr(3);
                               }
                               if (name == query) {
-                                  return Symbols::Value::create(ModuleHelperModule::buildModuleInfoMap(mod, path, umm));
+                                  return Symbols::ValuePtr::create(ModuleHelperModule::buildModuleInfoMap(mod, path, umm));
                               }
                           }
-                          return Symbols::Value::CreateObjectMap();
+                          return Symbols::ValuePtr::createObjectMap();
                       });
 
     // Print detailed module info

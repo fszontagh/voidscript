@@ -87,7 +87,7 @@ Symbols::Value Modules::ImagickModule::read(FunctionArguments & args) {
         throw std::runtime_error("Imagick::read must be called on Imagick instance");
     }
 
-    auto objMap = std::get<Symbols::Value::ObjectMap>(args[0].get());
+    auto objMap = std::get<Symbols::ObjectMap>(args[0].get());
 
     std::string filename = Symbols::Value::to_string(args[1].get());
 
@@ -111,7 +111,7 @@ Symbols::Value Modules::ImagickModule::crop(Modules::FunctionArguments & args) {
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::crop must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -143,7 +143,7 @@ Symbols::Value Modules::ImagickModule::resize(Modules::FunctionArguments & args)
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::resize must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -187,7 +187,7 @@ Symbols::Value Modules::ImagickModule::write(Modules::FunctionArguments & args) 
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::write must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -213,7 +213,7 @@ Symbols::Value Modules::ImagickModule::mode(Modules::FunctionArguments & args) {
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::mode must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -248,7 +248,7 @@ Symbols::Value Modules::ImagickModule::blur(Modules::FunctionArguments & args) {
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::blur must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -276,7 +276,7 @@ Symbols::Value Modules::ImagickModule::rotate(Modules::FunctionArguments & args)
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::rotate must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -303,7 +303,7 @@ Symbols::Value Modules::ImagickModule::flip(Modules::FunctionArguments & args) {
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::flip must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -336,7 +336,7 @@ Symbols::Value Modules::ImagickModule::getWidth(Modules::FunctionArguments & arg
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::getWidth must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -360,7 +360,7 @@ Symbols::Value Modules::ImagickModule::getHeight(Modules::FunctionArguments & ar
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::getHeight must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -384,7 +384,7 @@ Symbols::Value Modules::ImagickModule::composite(Modules::FunctionArguments & ar
     if (objVal.getType() != Symbols::Variables::Type::CLASS && objVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::composite must be called on Imagick instance");
     }
-    auto objMap   = std::get<Symbols::Value::ObjectMap>(objVal.get());
+    auto objMap   = std::get<Symbols::ObjectMap>(objVal.get());
     int  handle   = 0;
     auto itHandle = objMap.find("__image_id__");
     if (itHandle == objMap.end() || itHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
@@ -403,7 +403,7 @@ Symbols::Value Modules::ImagickModule::composite(Modules::FunctionArguments & ar
         sourceVal.getType() != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::composite: source must be an Imagick instance");
     }
-    auto sourceMap    = std::get<Symbols::Value::ObjectMap>(sourceVal.get());
+    auto sourceMap    = std::get<Symbols::ObjectMap>(sourceVal.get());
     auto sourceHandle = sourceMap.find("__image_id__");
     if (sourceHandle == sourceMap.end() || sourceHandle->second.getType() != Symbols::Variables::Type::INTEGER) {
         throw std::runtime_error("Imagick::composite: no valid source image");

@@ -39,7 +39,7 @@ class MethodCallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
         // Evaluate target object and track original symbol for write-back
         auto *                           sc      = Symbols::SymbolContainer::instance();
         // Determine original variable symbol (only simple identifiers)
@@ -52,14 +52,14 @@ class MethodCallExpressionNode : public ExpressionNode {
         }
         try {
             // Evaluate target object (produces a copy)
-            Symbols::Value::ValuePtr objVal = objectExpr_->evaluate(interpreter);
+            Symbols::ValuePtr objVal = objectExpr_->evaluate(interpreter);
 
             // Allow method calls on class instances (and plain objects with class metadata)
             if (objVal->getType() != Symbols::Variables::Type::OBJECT && objVal->getType() != Symbols::Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
                                 column_);
             }
-            const auto & objMap = std::get<Symbols::Value::ObjectMap>(objVal->get());
+            const auto & objMap = std::get<Symbols::ObjectMap>(objVal->get());
 
             // Extract class name
             auto it = objMap.find("__class__");
@@ -75,7 +75,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
 
             // Evaluate arguments (including 'this')
-            std::vector<Symbols::Value::ValuePtr> argValues;
+            std::vector<Symbols::ValuePtr> argValues;
             argValues.reserve(args_.size() + 1);
             argValues.push_back(objVal);
             for (const auto & arg : args_) {
@@ -86,7 +86,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 auto &      mgr      = Modules::UnifiedModuleManager::instance();
                 std::string fullName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
                 if (mgr.hasFunction(fullName)) {
-                    Symbols::Value::ValuePtr ret     = mgr.callFunction(fullName, argValues);
+                    Symbols::ValuePtr ret     = mgr.callFunction(fullName, argValues);
                     Symbols::Variables::Type          retType = mgr.getFunctionReturnType(fullName);
                     if (ret->getType() != retType) {
                         throw Exception("Method " + methodName_ + " return value type missmatch. Expected: " +
