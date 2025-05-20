@@ -138,6 +138,7 @@ add_library(voidscript
             src/Lexer/Lexer.cpp
             src/Lexer/Operators.cpp
             src/Symbols/SymbolContainer.cpp
+            src/Symbols/Value.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
             src/Modules/UnifiedModuleManager.cpp
 )

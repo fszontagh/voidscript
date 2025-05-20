@@ -1,23 +1,25 @@
 #ifndef SYMBOLS_VALUE_HPP
 #define SYMBOLS_VALUE_HPP
 
-#include <algorithm>
+#include <algorithm> // For ValuePtr::fromStringToBool, kept if any part of it remains in header
 #include <map>
 #include <memory>
-#include <stdexcept>  // For std::bad_cast
+#include <stdexcept>  // For std::bad_cast, kept for get<T>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
+#include <vector> // Potentially for future use or if a moved method implicitly needed it via another header method
 
-#include "Symbols/VariableTypes.hpp"
+#include "Symbols/VariableTypes.hpp" // Essential
 
 namespace Symbols {
 
-class Value;
-class ValuePtr;
+class Value; // Forward declaration
+class ValuePtr; // Forward declaration
 
 using ObjectMap = std::map<std::string, ValuePtr>;
 
+// This map is used by Value::set<T> which is templated and remains in the header.
 const static std::unordered_map<std::type_index, Symbols::Variables::Type> type_names = {
     { std::type_index(typeid(int)),         Symbols::Variables::Type::INTEGER   },
     { std::type_index(typeid(double)),      Symbols::Variables::Type::DOUBLE    },
@@ -29,437 +31,205 @@ const static std::unordered_map<std::type_index, Symbols::Variables::Type> type_
 };
 
 class Value {
-    friend class ValuePtr;
+    friend class ValuePtr; // ValuePtr needs access to Value's private members
 
-    void setNULL() {
-        is_null = true;
-        data_.reset();
-    }
   private:
     Symbols::Variables::Type type_ = Variables::Type::NULL_TYPE;
     std::shared_ptr<void>    data_;
     std::type_index          type_id_ = typeid(void);
     bool                     is_null  = false;
 
-    void clone_data_from(const Value& other) {
-        // Reset current data
-        this->data_.reset();
-        this->is_null = true; // Default to null until data is set
+    // Private methods - Declarations only
+    void setNULL();
+    void clone_data_from(const Value& other);
 
-        switch (other.type_) {
-            case Symbols::Variables::Type::INTEGER:
-                this->set<int>(other.get<int>());
-                break;
-            case Symbols::Variables::Type::DOUBLE:
-                this->set<double>(other.get<double>());
-                break;
-            case Symbols::Variables::Type::FLOAT:
-                this->set<float>(other.get<float>());
-                break;
-            case Symbols::Variables::Type::BOOLEAN:
-                this->set<bool>(other.get<bool>());
-                break;
-            case Symbols::Variables::Type::STRING:
-                this->set<std::string>(other.get<std::string>());
-                break;
-            case Symbols::Variables::Type::OBJECT: {
-                const auto& source_map = other.get<ObjectMap>();
-                ObjectMap new_map;
-                for (const auto& pair : source_map) {
-                    // Assuming ValuePtr has a clone() method
-                    // new_map[pair.first] = pair.second.clone(); 
-                    // For now, let's do a shallow copy for ObjectMap values until ValuePtr::clone() is available
-                    // This will be updated in a later step.
-                    // The task description says: For each `val_ptr`, call `val_ptr.clone()`
-                    // Since ValuePtr::clone() is not yet implemented, this line will cause a compile error.
-                    // I will comment it out for now and proceed with the rest of the implementation.
-                    // The subtask states: "This clone() method on ValuePtr doesn't exist yet but assume it will"
-                    // So I will include the line.
-                    new_map[pair.first] = pair.second.clone();
-                }
-                this->set<ObjectMap>(new_map);
-                break;
-            }
-            case Symbols::Variables::Type::NULL_TYPE:
-                this->setNULL();
-                break;
-            default:
-                // Consider throwing an error for unhandled types
-                // For now, it will remain null as per the initial reset
-                // throw std::runtime_error("Unhandled type in clone_data_from");
-                this->setNULL(); // Default to NULL for safety if type is unknown/unhandled
-                break;
-        }
-        // After setting data, update type information from 'other'
-        this->type_ = other.type_;
-        this->type_id_ = other.type_id_;
-        this->is_null = other.is_null; 
-        // However, if set<T> was called, is_null would be false.
-        // And if setNULL() was called, is_null would be true.
-        // The set<T> also sets type_ and type_id_.
-        // After the switch, type_, type_id_, and is_null need to be consistent.
-        // set<T> sets type_ and type_id_ and implies data_ is not null.
-        // setNULL() sets data_ to null and is_null to true.
-
-        if (this->data_) {
-            // Data was set by one of the set<T> calls.
-            // type_ and type_id_ are already set correctly by set<T>.
-            this->is_null = false;
-        } else {
-            // Data was not set (e.g., setNULL() was called or unhandled type).
-            // Ensure is_null is true and copy type info from other.
-            this->is_null = true;
-            this->type_ = other.type_;
-            this->type_id_ = other.type_id_;
-        }
-    }
-
+    // Templated methods remain in the header
     template <typename T> void set(T data) {
         this->data_    = std::make_shared<T>(std::move(data));
         this->type_id_ = std::type_index(typeid(T));
-        this->type_    = type_names.at(std::type_index(typeid(T)));  // Get type from predefined map
-    }
-  public:
-    Value() { setNULL(); }
-
-    std::shared_ptr<Value> clone() const {
-        auto new_value = std::make_shared<Value>();
-
-        // Copy fundamental type information
-        new_value->type_ = this->type_;
-        new_value->type_id_ = this->type_id_;
-        new_value->is_null = this->is_null;
-
-        // If the current object has data, clone it
-        // The check for this->data_ is important because is_null might be true
-        // but type_ might not be NULL_TYPE (e.g. an uninitialized string variable)
-        if (!this->is_null && this->data_) {
-            new_value->clone_data_from(*this);
+        // Safely access type_names, ensuring the type exists
+        auto it = type_names.find(std::type_index(typeid(T)));
+        if (it != type_names.end()) {
+            this->type_ = it->second;
+        } else {
+            // Handle unknown type, perhaps throw or set to a default/unknown type
+            // For now, let's assume types used with set<T> are in type_names
+            // or this could be an assertion point depending on design philosophy.
+            throw std::runtime_error("Type not found in type_names map during Value::set");
         }
-        // If this->is_null is true, new_value is already in a default null state.
-        // Its type_ and type_id_ have been set to match this object,
-        // which is correct for representing a null value of a specific type.
-        // clone_data_from will handle the case where this->type_ is NULL_TYPE if called.
-
-        return new_value;
+        this->is_null = false; // Successfully setting data means it's not null.
     }
 
+  public:
+    // Constructor - Declaration only
+    Value();
+
+    // Public methods - Declarations only
+    std::shared_ptr<Value> clone() const;
+    bool isNULL() const;
+    Symbols::Variables::Type getType() const;
+    std::string toString() const;
+
+    // Templated methods remain in the header
     template <typename T> const T & get() const {
         if (type_id_ != typeid(T)) {
+            // Consider logging or more detailed error message
+            // E.g. "Bad cast: expected " + demangled_name(typeid(T)) + " got " + demangled_name(type_id_)
             throw std::bad_cast();
         }
-        if (!data_) {
-            throw std::runtime_error("Attempted to access data, but it's null.");
+        if (!data_) { // Check if data pointer is null
+            throw std::runtime_error("Attempted to access data from a Value object with null data pointer.");
         }
         return *std::static_pointer_cast<T>(data_);
     }
-
-    bool isNULL() const { return is_null || !data_; }
 
     template <typename T> T & get() {
         if (type_id_ != typeid(T)) {
             throw std::bad_cast();
         }
+        if (!data_) {
+            throw std::runtime_error("Attempted to access data from a Value object with null data pointer (non-const get).");
+        }
         return *std::static_pointer_cast<T>(data_);
-    }
-
-    Symbols::Variables::Type getType() const { return type_; }
-
-    std::string toString() const {
-        if (isNULL()) {
-            return "null";
-        }
-
-        if (type_ == Variables::Type::STRING) {
-            if (!data_) {
-                return "null";  // vagy throw
-            }
-            return get<std::string>();
-        }
-
-        switch (type_) {
-            case Variables::Type::INTEGER:
-                return std::to_string(get<int>());
-            case Variables::Type::FLOAT:
-                return std::to_string(get<float>());
-            case Variables::Type::DOUBLE:
-                return std::to_string(get<double>());
-            case Variables::Type::BOOLEAN:
-                return get<bool>() ? "true" : "false";
-            default:
-                return "null";
-        }
     }
 };
 
 class ValuePtr {
   private:
-    mutable std::shared_ptr<Value> ptr_;
+    mutable std::shared_ptr<Value> ptr_; // Mutable to allow lazy initialization in const operator->
 
+    // Static members - Declarations only
     static std::mutex                      registryMutex_;
     static std::map<std::string, ValuePtr> valueRegistry_;
 
-    static std::string valueToString(const Value & value) {
-        if (value.type_ == Variables::Type::STRING) {
-            return value.get<std::string>();
-        }
-        switch (value.type_) {
-            case Variables::Type::INTEGER:
-                return std::to_string(value.get<int>());
-            case Variables::Type::FLOAT:
-                return std::to_string(value.get<float>());
-            case Variables::Type::DOUBLE:
-                return std::to_string(value.get<double>());
-            case Variables::Type::BOOLEAN:
-                return value.get<bool>() ? "true" : "false";
-            default:
-                return "null";
-        }
-    }
-
-    void ensure_object() {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        if (ptr_->type_ != Variables::Type::OBJECT) {
-            ptr_->set<ObjectMap>({});
-            ptr_->type_ = Variables::Type::OBJECT;
-        }
-    }
+    // Private methods - Declarations only
+    static std::string valueToString(const Value & value);
+    void ensure_object();
 
   public:
-    ValuePtr() : ptr_(std::make_shared<Value>()) { ptr_->setNULL(); }
+    // Default constructor: Inlined as it's simple and commonly used.
+    // Initializes ptr_ to a new Value, which itself initializes to NULL_TYPE.
+    ValuePtr() : ptr_(std::make_shared<Value>()) { 
+        // Value's default constructor calls its setNULL(), so ptr_ points to a null Value.
+    }
 
-    ValuePtr(const ValuePtr & other) { this->ptr_ = other.ptr_; }
+    // Copy constructor: Inlined, standard shared_ptr copy.
+    ValuePtr(const ValuePtr & other) : ptr_(other.ptr_) {}
 
+    // Move constructor: Inlined, standard shared_ptr move.
+    ValuePtr(ValuePtr && other) noexcept : ptr_(std::move(other.ptr_)) {}
+
+
+    // Assignment operators: Inlined.
     ValuePtr & operator=(const ValuePtr & other) {
-        ptr_ = other.ptr_;
+        if (this != &other) {
+            ptr_ = other.ptr_;
+        }
         return *this;
     }
 
     ValuePtr & operator=(ValuePtr && other) noexcept {
-        ptr_ = std::move(other.ptr_);
+        if (this != &other) {
+            ptr_ = std::move(other.ptr_);
+        }
         return *this;
     }
 
+    // Constructors for primitive types: Inlined for efficiency.
     ValuePtr(int v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
-
     ValuePtr(float v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
-
     ValuePtr(double v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
-
     ValuePtr(bool v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
-
     ValuePtr(const std::string & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
-
-    /*
-    ValuePtr(const char * v) {
-        if ()
-        ptr_ = std::make_shared<Value>();
-        ptr_->set(std::string(v));
-        ptr_->type_ = Variables::Type::STRING;
-    }
-*/
     ValuePtr(const ObjectMap & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
-
-    ValuePtr clone() const {
-        ValuePtr cloned_value_ptr; // Default-constructs: ptr_ points to a new Value, set to NULL.
-        if (this->ptr_) {
-            // If the current ValuePtr actually points to a Value object
-            // (even if that Value object represents null type like an uninitialized variable)
-            // then clone that Value object.
-            // Value::clone() returns std::shared_ptr<Value>
-            cloned_value_ptr.ptr_ = this->ptr_->clone();
-        }
-        // If this->ptr_ was itself a nullptr (which current ValuePtr constructors prevent,
-        // as they always initialize ptr_ to a valid std::shared_ptr<Value>),
-        // or if Value::clone() could return nullptr (it is designed to always return a valid shared_ptr),
-        // then cloned_value_ptr remains in its default initialized state (a valid ValuePtr holding a Value in NULL state).
-        return cloned_value_ptr;
+    
+    // Constructor from Value&& : Inlined. Captures type correctly.
+    ValuePtr(Value && v) : ptr_(std::make_shared<Value>(std::move(v))) {
+        // The moved-from 'v' is in an unspecified state.
+        // The new Value object created from 'v' should have its type correctly set
+        // by Value's move constructor if it exists, or this needs careful handling.
+        // Assuming Value's internals (type_, type_id_, is_null, data_) are correctly transferred.
+        // If Value's move constructor doesn't exist or fully set these, this might be an issue.
+        // For now, assume Value(std::move(v)) correctly sets up the new Value.
+        // ptr_->type_ = v.getType(); // This would be problematic as v is moved from.
+        // The type should be inherent in the moved Value object.
     }
 
-    ValuePtr(Value && v) {
-        if (!ptr_) {
-            Symbols::Variables::Type type = v.getType();                            // Capture type before move
-            ptr_                          = std::make_shared<Value>(std::move(v));  // Proper move semantics
-            ptr_->type_                   = type;  // Assign captured type to new instance
-        }
-    }
+    // Constructor from const char* - Declaration only (moved to .cpp)
+    ValuePtr(const char * v);
 
-    Variables::Type getType() const { return ptr_ ? ptr_->type_ : Variables::Type::NULL_TYPE; }
 
-    void setType(Symbols::Variables::Type type) {
-        if (!ptr_ || ptr_->isNULL()) {
-            ptr_->type_ = type;
-        } else {
-            throw std::logic_error("Cannot set type manually on non-null value");
-        }
-    }
+    // Public methods - Declarations only
+    ValuePtr clone() const;
+    Variables::Type getType() const;
+    void setType(Symbols::Variables::Type type);
+    ValuePtr & setNULL();
 
-    ValuePtr & setNULL() {
-        ensure_object();
-        ptr_->setNULL();
-        return *this;
-    }
+    // Static methods - Declarations only
+    static ValuePtr null(Symbols::Variables::Type type);
+    static ValuePtr null();
+    static ValuePtr makeClassInstance(const ObjectMap & v);
+    static ValuePtr fromString(const std::string & str);
+    static ValuePtr fromStringToInt(const std::string & str);
+    static ValuePtr fromStringToDouble(const std::string & str);
+    static ValuePtr fromStringToFloat(const std::string & str);
+    static ValuePtr fromStringToBool(const std::string & str);
+    
+    // Operators - Declarations for those moved, inline for trivial ones
+    std::shared_ptr<Value> operator->();
+    std::shared_ptr<const Value> operator->() const;
 
-    ValuePtr(const char * v) {
-        if (v == nullptr) {
-            ptr_ = std::make_shared<Value>();
-            ptr_->setNULL();
-        } else {
-            ptr_ = std::make_shared<Value>();
-            ptr_->set(std::string(v));
-        }
-    }
+    // Type conversion operators - Declarations only
+    explicit operator Symbols::Variables::Type(); // Made explicit to avoid unintentional conversions
+    explicit operator Symbols::Variables::Type() const; // Made explicit
 
-    static ValuePtr null(Symbols::Variables::Type type) {
-        auto z = ValuePtr(nullptr);
-        z->setNULL();  // <- data_ reset
-        z.setType(type);
-        if (type == Variables::Type::STRING) {
-            z->set<std::string>("");
-        }
-        return z;
-    }
+    // Comparison operators - Declarations only
+    bool operator==(Symbols::Variables::Type type) const;
+    bool operator!=(Symbols::Variables::Type type) const;
+    
+    // Subscript operator for objects - Declaration only
+    ValuePtr & operator[](const std::string & key);
 
-    static ValuePtr null() { return ValuePtr::null(Variables::Type::NULL_TYPE); }
+    // toString method - Declaration only
+    std::string toString() const;
 
-    std::shared_ptr<Value> operator->() {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-            ptr_->setNULL();
-        }
-        return ptr_;
-    }
-
-    std::shared_ptr<const Value> operator->() const {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        return ptr_;
-    }
-
-    template <typename T> T & get() { return ptr_->get<T>(); }
-
-    template <typename T> const T & get() const { return ptr_->get<T>(); }
-
-    operator Symbols::Variables::Type() { return ptr_->getType(); }
-
-    operator Symbols::Variables::Type() const {
-        if (!ptr_) {
-            return Variables::Type::NULL_TYPE;
-        }
-        return ptr_->getType();
-    }
-
-    bool operator==(Symbols::Variables::Type type) const {
-        if (!ptr_) {
-            return type == Variables::Type::NULL_TYPE;
-        }
-        return ptr_->type_ == type;
-    }
-
-    bool operator!=(Symbols::Variables::Type type) const {
-        if (!ptr_) {
-            return type != Variables::Type::NULL_TYPE;
-        }
-        return ptr_->type_ != type;
-    }
-
-    template <typename T>
-    requires(std::is_same_v<T, int> || std::is_same_v<T, float> || std::is_same_v<T, double> ||
-             std::is_same_v<T, ObjectMap> || std::is_same_v<T, bool> ||
-             std::is_same_v<T, std::string>) operator T() const {
+    // Templated getter methods remain in the header
+    template <typename T> T & get() {
+        if (!ptr_) throw std::runtime_error("ValuePtr has null internal pointer in get<T>().");
         return ptr_->get<T>();
     }
 
-    static ValuePtr makeClassInstance(const ObjectMap & v) {
-        auto _class   = Symbols::ValuePtr(v);
-        _class->type_ = Symbols::Variables::Type::CLASS;  //setType(Symbols::Variables::Type::CLASS);
-        return _class;
+    template <typename T> const T & get() const {
+        if (!ptr_) throw std::runtime_error("ValuePtr has null internal pointer in const get<T>().");
+        return ptr_->get<T>();
     }
 
-    // objektumszerű indexelés
-    ValuePtr & operator[](const std::string & key) {
-        ensure_object();
-        ObjectMap & map = ptr_->get<ObjectMap>();
-        return map[key];
-    }
-
-    // converts all values into string representation. Don't use as value like expecting string. This is not a value getter
-    std::string toString() const {
+    // Templated conversion operator: Remains in header.
+    // Added requires clause for SFINAE, assuming C++20.
+    template <typename T>
+    requires(std::is_same_v<T, int> || std::is_same_v<T, float> || std::is_same_v<T, double> ||
+             std::is_same_v<T, ObjectMap> || std::is_same_v<T, bool> ||
+             std::is_same_v<T, std::string>)
+    operator T() const {
         if (!ptr_) {
-            return "null";
+            // This behavior might need refinement. What should converting a null ValuePtr return?
+            // For primitives, it might be 0/false/"". For ObjectMap, an empty map.
+            // Throwing an exception is safer to indicate an unexpected state.
+            throw std::runtime_error("Attempted to convert a ValuePtr with a null internal pointer.");
         }
-        if (ptr_->type_ == Variables::Type::STRING) {
-            if (!ptr_->data_) {
-                return "null";
-            }
-            return ptr_->get<std::string>();
+        // Ensure that if ptr_ points to a NULL Value, get<T> handles it (throws or returns default for T)
+        // Current Value::get<T> throws if data_ is null.
+        if (ptr_->isNULL()) {
+             // Handle conversion from a semantically NULL Value.
+             // This is tricky. For example, if T is int, should it be 0? If string, ""?
+             // Throwing might be the most consistent with Value::get behavior.
+             // Or, provide default values. For now, let get<T> handle it.
+             // This path will likely throw if ptr_->data_ is null.
         }
-
-        switch (ptr_->type_) {
-            case Variables::Type::INTEGER:
-                return std::to_string(ptr_->get<int>());
-            case Variables::Type::FLOAT:
-                return std::to_string(ptr_->get<float>());
-            case Variables::Type::DOUBLE:
-                return std::to_string(ptr_->get<double>());
-            case Variables::Type::BOOLEAN:
-                return ptr_->get<bool>() ? "true" : "false";
-            case Variables::Type::OBJECT:
-                return "{...}";
-            case Variables::Type::NULL_TYPE:
-            default:
-                return "null";
-        }
-    }
-
-    static ValuePtr fromString(const std::string & str) {
-        if (str == "null") {
-            return ValuePtr::null(Variables::Type::NULL_TYPE);
-        }
-        try {
-            // Try boolean first
-            if (str == "true") {
-                return ValuePtr(true);
-            }
-            if (str == "false") {
-                return ValuePtr(false);
-            }
-
-            // Try numbers
-            if (str.find('.') != std::string::npos) {
-                double d = std::stod(str);
-                return ValuePtr(d);
-            }
-            int i = std::stoi(str);
-            return ValuePtr(i);
-        } catch (const std::exception & e) {
-            // Handle invalid string
-            return ValuePtr(str);
-        }
-    }
-
-    static ValuePtr fromStringToInt(const std::string & str) { return ValuePtr(std::stoi(str)); }
-
-    static ValuePtr fromStringToDouble(const std::string & str) { return ValuePtr(std::stod(str)); }
-
-    static ValuePtr fromStringToFloat(const std::string & str) { return ValuePtr(std::stof(str)); }
-
-    static ValuePtr fromStringToBool(const std::string & str) {
-        std::string s = str;
-        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-        if (s == "true" || s == "1") {
-            return ValuePtr(true);
-        }
-        if (s == "false" || s == "0") {
-            return ValuePtr(false);
-        }
-        throw std::invalid_argument("Invalid bool string: " + str);
+        return ptr_->get<T>();
     }
 };
 
 }  // namespace Symbols
 
-#endif
+#endif // SYMBOLS_VALUE_HPP
