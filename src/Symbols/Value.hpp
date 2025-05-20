@@ -180,8 +180,8 @@ class ValuePtr {
     std::shared_ptr<const Value> operator->() const;
 
     // Type conversion operators - Declarations only
-    explicit operator Symbols::Variables::Type(); // Made explicit to avoid unintentional conversions
-    explicit operator Symbols::Variables::Type() const; // Made explicit
+    operator Symbols::Variables::Type(); // Made implicit
+    operator Symbols::Variables::Type() const; // Made implicit
 
     // Comparison operators - Declarations only
     bool operator==(Symbols::Variables::Type type) const;

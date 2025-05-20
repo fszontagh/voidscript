@@ -72,6 +72,11 @@ bool object_has_property(Symbols::ValuePtr object_val, const std::string& prop_n
     return map.count(prop_name) > 0;
 }
 
+// Helper function for the implicit conversion test case
+static void check_type_passed(Symbols::Variables::Type actual_type, Symbols::Variables::Type expected_type) {
+    REQUIRE(actual_type == expected_type);
+}
+
 
 TEST_CASE("Value Semantics Tests", "[ValueSemantics]") {
 
@@ -197,15 +202,14 @@ TEST_CASE("Value Semantics Tests", "[ValueSemantics]") {
         REQUIRE(vp1.operator->() != vp2.operator->()); // Should be different Value objects
 
         Symbols::ValuePtr vp3 = Symbols::ValuePtr::null(Symbols::Variables::Type::STRING);
-        REQUIRE(vp3->isNULL()); // isNULL should be true because data_ is not set for specific type string
-        REQUIRE(vp3.getType() == Symbols::Variables::Type::STRING); // Type is String, but it represents a null string
+        // Based on Value.cpp: ValuePtr::null(STRING) creates an EMPTY NON-NULL string.
+        REQUIRE_FALSE(vp3->isNULL()); 
+        REQUIRE(vp3.getType() == Symbols::Variables::Type::STRING); 
 
         auto vp4 = vp3.clone();
-        REQUIRE(vp4->isNULL());
+        REQUIRE_FALSE(vp4->isNULL());
         REQUIRE(vp4.getType() == Symbols::Variables::Type::STRING);
         REQUIRE(vp3.operator->() != vp4.operator->());
-        // Check if the cloned null string is indeed an empty string if it was set by ValuePtr::null
-        // ValuePtr::null for STRING sets data_ to an empty string.
         REQUIRE(vp4->get<std::string>() == ""); 
     }
 
@@ -319,5 +323,43 @@ TEST_CASE("Value Semantics Tests", "[ValueSemantics]") {
         REQUIRE(cloned_obj_vp->get<Symbols::ObjectMap>().at("added_key")->get<std::string>() == "just_for_cloned");
 
         // NULL_TYPE is tested in Test 6
+    }
+}
+
+
+TEST_CASE("ValuePtr implicit conversion to Variables::Type", "[ValueSemantics][Conversion]") {
+    reset_global_state(); 
+
+    Symbols::ValuePtr int_ptr(123);
+    Symbols::ValuePtr string_ptr("test_string");
+    Symbols::ValuePtr bool_ptr(true);
+    Symbols::ValuePtr double_ptr(123.456);
+    Symbols::ValuePtr object_ptr(Symbols::ObjectMap{});
+    Symbols::ValuePtr default_null_ptr; // Default constructor makes it NULL_TYPE
+    Symbols::ValuePtr string_null_ptr = Symbols::ValuePtr::null(Symbols::Variables::Type::STRING);
+
+    SECTION("Integer type") {
+        check_type_passed(int_ptr, Symbols::Variables::Type::INTEGER);
+    }
+    SECTION("String type") {
+        check_type_passed(string_ptr, Symbols::Variables::Type::STRING);
+    }
+    SECTION("Boolean type") {
+        check_type_passed(bool_ptr, Symbols::Variables::Type::BOOLEAN);
+    }
+    SECTION("Double type") {
+        check_type_passed(double_ptr, Symbols::Variables::Type::DOUBLE);
+    }
+    SECTION("Object type") {
+        check_type_passed(object_ptr, Symbols::Variables::Type::OBJECT);
+    }
+    SECTION("Default Null type") {
+        check_type_passed(default_null_ptr, Symbols::Variables::Type::NULL_TYPE);
+    }
+    SECTION("String Null type (actually empty non-null string)") {
+        // ValuePtr::null(STRING) creates an EMPTY NON-NULL string.
+        check_type_passed(string_null_ptr, Symbols::Variables::Type::STRING); 
+        REQUIRE_FALSE(string_null_ptr->isNULL()); // Based on current ValuePtr::null impl.
+                                                 // which calls set<std::string>("") and is_null = false.
     }
 }
