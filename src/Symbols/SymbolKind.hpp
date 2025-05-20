@@ -16,18 +16,26 @@ enum class Kind : std::uint8_t {
 };
 
 static std::string kindToString(Symbols::Kind kind) {
-    std::unordered_map<Symbols::Kind, std::string> KindToString = {
-        { Symbols::Kind::Variable, "Variable" },
-        { Symbols::Kind::Constant, "Constant" },
-        { Symbols::Kind::Function, "Function" },
-    };
-
-    auto it = KindToString.find(kind);
-    if (it != KindToString.end()) {
-        return it->second;
+    switch (kind) {
+        case Symbols::Kind::Variable: return "Variable";
+        case Symbols::Kind::Constant: return "Constant";
+        case Symbols::Kind::Function: return "Function";
+        default:
+            return "Unknown kind: " + std::to_string(static_cast<int>(kind));
     }
-    return "Unknown kind: " + std::to_string(static_cast<int>(kind));
 }
+>>>>>>> REPLable REPLACE
+```
+
+2. Let's simplify the `SymbolContainer.cpp` file:
+
+src/SymbolContainer.cpp
+```cpp
+<<<<<<< SEARCH
+namespace Symbols {
+    std::string SymbolContainer::initial_scope_name_for_singleton_;
+    bool SymbolContainer::is_initialized_for_singleton_ = false;
+} // namespace Symbols
 };  // namespace Symbols
 
 #endif

@@ -37,7 +37,10 @@ class Value {
         return *std::static_pointer_cast<T>(data_);
     }
 
-    void setNULL() { is_null = true; }
+    void setNULL() { 
+        is_null = true; 
+        data_.reset();
+    }
   private:
     Symbols::Variables::Type type_ = Variables::Type::NULL_TYPE;
     std::shared_ptr<void>    data_;
@@ -48,7 +51,7 @@ class Value {
   public:
     Value() = default;
 
-    bool isNULL() const { return is_null; }
+    bool isNULL() const { return is_null || !data_; }
 
     template <typename T> T & get() {
         if (type_id_ != typeid(T)) {
@@ -214,9 +217,11 @@ class ValuePtr {
     }
 
     static ValuePtr null() {
-        auto z = ValuePtr(0);
-        z->setNULL();
-        return z;
+        auto ptr = std::make_shared<Value>();
+        ptr->type_ = Variable::Type::NULL_TYPE;
+        ptr->is_null = true;
+        ptr->data_.reset();
+        return ValuePtr(ptr);
     }
 
     std::shared_ptr<Value> operator->() const { return ptr_; }
