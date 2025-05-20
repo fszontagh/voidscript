@@ -283,45 +283,26 @@ class ValuePtr {
     }
 
     static ValuePtr fromString(const std::string & str) {
-        std::string trimmed = str;
-        trimmed.erase(0, trimmed.find_first_not_of(" \t\n\r"));
-        trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
-
-        // Check bool literals
-        std::string lower = trimmed;
-        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-        if (lower == "true" || lower == "false") {
-            try {
-                return fromStringToBool(trimmed);
-            } catch (...) {
-            }
-        }
-
-        // Check int
         try {
-            size_t idx;
-            int    i = std::stoi(trimmed, &idx);
-            if (idx == trimmed.size()) {
-                return fromStringToInt(trimmed);
+            // Try boolean first
+            if (str == "true") {
+                return ValuePtr(std::make_shared<Value>(true));
             }
-        } catch (...) {
-        }
-
-        // Check double
-        try {
-            size_t idx;
-            double d = std::stod(trimmed, &idx);
-            if (idx == trimmed.size()) {
-                return fromStringToDouble(trimmed);
+            if (str == "false") {
+                return ValuePtr(std::make_shared<Value>(false));
             }
-        } catch (...) {
+            
+            // Try numbers
+            if (str.find('.') != std::string::npos) {
+                double d = std::stod(str);
+                return ValuePtr(d);
+            }
+            int i = std::stoi(str);
+            return ValuePtr(i);
+        } catch (const std::exception &e) {
+            // Handle invalid string
+            return ValuePtr(std::make_shared<Value>(std::string(str)));
         }
-
-        // Fallback
-        Value val;
-        val.set(trimmed);
-        val.type_ = Variables::Type::STRING;
-        return ValuePtr(val);
     }
 
     static ValuePtr fromStringToInt(const std::string & str) {
