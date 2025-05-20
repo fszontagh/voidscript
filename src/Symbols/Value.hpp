@@ -98,6 +98,13 @@ class ValuePtr {
     }
 
     static std::string generateRegistryKey(const Value& value) {
+        if (value.type_ == Variables::Type::OBJECT) {
+            std::string key = "OBJECT:";
+            for (const auto& [k, v] : value.get<ObjectMap>()) {
+                key += k + ":" + ValuePtr::valueToString(*v);
+            }
+            return key;
+        }
         return valueToString(value);
     }
 
@@ -152,6 +159,10 @@ class ValuePtr {
     }
     ValuePtr(ValuePtr &&) noexcept             = default;
     ValuePtr & operator=(ValuePtr &&) noexcept = default;
+
+    ValuePtr(const Value& value) {
+        ptr_ = createRegistryEntry(value);
+    }
 
     ValuePtr(int v) {
         ptr_ = std::make_shared<Value>();
