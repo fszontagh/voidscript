@@ -37,8 +37,8 @@ class Value {
         return *std::static_pointer_cast<T>(data_);
     }
 
-    void setNULL() { 
-        is_null = true; 
+    void setNULL() {
+        is_null = true;
         data_.reset();
     }
   private:
@@ -88,13 +88,6 @@ class ValuePtr {
   private:
     std::shared_ptr<Value> ptr_;
 
-    ValuePtr(const ValuePtr & other) { this->ptr_ = other.ptr_; }
-
-    ValuePtr & operator=(const ValuePtr & other) {
-        ptr_ = other.ptr_;
-        return *this;
-    }
-
     static std::mutex                      registryMutex_;
     static std::map<std::string, ValuePtr> valueRegistry_;
 
@@ -128,6 +121,13 @@ class ValuePtr {
 
   public:
     ValuePtr() : ptr_(std::make_shared<Value>()) { ptr_->setNULL(); }
+
+    ValuePtr(const ValuePtr & other) { this->ptr_ = other.ptr_; }
+
+    ValuePtr & operator=(const ValuePtr & other) {
+        ptr_ = other.ptr_;
+        return *this;
+    }
 
     ValuePtr & operator=(ValuePtr && other) noexcept {
         ptr_ = std::move(other.ptr_);
@@ -174,6 +174,7 @@ class ValuePtr {
         ptr_->set(v);
     }
 
+
     /*
     ValuePtr(const char * v) {
         if ()
@@ -210,19 +211,13 @@ class ValuePtr {
     }
 
     static ValuePtr null(Symbols::Variables::Type type) {
-        auto z = ValuePtr(0);
+        auto z = ValuePtr(nullptr);
         z->setNULL();
         z.setType(type);
         return z;
     }
 
-    static ValuePtr null() {
-        auto ptr = std::make_shared<Value>();
-        ptr->type_ = Variables::Type::NULL_TYPE;
-        ptr->is_null = true;
-        ptr->data_.reset();
-        return ValuePtr(ptr);
-    }
+    static ValuePtr null() { return ValuePtr::null(Variables::Type::NULL_TYPE); }
 
     std::shared_ptr<Value> operator->() const { return ptr_; }
 
@@ -286,12 +281,12 @@ class ValuePtr {
         try {
             // Try boolean first
             if (str == "true") {
-                return ValuePtr(std::make_shared<Value>(true));
+                return ValuePtr(true);
             }
             if (str == "false") {
-                return ValuePtr(std::make_shared<Value>(false));
+                return ValuePtr(false);
             }
-            
+
             // Try numbers
             if (str.find('.') != std::string::npos) {
                 double d = std::stod(str);
@@ -299,47 +294,29 @@ class ValuePtr {
             }
             int i = std::stoi(str);
             return ValuePtr(i);
-        } catch (const std::exception &e) {
+        } catch (const std::exception & e) {
             // Handle invalid string
-            return ValuePtr(std::make_shared<Value>(std::string(str)));
+            return ValuePtr(str);
         }
     }
 
-    static ValuePtr fromStringToInt(const std::string & str) {
-        Value val;
-        val.set(std::stoi(str));
-        val.type_ = Variables::Type::INTEGER;
-        return ValuePtr(val);
-    }
+    static ValuePtr fromStringToInt(const std::string & str) { return ValuePtr(std::stoi(str)); }
 
-    static ValuePtr fromStringToDouble(const std::string & str) {
-        Value val;
-        val.set(std::stod(str));
-        val.type_ = Variables::Type::DOUBLE;
-        return ValuePtr(val);
-    }
+    static ValuePtr fromStringToDouble(const std::string & str) { return ValuePtr(std::stod(str)); }
 
-    static ValuePtr fromStringToFloat(const std::string & str) {
-        Value val;
-        val.set(std::stof(str));
-        val.type_ = Variables::Type::FLOAT;
-        return ValuePtr(val);
-    }
+    static ValuePtr fromStringToFloat(const std::string & str) { return ValuePtr(std::stof(str)); }
 
     static ValuePtr fromStringToBool(const std::string & str) {
         std::string s = str;
         std::transform(s.begin(), s.end(), s.begin(), ::tolower);
         if (s == "true" || s == "1") {
-            Value val;
-            val.set(true);
-            val.type_ = Variables::Type::BOOLEAN;
-            return ValuePtr(val);
+            return ValuePtr(true);
         }
         if (s == "false" || s == "0") {
             Value val;
             val.set(false);
             val.type_ = Variables::Type::BOOLEAN;
-            return ValuePtr(val);
+            return ValuePtr(false);
         }
         throw std::invalid_argument("Invalid bool string: " + str);
     }
