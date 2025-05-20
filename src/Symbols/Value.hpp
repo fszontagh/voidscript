@@ -7,6 +7,7 @@
 #include <string>
 #include <typeindex>
 #include <typeinfo>
+#include <stdexcept> // For std::bad_cast
 
 #include "Symbols/VariableTypes.hpp"
 
@@ -47,9 +48,15 @@ class Value {
     std::type_index          type_id_ = typeid(void);
     bool                     is_null  = false;
 
-    template <typename T> void set(T data) { this->data_ = std::make_shared<T>(std::move(data)); }
+    template <typename T> void set(T data) { 
+        this->data_ = std::make_shared<T>(std::move(data));
+        this->type_id_ = std::type_index(typeid(T));
+        this->type_ = StringToType(typeid(T).name()); // Convert type to corresponding enum
+    }
   public:
-    Value() = default;
+    Value() {
+        setNULL();
+    }
 
     bool isNULL() const { return is_null || !data_; }
 
@@ -139,39 +146,44 @@ class ValuePtr {
             ptr_ = std::make_shared<Value>();
         }
         ptr_->set(v);
-        this->setType(Variables::Type::INTEGER);
+        ptr_->type_ = Variables::Type::INTEGER;
+        ptr_->type_id_ = std::type_index(typeid(int));
     }
 
     ValuePtr(float v) {
         if (!ptr_) {
             ptr_ = std::make_shared<Value>();
         }
-        ptr_->type_ = Variables::Type::FLOAT;
         ptr_->set(v);
+        ptr_->type_ = Variables::Type::FLOAT;
+        ptr_->type_id_ = std::type_index(typeid(float));
     }
 
     ValuePtr(double v) {
         if (!ptr_) {
             ptr_ = std::make_shared<Value>();
         }
-        ptr_->type_ = Variables::Type::DOUBLE;
         ptr_->set(v);
+        ptr_->type_ = Variables::Type::DOUBLE;
+        ptr_->type_id_ = std::type_index(typeid(double));
     }
 
     ValuePtr(bool v) {
         if (!ptr_) {
             ptr_ = std::make_shared<Value>();
         }
-        ptr_->type_ = Variables::Type::BOOLEAN;
         ptr_->set(v);
+        ptr_->type_ = Variables::Type::BOOLEAN;
+        ptr_->type_id_ = std::type_index(typeid(bool));
     }
 
     ValuePtr(const std::string & v) {
         if (!ptr_) {
             ptr_ = std::make_shared<Value>();
         }
-        ptr_->type_ = Variables::Type::STRING;
         ptr_->set(v);
+        ptr_->type_ = Variables::Type::STRING;
+        ptr_->type_id_ = std::type_index(typeid(std::string));
     }
 
 
@@ -219,7 +231,13 @@ class ValuePtr {
 
     static ValuePtr null() { return ValuePtr::null(Variables::Type::NULL_TYPE); }
 
-    std::shared_ptr<Value> operator->() const { return ptr_; }
+    std::shared_ptr<Value> operator->() const { 
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+            ptr_->setNULL();
+        }
+        return ptr_; 
+    }
 
     template <typename T> T & get() { return ptr_->get<T>(); }
 
@@ -227,11 +245,26 @@ class ValuePtr {
 
     operator Symbols::Variables::Type() { return ptr_->getType(); }
 
-    operator Symbols::Variables::Type() const { return ptr_->getType(); }
+    operator Symbols::Variables::Type() const { 
+        if (!ptr_) {
+            return Variables::Type::NULL_TYPE;
+        }
+        return ptr_->getType(); 
+    }
 
-    bool operator==(Symbols::Variables::Type type) const { return ptr_->type_ == type; }
+    bool operator==(Symbols::Variables::Type type) const { 
+        if (!ptr_) {
+            return type == Variables::Type::NULL_TYPE;
+        }
+        return ptr_->type_ == type; 
+    }
 
-    bool operator!=(Symbols::Variables::Type type) const { return ptr_->type_ != type; }
+    bool operator!=(Symbols::Variables::Type type) const { 
+        if (!ptr_) {
+            return type != Variables::Type::NULL_TYPE;
+        }
+        return ptr_->type_ != type; 
+    }
 
     template <typename T>
     requires(std::is_same_v<T, int> || std::is_same_v<T, float> || std::is_same_v<T, double> ||
