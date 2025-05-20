@@ -10,6 +10,12 @@
 #include "Modules/UnifiedModuleManager.hpp"
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/SymbolContainer.hpp"
+#include "Symbols/SymbolFactory.hpp"
+#include "Symbols/FunctionSymbol.hpp"
+#include "Interpreter/OperationContainer.hpp"
+#include "Interpreter/ReturnException.hpp"
+
 
 // Forward declaration for expression builder
 namespace Parser {
@@ -80,11 +86,103 @@ class NewExpressionNode : public ExpressionNode {
             */
         // Embed class metadata for method dispatch
         obj["__class__"] = className_;
-        // Return class instance value (distinct from plain object)
-        return Symbols::ValuePtr::makeClassInstance(obj);
+        // Create the class instance ValuePtr
+        Symbols::ValuePtr instance_vp = Symbols::ValuePtr::makeClassInstance(obj);
+
+        // Find constructor method ("construct")
+        const auto& class_info = Modules::UnifiedModuleManager::instance().getClassInfo(className_);
+        Symbols::FunctionSymbolPtr construct_method_sym;
+        for (const auto& method_pair : class_info.methods) {
+            if (method_pair.first == "construct") {
+                // Assuming methods are stored as SymbolPtr and need casting
+                // Also assuming FunctionSymbolPtr is a typedef for std::shared_ptr<FunctionSymbol>
+                if (method_pair.second && method_pair.second->getKind() == Symbols::Kind::Function) {
+                    construct_method_sym = std::static_pointer_cast<Symbols::FunctionSymbol>(method_pair.second);
+                }
+                break;
+            }
+        }
+
+        if (construct_method_sym) {
+            // Constructor found, proceed with argument evaluation and call
+            std::vector<Symbols::ValuePtr> evaluated_constructor_args;
+            evaluated_constructor_args.reserve(args_.size());
+            for (const auto& arg_expr : args_) {
+                evaluated_constructor_args.push_back(arg_expr->evaluate(interpreter).clone());
+            }
+
+            const auto& expected_params = construct_method_sym->parameters();
+            if (evaluated_constructor_args.size() != expected_params.size()) {
+                throw Exception("Argument count mismatch for constructor of class '" + className_ + "'. Expected " +
+                                std::to_string(expected_params.size()) + ", got " +
+                                std::to_string(evaluated_constructor_args.size()) + ".",
+                                filename_, line_, column_);
+            }
+
+            // Optional: Parameter Type Checking
+            for (size_t i = 0; i < expected_params.size(); ++i) {
+                if (expected_params[i].type != Symbols::Variables::Type::UNDEFINED_TYPE && // Check if param type is specified
+                    expected_params[i].type != evaluated_constructor_args[i].getType() &&
+                    evaluated_constructor_args[i].getType() != Symbols::Variables::Type::NULL_TYPE) { // Allow null to be passed
+                    throw Exception("Type mismatch for constructor argument " + std::to_string(i+1) + " ('" + expected_params[i].name +
+                                    "') of class '" + className_ + "'. Expected " +
+                                    Symbols::Variables::TypeToString(expected_params[i].type) + ", got " +
+                                    Symbols::Variables::TypeToString(evaluated_constructor_args[i].getType()) + ".",
+                                    filename_, line_, column_);
+                }
+            }
+            
+            Symbols::SymbolContainer* sc = Symbols::SymbolContainer::instance();
+            std::string constructor_scope_id = className_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + "construct";
+            std::string call_scope_name = sc->enterFunctionCallScope(constructor_scope_id);
+
+            // Bind "this"
+            // The type of 'this' is the class itself, which is represented as an OBJECT internally for ValuePtr
+            sc->add(Symbols::SymbolFactory::createVariable("this", instance_vp, call_scope_name, Symbols::Variables::Type::CLASS));
+
+            // Bind parameters
+            for (size_t i = 0; i < expected_params.size(); ++i) {
+                const auto& param_info = expected_params[i];
+                Symbols::ValuePtr arg_value = evaluated_constructor_args[i];
+                 // If argument is null and param has a specific type, try to make the arg "null of that type"
+                if (arg_value.getType() == Symbols::Variables::Type::NULL_TYPE && param_info.type != Symbols::Variables::Type::UNDEFINED_TYPE) {
+                    arg_value = Symbols::ValuePtr::null(param_info.type);
+                }
+                sc->add(Symbols::SymbolFactory::createVariable(param_info.name, arg_value, call_scope_name, arg_value.getType()));
+            }
+
+            // Execute constructor body
+            auto ops = Operations::Container::instance()->getAll(constructor_scope_id);
+            try {
+                for (const auto& op : ops) {
+                    interpreter.runOperation(*op);
+                }
+            } catch (const ReturnException& ret_ex) {
+                // Constructor return values are typically ignored.
+                // If a 'return;' or 'return value;' is encountered, it just exits the constructor.
+            } catch (const Exception& ) { // Propagate interpreter exceptions
+                sc->enterPreviousScope(); // Ensure scope is exited on error
+                throw;
+            } catch (const std::exception& std_ex) { // Propagate standard exceptions
+                sc->enterPreviousScope(); // Ensure scope is exited on error
+                throw Exception(std_ex.what(), filename_, line_, column_);
+            }
+
+
+            sc->enterPreviousScope();
+
+        } else {
+            // No constructor found
+            if (!args_.empty()) {
+                throw Exception("Class '" + className_ + "' does not have a constructor (construct method), but arguments were provided.",
+                                filename_, line_, column_);
+            }
+        }
+
+        return instance_vp;
     }
 
-    std::string toString() const override { return "NewExpression{ class=" + className_ + " }"; }
+    std::string toString() const override { return "NewExpression{ class=" + className_ + ", args=" + std::to_string(args_.size()) + " }"; }
 };
 
 }  // namespace Interpreter

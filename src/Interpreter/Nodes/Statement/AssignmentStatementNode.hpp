@@ -57,43 +57,52 @@ class AssignmentStatementNode : public StatementNode {
             // Evaluate RHS first
             Symbols::ValuePtr newValue = rhs_->evaluate(interpreter);
 
-            // Traverse and modify the nested object structure IN PLACE within the Value obtained from the symbol
-            // (Requires Value to allow modification of its internal map, or handle copy-on-write)
-            // Assuming Value allows modification via get() returning a reference or similar mechanism
-            // --- Modification Logic (Needs careful review based on Value implementation) ---
-            auto currentVal = objectValue;  // Start with the base object value
+            // Traverse and modify the nested object structure IN PLACE.
+            Symbols::ValuePtr currentValPtr = objectValue; 
+
             for (size_t i = 0; i < propertyPath_.size(); ++i) {
-                const auto & key = propertyPath_[i];
-                if (currentVal != Variables::Type::OBJECT && currentVal != Variables::Type::CLASS) {
-                    throw Exception("Intermediate property '" + key + "' is not an object", filename_, line_, column_);
+                const auto& key = propertyPath_[i];
+
+                if (currentValPtr.getType() != Variables::Type::OBJECT && currentValPtr.getType() != Variables::Type::CLASS) {
+                    std::string traversed_path;
+                    for(size_t j = 0; j < i; ++j) traversed_path += propertyPath_[j] + "->";
+                    throw Exception("Attempting to access property '" + key + "' on non-object type at path '" + targetName_ + "->" + traversed_path.substr(0, traversed_path.length()-2) + "'. Current segment type: " + Symbols::Variables::TypeToString(currentValPtr.getType()), filename_, line_, column_);
                 }
 
-                Symbols::ObjectMap currentMap = currentVal;  // Get reference to map
-                auto               it         = currentMap.find(key);
-                if (it == currentMap.end()) {
-                    throw Exception("Property '" + key + "' not found on object", filename_, line_, column_);
-                }
+                // Get a reference to the map within the current Value object.
+                // Value::get<ObjectMap>() returns ObjectMap&
+                Symbols::ObjectMap& map_ref = currentValPtr->get<Symbols::ObjectMap>();
 
                 if (i == propertyPath_.size() - 1) {
-                    // Last element: perform assignment
-                    // Type check before assignment
-                    if (newValue != Variables::Type::NULL_TYPE && it->second != Variables::Type::NULL_TYPE &&
-                        newValue != it->second) {
-                        throw Exception("Type mismatch for property '" + key + "': expected '" +
-                                            Symbols::Variables::TypeToString(it->second) + "' but got '" +
-                                            Symbols::Variables::TypeToString(newValue) + "'",
-                                        filename_, line_, column_);
+                    // This is the final property to assign.
+                    Symbols::ValuePtr newValueEvaluated = rhs_->evaluate(interpreter);
+
+                    // Optional Type Check:
+                    if (map_ref.count(key)) {
+                        const Symbols::ValuePtr& existing_prop_val = map_ref.at(key);
+                        if (newValueEvaluated.getType() != Symbols::Variables::Type::NULL_TYPE &&
+                            existing_prop_val.getType() != Symbols::Variables::Type::NULL_TYPE &&
+                            newValueEvaluated.getType() != existing_prop_val.getType()) {
+                            throw Exception("Type mismatch for property '" + key + "': expected '" +
+                                                Symbols::Variables::TypeToString(existing_prop_val.getType()) + "' but got '" +
+                                                Symbols::Variables::TypeToString(newValueEvaluated.getType()) + "'",
+                                            filename_, line_, column_);
+                        }
                     }
-                    it->second = newValue.clone();  // Assign the new value to the property in the map
+                    // Perform the assignment using the cloned new value.
+                    map_ref[key] = newValueEvaluated.clone();
                 } else {
-                    // Move to the next level
-                    currentVal = it->second;
+                    // Not the last property, so traverse deeper.
+                    auto it = map_ref.find(key);
+                    if (it == map_ref.end()) {
+                         std::string traversed_path;
+                         for(size_t j = 0; j <= i; ++j) traversed_path += propertyPath_[j] + (j < i ? "->" : "");
+                        throw Exception("Property '" + key + "' not found on object at path '" + targetName_ + "->" + traversed_path + "'", filename_, line_, column_);
+                    }
+                    currentValPtr = it->second; // Update currentValPtr to the next ValuePtr in the chain.
                 }
             }
-            // --- End Modification Logic ---
-
-            // Update the original symbol with the modified objectValue
-            symbol->setValue(objectValue);
+            // No need for symbol->setValue(objectValue) as modifications are direct.
 
         } else {
             // Simple variable assignment (targetName_ is the variable itself)
