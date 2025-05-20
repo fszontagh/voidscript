@@ -39,10 +39,13 @@ class MethodCallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
-                               size_t /*col */) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string filename, int line, size_t col) const override {
+        const std::string f  = filename_.empty() && !filename.empty() ? filename : filename_;
+        int               l  = line_ == 0 && line != 0 ? line : line_;
+        size_t            c  = column_ == 0 && col > 0 ? col : column_;
         // Evaluate target object and track original symbol for write-back
-        auto *                           sc      = Symbols::SymbolContainer::instance();
+        auto *            sc = Symbols::SymbolContainer::instance();
+
         // Determine original variable symbol (only simple identifiers)
         std::string                      fileNs  = sc->currentScopeName();
         std::string                      varNs   = fileNs + Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE;
@@ -51,28 +54,27 @@ class MethodCallExpressionNode : public ExpressionNode {
         if (sc->exists(objName, varNs)) {
             origSym = sc->get(varNs, objName);
         }
+
         try {
             // Evaluate target object (produces a copy)
-            Symbols::ValuePtr objVal = objectExpr_->evaluate(interpreter);
+            auto objVal = objectExpr_->evaluate(interpreter, f, l, c);
 
             // Allow method calls on class instances (and plain objects with class metadata)
             if (objVal != Symbols::Variables::Type::OBJECT && objVal != Symbols::Variables::Type::CLASS) {
-                throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
-                                column_);
+                throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", f, l, c);
             }
-            const Symbols::ObjectMap & objMap = objVal;
+            const Symbols::ObjectMap objMap = objVal.get<Symbols::ObjectMap>();
 
             // Extract class name
             auto it = objMap.find("__class__");
             if (it == objMap.end() || it->second != Symbols::Variables::Type::STRING) {
-                throw std::invalid_argument("Object is missing class metadata for method: " + methodName_);
+                throw Exception("Object is missing class metadata for method: " + methodName_, f, l, c);
             }
             const std::string className = it->second;
             // Verify method exists
             auto &            registry  = Modules::UnifiedModuleManager::instance();
             if (!registry.hasMethod(className, methodName_)) {
-                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", filename_, line_,
-                                column_);
+                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", f, l, c);
             }
 
             // Evaluate arguments (including 'this')
@@ -85,17 +87,18 @@ class MethodCallExpressionNode : public ExpressionNode {
             // Native method override via UnifiedModuleManager
             {
                 auto &      mgr      = Modules::UnifiedModuleManager::instance();
-                std::string fullName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
+                std::string fullName = className + "::" + methodName_;
                 if (mgr.hasFunction(fullName)) {
                     Symbols::ValuePtr        ret     = mgr.callFunction(fullName, argValues);
                     Symbols::Variables::Type retType = mgr.getFunctionReturnType(fullName);
-                    if (ret != retType) {
-                        throw Exception("Method " + methodName_ + " return value type missmatch. Expected: " +
-                                            Symbols::Variables::TypeToString(retType) + " got " +
-                                            Symbols::Variables::TypeToString(ret),
-                                        filename_, line_, column_);
+                    // Write back modified object if returned
+                    if (origSym && (ret.getType() == Symbols::Variables::Type::OBJECT ||
+                                    ret.getType() == Symbols::Variables::Type::CLASS)) {
+                        if (origSym->getValue().getType() == ret.getType()) {
+                            origSym->setValue(ret);
+                        }
+                        //origSym->setValue(ret);
                     }
-
                     return ret;
                 }
             }
@@ -112,8 +115,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
 
             if (!sym || sym->getKind() != Symbols::Kind::Function) {
-                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", filename_, line_,
-                                column_);
+                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", f, l, c);
             }
             auto                     funcSym    = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
             Symbols::Variables::Type returnType = funcSym->returnType();
@@ -122,17 +124,17 @@ class MethodCallExpressionNode : public ExpressionNode {
             if (params.size() != args_.size()) {
                 throw Exception("Invalid number of arguments:s: '" + className + "->" + methodName_ + "', expects " +
                                     std::to_string(params.size()) + " args, got " + std::to_string(args_.size()),
-                                filename_, line_, column_);
+                                f, l, c);
             }
             // validate arg types
             size_t _c = 1;
             for (const auto & _p : params) {
-                const auto& argType = argValues[_c];
+                const auto & argType = argValues[_c];
                 if (_p.type != argType->getType()) {
                     throw Exception("Invalid type of arguments:: '" + className + "->" + methodName_ +
                                         "' unexpected type at " + std::to_string(_c) + " '" + (_p.name) +
                                         "'. Expected: " + Symbols::Variables::TypeToString(_p.type),
-                                    filename_, line_, column_);
+                                    f, l, c);
                 }
                 _c++;
             }
@@ -173,10 +175,10 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
             throw Exception("Method '" + methodName_ + "' (return type: " +
                                 Symbols::Variables::TypeToString(returnType) + ") did not return a value",
-                            filename_, line_, column_);
+                            f, l, c);
 
         } catch (const std::exception & e) {
-            throw Exception(e.what(), filename_, line_, column_);
+            throw Exception(e.what(), f, l, c);
         }
     }
 

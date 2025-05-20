@@ -18,7 +18,10 @@ class ExpressionStatementNode : public StatementNode {
     ExpressionStatementNode(std::unique_ptr<ExpressionNode> expr, const std::string & filename, int line,
                             size_t column) :
         StatementNode(filename, line, column),
-        expr_(std::move(expr)) {}
+        expr_(std::move(expr)),
+        filename_(filename),
+        line_(line),
+        column_(column) {}
 
     void interpret(Interpreter & interpreter) const override {
         // Evaluate expression and discard result

@@ -109,7 +109,7 @@ class ValuePtr {
   public:
     // Default constructor: Inlined as it's simple and commonly used.
     // Initializes ptr_ to a new Value, which itself initializes to NULL_TYPE.
-    ValuePtr() : ptr_(std::make_shared<Value>()) { 
+    ValuePtr() : ptr_(std::make_shared<Value>()) {
         // Value's default constructor calls its setNULL(), so ptr_ points to a null Value.
     }
 
@@ -142,7 +142,7 @@ class ValuePtr {
     ValuePtr(bool v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
     ValuePtr(const std::string & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
     ValuePtr(const ObjectMap & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
-    
+
     // Constructor from Value&& : Inlined. Captures type correctly.
     ValuePtr(Value && v) : ptr_(std::make_shared<Value>(std::move(v))) {
         // The moved-from 'v' is in an unspecified state.
@@ -174,7 +174,7 @@ class ValuePtr {
     static ValuePtr fromStringToDouble(const std::string & str);
     static ValuePtr fromStringToFloat(const std::string & str);
     static ValuePtr fromStringToBool(const std::string & str);
-    
+
     // Operators - Declarations for those moved, inline for trivial ones
     std::shared_ptr<Value> operator->();
     std::shared_ptr<const Value> operator->() const;
@@ -186,7 +186,7 @@ class ValuePtr {
     // Comparison operators - Declarations only
     bool operator==(Symbols::Variables::Type type) const;
     bool operator!=(Symbols::Variables::Type type) const;
-    
+
     // Subscript operator for objects - Declaration only
     ValuePtr & operator[](const std::string & key);
 
@@ -225,6 +225,7 @@ class ValuePtr {
              // Throwing might be the most consistent with Value::get behavior.
              // Or, provide default values. For now, let get<T> handle it.
              // This path will likely throw if ptr_->data_ is null.
+             throw std::runtime_error("Attempted to access to a NULL value.");
         }
         return ptr_->get<T>();
     }
