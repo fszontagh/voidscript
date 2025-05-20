@@ -34,10 +34,13 @@ class Value {
     std::type_index          type_id_ = typeid(void);
     bool                     is_null  = false;
 
-    template <typename T> void set(T value) {
-        data_    = std::make_shared<T>(std::move(value));
-        type_id_ = typeid(T);
-        is_null  = false;
+    template <typename T> static Value create(T value) {
+        Value val;
+        val.data_ = std::make_shared<T>(std::move(value));
+        val.type_ = Variables::Type::STRING; // Set appropriate type based on T
+        val.type_id_ = typeid(T);
+        val.is_null = false;
+        return val;
     }
 
   public:
@@ -108,6 +111,18 @@ class ValuePtr {
         return valueToString(value);
     }
 
+    static std::shared_ptr<Value> createRegistryEntry(const Value& value) {
+        std::lock_guard<std::mutex> lock(registryMutex_);
+        auto key = generateRegistryKey(value);
+        if (valueRegistry_.contains(key)) {
+            return valueRegistry_.at(key);
+        }
+        // Create new ValuePtr from existing Value
+        auto newValue = std::make_shared<Value>(value);
+        valueRegistry_[key] = ValuePtr(newValue);
+        return newValue;
+    }
+
     static ValuePtr& getFromRegistry(const Value& value) {
         std::lock_guard<std::mutex> lock(registryMutex_);
         auto key = generateRegistryKey(value);
@@ -115,9 +130,9 @@ class ValuePtr {
             return valueRegistry_.at(key);
         }
         // Create new ValuePtr from existing Value
-        auto newPtr = std::make_shared<ValuePtr>(value);
+        auto newPtr = ValuePtr(value);
         valueRegistry_[key] = newPtr;
-        return *newPtr;
+        return valueRegistry_[key];
     }
 
     ValuePtr& registryLookup(Value& value) {
@@ -165,32 +180,27 @@ class ValuePtr {
     }
 
     ValuePtr(int v) {
-        ptr_ = std::make_shared<Value>();
-        ptr_->set(v);
+        ptr_ = Value::create(v);
         ptr_->type_ = Variables::Type::INTEGER;
     }
 
     ValuePtr(float v) {
-        ptr_ = std::make_shared<Value>();
-        ptr_->set(v);
+        ptr_ = Value::create(v);
         ptr_->type_ = Variables::Type::FLOAT;
     }
 
     ValuePtr(double v) {
-        ptr_ = std::make_shared<Value>();
-        ptr_->set(v);
+        ptr_ = Value::create(v);
         ptr_->type_ = Variables::Type::DOUBLE;
     }
 
     ValuePtr(bool v) {
-        ptr_ = std::make_shared<Value>();
-        ptr_->set(v);
+        ptr_ = Value::create(v);
         ptr_->type_ = Variables::Type::BOOLEAN;
     }
 
     ValuePtr(const std::string & v) {
-        ptr_ = std::make_shared<Value>();
-        ptr_->set(v);
+        ptr_ = Value::create(v);
         ptr_->type_ = Variables::Type::STRING;
     }
 
