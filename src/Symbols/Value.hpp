@@ -4,10 +4,10 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <stdexcept>  // For std::bad_cast
 #include <string>
 #include <typeindex>
 #include <typeinfo>
-#include <stdexcept> // For std::bad_cast
 
 #include "Symbols/VariableTypes.hpp"
 
@@ -31,8 +31,6 @@ const static std::unordered_map<std::type_index, Symbols::Variables::Type> type_
 class Value {
     friend class ValuePtr;
 
-
-
     void setNULL() {
         is_null = true;
         data_.reset();
@@ -44,20 +42,23 @@ class Value {
     bool                     is_null  = false;
 
     template <typename T> void set(T data) {
-        this->data_ = std::make_shared<T>(std::move(data));
+        this->data_    = std::make_shared<T>(std::move(data));
         this->type_id_ = std::type_index(typeid(T));
-        this->type_ = Variables::StringToType(typeid(T).name()); // Convert type to corresponding enum
+        this->type_    = type_names.at(std::type_index(typeid(T)));  // Get type from predefined map
     }
   public:
-    Value() {
-        setNULL();
-    }
+    Value() { setNULL(); }
+
     template <typename T> const T & get() const {
         if (type_id_ != typeid(T)) {
             throw std::bad_cast();
         }
+        if (!data_) {
+            throw std::runtime_error("Attempted to access data, but it's null.");
+        }
         return *std::static_pointer_cast<T>(data_);
     }
+
     bool isNULL() const { return is_null || !data_; }
 
     template <typename T> T & get() {
@@ -70,11 +71,16 @@ class Value {
     Symbols::Variables::Type getType() const { return type_; }
 
     std::string toString() const {
-        if (type_ == Variables::Type::STRING) {
-            return get<std::string>();
+        if (isNULL()) {
+            return "null";
         }
 
-        //        auto it = type_names.find(std::type_index(typeid(data_.get())));
+        if (type_ == Variables::Type::STRING) {
+            if (!data_) {
+                return "null";  // vagy throw
+            }
+            return get<std::string>();
+        }
 
         switch (type_) {
             case Variables::Type::INTEGER:
@@ -141,51 +147,15 @@ class ValuePtr {
         return *this;
     }
 
-    ValuePtr(int v) {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        ptr_->set(v);
-        ptr_->type_ = Variables::Type::INTEGER;
-        ptr_->type_id_ = std::type_index(typeid(int));
-    }
+    ValuePtr(int v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
-    ValuePtr(float v) {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        ptr_->set(v);
-        ptr_->type_ = Variables::Type::FLOAT;
-        ptr_->type_id_ = std::type_index(typeid(float));
-    }
+    ValuePtr(float v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
-    ValuePtr(double v) {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        ptr_->set(v);
-        ptr_->type_ = Variables::Type::DOUBLE;
-        ptr_->type_id_ = std::type_index(typeid(double));
-    }
+    ValuePtr(double v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
-    ValuePtr(bool v) {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        ptr_->set(v);
-        ptr_->type_ = Variables::Type::BOOLEAN;
-        ptr_->type_id_ = std::type_index(typeid(bool));
-    }
+    ValuePtr(bool v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
-    ValuePtr(const std::string & v) {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        ptr_->set(v);
-        ptr_->type_ = Variables::Type::STRING;
-        ptr_->type_id_ = std::type_index(typeid(std::string));
-    }
-
+    ValuePtr(const std::string & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
     /*
     ValuePtr(const char * v) {
@@ -195,25 +165,24 @@ class ValuePtr {
         ptr_->type_ = Variables::Type::STRING;
     }
 */
-    ValuePtr(const ObjectMap & v) {
-        if (!ptr_) {
-            ptr_ = std::make_shared<Value>();
-        }
-        ptr_->type_ = Variables::Type::OBJECT;
-        ptr_->set(v);
-    }
+    ValuePtr(const ObjectMap & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
     ValuePtr(Value && v) {
         if (!ptr_) {
-            ptr_ = std::make_shared<Value>(v);
+            Symbols::Variables::Type type = v.getType();                            // Capture type before move
+            ptr_                          = std::make_shared<Value>(std::move(v));  // Proper move semantics
+            ptr_->type_                   = type;  // Assign captured type to new instance
         }
     }
 
     Variables::Type getType() const { return ptr_ ? ptr_->type_ : Variables::Type::NULL_TYPE; }
 
     void setType(Symbols::Variables::Type type) {
-        ensure_object();
-        ptr_->type_ = type;
+        if (!ptr_ || ptr_->isNULL()) {
+            ptr_->type_ = type;
+        } else {
+            throw std::logic_error("Cannot set type manually on non-null value");
+        }
     }
 
     ValuePtr & setNULL() {
@@ -222,10 +191,23 @@ class ValuePtr {
         return *this;
     }
 
+    ValuePtr(const char * v) {
+        if (v == nullptr) {
+            ptr_ = std::make_shared<Value>();
+            ptr_->setNULL();
+        } else {
+            ptr_ = std::make_shared<Value>();
+            ptr_->set(std::string(v));
+        }
+    }
+
     static ValuePtr null(Symbols::Variables::Type type) {
         auto z = ValuePtr(nullptr);
-        z->setNULL();
+        z->setNULL();  // <- data_ reset
         z.setType(type);
+        if (type == Variables::Type::STRING) {
+            z->set<std::string>("");
+        }
         return z;
     }
 
@@ -298,6 +280,13 @@ class ValuePtr {
         if (!ptr_) {
             return "null";
         }
+        if (ptr_->type_ == Variables::Type::STRING) {
+            if (!ptr_->data_) {
+                return "null";
+            }
+            return ptr_->get<std::string>();
+        }
+
         switch (ptr_->type_) {
             case Variables::Type::INTEGER:
                 return std::to_string(ptr_->get<int>());
@@ -307,8 +296,6 @@ class ValuePtr {
                 return std::to_string(ptr_->get<double>());
             case Variables::Type::BOOLEAN:
                 return ptr_->get<bool>() ? "true" : "false";
-            case Variables::Type::STRING:
-                return ptr_->get<std::string>();
             case Variables::Type::OBJECT:
                 return "{...}";
             case Variables::Type::NULL_TYPE:
@@ -318,6 +305,9 @@ class ValuePtr {
     }
 
     static ValuePtr fromString(const std::string & str) {
+        if (str == "null") {
+            return ValuePtr::null(Variables::Type::NULL_TYPE);
+        }
         try {
             // Try boolean first
             if (str == "true") {
@@ -353,9 +343,6 @@ class ValuePtr {
             return ValuePtr(true);
         }
         if (s == "false" || s == "0") {
-            Value val;
-            val.set(false);
-            val.type_ = Variables::Type::BOOLEAN;
             return ValuePtr(false);
         }
         throw std::invalid_argument("Invalid bool string: " + str);
