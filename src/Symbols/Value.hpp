@@ -72,7 +72,7 @@ class ValuePtr {
   private:
     std::shared_ptr<Value> ptr_;
 
-    ValuePtr(const ValuePtr & other) {
+     ValuePtr(const ValuePtr & other) {
         ptr_ = other.registryLookup(other.ptr_);
     }
 
@@ -120,7 +120,7 @@ class ValuePtr {
         return *newPtr;
     }
 
-    ValuePtr& registryLookup(const Value& value) {
+    ValuePtr& registryLookup(Value& value) {
         static ValuePtr nullPtr;
         if (valueRegistry_.empty()) {
             return nullPtr;
