@@ -21,7 +21,7 @@ class SymbolFactory {
             type == Symbols::Variables::Type::UNDEFINED_TYPE ? value->getType() : type);
     }
 
-    static std::shared_ptr<Symbol> createConstant(const std::string & name, Symbols::ValuePtr & value,
+    static std::shared_ptr<Symbol> createConstant(const std::string & name, const Symbols::ValuePtr & value,
                                                   const std::string & context) {
         return std::make_shared<ConstantSymbol>(name, value, context);
     }
