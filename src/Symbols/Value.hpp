@@ -17,6 +17,16 @@ class ValuePtr;
 
 using ObjectMap = std::map<std::string, ValuePtr>;
 
+const static std::unordered_map<std::type_index, Symbols::Variables::Type> type_names = {
+    { std::type_index(typeid(int)),         Symbols::Variables::Type::INTEGER   },
+    { std::type_index(typeid(double)),      Symbols::Variables::Type::DOUBLE    },
+    { std::type_index(typeid(float)),       Symbols::Variables::Type::FLOAT     },
+    { std::type_index(typeid(bool)),        Symbols::Variables::Type::BOOLEAN   },
+    { std::type_index(typeid(ObjectMap)),   Symbols::Variables::Type::OBJECT    },
+    { std::type_index(typeid(std::string)), Symbols::Variables::Type::STRING    },
+    { std::type_index(typeid(nullptr)),     Symbols::Variables::Type::NULL_TYPE },
+};
+
 class Value {
     friend class ValuePtr;
 
@@ -34,15 +44,7 @@ class Value {
     std::type_index          type_id_ = typeid(void);
     bool                     is_null  = false;
 
-    template <typename T> static Value create(T value) {
-        Value val;
-        val.data_ = std::make_shared<T>(std::move(value));
-        val.type_ = Variables::Type::STRING; // Set appropriate type based on T
-        val.type_id_ = typeid(T);
-        val.is_null = false;
-        return val;
-    }
-
+    template <typename T> void set(T data) { this->data_ = std::make_shared<T>(std::move(data)); }
   public:
     Value() = default;
 
@@ -61,12 +63,20 @@ class Value {
         if (type_ == Variables::Type::STRING) {
             return get<std::string>();
         }
+
+        //        auto it = type_names.find(std::type_index(typeid(data_.get())));
+
         switch (type_) {
-            case Variables::Type::INTEGER:  return std::to_string(get<int>());
-            case Variables::Type::FLOAT:    return std::to_string(get<float>());
-            case Variables::Type::DOUBLE:   return std::to_string(get<double>());
-            case Variables::Type::BOOLEAN:  return get<bool>() ? "true" : "false";
-            default:                         return "null";
+            case Variables::Type::INTEGER:
+                return std::to_string(get<int>());
+            case Variables::Type::FLOAT:
+                return std::to_string(get<float>());
+            case Variables::Type::DOUBLE:
+                return std::to_string(get<double>());
+            case Variables::Type::BOOLEAN:
+                return get<bool>() ? "true" : "false";
+            default:
+                return "null";
         }
     }
 };
@@ -75,76 +85,32 @@ class ValuePtr {
   private:
     std::shared_ptr<Value> ptr_;
 
-     ValuePtr(const ValuePtr & other) {
-        ptr_ = other.registryLookup(other.ptr_);
-    }
+    ValuePtr(const ValuePtr & other) { this->ptr_ = other.ptr_; }
 
     ValuePtr & operator=(const ValuePtr & other) {
-        ptr_ = other.registryLookup(other.ptr_);
+        ptr_ = other.ptr_;
         return *this;
     }
 
-    static std::mutex registryMutex_;
+    static std::mutex                      registryMutex_;
     static std::map<std::string, ValuePtr> valueRegistry_;
 
-    static std::string valueToString(const Value& value) {
+    static std::string valueToString(const Value & value) {
         if (value.type_ == Variables::Type::STRING) {
             return value.get<std::string>();
         }
         switch (value.type_) {
-            case Variables::Type::INTEGER:  return std::to_string(value.get<int>());
-            case Variables::Type::FLOAT:    return std::to_string(value.get<float>());
-            case Variables::Type::DOUBLE:   return std::to_string(value.get<double>());
-            case Variables::Type::BOOLEAN:  return value.get<bool>() ? "true" : "false";
-            default:                         return "null";
+            case Variables::Type::INTEGER:
+                return std::to_string(value.get<int>());
+            case Variables::Type::FLOAT:
+                return std::to_string(value.get<float>());
+            case Variables::Type::DOUBLE:
+                return std::to_string(value.get<double>());
+            case Variables::Type::BOOLEAN:
+                return value.get<bool>() ? "true" : "false";
+            default:
+                return "null";
         }
-    }
-
-    static std::string generateRegistryKey(const Value& value) {
-        if (value.type_ == Variables::Type::OBJECT) {
-            std::string key = "OBJECT:";
-            for (const auto& [k, v] : value.get<ObjectMap>()) {
-                key += k + ":" + ValuePtr::valueToString(*v);
-            }
-            return key;
-        }
-        return valueToString(value);
-    }
-
-    static std::shared_ptr<Value> createRegistryEntry(const Value& value) {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        auto key = generateRegistryKey(value);
-        if (valueRegistry_.contains(key)) {
-            return valueRegistry_.at(key);
-        }
-        // Create new ValuePtr from existing Value
-        auto newValue = std::make_shared<Value>(value);
-        valueRegistry_[key] = ValuePtr(newValue);
-        return newValue;
-    }
-
-    static ValuePtr& getFromRegistry(const Value& value) {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        auto key = generateRegistryKey(value);
-        if (valueRegistry_.contains(key)) {
-            return valueRegistry_.at(key);
-        }
-        // Create new ValuePtr from existing Value
-        auto newPtr = ValuePtr(value);
-        valueRegistry_[key] = newPtr;
-        return valueRegistry_[key];
-    }
-
-    ValuePtr& registryLookup(Value& value) {
-        static ValuePtr nullPtr;
-        if (valueRegistry_.empty()) {
-            return nullPtr;
-        }
-        auto it = valueRegistry_.find(generateRegistryKey(value));
-        if (it != valueRegistry_.end()) {
-            ptr_ = it->second;
-        }
-        return *this;
     }
 
     void ensure_object() {
@@ -160,48 +126,49 @@ class ValuePtr {
   public:
     ValuePtr() : ptr_(std::make_shared<Value>()) { ptr_->setNULL(); }
 
-    ValuePtr(const ValuePtr &)                 = default;
-    ValuePtr & operator=(const ValuePtr & other) noexcept {
-        if (this != &other) {
-            ptr_ = other.ptr_;
-        }
-        return *this;
-    }
-
     ValuePtr & operator=(ValuePtr && other) noexcept {
         ptr_ = std::move(other.ptr_);
         return *this;
     }
-    ValuePtr(ValuePtr &&) noexcept             = default;
-    ValuePtr & operator=(ValuePtr &&) noexcept = default;
-
-    ValuePtr(const Value& value) {
-        ptr_ = createRegistryEntry(value);
-    }
 
     ValuePtr(int v) {
-        ptr_ = Value::create(v);
-        ptr_->type_ = Variables::Type::INTEGER;
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+        }
+        ptr_->set(v);
+        this->setType(Variables::Type::INTEGER);
     }
 
     ValuePtr(float v) {
-        ptr_ = Value::create(v);
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+        }
         ptr_->type_ = Variables::Type::FLOAT;
+        ptr_->set(v);
     }
 
     ValuePtr(double v) {
-        ptr_ = Value::create(v);
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+        }
         ptr_->type_ = Variables::Type::DOUBLE;
+        ptr_->set(v);
     }
 
     ValuePtr(bool v) {
-        ptr_ = Value::create(v);
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+        }
         ptr_->type_ = Variables::Type::BOOLEAN;
+        ptr_->set(v);
     }
 
     ValuePtr(const std::string & v) {
-        ptr_ = Value::create(v);
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+        }
         ptr_->type_ = Variables::Type::STRING;
+        ptr_->set(v);
     }
 
     /*
@@ -212,21 +179,18 @@ class ValuePtr {
         ptr_->type_ = Variables::Type::STRING;
     }
 */
-    ValuePtr(const ObjectMap & map) {
-        Value val;
-        val.set(map);
-        val.type_ = Variables::Type::OBJECT;
-        ptr_ = createRegistryEntry(val);
+    ValuePtr(const ObjectMap & v) {
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+        }
+        ptr_->type_ = Variables::Type::OBJECT;
+        ptr_->set(v);
     }
 
-    template <typename T>
-    static ValuePtr create(T&& value) {
-        Value val = std::forward<T>(value);
-        return ValuePtr(val);
-    }
-
-    ValuePtr(Value&& value) {
-        ptr_ = createRegistryEntry(value);
+    ValuePtr(Value && v) {
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>(v);
+        }
     }
 
     Variables::Type getType() const { return ptr_ ? ptr_->type_ : Variables::Type::NULL_TYPE; }
@@ -248,6 +212,7 @@ class ValuePtr {
         z.setType(type);
         return z;
     }
+
     static ValuePtr null() {
         auto z = ValuePtr(0);
         z->setNULL();
