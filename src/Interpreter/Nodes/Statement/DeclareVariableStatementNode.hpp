@@ -90,9 +90,9 @@ class DeclareVariableStatementNode : public StatementNode {
             std::shared_ptr<Symbols::Symbol> symbol_to_define;
             if (isConst_) {
                 symbol_to_define =
-                    Symbols::SymbolFactory::createConstant(variableName_, value, current_runtime_scope_name);
+                    Symbols::SymbolFactory::createConstant(variableName_, value.clone(), current_runtime_scope_name);
             } else {
-                symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value,
+                symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value.clone(),
                                                                           current_runtime_scope_name, variableType_);
             }
             // sc->add() uses SymbolContainer::currentScopeName() internally, which is current_runtime_scope_name

@@ -84,7 +84,7 @@ class AssignmentStatementNode : public StatementNode {
                                             Symbols::Variables::TypeToString(newValue) + "'",
                                         filename_, line_, column_);
                     }
-                    it->second = newValue;  // Assign the new value to the property in the map
+                    it->second = newValue.clone();  // Assign the new value to the property in the map
                 } else {
                     // Move to the next level
                     currentVal = it->second;
@@ -108,7 +108,7 @@ class AssignmentStatementNode : public StatementNode {
                                     Symbols::Variables::TypeToString(newValue) + "'",
                                 filename_, line_, column_);
             }
-            symbol->setValue(newValue);  // Assign directly to the symbol
+            symbol->setValue(newValue.clone());  // Assign directly to the symbol
         }
     }
 

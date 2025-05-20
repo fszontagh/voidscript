@@ -274,6 +274,13 @@ if (BUILD_TESTS)
   target_link_libraries(built_in_module_tests PRIVATE voidscript Catch2::Catch2WithMain)
   catch_discover_tests(built_in_module_tests)
 
+  # Test executable for value semantics
+  add_executable(value_semantics_tests
+      tests/ValueSemanticsTests.cpp
+  )
+  target_link_libraries(value_semantics_tests PRIVATE voidscript Catch2::Catch2WithMain)
+  catch_discover_tests(value_semantics_tests)
+
   # Ensure voidscript target exists before adding tests that use it
   if(TARGET voidscript)
       add_test(NAME WhileLoopTest

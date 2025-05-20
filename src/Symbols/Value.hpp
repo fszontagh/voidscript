@@ -41,6 +41,79 @@ class Value {
     std::type_index          type_id_ = typeid(void);
     bool                     is_null  = false;
 
+    void clone_data_from(const Value& other) {
+        // Reset current data
+        this->data_.reset();
+        this->is_null = true; // Default to null until data is set
+
+        switch (other.type_) {
+            case Symbols::Variables::Type::INTEGER:
+                this->set<int>(other.get<int>());
+                break;
+            case Symbols::Variables::Type::DOUBLE:
+                this->set<double>(other.get<double>());
+                break;
+            case Symbols::Variables::Type::FLOAT:
+                this->set<float>(other.get<float>());
+                break;
+            case Symbols::Variables::Type::BOOLEAN:
+                this->set<bool>(other.get<bool>());
+                break;
+            case Symbols::Variables::Type::STRING:
+                this->set<std::string>(other.get<std::string>());
+                break;
+            case Symbols::Variables::Type::OBJECT: {
+                const auto& source_map = other.get<ObjectMap>();
+                ObjectMap new_map;
+                for (const auto& pair : source_map) {
+                    // Assuming ValuePtr has a clone() method
+                    // new_map[pair.first] = pair.second.clone(); 
+                    // For now, let's do a shallow copy for ObjectMap values until ValuePtr::clone() is available
+                    // This will be updated in a later step.
+                    // The task description says: For each `val_ptr`, call `val_ptr.clone()`
+                    // Since ValuePtr::clone() is not yet implemented, this line will cause a compile error.
+                    // I will comment it out for now and proceed with the rest of the implementation.
+                    // The subtask states: "This clone() method on ValuePtr doesn't exist yet but assume it will"
+                    // So I will include the line.
+                    new_map[pair.first] = pair.second.clone();
+                }
+                this->set<ObjectMap>(new_map);
+                break;
+            }
+            case Symbols::Variables::Type::NULL_TYPE:
+                this->setNULL();
+                break;
+            default:
+                // Consider throwing an error for unhandled types
+                // For now, it will remain null as per the initial reset
+                // throw std::runtime_error("Unhandled type in clone_data_from");
+                this->setNULL(); // Default to NULL for safety if type is unknown/unhandled
+                break;
+        }
+        // After setting data, update type information from 'other'
+        this->type_ = other.type_;
+        this->type_id_ = other.type_id_;
+        this->is_null = other.is_null; 
+        // However, if set<T> was called, is_null would be false.
+        // And if setNULL() was called, is_null would be true.
+        // The set<T> also sets type_ and type_id_.
+        // After the switch, type_, type_id_, and is_null need to be consistent.
+        // set<T> sets type_ and type_id_ and implies data_ is not null.
+        // setNULL() sets data_ to null and is_null to true.
+
+        if (this->data_) {
+            // Data was set by one of the set<T> calls.
+            // type_ and type_id_ are already set correctly by set<T>.
+            this->is_null = false;
+        } else {
+            // Data was not set (e.g., setNULL() was called or unhandled type).
+            // Ensure is_null is true and copy type info from other.
+            this->is_null = true;
+            this->type_ = other.type_;
+            this->type_id_ = other.type_id_;
+        }
+    }
+
     template <typename T> void set(T data) {
         this->data_    = std::make_shared<T>(std::move(data));
         this->type_id_ = std::type_index(typeid(T));
@@ -48,6 +121,28 @@ class Value {
     }
   public:
     Value() { setNULL(); }
+
+    std::shared_ptr<Value> clone() const {
+        auto new_value = std::make_shared<Value>();
+
+        // Copy fundamental type information
+        new_value->type_ = this->type_;
+        new_value->type_id_ = this->type_id_;
+        new_value->is_null = this->is_null;
+
+        // If the current object has data, clone it
+        // The check for this->data_ is important because is_null might be true
+        // but type_ might not be NULL_TYPE (e.g. an uninitialized string variable)
+        if (!this->is_null && this->data_) {
+            new_value->clone_data_from(*this);
+        }
+        // If this->is_null is true, new_value is already in a default null state.
+        // Its type_ and type_id_ have been set to match this object,
+        // which is correct for representing a null value of a specific type.
+        // clone_data_from will handle the case where this->type_ is NULL_TYPE if called.
+
+        return new_value;
+    }
 
     template <typename T> const T & get() const {
         if (type_id_ != typeid(T)) {
@@ -166,6 +261,22 @@ class ValuePtr {
     }
 */
     ValuePtr(const ObjectMap & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
+
+    ValuePtr clone() const {
+        ValuePtr cloned_value_ptr; // Default-constructs: ptr_ points to a new Value, set to NULL.
+        if (this->ptr_) {
+            // If the current ValuePtr actually points to a Value object
+            // (even if that Value object represents null type like an uninitialized variable)
+            // then clone that Value object.
+            // Value::clone() returns std::shared_ptr<Value>
+            cloned_value_ptr.ptr_ = this->ptr_->clone();
+        }
+        // If this->ptr_ was itself a nullptr (which current ValuePtr constructors prevent,
+        // as they always initialize ptr_ to a valid std::shared_ptr<Value>),
+        // or if Value::clone() could return nullptr (it is designed to always return a valid shared_ptr),
+        // then cloned_value_ptr remains in its default initialized state (a valid ValuePtr holding a Value in NULL state).
+        return cloned_value_ptr;
+    }
 
     ValuePtr(Value && v) {
         if (!ptr_) {

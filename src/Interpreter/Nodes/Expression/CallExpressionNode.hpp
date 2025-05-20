@@ -110,7 +110,7 @@ class CallExpressionNode : public ExpressionNode {
                 const auto & p      = params[i];
                 auto &       v      = argValues[i];
                 // Symbol's context is this specific call's scope
-                auto         varSym = Symbols::SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
+                auto         varSym = Symbols::SymbolFactory::createVariable(p.name, v.clone(), unique_call_scope_name);
                 sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 
