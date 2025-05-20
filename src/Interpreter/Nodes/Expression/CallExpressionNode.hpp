@@ -37,14 +37,15 @@ class CallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
         using namespace Symbols;
         try {
             // Evaluate argument expressions
             std::vector<Symbols::ValuePtr> argValues;
             argValues.reserve(args_.size());
             for (const auto & expr : args_) {
-                argValues.push_back(expr->evaluate(interpreter));
+                argValues.push_back(expr->evaluate(interpreter, filename_, line_, column_));
             }
 
             // Built-in function

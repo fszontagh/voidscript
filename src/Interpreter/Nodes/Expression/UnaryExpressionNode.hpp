@@ -17,7 +17,8 @@ class UnaryExpressionNode : public ExpressionNode {
         op_(std::move(op)),
         operand_(std::move(operand)) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
         const auto value = operand_->evaluate(interpreter);
 
         if (value == Symbols::Variables::Type::INTEGER) {

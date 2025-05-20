@@ -39,26 +39,27 @@ class MethodCallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::Value evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
         using namespace Symbols;
         // Evaluate target object and track original symbol for write-back
-        auto *                           sc      = Symbols::SymbolContainer::instance();
+        auto *      sc      = Symbols::SymbolContainer::instance();
         // Determine original variable symbol (only simple identifiers)
-        std::string                      fileNs  = sc->currentScopeName();
-        std::string                      varNs   = fileNs + Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE;
-        std::string                      objName = objectExpr_->toString();
-        SymbolPtr origSym = sc->findSymbol(objName);
+        std::string fileNs  = sc->currentScopeName();
+        std::string varNs   = fileNs + Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE;
+        std::string objName = objectExpr_->toString();
+        SymbolPtr   origSym = sc->findSymbol(objName);
 
         try {
             // Evaluate target object (produces a copy)
-            Value objVal = objectExpr_->evaluate(interpreter);
+            auto objVal = objectExpr_->evaluate(interpreter, filename_, line_, column_);
 
             // Allow method calls on class instances (and plain objects with class metadata)
             if (objVal.getType() != Variables::Type::OBJECT && objVal.getType() != Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
                                 column_);
             }
-            const auto & objMap = std::get<Value::ObjectMap>(objVal.get());
+            ObjectMap objMap = objVal;
 
             // Extract class name
             auto it = objMap.find("__class__");
@@ -78,14 +79,14 @@ class MethodCallExpressionNode : public ExpressionNode {
             argValues.reserve(args_.size() + 1);
             argValues.push_back(objVal);
             for (const auto & arg : args_) {
-                argValues.push_back(arg->evaluate(interpreter));
+                argValues.push_back(arg->evaluate(interpreter, filename_, line_, column_));
             }
             // Native method override via UnifiedModuleManager
             {
                 auto &      mgr      = Modules::UnifiedModuleManager::instance();
                 std::string fullName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
                 if (mgr.hasFunction(fullName)) {
-                    Value           ret     = mgr.callFunction(fullName, argValues);
+                    Value           ret        = mgr.callFunction(fullName, argValues);
                     Variables::Type returnType = mgr.getFunctionReturnType(fullName);
                     if (ret.getType() != returnType) {
                         throw Exception("Method " + methodName_ + " return value type missmatch. Expected: " +
@@ -107,7 +108,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 current_file_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
 
             SymbolPtr sym               = nullptr;
-            auto class_scope_table = sc_instance->getScopeTable(class_scope_name);
+            auto      class_scope_table = sc_instance->getScopeTable(class_scope_name);
             if (class_scope_table) {
                 sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
             }
@@ -188,7 +189,6 @@ class MethodCallExpressionNode : public ExpressionNode {
                     }
                 } else {
                     // Log error or handle: method call scope table not found
-
                 }
             }
             sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
@@ -196,8 +196,8 @@ class MethodCallExpressionNode : public ExpressionNode {
             if (returnType == Variables::Type::NULL_TYPE) {
                 return Value::makeNull(Variables::Type::NULL_TYPE);
             }
-            throw Exception("Method '" + methodName_ + "' (return type: " + Variables::Variables::TypeToString(returnType) +
-                                ") did not return a value",
+            throw Exception("Method '" + methodName_ + "' (return type: " +
+                                Variables::Variables::TypeToString(returnType) + ") did not return a value",
                             filename_, line_, column_);
 
         } catch (const std::exception & e) {

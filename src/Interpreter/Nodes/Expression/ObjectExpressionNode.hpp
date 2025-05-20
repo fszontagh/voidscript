@@ -17,7 +17,8 @@ class ObjectExpressionNode : public ExpressionNode {
     explicit ObjectExpressionNode(std::vector<std::pair<std::string, std::unique_ptr<ExpressionNode>>> members) :
         members_(std::move(members)) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
         ObjectMap obj;
         for (const auto & kv : members_) {
             obj[kv.first] = kv.second->evaluate(interpreter);

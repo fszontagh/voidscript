@@ -13,15 +13,16 @@ class IdentifierExpressionNode : public ExpressionNode {
   public:
     explicit IdentifierExpressionNode(std::string name) : name_(std::move(name)) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & /*interpreter*/) const override {
-        auto* sc = Symbols::SymbolContainer::instance();
+    Symbols::ValuePtr evaluate(Interpreter & /*interpreter*/, std::string /*filename*/, int /*line*/,
+                               size_t /*column*/) const override {
+        auto * sc = Symbols::SymbolContainer::instance();
 
         // Use a hierarchical find method starting from the current scope
-        auto symbol = sc->findSymbol(name_); // Now uses the implemented findSymbol
+        auto symbol = sc->findSymbol(name_);  // Now uses the implemented findSymbol
 
         if (symbol) {
-             // Check if symbol is accessible (e.g., private members if applicable)
-             // For now, assume accessible if found
+            // Check if symbol is accessible (e.g., private members if applicable)
+            // For now, assume accessible if found
             return symbol->getValue();
         }
 

@@ -5,9 +5,13 @@
 
 namespace Interpreter {
 struct ExpressionNode {
-    virtual ~ExpressionNode()                                                 = default;
-    virtual Symbols::ValuePtr evaluate(class Interpreter & interpreter) const = 0;
-    virtual std::string       toString() const                                = 0;
+    std::string filename;
+    int         line;
+    size_t      column;
+    virtual ~ExpressionNode()                                   = default;
+    virtual Symbols::ValuePtr evaluate(class Interpreter & interpreter, std::string filename = "", int line = 0,
+                                       size_t column = 0) const = 0;
+    virtual std::string       toString() const                  = 0;
 };
 
 }  // namespace Interpreter

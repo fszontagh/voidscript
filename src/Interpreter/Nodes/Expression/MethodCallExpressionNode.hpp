@@ -39,7 +39,8 @@ class MethodCallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
         // Evaluate target object and track original symbol for write-back
         auto *                           sc      = Symbols::SymbolContainer::instance();
         // Determine original variable symbol (only simple identifiers)

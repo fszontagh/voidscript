@@ -15,9 +15,10 @@ class BinaryExpressionNode : public ExpressionNode {
         rhs_(std::move(rhs)),
         op_(std::move(op)) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
-        auto leftVal  = lhs_->evaluate(interpreter);
-        auto rightVal = rhs_->evaluate(interpreter);
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string filename, int line,
+                               size_t column) const override {
+        auto leftVal  = lhs_->evaluate(interpreter, filename, line, column);
+        auto rightVal = rhs_->evaluate(interpreter, filename, line, column);
 
         // Handle NULL values in comparisons
         if (leftVal->isNULL() || rightVal->isNULL()) {

@@ -12,7 +12,10 @@ class LiteralExpressionNode : public ExpressionNode {
   public:
     explicit LiteralExpressionNode(const Symbols::ValuePtr & value) : value_(value) {}
 
-    Symbols::ValuePtr evaluate(class Interpreter & /*interpreter*/) const override { return value_; }
+    Symbols::ValuePtr evaluate(class Interpreter & /*interpreter*/, std::string /*filename*/, int /*line*/,
+                               size_t /*col*/) const override {
+        return value_;
+    }
 
     Symbols::ValuePtr & value() { return value_; }
 

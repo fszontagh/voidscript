@@ -26,20 +26,21 @@ class ArrayAccessExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
         // Evaluate the container (object or array)
-        Symbols::ValuePtr container = arrayExpr_->evaluate(interpreter);
-        if (container->getType() != Symbols::Variables::Type::OBJECT) {
+        Symbols::ValuePtr container = arrayExpr_->evaluate(interpreter, filename_, line_, column_);
+        if (container != Symbols::Variables::Type::OBJECT) {
             throw Exception("Attempted to index non-array", filename_, line_, column_);
         }
         const auto & map    = container->get<Symbols::ObjectMap>();
         // Evaluate the index
-        auto         idxVal = indexExpr_->evaluate(interpreter);
+        auto         idxVal = indexExpr_->evaluate(interpreter, filename_, line_, column_);
         std::string  key;
-        if (idxVal->getType() == Symbols::Variables::Type::INTEGER) {
+        if (idxVal == Symbols::Variables::Type::INTEGER) {
             key = std::to_string(idxVal->get<int>());
-        } else if (idxVal->getType() == Symbols::Variables::Type::STRING) {
-            key = idxVal->get<std::string>();
+        } else if (idxVal == Symbols::Variables::Type::STRING) {
+            key = idxVal;
         } else {
             throw Exception("Array index must be integer or string", filename_, line_, column_);
         }

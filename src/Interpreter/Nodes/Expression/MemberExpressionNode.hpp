@@ -21,8 +21,9 @@ class MemberExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-        Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
-        auto objVal = objectExpr_->evaluate(interpreter);
+        Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
+        auto objVal = objectExpr_->evaluate(interpreter,filename_, line_, column_);
 
         // Allow member access on plain objects and class instances
         if (objVal != Symbols::Variables::Type::OBJECT &&

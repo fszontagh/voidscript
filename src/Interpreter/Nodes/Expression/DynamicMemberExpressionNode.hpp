@@ -21,15 +21,16 @@ class DynamicMemberExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
+                               size_t /*col */) const override {
         // Evaluate the object expression to get the object
-        const auto object = object_->evaluate(interpreter);
+        const auto object = object_->evaluate(interpreter, filename_, line_, column_);
         if (object != Symbols::Variables::Type::OBJECT) {
             throw Exception("Cannot access member of non-object value", filename_, line_, column_);
         }
 
         // Evaluate the member expression to get the member name
-        auto memberName = memberExpr_->evaluate(interpreter);
+        auto memberName = memberExpr_->evaluate(interpreter, filename_, line_, column_);
         if (memberName != Symbols::Variables::Type::STRING) {
             throw Exception("Member name must evaluate to a string", filename_, line_, column_);
         }
@@ -48,7 +49,7 @@ class DynamicMemberExpressionNode : public ExpressionNode {
         // Access the member using object's member map
         //const auto & map = std::get<Symbols::ObjectMap>(object);
         const Symbols::ObjectMap map = object;
-        auto               it  = map.find(name);
+        auto                     it  = map.find(name);
         if (it == map.end()) {
             throw Exception("Member '" + name + "' not found in object", filename_, line_, column_);
         }
