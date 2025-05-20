@@ -72,6 +72,15 @@ class ValuePtr {
   private:
     std::shared_ptr<Value> ptr_;
 
+    ValuePtr(const ValuePtr & other) {
+        ptr_ = other.registryLookup(other.ptr_);
+    }
+
+    ValuePtr & operator=(const ValuePtr & other) {
+        ptr_ = other.registryLookup(other.ptr_);
+        return *this;
+    }
+
     static std::mutex registryMutex_;
     static std::map<std::string, ValuePtr> valueRegistry_;
 
@@ -99,9 +108,21 @@ class ValuePtr {
             return valueRegistry_.at(key);
         }
         // Create new ValuePtr from existing Value
-        auto newPtr = std::make_shared<ValuePtr>(std::ref(value));
+        auto newPtr = std::make_shared<ValuePtr>(value);
         valueRegistry_[key] = newPtr;
         return *newPtr;
+    }
+
+    ValuePtr& registryLookup(const Value& value) {
+        static ValuePtr nullPtr;
+        if (valueRegistry_.empty()) {
+            return nullPtr;
+        }
+        auto it = valueRegistry_.find(generateRegistryKey(value));
+        if (it != valueRegistry_.end()) {
+            ptr_ = it->second;
+        }
+        return *this;
     }
 
     void ensure_object() {
@@ -171,24 +192,21 @@ class ValuePtr {
     }
 */
     ValuePtr(const ObjectMap & map) {
-        ptr_ = std::make_shared<Value>();
-        ptr_->set(map);
-        ptr_->type_ = Variables::Type::OBJECT;
+        Value val;
+        val.set(map);
+        val.type_ = Variables::Type::OBJECT;
+        ptr_ = createRegistryEntry(val);
     }
 
-    static ValuePtr create(int v) { return ValuePtr(v); }
+    template <typename T>
+    static ValuePtr create(T&& value) {
+        Value val = std::forward<T>(value);
+        return ValuePtr(val);
+    }
 
-    static ValuePtr create(float v) { return ValuePtr(v); }
-
-    static ValuePtr create(double v) { return ValuePtr(v); }
-
-    static ValuePtr create(bool v) { return ValuePtr(v); }
-
-    static ValuePtr create(const std::string & v) { return ValuePtr(v); }
-
-    //static ValuePtr create(const char * v) { return ValuePtr(v); }
-
-    static ValuePtr create(const ObjectMap & map) { return ValuePtr(map); }
+    ValuePtr(Value&& value) {
+        ptr_ = createRegistryEntry(value);
+    }
 
     Variables::Type getType() const { return ptr_ ? ptr_->type_ : Variables::Type::NULL_TYPE; }
 
@@ -309,23 +327,47 @@ class ValuePtr {
         }
 
         // Fallback
-        return str;
+        Value val;
+        val.set(trimmed);
+        val.type_ = Variables::Type::STRING;
+        return ValuePtr(val);
     }
 
-    static ValuePtr fromStringToInt(const std::string & str) { return std::stoi(str); }
+    static ValuePtr fromStringToInt(const std::string & str) {
+        Value val;
+        val.set(std::stoi(str));
+        val.type_ = Variables::Type::INTEGER;
+        return ValuePtr(val);
+    }
 
-    static ValuePtr fromStringToDouble(const std::string & str) { return std::stod(str); }
+    static ValuePtr fromStringToDouble(const std::string & str) {
+        Value val;
+        val.set(std::stod(str));
+        val.type_ = Variables::Type::DOUBLE;
+        return ValuePtr(val);
+    }
 
-    static ValuePtr fromStringToFloat(const std::string & str) { return std::stof(str); }
+    static ValuePtr fromStringToFloat(const std::string & str) {
+        Value val;
+        val.set(std::stof(str));
+        val.type_ = Variables::Type::FLOAT;
+        return ValuePtr(val);
+    }
 
     static ValuePtr fromStringToBool(const std::string & str) {
         std::string s = str;
         std::transform(s.begin(), s.end(), s.begin(), ::tolower);
         if (s == "true" || s == "1") {
-            return true;
+            Value val;
+            val.set(true);
+            val.type_ = Variables::Type::BOOLEAN;
+            return ValuePtr(val);
         }
         if (s == "false" || s == "0") {
-            return false;
+            Value val;
+            val.set(false);
+            val.type_ = Variables::Type::BOOLEAN;
+            return ValuePtr(val);
         }
         throw std::invalid_argument("Invalid bool string: " + str);
     }
