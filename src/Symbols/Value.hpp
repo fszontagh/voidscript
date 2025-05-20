@@ -218,7 +218,7 @@ class ValuePtr {
 
     static ValuePtr null() {
         auto ptr = std::make_shared<Value>();
-        ptr->type_ = Variable::Type::NULL_TYPE;
+        ptr->type_ = Variables::Type::NULL_TYPE;
         ptr->is_null = true;
         ptr->data_.reset();
         return ValuePtr(ptr);
