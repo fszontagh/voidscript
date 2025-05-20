@@ -44,12 +44,17 @@ class NewExpressionNode : public ExpressionNode {
         column_(column) {}
 
     Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+        std::shared_ptr<Symbols::FunctionSymbol> construct_method_sym; // Declare here
         auto & registry = Modules::UnifiedModuleManager::instance();
+
         // Ensure class is defined
         if (!registry.hasClass(className_)) {
             throw Exception("Class not found: " + className_, filename_, line_, column_);
         }
+
         // Initialize object fields from class definition
+        // const auto & class_definition_info = registry.getClassInfo(className_); // Renamed to avoid confusion
+        // Using 'info' as it was originally, but it's the class definition from registry
         const auto &       info = registry.getClassInfo(className_);
         Symbols::ObjectMap obj;
         // Default initialization for all properties
@@ -61,45 +66,35 @@ class NewExpressionNode : public ExpressionNode {
                 // Build and evaluate default expression
                 auto exprNode = Parser::buildExpressionFromParsed(prop.defaultValueExpr);
                 value = exprNode->evaluate(interpreter);
-                std::cout << "expr. " << " prop.name: " << prop.name << " -> " << exprNode->toString()
-                          << " return type: " << Symbols::Variables::TypeToString(value.getType()) << "\n";
+                // std::cout << "expr. " << " prop.name: " << prop.name << " -> " << exprNode->toString()
+                //           << " return type: " << Symbols::Variables::TypeToString(value.getType()) << "\n";
             }
 
-            if (prop.type != value) {
-                throw Exception(
-                    "Invalid property value type. Expected: " + Symbols::Variables::TypeToString(prop.type) +
-                        " got: " + Symbols::Variables::TypeToString(value) + " at constructor of '" + className_ +
-                        "' argument name: '" + prop.name + "'",
+            // Check type of default value if provided
+            if (prop.defaultValueExpr && prop.type != value.getType() && value.getType() != Symbols::Variables::Type::NULL_TYPE) {
+                 throw Exception(
+                    "Invalid default property value type for property '" + prop.name + "'. Expected: " + Symbols::Variables::TypeToString(prop.type) +
+                        " got: " + Symbols::Variables::TypeToString(value.getType()) + " in class '" + className_ + "'",
                     filename_, line_, column_);
             }
-            obj[prop.name] = value;
+            obj[prop.name] = value.clone(); // Clone default values to ensure instance owns its copy
         }
-
-        /* this part overrides properties from the class definition parameters
-        if (args_.size() > info.properties.size()) {
-            throw Exception("Too many constructor arguments for class: " + className_, filename_, line_, column_);
-        }
-        for (size_t j = 0; j < args_.size(); ++j) {
-            Symbols::Value val           = args_[j]->evaluate(interpreter);
-            obj[info.properties[j].name] = val;
-        }
-            */
+        
         // Embed class metadata for method dispatch
         obj["__class__"] = className_;
         // Create the class instance ValuePtr
         Symbols::ValuePtr instance_vp = Symbols::ValuePtr::makeClassInstance(obj);
 
-        // Find constructor method ("construct")
-        const auto& class_info = Modules::UnifiedModuleManager::instance().getClassInfo(className_);
-        Symbols::FunctionSymbolPtr construct_method_sym;
-        for (const auto& method_pair : class_info.methods) {
-            if (method_pair.first == "construct") {
-                // Assuming methods are stored as SymbolPtr and need casting
-                // Also assuming FunctionSymbolPtr is a typedef for std::shared_ptr<FunctionSymbol>
-                if (method_pair.second && method_pair.second->getKind() == Symbols::Kind::Function) {
-                    construct_method_sym = std::static_pointer_cast<Symbols::FunctionSymbol>(method_pair.second);
-                }
-                break;
+        // Attempt to find the 'construct' method symbol within the class's scope
+        auto* sc = Symbols::SymbolContainer::instance();
+        // Class methods are typically defined within the class's own scope.
+        // The class scope name is simply className_ as per current SymbolContainer usage for classes.
+        auto class_scope_table = sc->getScopeTable(className_); 
+        if (class_scope_table) {
+            // Functions are stored in a specific sub-scope (e.g., "functions") within the class scope table.
+            Symbols::SymbolPtr found_symbol = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, "construct");
+            if (found_symbol && found_symbol->getKind() == Symbols::Kind::Function) {
+                construct_method_sym = std::static_pointer_cast<Symbols::FunctionSymbol>(found_symbol);
             }
         }
 
