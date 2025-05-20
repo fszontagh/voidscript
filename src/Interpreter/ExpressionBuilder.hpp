@@ -91,7 +91,17 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                 auto operand = buildExpressionFromParsed(expr->rhs);
                 return std::make_unique<Interpreter::UnaryExpressionNode>(expr->op, std::move(operand));
             }
-
+        case Kind::MethodCall:
+            {
+                std::vector<std::unique_ptr<Interpreter::ExpressionNode>> callArgs;
+                callArgs.reserve(expr->args.size());
+                for (const auto & arg : expr->args) {
+                    callArgs.push_back(buildExpressionFromParsed(arg));
+                }
+                return std::make_unique<Interpreter::MethodCallExpressionNode>(
+                    buildExpressionFromParsed(expr->lhs), expr->name, std::move(callArgs), expr->filename, expr->line,
+                    expr->column);
+            }
         case Kind::Call:
             {
                 std::vector<std::unique_ptr<Interpreter::ExpressionNode>> callArgs;

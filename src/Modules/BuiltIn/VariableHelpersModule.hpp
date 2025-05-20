@@ -28,21 +28,21 @@ class VariableHelpersModule : public BaseModule {
             { "string", Symbols::Variables::Type::STRING, "The type to compare against", true }
         };
         REGISTER_FUNCTION("typeof", Symbols::Variables::Type::STRING, param_list, "Get the type of a variable",
-                          [](const FunctionArguments & args) {
+                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() == 1) {
-                                  auto t = args[0]->getType();
-                                  return Symbols::ValuePtr::create(Symbols::Variables::TypeToString(t));
+                                  Symbols::Variables::Type t = args[0]->getType();
+                                  //return Symbols::ValuePtr(Symbols::Variables::TypeToString(t));
+                                  return Symbols::Variables::TypeToString(t);
                               }
                               if (args.size() == 2) {
                                   auto t = args[0]->getType();
-                                  if (args[1]->getType() != Symbols::Variables::Type::STRING) {
+                                  if (args[1] != Symbols::Variables::Type::STRING) {
                                       throw std::runtime_error("Second argument to typeof must be string");
                                   }
                                   // Compare against provided type name via mapping
-                                  const std::string provided = *args[1];
+                                  const std::string provided = args[1];
                                   auto              expected = Symbols::Variables::StringToType(provided);
-                                  bool              match    = (t == expected);
-                                  return Symbols::ValuePtr::create(match);
+                                  return (t == expected);
                               }
                               throw std::runtime_error("typeof expects 1 or 2 arguments");
                           });

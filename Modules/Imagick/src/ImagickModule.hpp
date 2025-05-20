@@ -21,17 +21,17 @@ class ImagickModule : public BaseModule {
   private:
     std::unordered_map<int, Magick::Image> images_;
     unsigned int                           next_image_id = 0;
-    Symbols::Value                         read(FunctionArguments & args);
-    Symbols::Value                         crop(FunctionArguments & args);
-    Symbols::Value                         resize(FunctionArguments & args);
-    Symbols::Value                         write(FunctionArguments & args);
-    Symbols::Value                         mode(FunctionArguments & args);
-    Symbols::Value                         blur(FunctionArguments & args);
-    Symbols::Value                         rotate(FunctionArguments & args);
-    Symbols::Value                         flip(FunctionArguments & args);
-    Symbols::Value                         getWidth(FunctionArguments & args);
-    Symbols::Value                         getHeight(FunctionArguments & args);
-    Symbols::Value                         composite(FunctionArguments & args);
+    Symbols::ValuePtr                      read(FunctionArguments & args);
+    Symbols::ValuePtr                      crop(FunctionArguments & args);
+    Symbols::ValuePtr                      resize(FunctionArguments & args);
+    Symbols::ValuePtr                      write(FunctionArguments & args);
+    Symbols::ValuePtr                      mode(FunctionArguments & args);
+    Symbols::ValuePtr                      blur(FunctionArguments & args);
+    Symbols::ValuePtr                      rotate(FunctionArguments & args);
+    Symbols::ValuePtr                      flip(FunctionArguments & args);
+    Symbols::ValuePtr                      getWidth(FunctionArguments & args);
+    Symbols::ValuePtr                      getHeight(FunctionArguments & args);
+    Symbols::ValuePtr                      composite(FunctionArguments & args);
 };
 
 }  // namespace Modules

@@ -10,14 +10,14 @@ class LiteralExpressionNode : public ExpressionNode {
     Symbols::ValuePtr value_;
 
   public:
-    explicit LiteralExpressionNode(Symbols::ValuePtr value) : value_(std::move(value)) {}
+    explicit LiteralExpressionNode(const Symbols::ValuePtr & value) : value_(value) {}
 
     Symbols::ValuePtr evaluate(class Interpreter & /*interpreter*/) const override { return value_; }
 
-    Symbols::ValuePtr value() const { return value_; }
+    Symbols::ValuePtr & value() { return value_; }
 
     // to string
-    std::string toString() const override { return Symbols::Value::to_string(value_); }
+    std::string toString() const override { return value_.toString(); }
 };
 
 }  // namespace Interpreter

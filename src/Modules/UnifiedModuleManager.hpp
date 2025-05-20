@@ -57,8 +57,8 @@ struct ClassInfo {
         Parser::ParsedExpressionPtr defaultValueExpr;
     };
 
-    std::vector<Modules::ClassInfo::PropertyInfo>             properties;
-    std::vector<std::string>                                  methodNames;
+    std::vector<Modules::ClassInfo::PropertyInfo>      properties;
+    std::vector<std::string>                           methodNames;
     std::unordered_map<std::string, Symbols::ValuePtr> objectProperties;  // Store object-specific properties
 };
 
@@ -82,9 +82,9 @@ class UnifiedModuleManager {
                                               const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
     void                     registerDoc(const std::string & ModName, const FunctionDoc & doc);
     bool                     hasFunction(const std::string & name) const;
-    Symbols::ValuePtr callFunction(const std::string & name, FunctionArguments & args) const;
+    Symbols::ValuePtr        callFunction(const std::string & name, FunctionArguments & args) const;
     Symbols::Variables::Type getFunctionReturnType(const std::string & name);
-    Symbols::ValuePtr getFunctionNullValue(const std::string & name);
+    Symbols::ValuePtr        getFunctionNullValue(const std::string & name);
 
     // --- Class registration ---
     bool        hasClass(const std::string & className) const;
@@ -101,12 +101,19 @@ class UnifiedModuleManager {
     std::vector<std::string> getClassNames() const;
 
     // --- Object property management ---
-    void                     setObjectProperty(const std::string & className, const std::string & propertyName,
-                                               const Symbols::ValuePtr & value);
+    void setObjectProperty(const std::string & className, const std::string & propertyName,
+                           const Symbols::ValuePtr & value);
+
+    template <typename T>
+    void setObjectProperty(const std::string & className, const std::string & propertyName, const T & value) {
+        auto & classEntry                              = findOrThrow(classes_, className, "Class not found");
+        classEntry.info.objectProperties[propertyName] = value;
+    }
+
     Symbols::ValuePtr getObjectProperty(const std::string & className, const std::string & propertyName) const;
-    void                     deleteObjectProperty(const std::string & className, const std::string & propertyName);
-    bool                     hasObjectProperty(const std::string & className, const std::string & propertyName) const;
-    void                     clearObjectProperties(const std::string & className);
+    void              deleteObjectProperty(const std::string & className, const std::string & propertyName);
+    bool              hasObjectProperty(const std::string & className, const std::string & propertyName) const;
+    void              clearObjectProperties(const std::string & className);
 
     // --- Utility functions ---
     std::vector<std::string>  getFunctionNamesForModule(BaseModule * module) const;
@@ -202,14 +209,15 @@ class UnifiedModuleManager {
 
 #define REGISTER_CLASS(className) UnifiedModuleManager::instance().registerClass(className)
 
-#define REGISTER_METHOD(className, methodName, paramList, callback, retType, docStr)          \
-    do {                                                                                      \
-        std::string fullMethodName = std::string(className) + "::" + std::string(methodName); \
-        UnifiedModuleManager::instance().registerFunction(fullMethodName, callback, retType); \
-        UnifiedModuleManager::instance().addMethod(className, methodName, callback, retType); \
-        UnifiedModuleManager::instance().registerDoc(                                         \
-            Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),             \
-            FunctionDoc{ fullMethodName, retType, paramList, docStr });                       \
+#define REGISTER_METHOD(className, methodName, paramList, callback, retType, docStr)                      \
+    do {                                                                                                  \
+        std::string fullMethodName =                                                                      \
+            std::string(className) + Symbols::SymbolContainer::SCOPE_SEPARATOR + std::string(methodName); \
+        UnifiedModuleManager::instance().registerFunction(fullMethodName, callback, retType);             \
+        UnifiedModuleManager::instance().addMethod(className, methodName, callback, retType);             \
+        UnifiedModuleManager::instance().registerDoc(                                                     \
+            Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),                         \
+            FunctionDoc{ fullMethodName, retType, paramList, docStr });                                   \
     } while (0)
 
 #define REGISTER_PROPERTY(className, propertyName, type, defaultValue) \

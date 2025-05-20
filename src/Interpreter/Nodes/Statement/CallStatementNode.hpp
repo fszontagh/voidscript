@@ -33,7 +33,6 @@ class CallStatementNode : public StatementNode {
 
     void interpret(Interpreter & interpreter) const override {
         try {
-            using namespace Symbols;
             std::vector<Symbols::ValuePtr> argValues;
             argValues.reserve(args_.size());
             for (const auto & expr : args_) {
@@ -47,9 +46,9 @@ class CallStatementNode : public StatementNode {
                 }
             }
             // User-defined function: lookup through scope hierarchy
-            SymbolContainer *               sc       = SymbolContainer::instance();
-            std::string                     lookupNs = sc->currentScopeName();
-            std::shared_ptr<FunctionSymbol> funcSym;
+            Symbols::SymbolContainer *               sc       = Symbols::SymbolContainer::instance();
+            std::string                              lookupNs = sc->currentScopeName();
+            std::shared_ptr<Symbols::FunctionSymbol> funcSym;
             // Search for function symbol in current and parent scopes
             while (true) {
                 auto               scope_table = sc->getScopeTable(lookupNs);
@@ -58,8 +57,8 @@ class CallStatementNode : public StatementNode {
                     sym = scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, functionName_);
                 }
 
-                if (sym && sym->getKind() == Kind::Function) {
-                    funcSym = std::static_pointer_cast<FunctionSymbol>(sym);
+                if (sym && sym->getKind() == Symbols::Kind::Function) {
+                    funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
                     break;
                 }
                 // Move to parent scope by finding the last '::'
@@ -97,10 +96,10 @@ class CallStatementNode : public StatementNode {
 
             // Bind parameters in the unique call scope
             for (size_t i = 0; i < params.size(); ++i) {
-                const auto & p      = params[i];
-                const auto & v      = argValues[i];
+                const auto &      p      = params[i];
+                Symbols::ValuePtr v      = argValues[i];
                 // Symbol's context is this specific call's scope
-                auto         varSym = SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
+                auto              varSym = Symbols::SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
                 sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 

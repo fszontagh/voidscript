@@ -312,9 +312,6 @@ Lexer::Tokens::Token Lexer::Lexer::matchOperatorOrPunctuation(size_t start_pos) 
     return createToken(Tokens::Type::UNKNOWN, start_pos, end_pos);
 }
 
-bool Lexer::Lexer::matchFromVector(const std::vector<std::string> & vec, const std::string & value) {
-    return std::find(vec.begin(), vec.end(), value) != vec.end();
-}
 
 Lexer::Lexer::Lexer() {
     for (const auto & vecRef :

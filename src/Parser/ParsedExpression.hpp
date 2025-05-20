@@ -39,7 +39,7 @@ struct ParsedExpression {
     Kind kind;
 
     Symbols::ValuePtr value;
-    std::string              name;
+    std::string       name;
 
     // For operations
     std::string                                              op;
@@ -170,7 +170,7 @@ struct ParsedExpression {
     Symbols::Variables::Type getType() const {
         switch (kind) {
             case Kind::Literal:
-                return value->getType();
+                return value.getType();
                 break;
 
             case Kind::Variable:
@@ -185,14 +185,12 @@ struct ParsedExpression {
                     }
                     // findSymbol returns a SymbolPtr, which could be VariableSymbol or ConstantSymbol.
                     // Both have getValue().
-                    return symbol->getValue()->getType();
+                    return symbol->getValue().getType();
                 }
 
             case Kind::Binary:
                 {
-                    auto lhsType = lhs->value->getType();
-                    //auto rhsType = rhs->value.getType();
-                    return lhsType;  // In binary expressions, operand types match, so we can return the left-hand type
+                    return lhs->value.getType();
                 }
 
             case Kind::Unary:
@@ -241,7 +239,7 @@ struct ParsedExpression {
     std::string toString() const {
         switch (kind) {
             case Kind::Literal:
-                return Symbols::Value::to_string(value);
+                return value.toString();
             case Kind::Variable:
                 return name;
             case Kind::Binary:

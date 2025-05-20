@@ -15,7 +15,7 @@ static int                                        nextDoc = 1;
 
 class XmlModule : public BaseModule {
   public:
-    XmlModule() { 
+    XmlModule() {
         setModuleName("Xml2");
         this->className = "Xml2";
         LIBXML_TEST_VERSION
@@ -71,14 +71,14 @@ class XmlModule : public BaseModule {
 
   private:
     const std::string objectStoreName = "__xml2_handler_id__";
-    std::string className;
+    std::string       className;
 
     // example: https://gitlab.gnome.org/GNOME/libxml2/-/blob/master/example/parse1.c
 
-    Symbols::Value readFile(FunctionArguments & args);
-    Symbols::Value readMemory(FunctionArguments & args);
-    Symbols::Value GetRootElement(const FunctionArguments & args);
-    Symbols::Value GetNodeAttributes(FunctionArguments & args);
+    Symbols::ValuePtr readFile(FunctionArguments & args);
+    Symbols::ValuePtr readMemory(FunctionArguments & args);
+    Symbols::ValuePtr GetRootElement(const FunctionArguments & args);
+    Symbols::ValuePtr GetNodeAttributes(FunctionArguments & args);
 
 };  // Class
 }  // namespace Modules

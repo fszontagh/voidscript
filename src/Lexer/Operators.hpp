@@ -21,7 +21,7 @@ extern const std::vector<std::string> PUNCTUATION;
 
 bool contains(const std::vector<std::string> & vec, const std::string & value);
 bool isUnaryOperator(const std::string & op);
-bool isBinaryOperator(const std::string & op);
+
 
 inline int getPrecedence(const std::string & op) {
     if (op == "->") {
@@ -77,8 +77,7 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
             return false;
         }
         // Auto-detect or cast to expected numeric type
-        auto val = Symbols::Value::fromString(token.value, /*autoDetectType*/ true);
-        output_queue.push_back(Parser::ParsedExpression::makeLiteral(val));
+        output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::ValuePtr::fromString(token.value)));
         return true;
     }
     if (token.type == Tokens::Type::STRING_LITERAL) {
@@ -87,15 +86,14 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
             expected_var_type != Symbols::Variables::Type::STRING) {
             return false;
         }
-        output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::Value::fromString(token.value,Symbols::Variables::Type::STRING)));
+        output_queue.push_back(Parser::ParsedExpression::makeLiteral(token.value));
         return true;
     }
     if (token.type == Tokens::Type::KEYWORD) {
         // Keyword literal: e.g., true, false, null
-        auto val   = Symbols::Value::fromString(token.value, /*autoDetectType*/ true);
-        auto vtype = val->getType();
+        Symbols::ValuePtr val   = Symbols::ValuePtr::fromString(token.value);
         // only allowed if expected matches or unspecified
-        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE && expected_var_type != vtype) {
+        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE && expected_var_type != val) {
             return false;
         }
         output_queue.push_back(Parser::ParsedExpression::makeLiteral(val));

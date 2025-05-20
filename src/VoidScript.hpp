@@ -165,18 +165,16 @@ class VoidScript {
                 {
                     // Define argc (including the script name)
                     int argc_val = static_cast<int>(scriptArgs_.size()) + 1;
-                    Interpreter::OperationsFactory::defineSimpleConstantVariable(
-                        "argc", Symbols::ValuePtr::create(argc_val), ns, file, 0, 0);
+                    Interpreter::OperationsFactory::defineSimpleConstantVariable("argc", argc_val, ns, file, 0, 0);
                     // Define argv as object map: argv[0] = script name, then parameters
                     Symbols::ObjectMap argv_map;
                     // Script filename at index 0
-                    argv_map["0"] = Symbols::ValuePtr::create(file);
+                    argv_map["0"] = file;
                     // Subsequent entries for each script parameter
                     for (size_t i = 0; i < scriptArgs_.size(); ++i) {
-                        argv_map[std::to_string(i + 1)] = Symbols::ValuePtr::create(scriptArgs_[i]);
+                        argv_map[std::to_string(i + 1)] = scriptArgs_[i];
                     }
-                    Interpreter::OperationsFactory::defineSimpleConstantVariable(
-                        "argv", Symbols::ValuePtr::create(argv_map), ns, file, 0, 0);
+                    Interpreter::OperationsFactory::defineSimpleConstantVariable("argv", argv_map, ns, file, 0, 0);
                 }
 
                 // Process each segment: either plain text or code to execute

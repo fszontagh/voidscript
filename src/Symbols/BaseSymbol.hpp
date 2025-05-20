@@ -21,7 +21,7 @@ class Symbol {
   public:
     Symbol(const std::string & name, ValuePtr value, const std::string & context, Symbols::Kind type) :
         name_(name),
-        value_(std::move(value)),
+        value_(value),
         context_(context),
         kind_(type) {}
 
@@ -44,10 +44,8 @@ class Symbol {
     // Dump symbol details (default: type and value)
     virtual std::string dump() const {
         std::string r = "\t\t  " + kindToString(this->kind_) + " name: '" + name_ + "' \n\t\t\tContext: " + context_;
-        r += " \n\t\t\tType: " +
-             Symbols::Variables::TypeToString(value_->getType());  // Feltételezve, hogy TypeToString létezik
-        // Biztonságosabb string konverzió:
-        r += " \n\t\t\tValue: '" + Symbols::Value::to_string(value_) + "'";
+        r += " \n\t\t\tType: " + Symbols::Variables::TypeToString(value_.getType());
+        r += " \n\t\t\tValue: '" + value_.toString() + "'";
         return r;
     }
 

@@ -1,7 +1,6 @@
 #ifndef INTERPRETER_DEFINE_VARIABLE_STATEMENT_NODE_HPP
 #define INTERPRETER_DEFINE_VARIABLE_STATEMENT_NODE_HPP
 
-#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -74,13 +73,13 @@ class DeclareVariableStatementNode : public StatementNode {
                     filename_, line_, column_);
             }
 
-            if (value->getType() == Symbols::Variables::Type::NULL_TYPE) {
-                value = Symbols::Value::makeNull(variableType_);
+            if (value == Symbols::Variables::Type::NULL_TYPE) {
+                value.setType(variableType_);
             }
 
-            if (value->getType() != variableType_) {
+            if (value != variableType_) {
                 std::string expected = Symbols::Variables::TypeToString(variableType_);
-                std::string actual   = Symbols::Variables::TypeToString(value->getType());
+                std::string actual   = Symbols::Variables::TypeToString(value);
                 throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
                                     "' but got '" + actual + "' in scope '" + current_runtime_scope_name + "'",
                                 filename_, line_, column_);

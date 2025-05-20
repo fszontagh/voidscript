@@ -17,69 +17,83 @@ class UnaryExpressionNode : public ExpressionNode {
         op_(std::move(op)),
         operand_(std::move(operand)) {}
 
-        Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
-        auto value = operand_->evaluate(interpreter);
-        auto type  = value->getType();
+    Symbols::ValuePtr evaluate(Interpreter & interpreter) const override {
+        const auto value = operand_->evaluate(interpreter);
 
-        if (type == Symbols::Variables::Type::INTEGER) {
-            int v = value->get<int>();
+        if (value == Symbols::Variables::Type::INTEGER) {
+            int v = value;
             if (op_ == "-") {
-                return std::make_shared<Symbols::Value>(-v);
+                return -v;
+                //return Symbols::ValuePtr(-v);
             }
             if (op_ == "+") {
-                return std::make_shared<Symbols::Value>(+v);
+                return +v;
+                //return Symbols::ValuePtr(+v);
             }
             if (op_ == "++") {
-                return std::make_shared<Symbols::Value>(v + 1);
+                return v + 1;
+                //return Symbols::ValuePtr(v + 1);
             }
             if (op_ == "--") {
-                return std::make_shared<Symbols::Value>(v - 1);
+                return v - 1;
+                //return Symbols::ValuePtr(v - 1);
             }
-        } else if (type == Symbols::Variables::Type::DOUBLE) {
-            double v = value->get<double>();
+        } else if (value == Symbols::Variables::Type::DOUBLE) {
+            double v = value;
             if (op_ == "-") {
-                return std::make_shared<Symbols::Value>(-v);
+                return -v;
+                //return Symbols::ValuePtr(-v);
             }
             if (op_ == "+") {
-                return std::make_shared<Symbols::Value>(+v);
+                return +v;
+                //return Symbols::ValuePtr(+v);
             }
             if (op_ == "++") {
-                return std::make_shared<Symbols::Value>(v + 1);
+                return v + 1;
+                //return Symbols::ValuePtr(v + 1);
             }
             if (op_ == "--") {
-                return std::make_shared<Symbols::Value>(v - 1);
+                return v - 1;
+                //return Symbols::ValuePtr(v - 1);
             }
-        } else if (type == Symbols::Variables::Type::FLOAT) {
-            float v = value->get<float>();
+        } else if (value == Symbols::Variables::Type::FLOAT) {
+            float v = value;  //->get<float>();
             if (op_ == "-") {
-                return std::make_shared<Symbols::Value>(-v);
+                return -v;
+                //return Symbols::ValuePtr(-v);
             }
             if (op_ == "+") {
-                return std::make_shared<Symbols::Value>(+v);
+                return +v;
+                //return Symbols::ValuePtr(+v);
             }
             if (op_ == "++") {
-                return std::make_shared<Symbols::Value>(v + 1);
+                return v + 1;
+                //return Symbols::ValuePtr(v + 1);
             }
             if (op_ == "--") {
-                return std::make_shared<Symbols::Value>(v - 1);
+                return v - 1;
+                //return Symbols::ValuePtr(v - 1);
             }
-        } else if (type == Symbols::Variables::Type::BOOLEAN) {
-            bool v = value->get<bool>();
+        } else if (value == Symbols::Variables::Type::BOOLEAN) {
+            bool v = value;  //->get<bool>();
             if (op_ == "!") {
-                return std::make_shared<Symbols::Value>(!v);
+                return !v;
+                //return Symbols::ValuePtr(!v);
             }
-        } else if (type == Symbols::Variables::Type::STRING) {
-            std::string s = value->get<std::string>();
+        } else if (value == Symbols::Variables::Type::STRING) {
+            const std::string s = value;  //->get<std::string>();
             if (op_ == "-") {
-                return std::make_shared<Symbols::Value>(s);
+                return s;
+                //return Symbols::ValuePtr(s);
             }
             if (op_ == "+") {
-                return std::make_shared<Symbols::Value>(s);
+                return s;
+                //return Symbols::ValuePtr(s);
             }
         }
 
         throw std::runtime_error("Unsupported unary operator '" + op_ +
-                                 "' for type: " + Symbols::Variables::TypeToString(type));
+                                 "' for type: " + Symbols::Variables::TypeToString(value));
     }
 
     std::string toString() const override { return "(" + op_ + operand_->toString() + ")"; }

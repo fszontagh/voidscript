@@ -8,7 +8,7 @@ namespace Modules {
 
 class FormatModule : public BaseModule {
   public:
-    FormatModule() { setModuleName("Format"); }
+    FormatModule() { setModuleName("format"); }
 
     /**
      * @brief Register this module's symbols

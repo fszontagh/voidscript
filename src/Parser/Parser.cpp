@@ -226,14 +226,14 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
 
                 if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "++")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
-                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "+", std::move(rhs));
                     incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
                         incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
                         incrTok.line_number, incrTok.column_number);
                 } else if (match(Lexer::Tokens::Type::OPERATOR_INCREMENT, "--")) {
                     auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(incrName);
-                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
+                    auto rhs = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr(1));
                     auto bin = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), "-", std::move(rhs));
                     incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
                         incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
@@ -287,11 +287,11 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     // Parse loop variable declarations
     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
         // Key, value syntax: for (keyType $key, auto $value : iterable)
-        keyType                          = elemType;     // Type before comma is key type
-        keyName                          = firstName;
-        Symbols::Variables::Type valType = parseType();  // Get value type (might be auto/handled later)
-        auto                     valTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-        valName                          = parseIdentifierName(valTok);
+        keyType     = elemType;  // Type before comma is key type
+        keyName     = firstName;
+        // Symbols::Variables::Type valType = parseType();  // Get value type (might be auto/handled later)
+        auto valTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        valName     = parseIdentifierName(valTok);
         expect(Lexer::Tokens::Type::PUNCTUATION, ":");
     } else if (match(Lexer::Tokens::Type::PUNCTUATION, ":")) {
         // Simple element loop: for (elemType $element : iterable)
@@ -363,7 +363,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
 
         // Build assignment: $var = $var OP 1
         auto        lhs   = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
-        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
+        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr(1));
         std::string binOp = (opTok.value == "++") ? "+" : "-";
         auto assignRhs    = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
         // Return the assignment node
@@ -389,7 +389,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
             std::unique_ptr<Interpreter::ExpressionNode> lhs =
                 std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
             std::unique_ptr<Interpreter::ExpressionNode> rhs =
-                std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
+                std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr(1));
             std::string binOp = (opTok.value == "++") ? "+" : "-";
             auto assignRhs = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
             // Return the assignment statement node
@@ -730,7 +730,8 @@ void Parser::parseWhileStatement() {
 
 // Continue with numeric literal parsing
 //
-Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type) {
+Symbols::ValuePtr Parser::parseNumericLiteral(const std::string & value, bool is_negative,
+                                              Symbols::Variables::Type type) {
     try {
         switch (type) {
             case Symbols::Variables::Type::INTEGER:
@@ -739,17 +740,17 @@ Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_ne
                         throw std::invalid_argument("Floating point value in integer context: " + value);
                     }
                     int v = std::stoi(value);
-                    return Symbols::Value(is_negative ? -v : v);
+                    return Symbols::ValuePtr(is_negative ? -v : v);
                 }
             case Symbols::Variables::Type::DOUBLE:
                 {
                     double v = std::stod(value);
-                    return Symbols::Value(is_negative ? -v : v);
+                    return Symbols::ValuePtr(is_negative ? -v : v);
                 }
             case Symbols::Variables::Type::FLOAT:
                 {
                     float v = std::stof(value);
-                    return Symbols::Value(is_negative ? -v : v);
+                    return Symbols::ValuePtr(is_negative ? -v : v);
                 }
             default:
                 throw std::invalid_argument("Unsupported numeric type");
@@ -760,7 +761,7 @@ Symbols::Value Parser::parseNumericLiteral(const std::string & value, bool is_ne
         reportError("Numeric literal out of range: " + value + " (" + e.what() + ")");
     }
 
-    return Symbols::Value();  // unreachable
+    return Symbols::ValuePtr::null();  // unreachable
 }
 
 void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & function_name,
@@ -856,38 +857,15 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
 
             // copy the args
             const auto argsc = args;
-            // Create new expression
-            output_queue.push_back(ParsedExpression::makeNew(className, std::move(args), this->current_filename_,
-                                                             nameTok.line_number,
-                                                             nameTok.column_number));  // Use nameTok for location
 
-            // Validate constructor arguments
-            if (Modules::UnifiedModuleManager::instance().hasMethod(className, "construct")) {
-                const auto & params =
-                    Modules::UnifiedModuleManager::instance().getMethodParameters(className, "construct");
-                if (params.size() != argsc.size()) {
-                    reportError("Invalid number of arguments for constructor of class '" + className + "'. Expected " +
-                                    std::to_string(params.size()) + ", got " + std::to_string(argsc.size()),
-                                closingParenToken);
-                } else {
-                    for (size_t i = 0; i < params.size(); ++i) {
-                        Symbols::Variables::Type expectedType = params[i].type;
-                        Symbols::Variables::Type actualType   = Symbols::Variables::Type::NULL_TYPE;
-                        if (i < argsc.size() && argsc[i] != nullptr) {
-                            actualType = argsc[i]->getType();
-                        }
+            auto newStatement = ParsedExpression::makeNew(className, std::move(args), this->current_filename_,
+                                                          nameTok.line_number, nameTok.column_number);
 
-                        if (expectedType != actualType && expectedType != Symbols::Variables::Type::OBJECT) {
-                            reportError("Invalid argument type for constructor of class '" + className +
-                                            "'. Argument " + std::to_string(i + 1) + " expected type '" +
-                                            Symbols::Variables::TypeToString(expectedType) + "', but got '" +
-                                            Symbols::Variables::TypeToString(actualType) + "'",
-                                        closingParenToken);
-                        }
-                    }
-                }
-            }
-            // add a contructor call, check if exists in the operations
+            auto constructorStatement = ParsedExpression::makeMethodCall(
+                newStatement, "construct", argsc, this->current_filename_, nameTok.line_number, nameTok.column_number);
+
+            output_queue.push_back(constructorStatement);  // Use nameTok for location
+            output_queue.push_back(newStatement);
 
             expect_unary = false;
             atStart      = false;
@@ -1146,7 +1124,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                    token.type == Lexer::Tokens::Type::OPERATOR_LOGICAL ||
                    token.type == Lexer::Tokens::Type::OPERATOR_INCREMENT) {  // Include ++/-- operators
             std::string op                 = std::string(token.lexeme);
-            std::string original_op        = op;  // Keep original for error messages if needed
+            //std::string original_op        = op;  // Keep original for error messages if needed
             bool        is_unary_increment = (token.type == Lexer::Tokens::Type::OPERATOR_INCREMENT);
 
             if (expect_unary && (Lexer::isUnaryOperator(op) || is_unary_increment)) {  // Handle unary +, -, !, ++, --
@@ -1320,7 +1298,7 @@ Symbols::Variables::Type Parser::parseType() {
     reportError("Expected type keyword (string, int, double, float or class name)");
 }
 
-Symbols::Value Parser::parseValue(Symbols::Variables::Type expected_var_type) {
+Symbols::ValuePtr Parser::parseValue(Symbols::Variables::Type expected_var_type) {
     Lexer::Tokens::Token token       = currentToken();
     bool                 is_negative = false;
 
@@ -1336,7 +1314,7 @@ Symbols::Value Parser::parseValue(Symbols::Variables::Type expected_var_type) {
     if (expected_var_type == Symbols::Variables::Type::STRING) {
         if (token.type == Lexer::Tokens::Type::STRING_LITERAL) {
             consumeToken();
-            return Symbols::Value(token.value);
+            return Symbols::ValuePtr(token.value);
         }
         reportError("Expected string literal value");
     }
@@ -1345,7 +1323,7 @@ Symbols::Value Parser::parseValue(Symbols::Variables::Type expected_var_type) {
     if (expected_var_type == Symbols::Variables::Type::BOOLEAN) {
         if (token.type == Lexer::Tokens::Type::KEYWORD && (token.value == "true" || token.value == "false")) {
             consumeToken();
-            return Symbols::Value(token.value == "true");
+            return Symbols::ValuePtr(token.value == "true");
         }
         reportError("Expected boolean literal value (true or false)");
     }
@@ -1354,7 +1332,7 @@ Symbols::Value Parser::parseValue(Symbols::Variables::Type expected_var_type) {
     if (expected_var_type == Symbols::Variables::Type::INTEGER ||
         expected_var_type == Symbols::Variables::Type::DOUBLE || expected_var_type == Symbols::Variables::Type::FLOAT) {
         if (token.type == Lexer::Tokens::Type::NUMBER) {
-            Symbols::Value val = parseNumericLiteral(token.value, is_negative, expected_var_type);
+            Symbols::ValuePtr val = parseNumericLiteral(token.value, is_negative, expected_var_type);
             consumeToken();
             return val;
         }
@@ -1363,7 +1341,7 @@ Symbols::Value Parser::parseValue(Symbols::Variables::Type expected_var_type) {
     }
 
     reportError("Unsupported variable type encountered during value parsing");
-    return Symbols::Value();  // compiler happy
+    return Symbols::ValuePtr::null();  // compiler happy
 }
 
 bool Parser::isAtEnd() const {
@@ -1696,7 +1674,7 @@ void Parser::parseTopLevelStatement() {
 
         // Build assignment: $var = $var OP 1
         auto        lhs   = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
-        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
+        auto        rhs   = std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr(1));
         std::string binOp = (opTok.value == "++") ? "+" : "-";
         auto assignRhs    = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
         // Add the assignment operation
@@ -1725,7 +1703,7 @@ void Parser::parseTopLevelStatement() {
             std::unique_ptr<Interpreter::ExpressionNode> lhs =
                 std::make_unique<Interpreter::IdentifierExpressionNode>(baseName);
             std::unique_ptr<Interpreter::ExpressionNode> rhs =
-                std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr::create(1));
+                std::make_unique<Interpreter::LiteralExpressionNode>(Symbols::ValuePtr(1));
             std::string binOp = (opTok.value == "++") ? "+" : "-";
             auto assignRhs = std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), binOp, std::move(rhs));
             // Add the assignment operation
@@ -1812,10 +1790,10 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseVariableDefinitionNode(
         this->currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {               // Add this->
         id_token = this->consumeToken();                                              // Add this->
     } else {
-        this->reportError("Expected variable name", this->currentToken());            // Add this->
+        Parser::Parser::reportError("Expected variable name", this->currentToken());  // Add this->
         return nullptr;                                                               // Should not be reached
     }
-    std::string var_name = this->parseIdentifierName(id_token);                       // Add this->
+    std::string var_name = Parser::Parser::parseIdentifierName(id_token);             // Add this->
     const auto  ns       = Symbols::SymbolContainer::instance()->currentScopeName();  // Use current scope
 
     this->expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");                      // Add this->

@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <typeindex>
+#include <typeinfo>
 
 namespace Symbols::Variables {
 

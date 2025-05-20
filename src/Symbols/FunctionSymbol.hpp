@@ -22,7 +22,7 @@ class FunctionSymbol : public Symbol {
     FunctionSymbol(const std::string & name, const std::string & context, const FunctionParameterInfo & parameters,
                    const std::string &      plainbody  = "",
                    Symbols::Variables::Type returnType = Symbols::Variables::Type::NULL_TYPE) :
-        Symbol(name, nullptr, context, Symbols::Kind::Function),
+        Symbol(name, "", context, Symbols::Kind::Function),
         parameters_(parameters),
         returnType_(returnType),
         plainBody_(plainbody) {}

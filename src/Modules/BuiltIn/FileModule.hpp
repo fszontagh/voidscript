@@ -50,7 +50,7 @@ class FileModule : public BaseModule {
                               std::string content((std::istreambuf_iterator<char>(input)),
                                                   std::istreambuf_iterator<char>());
                               input.close();
-                              return Symbols::ValuePtr::create(content);
+                              return Symbols::ValuePtr(content);
                           });
 
         params = {
@@ -84,7 +84,7 @@ class FileModule : public BaseModule {
                                   throw std::runtime_error("Failed to write to file: " + filename);
                               }
                               output.close();
-                              return nullptr;
+                              return Symbols::ValuePtr::null();
                           });
         params = {
             { "file_name", Symbols::Variables::Type::STRING, "The file name" }
@@ -96,12 +96,11 @@ class FileModule : public BaseModule {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_exists expects 1 argument");
                               }
-                              if (args[0]->getType() != Symbols::Variables::Type::STRING) {
+                              if (args[0] != Symbols::Variables::Type::STRING) {
                                   throw std::runtime_error("file_exists expects string filename");
                               }
-                              const std::string filename = args[0]->get<std::string>();
-                              bool              exists   = utils::exists(filename);
-                              Symbols::ValuePtr::create(exists);
+                              const std::string filename = args[0];
+                              return utils::exists(filename);
                           });
 
         params = {
@@ -113,7 +112,7 @@ class FileModule : public BaseModule {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_size expects 1 argument");
                               }
-                              if (args[0]->getType() != Symbols::Variables::Type::STRING) {
+                              if (args[0] != Symbols::Variables::Type::STRING) {
                                   throw std::runtime_error("file_get_contents expects string filename");
                               }
                               const std::string filename = args[0]->get<std::string>();
@@ -121,10 +120,10 @@ class FileModule : public BaseModule {
                                   throw std::runtime_error("file_size: file not found: " + filename);
                               }
                               if (utils::is_directory((filename))) {
-                                  return Symbols::ValuePtr::create(4096);
+                                  return 4096;
                               }
                               size_t size = utils::file_size(filename);
-                              Symbols::ValuePtr::create(static_cast<int>(size));
+                              return static_cast<int>(size);
                           });
     }
 };

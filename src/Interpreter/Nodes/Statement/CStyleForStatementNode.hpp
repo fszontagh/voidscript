@@ -55,13 +55,13 @@ class CStyleForStatementNode : public StatementNode {
             // Loop condition and body (executed within loop scope)
             while (true) {
                 auto condVal = condExpr_->evaluate(interpreter);
-                if (condVal->getType() != Variables::Type::BOOLEAN) {
+                if (condVal != Variables::Type::BOOLEAN) {
                     if (entered_scope) {
                         symContainer->enterPreviousScope();  // Exit scope before throwing
                     }
                     throw Exception("For loop condition not boolean", filename_, line_, column_);
                 }
-                bool shouldContinue = condVal->get<bool>();
+                bool shouldContinue = condVal;
                 if (!shouldContinue) {
                     break;
                 }

@@ -22,7 +22,7 @@ class ObjectExpressionNode : public ExpressionNode {
         for (const auto & kv : members_) {
             obj[kv.first] = kv.second->evaluate(interpreter);
         }
-        return std::make_shared<Symbols::Value>(obj);
+        return obj;
     }
 
     std::string toString() const override { return "[object]"; }

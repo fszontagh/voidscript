@@ -28,7 +28,7 @@ class Test {
 
 }
 
-Test $t1 = new Test("Batman");
+Test $t1 = new Test("Batman", 21);
 $t1->setName("New name");
 //$t1->incrementAge(1);
 

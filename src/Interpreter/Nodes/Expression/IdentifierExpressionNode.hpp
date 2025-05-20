@@ -27,7 +27,7 @@ class IdentifierExpressionNode : public ExpressionNode {
 
         // Handle built-in NULL literal
         if (name_ == "NULL" || name_ == "null") {
-            return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+            return Symbols::ValuePtr::null(Symbols::Variables::Type::NULL_TYPE);
         }
 
         // If not found after hierarchical search, throw error

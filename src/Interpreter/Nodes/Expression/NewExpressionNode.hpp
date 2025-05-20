@@ -44,17 +44,27 @@ class NewExpressionNode : public ExpressionNode {
             throw Exception("Class not found: " + className_, filename_, line_, column_);
         }
         // Initialize object fields from class definition
-        const auto &              info = registry.getClassInfo(className_);
+        const auto &       info = registry.getClassInfo(className_);
         Symbols::ObjectMap obj;
         // Default initialization for all properties
-        size_t                    propCount = info.properties.size();
+        size_t             propCount = info.properties.size();
         for (size_t i = 0; i < propCount; ++i) {
             const auto & prop  = info.properties[i];
-            auto         value = Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+            auto         value = Symbols::ValuePtr::null(prop.type);
             if (prop.defaultValueExpr) {
                 // Build and evaluate default expression
                 auto exprNode = Parser::buildExpressionFromParsed(prop.defaultValueExpr);
-                value         = exprNode->evaluate(interpreter);
+                value = exprNode->evaluate(interpreter);
+                std::cout << "expr. " << " prop.name: " << prop.name << " -> " << exprNode->toString()
+                          << " return type: " << Symbols::Variables::TypeToString(value.getType()) << "\n";
+            }
+
+            if (prop.type != value) {
+                throw Exception(
+                    "Invalid property value type. Expected: " + Symbols::Variables::TypeToString(prop.type) +
+                        " got: " + Symbols::Variables::TypeToString(value) + " at constructor of '" + className_ +
+                        "' argument name: '" + prop.name + "'",
+                    filename_, line_, column_);
             }
             obj[prop.name] = value;
         }
@@ -69,9 +79,9 @@ class NewExpressionNode : public ExpressionNode {
         }
             */
         // Embed class metadata for method dispatch
-        obj["__class__"] = std::make_shared<Symbols::Value>(className_);
+        obj["__class__"] = className_;
         // Return class instance value (distinct from plain object)
-        return Symbols::Value::makeClassInstance(obj);
+        return Symbols::ValuePtr::makeClassInstance(obj);
     }
 
     std::string toString() const override { return "NewExpression{ class=" + className_ + " }"; }

@@ -158,8 +158,8 @@ class Parser {
     // type : KEYWORD_STRING | KEYWORD_INT | KEYWORD_DOUBLE
     // Returns the corresponding Symbols::Variables::Type enum and consumes the token
     Symbols::Variables::Type parseType();
-    Symbols::Value           parseValue(Symbols::Variables::Type expected_var_type);
-    Symbols::Value      parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type);
+    Symbols::ValuePtr           parseValue(Symbols::Variables::Type expected_var_type);
+    Symbols::ValuePtr      parseNumericLiteral(const std::string & value, bool is_negative, Symbols::Variables::Type type);
     /**
      * @brief Parse the body of a function or method, creating a new scope and recording its operations.
      * @param opening_brace_idx Index in tokens_ of the '{' token that opens the function body.

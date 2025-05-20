@@ -27,27 +27,39 @@ class JsonModule : public BaseModule {
         std::vector<FunctParameterInfo> params = {
             { "object", Symbols::Variables::Type::OBJECT, "The object / array to serialize" },
         };
+
         REGISTER_FUNCTION("json_encode", Symbols::Variables::Type::STRING, params, "Serialize a value to JSON string",
                           [](const FunctionArguments & args) -> Symbols::ValuePtr {
-                              using namespace Symbols;
                               if (args.size() != 1) {
                                   throw std::runtime_error("json_encode expects 1 argument");
                               }
-                              // forward to encoder
-                              std::function<std::string(Symbols::ValuePtr)> encode;
-                              encode = [&](Symbols::ValuePtr v) -> std::string {
-                                  const auto & var = v.raw()->get<std::string>();
-                                  return std::visit(
-                                      [&](auto && x) -> std::string {
-                                          using T = std::decay_t<decltype(x)>;
-                                          if constexpr (std::is_same_v<T, bool>) {
-                                              return x ? "true" : "false";
-                                          } else if constexpr (std::is_same_v<T, int> || std::is_same_v<T, double> ||
-                                                               std::is_same_v<T, float>) {
-                                              return std::to_string(x);
-                                          } else if constexpr (std::is_same_v<T, std::string>) {
-                                              // escape string
-                                              std::string out = "\"";
+
+                              // forward-declared lambda
+                              std::function<std::string(const Symbols::ValuePtr &)> encode;
+
+                              encode = [&](const Symbols::ValuePtr & v) -> std::string {
+                                  using Symbols::Variables::Type;
+
+                                  switch (v.getType()) {
+                                      case Type::NULL_TYPE:
+                                          return "null";
+
+                                      case Type::BOOLEAN:
+                                          return v.get<bool>() ? "true" : "false";
+
+                                      case Type::INTEGER:
+                                          return std::to_string(v.get<int>());
+
+                                      case Type::FLOAT:
+                                          return std::to_string(v.get<float>());
+
+                                      case Type::DOUBLE:
+                                          return std::to_string(v.get<double>());
+
+                                      case Type::STRING:
+                                          {
+                                              const std::string & x   = v.get<std::string>();
+                                              std::string         out = "\"";
                                               for (char c : x) {
                                                   switch (c) {
                                                       case '"':
@@ -73,7 +85,6 @@ class JsonModule : public BaseModule {
                                                           break;
                                                       default:
                                                           if (static_cast<unsigned char>(c) < 0x20) {
-                                                              // control character
                                                               char buf[7];
                                                               std::snprintf(buf, sizeof(buf), "\\u%04x", c);
                                                               out += buf;
@@ -84,17 +95,19 @@ class JsonModule : public BaseModule {
                                               }
                                               out += "\"";
                                               return out;
-                                          } else if constexpr (std::is_same_v<T, Symbols::ObjectMap>) {
-                                              std::string out   = "{";
-                                              bool        first = true;
-                                              for (const auto & kv : x) {
+                                          }
+
+                                      case Type::OBJECT:
+                                          {
+                                              const auto & obj   = v.get<Symbols::ObjectMap>();
+                                              std::string  out   = "{";
+                                              bool         first = true;
+                                              for (const auto & kv : obj) {
                                                   if (!first) {
                                                       out += ",";
                                                   }
                                                   first = false;
-                                                  // key
-                                                  out += '"';
-                                                  // escape key string
+                                                  out += "\"";
                                                   for (char c : kv.first) {
                                                       switch (c) {
                                                           case '"':
@@ -128,20 +141,19 @@ class JsonModule : public BaseModule {
                                                               }
                                                       }
                                                   }
-                                                  out += '"';
-                                                  out += ':';
+                                                  out += "\":";
                                                   out += encode(kv.second);
                                               }
                                               out += "}";
                                               return out;
-                                          } else {
-                                              return "null";
                                           }
-                                      },
-                                      var);
+
+                                      default:
+                                          return "null";  // fallback
+                                  }
                               };
-                              std::string result = encode(args.at(0));
-                              return Symbols::ValuePtr::create(result);
+
+                              return encode(args.at(0));
                           });
 
         params = {
@@ -245,9 +257,9 @@ class JsonModule : public BaseModule {
                 std::string num = s.substr(start, pos - start);
                 try {
                     if (isDouble) {
-                        return Symbols::ValuePtr::create(std::stod(num));
+                        return Symbols::ValuePtr(std::stod(num));
                     }
-                    return Symbols::ValuePtr::create(std::stoi(num));
+                    return Symbols::ValuePtr(std::stoi(num));
                 } catch (...) {
                     throw std::runtime_error("Invalid JSON number: " + num);
                 }
@@ -257,11 +269,11 @@ class JsonModule : public BaseModule {
                 skip();
                 if (s.compare(pos, 4, "true") == 0) {
                     pos += 4;
-                    return Symbols::ValuePtr::create(true);
+                    return Symbols::ValuePtr(true);
                 }
                 if (s.compare(pos, 5, "false") == 0) {
                     pos += 5;
-                    return Symbols::ValuePtr::create(false);
+                    return Symbols::ValuePtr(false);
                 }
                 throw std::runtime_error("Invalid JSON boolean");
             }
@@ -270,7 +282,7 @@ class JsonModule : public BaseModule {
                 skip();
                 if (s.compare(pos, 4, "null") == 0) {
                     pos += 4;
-                    return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+                    return Symbols::ValuePtr::null(Symbols::Variables::Type::NULL_TYPE);
                 }
                 throw std::runtime_error("Invalid JSON null");
             }
@@ -285,7 +297,7 @@ class JsonModule : public BaseModule {
                 Symbols::ObjectMap obj;
                 if (s[pos] == '}') {
                     pos++;
-                    return Symbols::ValuePtr::create(obj);
+                    return Symbols::ValuePtr(obj);
                 }
                 while (pos < s.size()) {
                     skip();
@@ -309,7 +321,7 @@ class JsonModule : public BaseModule {
                     }
                     throw std::runtime_error("Expected ',' or '}' in object");
                 }
-                return Symbols::ValuePtr::create(obj);
+                return Symbols::ValuePtr(obj);
             }
 
             Symbols::ValuePtr parseValue() {
@@ -323,7 +335,7 @@ class JsonModule : public BaseModule {
                 }
                 if (c == '"') {
                     std::string str = parseString();
-                    return Symbols::ValuePtr::create(str);
+                    return Symbols::ValuePtr(str);
                 }
                 if (c == 't' || c == 'f') {
                     return parseBool();

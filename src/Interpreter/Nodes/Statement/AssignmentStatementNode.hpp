@@ -49,7 +49,7 @@ class AssignmentStatementNode : public StatementNode {
         if (!propertyPath_.empty()) {
             // Get the object value from the base symbol
             Symbols::ValuePtr objectValue = symbol->getValue();
-            if (objectValue->getType() != Variables::Type::OBJECT && objectValue->getType() != Variables::Type::CLASS) {
+            if (objectValue != Variables::Type::OBJECT && objectValue != Variables::Type::CLASS) {
                 throw Exception("Attempting to assign property on non-object variable '" + targetName_ + "'", filename_,
                                 line_, column_);
             }
@@ -64,13 +64,12 @@ class AssignmentStatementNode : public StatementNode {
             auto currentVal = objectValue;  // Start with the base object value
             for (size_t i = 0; i < propertyPath_.size(); ++i) {
                 const auto & key = propertyPath_[i];
-                if (currentVal->getType() != Variables::Type::OBJECT &&
-                    currentVal->getType() != Variables::Type::CLASS) {
+                if (currentVal != Variables::Type::OBJECT && currentVal != Variables::Type::CLASS) {
                     throw Exception("Intermediate property '" + key + "' is not an object", filename_, line_, column_);
                 }
 
-                auto & currentMap = std::get<Value::ObjectMap>(currentVal->get());  // Get reference to map
-                auto   it         = currentMap.find(key);
+                Symbols::ObjectMap currentMap = currentVal;  // Get reference to map
+                auto               it         = currentMap.find(key);
                 if (it == currentMap.end()) {
                     throw Exception("Property '" + key + "' not found on object", filename_, line_, column_);
                 }
@@ -78,13 +77,11 @@ class AssignmentStatementNode : public StatementNode {
                 if (i == propertyPath_.size() - 1) {
                     // Last element: perform assignment
                     // Type check before assignment
-                    if (newValue->getType() != Variables::Type::NULL_TYPE &&
-                        it->second->getType() != Variables::Type::NULL_TYPE &&
-                        newValue->getType() != it->second->getType()) {
-                        using namespace Variables;
+                    if (newValue != Variables::Type::NULL_TYPE && it->second != Variables::Type::NULL_TYPE &&
+                        newValue != it->second) {
                         throw Exception("Type mismatch for property '" + key + "': expected '" +
-                                            TypeToString(it->second->getType()) + "' but got '" +
-                                            TypeToString(newValue->getType()) + "'",
+                                            Symbols::Variables::TypeToString(it->second) + "' but got '" +
+                                            Symbols::Variables::TypeToString(newValue) + "'",
                                         filename_, line_, column_);
                     }
                     it->second = newValue;  // Assign the new value to the property in the map
@@ -104,13 +101,11 @@ class AssignmentStatementNode : public StatementNode {
             auto currentValue = symbol->getValue();  // Get current value for type checking
 
             // Type check (allow assigning NULL to anything, otherwise types must match)
-            if (newValue->getType() != Variables::Type::NULL_TYPE &&
-                currentValue->getType() != Variables::Type::NULL_TYPE &&
-                newValue->getType() != currentValue->getType()) {
-                using namespace Variables;
+            if (newValue != Variables::Type::NULL_TYPE && currentValue != Variables::Type::NULL_TYPE &&
+                newValue != currentValue) {
                 throw Exception("Type mismatch assigning to variable '" + targetName_ + "': expected '" +
-                                    TypeToString(currentValue->getType()) + "' but got '" +
-                                    TypeToString(newValue->getType()) + "'",
+                                    Symbols::Variables::TypeToString(currentValue) + "' but got '" +
+                                    Symbols::Variables::TypeToString(newValue) + "'",
                                 filename_, line_, column_);
             }
             symbol->setValue(newValue);  // Assign directly to the symbol

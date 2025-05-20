@@ -1,6 +1,7 @@
 #ifndef LEXER_HPP
 #define LEXER_HPP
 
+#include <algorithm>
 #include <cctype>
 #include <string>
 #include <unordered_map>
@@ -49,12 +50,16 @@ class Lexer {
     char                advance();
     bool                isAtEnd() const;
     void                skipWhitespaceAndComments();
-    static bool         matchFromVector(const std::vector<std::string> & vec, const std::string & value);
-    Tokens::Token       createToken(Tokens::Type type, size_t start, size_t end, const std::string & value = "");
-    Tokens::Token       matchIdentifierOrKeyword(size_t start_pos, Tokens::Type type = Tokens::Type::IDENTIFIER);
-    Tokens::Token       matchNumber(size_t start_pos);
-    Tokens::Token       matchStringLiteral(size_t start_pos);
-    Tokens::Token       matchOperatorOrPunctuation(size_t start_pos);
+
+    static bool matchFromVector(const std::vector<std::string> & vec, const std::string & value) {
+        return std::find(vec.begin(), vec.end(), value) != vec.end();
+    }
+
+    Tokens::Token createToken(Tokens::Type type, size_t start, size_t end, const std::string & value = "");
+    Tokens::Token matchIdentifierOrKeyword(size_t start_pos, Tokens::Type type = Tokens::Type::IDENTIFIER);
+    Tokens::Token matchNumber(size_t start_pos);
+    Tokens::Token matchStringLiteral(size_t start_pos);
+    Tokens::Token matchOperatorOrPunctuation(size_t start_pos);
 
 };  // class Lexer
 

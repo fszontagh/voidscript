@@ -132,9 +132,9 @@ Symbols::Variables::Type UnifiedModuleManager::getFunctionReturnType(const std::
 Symbols::ValuePtr UnifiedModuleManager::getFunctionNullValue(const std::string & name) {
     auto it = functions_.find(name);
     if (it == functions_.end()) {
-        return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+        return Symbols::ValuePtr::null(Symbols::Variables::Type::NULL_TYPE);
     }
-    return Symbols::Value::makeNull(it->second.returnType);
+    return Symbols::ValuePtr::null(it->second.returnType);
 }
 
 // --- Class registration ---
@@ -161,10 +161,9 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
     findOrThrow(classes_, className, "Class not found").info.methodNames.push_back(methodName);
 }
 
-void UnifiedModuleManager::addMethod(
-    const std::string & className, const std::string & methodName,
-    std::function<Symbols::ValuePtr(const std::vector<Symbols::ValuePtr> &)> cb,
-    const Symbols::Variables::Type &                                                       returnType) {
+void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName,
+                                     std::function<Symbols::ValuePtr(const std::vector<Symbols::ValuePtr> &)> cb,
+                                     const Symbols::Variables::Type & returnType) {
     // Create a copy of the callback before registering
     auto callback = std::move(cb);
     this->registerFunction(methodName, callback, returnType);
@@ -199,11 +198,11 @@ void UnifiedModuleManager::setObjectProperty(const std::string & className, cons
 }
 
 Symbols::ValuePtr UnifiedModuleManager::getObjectProperty(const std::string & className,
-                                                                 const std::string & propertyName) const {
+                                                          const std::string & propertyName) const {
     const auto & classEntry = findOrThrow(classes_, className, "Class not found");
     auto         it         = classEntry.info.objectProperties.find(propertyName);
     if (it == classEntry.info.objectProperties.end()) {
-        return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+        return Symbols::ValuePtr::null(Symbols::Variables::Type::NULL_TYPE);
     }
     return it->second;
 }

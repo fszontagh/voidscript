@@ -31,12 +31,7 @@ const static std::unordered_map<std::type_index, Symbols::Variables::Type> type_
 class Value {
     friend class ValuePtr;
 
-    template <typename T> const T & get() const {
-        if (type_id_ != typeid(T)) {
-            throw std::bad_cast();
-        }
-        return *std::static_pointer_cast<T>(data_);
-    }
+
 
     void setNULL() {
         is_null = true;
@@ -48,16 +43,21 @@ class Value {
     std::type_index          type_id_ = typeid(void);
     bool                     is_null  = false;
 
-    template <typename T> void set(T data) { 
+    template <typename T> void set(T data) {
         this->data_ = std::make_shared<T>(std::move(data));
         this->type_id_ = std::type_index(typeid(T));
-        this->type_ = StringToType(typeid(T).name()); // Convert type to corresponding enum
+        this->type_ = Variables::StringToType(typeid(T).name()); // Convert type to corresponding enum
     }
   public:
     Value() {
         setNULL();
     }
-
+    template <typename T> const T & get() const {
+        if (type_id_ != typeid(T)) {
+            throw std::bad_cast();
+        }
+        return *std::static_pointer_cast<T>(data_);
+    }
     bool isNULL() const { return is_null || !data_; }
 
     template <typename T> T & get() {
@@ -93,7 +93,7 @@ class Value {
 
 class ValuePtr {
   private:
-    std::shared_ptr<Value> ptr_;
+    mutable std::shared_ptr<Value> ptr_;
 
     static std::mutex                      registryMutex_;
     static std::map<std::string, ValuePtr> valueRegistry_;
@@ -231,12 +231,19 @@ class ValuePtr {
 
     static ValuePtr null() { return ValuePtr::null(Variables::Type::NULL_TYPE); }
 
-    std::shared_ptr<Value> operator->() const { 
+    std::shared_ptr<Value> operator->() {
         if (!ptr_) {
             ptr_ = std::make_shared<Value>();
             ptr_->setNULL();
         }
-        return ptr_; 
+        return ptr_;
+    }
+
+    std::shared_ptr<const Value> operator->() const {
+        if (!ptr_) {
+            ptr_ = std::make_shared<Value>();
+        }
+        return ptr_;
     }
 
     template <typename T> T & get() { return ptr_->get<T>(); }
@@ -245,25 +252,25 @@ class ValuePtr {
 
     operator Symbols::Variables::Type() { return ptr_->getType(); }
 
-    operator Symbols::Variables::Type() const { 
+    operator Symbols::Variables::Type() const {
         if (!ptr_) {
             return Variables::Type::NULL_TYPE;
         }
-        return ptr_->getType(); 
+        return ptr_->getType();
     }
 
-    bool operator==(Symbols::Variables::Type type) const { 
+    bool operator==(Symbols::Variables::Type type) const {
         if (!ptr_) {
             return type == Variables::Type::NULL_TYPE;
         }
-        return ptr_->type_ == type; 
+        return ptr_->type_ == type;
     }
 
-    bool operator!=(Symbols::Variables::Type type) const { 
+    bool operator!=(Symbols::Variables::Type type) const {
         if (!ptr_) {
             return type != Variables::Type::NULL_TYPE;
         }
-        return ptr_->type_ != type; 
+        return ptr_->type_ != type;
     }
 
     template <typename T>

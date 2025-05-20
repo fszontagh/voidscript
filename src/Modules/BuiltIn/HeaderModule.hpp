@@ -31,7 +31,7 @@ class HeaderModule : public BaseModule {
                               const std::string & key = args[0]->get<std::string>();
                               const std::string & val = args[1]->get<std::string>();
                               setHeader(key, val);
-                              return Symbols::Value::null();
+                              return Symbols::ValuePtr::null();
                           });
     }
 

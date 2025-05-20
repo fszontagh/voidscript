@@ -11,27 +11,27 @@ void Modules::FormatModule::registerModule() {
         { "format", Symbols::Variables::Type::STRING, "The string to format" },
         { "interpolate...", Symbols::Variables::Type::STRING, "Parameters to replace '{}' placeoholders", true, true },
     };
-    REGISTER_FUNCTION(this->name(), Symbols::Variables::Type::NULL_TYPE, param_list,
+    REGISTER_FUNCTION("format_print", Symbols::Variables::Type::NULL_TYPE, param_list,
                       "Formats and prints text using fmt library. First argument is format string, followed by values "
                       "to interpolate.",
-                      [](FunctionArguments & args) -> Symbols::Value {
+                      [](FunctionArguments & args) -> Symbols::ValuePtr {
                           if (args.size() < 2) {
                               throw std::runtime_error("2 arguments required");
                           }
-                          if (args.front().getType() != Symbols::Variables::Type::STRING) {
+                          if (args.front() != Symbols::Variables::Type::STRING) {
                               throw std::runtime_error("First parameter need to be string");
                           }
 
-                          auto         _args  = args;
-                          const auto & format = Symbols::Value::to_string(_args.front());
+                          auto                _args  = args;
+                          const std::string & format = args[0];
                           _args.erase(_args.begin());
 
                           fmt::dynamic_format_arg_store<fmt::format_context> store;
                           for (const auto & arg : _args) {
-                              store.push_back(Symbols::Value::to_string(arg));
+                              store.push_back(arg.toString());
                           }
                           std::cout << fmt::vformat(format, store);
-                          return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+                          return Symbols::ValuePtr::null();
                       });
 
     param_list = {
@@ -39,25 +39,25 @@ void Modules::FormatModule::registerModule() {
         { "interpolate...", Symbols::Variables::Type::STRING, "Values to interpolate", true, true },
     };
 
-    REGISTER_FUNCTION(this->name(), Symbols::Variables::Type::STRING, param_list,
+    REGISTER_FUNCTION("format", Symbols::Variables::Type::STRING, param_list,
                       "Formats and returns string using fmt library. First argument is format string, followed by "
                       "values to interpolate.",
-                      [](FunctionArguments & args) -> Symbols::Value {
+                      [](FunctionArguments & args) -> Symbols::ValuePtr {
                           if (args.size() < 2) {
                               throw std::runtime_error("2 arguments required");
                           }
-                          if (args.front().getType() != Symbols::Variables::Type::STRING) {
+                          if (args.front() != Symbols::Variables::Type::STRING) {
                               throw std::runtime_error("First parameter need to be string");
                           }
 
-                          auto         _args  = args;
-                          const auto & format = Symbols::Value::to_string(_args.front());
+                          auto              _args  = args;
+                          const std::string format = _args.front();
                           _args.erase(_args.begin());
 
                           fmt::dynamic_format_arg_store<fmt::format_context> store;
                           for (const auto & arg : _args) {
-                              store.push_back(Symbols::Value::to_string(arg));
+                              store.push_back(arg.toString());
                           }
-                          return Symbols::Value(fmt::vformat(format, store));
+                          return Symbols::ValuePtr(fmt::vformat(format, store));
                       });
 }

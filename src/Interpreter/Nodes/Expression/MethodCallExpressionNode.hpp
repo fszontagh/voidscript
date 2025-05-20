@@ -55,20 +55,20 @@ class MethodCallExpressionNode : public ExpressionNode {
             Symbols::ValuePtr objVal = objectExpr_->evaluate(interpreter);
 
             // Allow method calls on class instances (and plain objects with class metadata)
-            if (objVal->getType() != Symbols::Variables::Type::OBJECT && objVal->getType() != Symbols::Variables::Type::CLASS) {
+            if (objVal != Symbols::Variables::Type::OBJECT && objVal != Symbols::Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", filename_, line_,
                                 column_);
             }
-            const auto & objMap = std::get<Symbols::ObjectMap>(objVal->get());
+            const Symbols::ObjectMap & objMap = objVal;
 
             // Extract class name
             auto it = objMap.find("__class__");
-            if (it == objMap.end() || it->second->getType() != Symbols::Variables::Type::STRING) {
+            if (it == objMap.end() || it->second != Symbols::Variables::Type::STRING) {
                 throw std::invalid_argument("Object is missing class metadata for method: " + methodName_);
             }
-            std::string className = it->second->get<std::string>();
+            const std::string className = it->second;
             // Verify method exists
-            auto &      registry  = Modules::UnifiedModuleManager::instance();
+            auto &            registry  = Modules::UnifiedModuleManager::instance();
             if (!registry.hasMethod(className, methodName_)) {
                 throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", filename_, line_,
                                 column_);
@@ -86,26 +86,20 @@ class MethodCallExpressionNode : public ExpressionNode {
                 auto &      mgr      = Modules::UnifiedModuleManager::instance();
                 std::string fullName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
                 if (mgr.hasFunction(fullName)) {
-                    Symbols::ValuePtr ret     = mgr.callFunction(fullName, argValues);
-                    Symbols::Variables::Type          retType = mgr.getFunctionReturnType(fullName);
-                    if (ret->getType() != retType) {
+                    Symbols::ValuePtr        ret     = mgr.callFunction(fullName, argValues);
+                    Symbols::Variables::Type retType = mgr.getFunctionReturnType(fullName);
+                    if (ret != retType) {
                         throw Exception("Method " + methodName_ + " return value type missmatch. Expected: " +
                                             Symbols::Variables::TypeToString(retType) + " got " +
-                                            Symbols::Variables::TypeToString(ret->getType()),
+                                            Symbols::Variables::TypeToString(ret),
                                         filename_, line_, column_);
                     }
-                    // Write back modified object if returned
-                    if (origSym &&
-                        (ret->getType() == Symbols::Variables::Type::OBJECT || ret->getType() == Symbols::Variables::Type::CLASS)) {
-                        if (origSym->getValue()->getType() == ret->getType()) {
-                            origSym->setValue(ret);
-                        }
-                    }
+
                     return ret;
                 }
             }
 
-            auto *            sc_instance = Symbols::SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
+            auto * sc_instance = Symbols::SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
             const std::string current_file_scope = sc_instance->currentScopeName();
             const std::string class_scope_name =
                 current_file_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
@@ -120,10 +114,10 @@ class MethodCallExpressionNode : public ExpressionNode {
                 throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", filename_, line_,
                                 column_);
             }
-            auto            funcSym    = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
+            auto                     funcSym    = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
             Symbols::Variables::Type returnType = funcSym->returnType();
             // Check argument count
-            const auto &    params     = funcSym->parameters();
+            const auto &             params     = funcSym->parameters();
             if (params.size() != args_.size()) {
                 throw Exception("Invalid number of arguments:s: '" + className + "->" + methodName_ + "', expects " +
                                     std::to_string(params.size()) + " args, got " + std::to_string(args_.size()),
@@ -132,8 +126,8 @@ class MethodCallExpressionNode : public ExpressionNode {
             // validate arg types
             size_t _c = 1;
             for (const auto & _p : params) {
-                const auto argType = argValues[_c]->getType();
-                if (_p.type != argType) {
+                const auto& argType = argValues[_c];
+                if (_p.type != argType->getType()) {
                     throw Exception("Invalid type of arguments:: '" + className + "->" + methodName_ +
                                         "' unexpected type at " + std::to_string(_c) + " '" + (_p.name) +
                                         "'. Expected: " + Symbols::Variables::TypeToString(_p.type),
@@ -174,10 +168,10 @@ class MethodCallExpressionNode : public ExpressionNode {
             sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
             // Return type checking: if method declares a non-null return type, error if no value was returned
             if (returnType == Symbols::Variables::Type::NULL_TYPE) {
-                return Symbols::Value::makeNull(Symbols::Variables::Type::NULL_TYPE);
+                return Symbols::ValuePtr::null();
             }
-            throw Exception("Method '" + methodName_ + "' (return type: " + Symbols::Variables::TypeToString(returnType) +
-                                ") did not return a value",
+            throw Exception("Method '" + methodName_ + "' (return type: " +
+                                Symbols::Variables::TypeToString(returnType) + ") did not return a value",
                             filename_, line_, column_);
 
         } catch (const std::exception & e) {

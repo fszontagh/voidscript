@@ -16,7 +16,7 @@ class CurlClient {
     CURL *              curl;
     std::string         response;
     struct curl_slist * headers;
-    long                timeoutSec      = 20;
+    int                 timeoutSec      = 20;
     bool                followRedirects = false;
     bool                initialized     = false;
 
@@ -27,16 +27,16 @@ class CurlClient {
     ~CurlClient();
 
     void setUrl(const std::string & url);
-    void setTimeout(long seconds);
+    void setTimeout(int seconds);
     void setFollowRedirects(bool follow);
     void setHeaders(Symbols::ValuePtr headersObj);
     void addHeader(const std::string & name, const std::string & value);
     void clearHeaders();
 
-    std::string get(const std::string & url, Symbols::ValuePtr options = nullptr);
-    std::string post(const std::string & url, const std::string & data, Symbols::ValuePtr options = nullptr);
-    std::string put(const std::string & url, const std::string & data, Symbols::ValuePtr options = nullptr);
-    std::string delete_(const std::string & url, Symbols::ValuePtr options = nullptr);
+    std::string get(const std::string & url, Symbols::ValuePtr options = Symbols::ValuePtr::null());
+    std::string post(const std::string & url, const std::string & data, Symbols::ValuePtr options = Symbols::ValuePtr::null());
+    std::string put(const std::string & url, const std::string & data, Symbols::ValuePtr options = Symbols::ValuePtr::null());
+    std::string delete_(const std::string & url, Symbols::ValuePtr options = Symbols::ValuePtr::null());
 
   private:
     void        initialize();
