@@ -7,7 +7,7 @@
 
 void Modules::ImagickModule::registerModule() {
     std::vector<FunctParameterInfo> params = {
-        { "filename", Symbols::Variables::Type::STRING },
+        { "filename", Symbols::Variables::Type::STRING, "The image file to manipulate" },
     };
 
     REGISTER_CLASS(this->name());
@@ -21,15 +21,15 @@ void Modules::ImagickModule::registerModule() {
         Symbols::Variables::Type::NULL_TYPE, "Save the image");
 
     params = {
-        { "width",   Symbols::Variables::Type::INTEGER },
-        { "height",  Symbols::Variables::Type::INTEGER },
-        { "xOffset", Symbols::Variables::Type::INTEGER },
-        { "yOffset", Symbols::Variables::Type::INTEGER },
+        { "width",   Symbols::Variables::Type::INTEGER, "The width of the crop"                                    },
+        { "height",  Symbols::Variables::Type::INTEGER, "The height of the crop"                                   },
+        { "xOffset", Symbols::Variables::Type::INTEGER, "The X coordinate of the cropped region's top left corner" },
+        { "yOffset", Symbols::Variables::Type::INTEGER, "The Y coordinate of the cropped region's top left corner" },
     };
 
     REGISTER_METHOD(
         this->name(), "crop", params, [this](const FunctionArguments & args) { return this->crop(args); },
-        Symbols::Variables::Type::NULL_TYPE, "Crop the image");
+        Symbols::Variables::Type::NULL_TYPE, "Extracts a region of the image");
 
     params = {
         { "width",  Symbols::Variables::Type::INTEGER },

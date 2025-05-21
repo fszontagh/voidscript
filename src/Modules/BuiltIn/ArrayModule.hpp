@@ -41,24 +41,24 @@ class ArrayModule : public BaseModule {
             case Symbols::Variables::Type::OBJECT:
                 {
                     const auto & map = val->get<Symbols::ObjectMap>();
-                    Symbols::ValuePtr(static_cast<int>(map.size()));
+                    return static_cast<int>(map.size());
                 }
             case Symbols::Variables::Type::STRING:
                 {
                     const auto & str = val->get<std::string>();
-                    return Symbols::ValuePtr(static_cast<int>(str.size()));
+                    return static_cast<int>(str.size());
                 }
             case Symbols::Variables::Type::CLASS:
                 {
                     const auto & map = val->get<Symbols::ObjectMap>();
-                    return Symbols::ValuePtr(static_cast<int>(map.size()));
+                    return static_cast<int>(map.size());
                 }
             case Symbols::Variables::Type::INTEGER:
             case Symbols::Variables::Type::DOUBLE:
             case Symbols::Variables::Type::FLOAT:
             case Symbols::Variables::Type::BOOLEAN:
                 {
-                    return Symbols::ValuePtr(1);
+                    return 1;
                 }
             default:
                 throw std::runtime_error("sizeof unsupported type");

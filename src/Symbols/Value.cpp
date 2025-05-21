@@ -1,23 +1,15 @@
 #include "Symbols/Value.hpp"
 
 // Standard library includes that are likely needed by the moved implementations
+#include <algorithm>  // For std::transform in ValuePtr::fromStringToBool
+#include <mutex>      // For ValuePtr::registryMutex_
+#include <stdexcept>  // For std::bad_cast, std::runtime_error, std::logic_error, std::invalid_argument
 #include <string>
-#include <stdexcept> // For std::bad_cast, std::runtime_error, std::logic_error, std::invalid_argument
-#include <algorithm> // For std::transform in ValuePtr::fromStringToBool
-#include <vector>    // Potentially used by some methods, good to have
-#include <mutex>     // For ValuePtr::registryMutex_
+#include <vector>     // Potentially used by some methods, good to have
 
 // Note: <map> and <memory> are already included by Value.hpp for ObjectMap and shared_ptr
 
 namespace Symbols {
-
-// Static member definitions
-// These were identified as needing to be moved from Value.hpp if they are not inline.
-// Based on their usage (e.g. registryMutex_), they are true static members.
-std::mutex ValuePtr::registryMutex_;
-std::map<std::string, ValuePtr> ValuePtr::valueRegistry_;
-
-
 // --- Implementations for Symbols::Value methods ---
 
 void Value::setNULL() {
@@ -26,13 +18,13 @@ void Value::setNULL() {
 }
 
 Value::Value() {
-    setNULL(); // Calls the moved Value::setNULL()
+    setNULL();  // Calls the moved Value::setNULL()
 }
 
-void Value::clone_data_from(const Value& other) {
+void Value::clone_data_from(const Value & other) {
     // Reset current data
     this->data_.reset();
-    this->is_null = true; // Default to null until data is set
+    this->is_null = true;  // Default to null until data is set
 
     switch (other.type_) {
         case Symbols::Variables::Type::INTEGER:
@@ -50,41 +42,41 @@ void Value::clone_data_from(const Value& other) {
         case Symbols::Variables::Type::STRING:
             this->set<std::string>(other.get<std::string>());
             break;
-        case Symbols::Variables::Type::OBJECT: {
-            const auto& source_map = other.get<ObjectMap>();
-            ObjectMap new_map;
-            for (const auto& pair : source_map) {
-                new_map[pair.first] = pair.second.clone(); // Assumes ValuePtr::clone() exists
+        case Symbols::Variables::Type::OBJECT:
+            {
+                const auto & source_map = other.get<ObjectMap>();
+                ObjectMap    new_map;
+                for (const auto & pair : source_map) {
+                    new_map[pair.first] = pair.second.clone();  // Assumes ValuePtr::clone() exists
+                }
+                this->set<ObjectMap>(new_map);
+                break;
             }
-            this->set<ObjectMap>(new_map);
-            break;
-        }
         case Symbols::Variables::Type::NULL_TYPE:
             this->setNULL();
             break;
         default:
-            this->setNULL(); 
+            this->setNULL();
             break;
     }
-    
+
     if (this->data_) {
         this->is_null = false;
         // type_ and type_id_ are set by set<T>()
     } else {
         // Data was not set (e.g., setNULL() was called or unhandled type).
-        this->is_null = true;
-        this->type_ = other.type_; // Preserve original type info for null values
+        this->is_null  = true;
+        this->type_    = other.type_;  // Preserve original type info for null values
         this->type_id_ = other.type_id_;
     }
 }
 
-
 std::shared_ptr<Value> Value::clone() const {
     auto new_value = std::make_shared<Value>();
 
-    new_value->type_ = this->type_;
+    new_value->type_    = this->type_;
     new_value->type_id_ = this->type_id_;
-    new_value->is_null = this->is_null;
+    new_value->is_null  = this->is_null;
 
     if (!this->is_null && this->data_) {
         new_value->clone_data_from(*this);
@@ -96,7 +88,7 @@ bool Value::isNULL() const {
     // is_null is the primary flag. data_ check is secondary.
     // A Value can be semantically null (is_null = true) but have a type (e.g. null string).
     // A Value might also be is_null = false, but data_ is null if improperly handled (should not happen).
-    return is_null || !data_; 
+    return is_null || !data_;
 }
 
 Symbols::Variables::Type Value::getType() const {
@@ -104,22 +96,24 @@ Symbols::Variables::Type Value::getType() const {
 }
 
 std::string Value::toString() const {
-    if (isNULL() && type_ != Variables::Type::STRING && type_ != Variables::Type::OBJECT && type_ != Variables::Type::CLASS ) { // Allow toString on null strings/objects
-         if (type_ == Variables::Type::NULL_TYPE || (!data_ && type_ != Variables::Type::STRING)) return "null";
+    if (isNULL() && type_ != Variables::Type::STRING && type_ != Variables::Type::OBJECT &&
+        type_ != Variables::Type::CLASS) {  // Allow toString on null strings/objects
+        if (type_ == Variables::Type::NULL_TYPE || (!data_ && type_ != Variables::Type::STRING)) {
+            return "null";
+        }
     }
-
 
     // Specific handling for STRING to allow "null" for null strings vs empty string ""
     if (type_ == Variables::Type::STRING) {
-        if (!data_ || is_null) { // if is_null is true, it's a "null string"
-             return "null"; 
+        if (!data_ || is_null) {  // if is_null is true, it's a "null string"
+            return "null";
         }
-        return get<std::string>(); // Will return "" if string is empty but not null
+        return get<std::string>();  // Will return "" if string is empty but not null
     }
-    
+
     // For other types, if data_ is null but is_null wasn't true (e.g. uninitialized non-string)
     // or if is_null is true, then it's "null"
-    if (!data_ || is_null) { 
+    if (!data_ || is_null) {
         return "null";
     }
 
@@ -135,7 +129,7 @@ std::string Value::toString() const {
         // STRING is handled above
         // OBJECT, CLASS, NULL_TYPE will fall to default or handled by isNULL checks
         default:
-            return "null"; // Should ideally be covered by isNULL or type checks
+            return "null";  // Should ideally be covered by isNULL or type checks
     }
 }
 
@@ -147,7 +141,7 @@ std::string ValuePtr::valueToString(const Value & value) {
     // as it's called internally when ptr_ is known to be valid.
     // Or, it could simply call value.toString() if that's preferred.
     // For now, replicating simpler logic:
-    if (value.isNULL()) { // Use Value's own isNULL logic
+    if (value.isNULL()) {  // Use Value's own isNULL logic
         return "null";
     }
     if (value.type_ == Variables::Type::STRING) {
@@ -170,23 +164,22 @@ std::string ValuePtr::valueToString(const Value & value) {
 // Private method
 void ValuePtr::ensure_object() {
     if (!ptr_) {
-        ptr_ = std::make_shared<Value>(); // Should be initialized to NULL_TYPE by Value constructor
+        ptr_ = std::make_shared<Value>();  // Should be initialized to NULL_TYPE by Value constructor
     }
     // If ptr_ points to a Value that is not an OBJECT (or is NULL_TYPE),
     // reset it to an empty OBJECT.
     if (ptr_->type_ != Variables::Type::OBJECT) {
-        ptr_->set<ObjectMap>({}); // This sets type to OBJECT and data to an empty map
+        ptr_->set<ObjectMap>({});  // This sets type to OBJECT and data to an empty map
         // ptr_->type_ = Variables::Type::OBJECT; // set<T> already does this
     }
 }
 
-
 ValuePtr ValuePtr::clone() const {
-    ValuePtr cloned_value_ptr; 
+    ValuePtr cloned_value_ptr;
     if (this->ptr_) {
         cloned_value_ptr.ptr_ = this->ptr_->clone();
     }
-    // If this->ptr_ is null (should not happen with current constructors), 
+    // If this->ptr_ is null (should not happen with current constructors),
     // cloned_value_ptr remains default-initialized (ptr_ points to a new Value set to NULL).
     return cloned_value_ptr;
 }
@@ -196,9 +189,9 @@ Variables::Type ValuePtr::getType() const {
 }
 
 void ValuePtr::setType(Symbols::Variables::Type type) {
-    if (!ptr_) { // Should not happen with current constructors
+    if (!ptr_) {          // Should not happen with current constructors
         ptr_ = std::make_shared<Value>();
-        ptr_->setNULL(); // Ensure it's in a valid null state
+        ptr_->setNULL();  // Ensure it's in a valid null state
     }
     // Allow setting type if current value is conceptually null or uninitialized
     if (ptr_->isNULL() || ptr_->getType() == Variables::Type::NULL_TYPE) {
@@ -210,16 +203,16 @@ void ValuePtr::setType(Symbols::Variables::Type type) {
     }
 }
 
-ValuePtr& ValuePtr::setNULL() {
+ValuePtr & ValuePtr::setNULL() {
     // ensure_object(); // setNULL is not just for objects. It makes the current ValuePtr null.
-    if (!ptr_) { // Should not happen
+    if (!ptr_) {  // Should not happen
         ptr_ = std::make_shared<Value>();
     }
     ptr_->setNULL();
     return *this;
 }
 
-ValuePtr::ValuePtr(const char * v) { // Constructor
+ValuePtr::ValuePtr(const char * v) {  // Constructor
     if (v == nullptr) {
         ptr_ = std::make_shared<Value>();
         ptr_->setNULL();
@@ -231,11 +224,11 @@ ValuePtr::ValuePtr(const char * v) { // Constructor
 
 // Static methods
 ValuePtr ValuePtr::null(Symbols::Variables::Type type) {
-    ValuePtr z; // Default constructor makes ptr_ point to a new Value, which is NULL_TYPE and data_ is null.
+    ValuePtr z;  // Default constructor makes ptr_ point to a new Value, which is NULL_TYPE and data_ is null.
     // z->setNULL(); // Already done by Value's default constructor via z's default constructor.
-    z.setType(type); // Set the type of this null value.
-    
-    // Special case for string: a "null string" should perhaps still have valid empty string data
+    z.setType(type);  // Set the type of this null value.
+
+                      // Special case for string: a "null string" should perhaps still have valid empty string data
     // if direct get<std::string>() is to be allowed without checking isNULL first.
     // Value::toString() handles isNULL for strings to return "null".
     // Value::clone_data_from relies on get<std::string>() for STRING type.
@@ -260,15 +253,15 @@ ValuePtr ValuePtr::null(Symbols::Variables::Type type) {
     // This makes it a non-null empty string. If we want a "null string", this line should be removed.
     // Given the problem statement, we are refactoring existing code. Let's keep behavior.
     // This means ValuePtr::null(STRING) returns a ValuePtr to an *empty string*, not a *null string*.
-     if (type == Variables::Type::STRING) {
-        z->set<std::string>(""); // Makes it a non-null empty string
-        z->is_null = false; // Explicitly set after set<std::string>
-     } else if (type == Variables::Type::OBJECT) {
+    if (type == Variables::Type::STRING) {
+        z->set<std::string>("");  // Makes it a non-null empty string
+        z->is_null = false;       // Explicitly set after set<std::string>
+    } else if (type == Variables::Type::OBJECT) {
         z->set<ObjectMap>({});
         z->is_null = false;
-     }
-     // For other types, it remains a "null" value of that type (is_null=true, data_=nullptr)
-     // but type_ is set.
+    }
+    // For other types, it remains a "null" value of that type (is_null=true, data_=nullptr)
+    // but type_ is set.
 
     return z;
 }
@@ -279,7 +272,7 @@ ValuePtr ValuePtr::null() {
 
 // Operators
 std::shared_ptr<Value> ValuePtr::operator->() {
-    if (!ptr_) { // Should not happen with current constructors
+    if (!ptr_) {  // Should not happen with current constructors
         ptr_ = std::make_shared<Value>();
         ptr_->setNULL();
     }
@@ -298,44 +291,48 @@ std::shared_ptr<const Value> ValuePtr::operator->() const {
 }
 
 ValuePtr::operator Symbols::Variables::Type() {
-    if (!ptr_) return Variables::Type::NULL_TYPE; // Should not happen
+    if (!ptr_) {
+        return Variables::Type::NULL_TYPE;  // Should not happen
+    }
     return ptr_->getType();
 }
 
 ValuePtr::operator Symbols::Variables::Type() const {
-    if (!ptr_) return Variables::Type::NULL_TYPE; // Should not happen
+    if (!ptr_) {
+        return Variables::Type::NULL_TYPE;  // Should not happen
+    }
     return ptr_->getType();
 }
 
 bool ValuePtr::operator==(Symbols::Variables::Type type) const {
-    if (!ptr_) { // Should not happen
+    if (!ptr_) {  // Should not happen
         return type == Variables::Type::NULL_TYPE;
     }
     return ptr_->type_ == type;
 }
 
 bool ValuePtr::operator!=(Symbols::Variables::Type type) const {
-    if (!ptr_) { // Should not happen
+    if (!ptr_) {  // Should not happen
         return type != Variables::Type::NULL_TYPE;
     }
     return ptr_->type_ != type;
 }
 
-ValuePtr& ValuePtr::operator[](const std::string & key) {
-    ensure_object(); // Ensures ptr_ is valid and type is OBJECT
-    ObjectMap & map = ptr_->get<ObjectMap>(); // get<ObjectMap>() must return a reference
-    return map[key]; // map operator[] default-constructs ValuePtr if key not found
+ValuePtr & ValuePtr::operator[](const std::string & key) {
+    ensure_object();                           // Ensures ptr_ is valid and type is OBJECT
+    ObjectMap & map = ptr_->get<ObjectMap>();  // get<ObjectMap>() must return a reference
+    return map[key];                           // map operator[] default-constructs ValuePtr if key not found
 }
 
 // Static method
 ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
-    auto _class_instance_vp = Symbols::ValuePtr(v); // Calls ObjectMap constructor
-    _class_instance_vp->type_ = Symbols::Variables::Type::CLASS; 
+    auto _class_instance_vp   = Symbols::ValuePtr(v);  // Calls ObjectMap constructor
+    _class_instance_vp->type_ = Symbols::Variables::Type::CLASS;
     return _class_instance_vp;
 }
 
 std::string ValuePtr::toString() const {
-    if (!ptr_) { // Should not happen
+    if (!ptr_) {  // Should not happen
         return "null";
     }
     // Delegate to the Value object's toString method
@@ -348,8 +345,12 @@ ValuePtr ValuePtr::fromString(const std::string & str) {
         return ValuePtr::null(Variables::Type::NULL_TYPE);
     }
     // Boolean check
-    if (str == "true") return ValuePtr(true);
-    if (str == "false") return ValuePtr(false);
+    if (str == "true") {
+        return ValuePtr(true);
+    }
+    if (str == "false") {
+        return ValuePtr(false);
+    }
 
     // Number check (simplified: check for '.' for double/float, otherwise integer)
     // This is basic, production code might need more robust parsing.
@@ -360,41 +361,45 @@ ValuePtr ValuePtr::fromString(const std::string & str) {
             double d = std::stod(str);
             // Check if it's a whole number, could be int, but precision might matter
             // if (d == static_cast<long long>(d)) { /* could be int */ }
-            return ValuePtr(d); 
+            return ValuePtr(d);
         } else {
-            long long l = std::stoll(str); // Use stoll for wider range
+            long long l = std::stoll(str);  // Use stoll for wider range
             if (l >= std::numeric_limits<int>::min() && l <= std::numeric_limits<int>::max()) {
-                 return ValuePtr(static_cast<int>(l));
+                return ValuePtr(static_cast<int>(l));
             }
             // If it's too large for int, it could be stored as double or throw error
             // For now, let's assume it fits into double if not int, or just use int if it fits.
             // This part of fromString is tricky without more context on desired behavior for large integers.
             // The original implementation used stoi then stod.
             // Let's try int, then double, then string.
-             try {
+            try {
                 size_t pos;
-                int i = std::stoi(str, &pos);
-                if (pos == str.length()) return ValuePtr(i);
-            } catch (const std::out_of_range&) {
+                int    i = std::stoi(str, &pos);
+                if (pos == str.length()) {
+                    return ValuePtr(i);
+                }
+            } catch (const std::out_of_range &) {
                 // too large for int, try double
-            } catch (const std::invalid_argument&) {
+            } catch (const std::invalid_argument &) {
                 // not an int
             }
 
             try {
                 size_t pos;
                 double d = std::stod(str, &pos);
-                if (pos == str.length()) return ValuePtr(d);
-            } catch (const std::out_of_range&) {
+                if (pos == str.length()) {
+                    return ValuePtr(d);
+                }
+            } catch (const std::out_of_range &) {
                 // too large for double
-            } catch (const std::invalid_argument&) {
+            } catch (const std::invalid_argument &) {
                 // not a double
             }
         }
     } catch (const std::exception &) {
         // If number parsing fails, fall through to return as string
     }
-    
+
     // Default to string if not null, bool, or number
     return ValuePtr(str);
 }
@@ -402,15 +407,15 @@ ValuePtr ValuePtr::fromString(const std::string & str) {
 ValuePtr ValuePtr::fromStringToInt(const std::string & str) {
     try {
         return ValuePtr(std::stoi(str));
-    } catch (const std::exception& e) {
+    } catch (const std::exception & e) {
         throw std::runtime_error("Failed to convert string to int: '" + str + "'. Error: " + e.what());
     }
 }
 
 ValuePtr ValuePtr::fromStringToDouble(const std::string & str) {
-     try {
+    try {
         return ValuePtr(std::stod(str));
-    } catch (const std::exception& e) {
+    } catch (const std::exception & e) {
         throw std::runtime_error("Failed to convert string to double: '" + str + "'. Error: " + e.what());
     }
 }
@@ -418,7 +423,7 @@ ValuePtr ValuePtr::fromStringToDouble(const std::string & str) {
 ValuePtr ValuePtr::fromStringToFloat(const std::string & str) {
     try {
         return ValuePtr(std::stof(str));
-    } catch (const std::exception& e) {
+    } catch (const std::exception & e) {
         throw std::runtime_error("Failed to convert string to float: '" + str + "'. Error: " + e.what());
     }
 }
@@ -435,5 +440,4 @@ ValuePtr ValuePtr::fromStringToBool(const std::string & str) {
     throw std::invalid_argument("Invalid string for bool conversion: " + str);
 }
 
-
-} // namespace Symbols
+}  // namespace Symbols

@@ -30,7 +30,13 @@ for (string $module_key, object $module : $modules) {
     if (sizeof($module_functions) > 0) {
         printnl("\n  Functions (", sizeof($module_functions), "):");
         for (string $func_key, object $func_info : $module_functions) {
-            printnl("    - ", $func_info["name"]);
+            printnl("    - ", $func_info["documentation"]["name"]);
+            if (sizeof($func_info["documentation"]["parameters"])>0) {
+                printnl("      Parameters: ");
+                for (string $param_name, object $param_info: $func_info["documentation"]["parameters"]) {
+                    printnl("       - ",$param_info["name"], " type: ", $param_info["type"], " - ", $param_info["description"]);
+                }
+            }
         }
     }
 
@@ -43,35 +49,4 @@ for (string $module_key, object $module : $modules) {
     }
     printnl("\n--------------------------------------------------");
 }
-
-printnl("\n--- MODULE EXISTENCE TESTS ---");
-
-// Test dynamic module
-string $test_module = "modules-curl";
-bool $exists = module_exists($test_module);
-printnl("\nChecking dynamic module '", $test_module, "':");
-printnl("Exists: ", $exists);
-
-if ($exists) {
-    object $info = module_info($test_module);
-    printnl("Module info:");
-    printnl("  Name: ", $info["name"]);
-    printnl("  Path: ", $info["path"]);
-}
-
-// Test built-in module
-string $builtin_module = "ModuleHelper";
-bool $builtin_exists = module_exists($builtin_module);
-printnl("\nChecking built-in module '", $builtin_module, "':");
-printnl("Exists: ", $builtin_exists);
-
-if ($builtin_exists) {
-    object $builtin_info = module_info($builtin_module);
-    printnl("Module info:");
-    printnl("  Name: ", $builtin_info["name"]);
-    printnl("  Path: ", $builtin_info["path"]);
-}
-
-printnl("\n=== TEST COMPLETE ===");
-
 

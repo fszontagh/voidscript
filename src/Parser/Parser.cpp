@@ -195,12 +195,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     auto forToken = expect(Lexer::Tokens::Type::KEYWORD_FOR, "for");
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
 
-    // --- Create loop scope ONCE at the beginning ---
     const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
-    //const std::string loopScope =
-    //        currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
-    //Symbols::SymbolContainer::instance()->create(loopScope);  // Create & Enter loopScope
-    // --- End scope creation ---
 
     // Parse element type and variable name (common to both loop types)
     Symbols::Variables::Type elemType  = parseType();
@@ -274,24 +269,17 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     }
 
     // For-in loop variant (check starts after C-style check fails)
-    // >>> Remove scope creation from here
-    /*
-    const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
-    const std::string loopScope = currentScope + "::for_" + std::to_string(forToken.line_number) + "_" + std::to_string(forToken.column_number);
-    Symbols::SymbolContainer::instance()->create(loopScope); // Create & Enter
-    */
-    // <<< End removal
     std::string              keyName;
     std::string              valName;
     Symbols::Variables::Type keyType;  // Keep track of declared key type
     // Parse loop variable declarations
     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
         // Key, value syntax: for (keyType $key, auto $value : iterable)
-        keyType     = elemType;  // Type before comma is key type
-        keyName     = firstName;
-        // Symbols::Variables::Type valType = parseType();  // Get value type (might be auto/handled later)
-        auto valTok = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
-        valName     = parseIdentifierName(valTok);
+        keyType                          = elemType;     // Type before comma is key type
+        keyName                          = firstName;
+        Symbols::Variables::Type valType = parseType();  // Get value type (might be auto/handled later)
+        auto                     valTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        valName                          = parseIdentifierName(valTok);
         expect(Lexer::Tokens::Type::PUNCTUATION, ":");
     } else if (match(Lexer::Tokens::Type::PUNCTUATION, ":")) {
         // Simple element loop: for (elemType $element : iterable)

@@ -1,21 +1,21 @@
 #ifndef SYMBOLS_VALUE_HPP
 #define SYMBOLS_VALUE_HPP
 
-#include <algorithm> // For ValuePtr::fromStringToBool, kept if any part of it remains in header
+#include <algorithm>  // For ValuePtr::fromStringToBool, kept if any part of it remains in header
 #include <map>
 #include <memory>
 #include <stdexcept>  // For std::bad_cast, kept for get<T>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
-#include <vector> // Potentially for future use or if a moved method implicitly needed it via another header method
+#include <vector>  // Potentially for future use or if a moved method implicitly needed it via another header method
 
-#include "Symbols/VariableTypes.hpp" // Essential
+#include "Symbols/VariableTypes.hpp"  // Essential
 
 namespace Symbols {
 
-class Value; // Forward declaration
-class ValuePtr; // Forward declaration
+class Value;     // Forward declaration
+class ValuePtr;  // Forward declaration
 
 using ObjectMap = std::map<std::string, ValuePtr>;
 
@@ -31,7 +31,7 @@ const static std::unordered_map<std::type_index, Symbols::Variables::Type> type_
 };
 
 class Value {
-    friend class ValuePtr; // ValuePtr needs access to Value's private members
+    friend class ValuePtr;  // ValuePtr needs access to Value's private members
 
   private:
     Symbols::Variables::Type type_ = Variables::Type::NULL_TYPE;
@@ -41,14 +41,14 @@ class Value {
 
     // Private methods - Declarations only
     void setNULL();
-    void clone_data_from(const Value& other);
+    void clone_data_from(const Value & other);
 
     // Templated methods remain in the header
     template <typename T> void set(T data) {
         this->data_    = std::make_shared<T>(std::move(data));
         this->type_id_ = std::type_index(typeid(T));
         // Safely access type_names, ensuring the type exists
-        auto it = type_names.find(std::type_index(typeid(T)));
+        auto it        = type_names.find(std::type_index(typeid(T)));
         if (it != type_names.end()) {
             this->type_ = it->second;
         } else {
@@ -57,7 +57,7 @@ class Value {
             // or this could be an assertion point depending on design philosophy.
             throw std::runtime_error("Type not found in type_names map during Value::set");
         }
-        this->is_null = false; // Successfully setting data means it's not null.
+        this->is_null = false;  // Successfully setting data means it's not null.
     }
 
   public:
@@ -65,19 +65,20 @@ class Value {
     Value();
 
     // Public methods - Declarations only
-    std::shared_ptr<Value> clone() const;
-    bool isNULL() const;
+    std::shared_ptr<Value>   clone() const;
+    bool                     isNULL() const;
     Symbols::Variables::Type getType() const;
-    std::string toString() const;
+    std::string              toString() const;
 
     // Templated methods remain in the header
     template <typename T> const T & get() const {
         if (type_id_ != typeid(T)) {
-            // Consider logging or more detailed error message
-            // E.g. "Bad cast: expected " + demangled_name(typeid(T)) + " got " + demangled_name(type_id_)
-            throw std::bad_cast();
+            std::string expected_name = Symbols::Variables::TypeToString(type_names.at(typeid(T)));
+            std::string got_name      = Symbols::Variables::TypeToString(type_names.at(type_id_));
+            std::string error_msg     = "Bad cast, expected: " + expected_name + " got: " + got_name;
+            throw std::runtime_error(error_msg);
         }
-        if (!data_) { // Check if data pointer is null
+        if (!data_) {  // Check if data pointer is null
             throw std::runtime_error("Attempted to access data from a Value object with null data pointer.");
         }
         return *std::static_pointer_cast<T>(data_);
@@ -85,10 +86,13 @@ class Value {
 
     template <typename T> T & get() {
         if (type_id_ != typeid(T)) {
-            throw std::bad_cast();
+            std::string expected_name = Symbols::Variables::TypeToString(type_names.at(typeid(T)));
+            std::string got_name      = Symbols::Variables::TypeToString(type_names.at(type_id_));
+            std::string error_msg     = "Bad cast, expected: " + expected_name + " got: " + got_name;
+            throw std::runtime_error(error_msg);
         }
-        if (!data_) {
-            throw std::runtime_error("Attempted to access data from a Value object with null data pointer (non-const get).");
+        if (!data_) {  // Check if data pointer is null
+            throw std::runtime_error("Attempted to access data from a Value object with null data pointer.");
         }
         return *std::static_pointer_cast<T>(data_);
     }
@@ -96,15 +100,10 @@ class Value {
 
 class ValuePtr {
   private:
-    mutable std::shared_ptr<Value> ptr_; // Mutable to allow lazy initialization in const operator->
-
-    // Static members - Declarations only
-    static std::mutex                      registryMutex_;
-    static std::map<std::string, ValuePtr> valueRegistry_;
-
+    mutable std::shared_ptr<Value> ptr_;  // Mutable to allow lazy initialization in const operator->
     // Private methods - Declarations only
-    static std::string valueToString(const Value & value);
-    void ensure_object();
+    static std::string             valueToString(const Value & value);
+    void                           ensure_object();
 
   public:
     // Default constructor: Inlined as it's simple and commonly used.
@@ -118,7 +117,6 @@ class ValuePtr {
 
     // Move constructor: Inlined, standard shared_ptr move.
     ValuePtr(ValuePtr && other) noexcept : ptr_(std::move(other.ptr_)) {}
-
 
     // Assignment operators: Inlined.
     ValuePtr & operator=(const ValuePtr & other) {
@@ -137,10 +135,15 @@ class ValuePtr {
 
     // Constructors for primitive types: Inlined for efficiency.
     ValuePtr(int v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
+
     ValuePtr(float v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
+
     ValuePtr(double v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
+
     ValuePtr(bool v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
+
     ValuePtr(const std::string & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
+
     ValuePtr(const ObjectMap & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
     // Constructor from Value&& : Inlined. Captures type correctly.
@@ -158,12 +161,11 @@ class ValuePtr {
     // Constructor from const char* - Declaration only (moved to .cpp)
     ValuePtr(const char * v);
 
-
     // Public methods - Declarations only
-    ValuePtr clone() const;
+    ValuePtr        clone() const;
     Variables::Type getType() const;
-    void setType(Symbols::Variables::Type type);
-    ValuePtr & setNULL();
+    void            setType(Symbols::Variables::Type type);
+    ValuePtr &      setNULL();
 
     // Static methods - Declarations only
     static ValuePtr null(Symbols::Variables::Type type);
@@ -176,12 +178,12 @@ class ValuePtr {
     static ValuePtr fromStringToBool(const std::string & str);
 
     // Operators - Declarations for those moved, inline for trivial ones
-    std::shared_ptr<Value> operator->();
+    std::shared_ptr<Value>       operator->();
     std::shared_ptr<const Value> operator->() const;
 
     // Type conversion operators - Declarations only
-    operator Symbols::Variables::Type(); // Made implicit
-    operator Symbols::Variables::Type() const; // Made implicit
+    operator Symbols::Variables::Type();        // Made implicit
+    operator Symbols::Variables::Type() const;  // Made implicit
 
     // Comparison operators - Declarations only
     bool operator==(Symbols::Variables::Type type) const;
@@ -195,12 +197,16 @@ class ValuePtr {
 
     // Templated getter methods remain in the header
     template <typename T> T & get() {
-        if (!ptr_) throw std::runtime_error("ValuePtr has null internal pointer in get<T>().");
+        if (!ptr_) {
+            throw std::runtime_error("ValuePtr has null internal pointer in get<T>().");
+        }
         return ptr_->get<T>();
     }
 
     template <typename T> const T & get() const {
-        if (!ptr_) throw std::runtime_error("ValuePtr has null internal pointer in const get<T>().");
+        if (!ptr_) {
+            throw std::runtime_error("ValuePtr has null internal pointer in const get<T>().");
+        }
         return ptr_->get<T>();
     }
 
@@ -209,8 +215,7 @@ class ValuePtr {
     template <typename T>
     requires(std::is_same_v<T, int> || std::is_same_v<T, float> || std::is_same_v<T, double> ||
              std::is_same_v<T, ObjectMap> || std::is_same_v<T, bool> ||
-             std::is_same_v<T, std::string>)
-    operator T() const {
+             std::is_same_v<T, std::string>) operator T() const {
         if (!ptr_) {
             // This behavior might need refinement. What should converting a null ValuePtr return?
             // For primitives, it might be 0/false/"". For ObjectMap, an empty map.
@@ -220,12 +225,12 @@ class ValuePtr {
         // Ensure that if ptr_ points to a NULL Value, get<T> handles it (throws or returns default for T)
         // Current Value::get<T> throws if data_ is null.
         if (ptr_->isNULL()) {
-             // Handle conversion from a semantically NULL Value.
-             // This is tricky. For example, if T is int, should it be 0? If string, ""?
-             // Throwing might be the most consistent with Value::get behavior.
-             // Or, provide default values. For now, let get<T> handle it.
-             // This path will likely throw if ptr_->data_ is null.
-             throw std::runtime_error("Attempted to access to a NULL value.");
+            // Handle conversion from a semantically NULL Value.
+            // This is tricky. For example, if T is int, should it be 0? If string, ""?
+            // Throwing might be the most consistent with Value::get behavior.
+            // Or, provide default values. For now, let get<T> handle it.
+            // This path will likely throw if ptr_->data_ is null.
+            throw std::runtime_error("Attempted to access to a NULL value.");
         }
         return ptr_->get<T>();
     }
@@ -233,4 +238,4 @@ class ValuePtr {
 
 }  // namespace Symbols
 
-#endif // SYMBOLS_VALUE_HPP
+#endif  // SYMBOLS_VALUE_HPP

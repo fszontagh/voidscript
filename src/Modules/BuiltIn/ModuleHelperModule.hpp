@@ -43,11 +43,11 @@ class ModuleHelperModule : public BaseModule {
         Symbols::ObjectMap varsMap;
 
         Symbols::ObjectMap infoMap;
-        infoMap["name"]          = Symbols::ValuePtr(utils::get_filename_stem(path));
-        infoMap["path"]          = Symbols::ValuePtr(path);
-        infoMap["classes"]       = Symbols::ValuePtr(classesMap);
-        infoMap["functions"]     = Symbols::ValuePtr(funcsMap);
-        infoMap["variables"]     = Symbols::ValuePtr(varsMap);
+        infoMap["name"]          = utils::get_filename_stem(path);  //Symbols::ValuePtr(utils::get_filename_stem(path));
+        infoMap["path"]          = path;                            //Symbols::ValuePtr(path);
+        infoMap["classes"]       = classesMap;                      //Symbols::ValuePtr(classesMap);
+        infoMap["functions"]     = funcsMap;                        //Symbols::ValuePtr(funcsMap);
+        infoMap["variables"]     = varsMap;                         //Symbols::ValuePtr(varsMap);
         infoMap["documentation"] = Symbols::ObjectMap();
 
         return infoMap;
@@ -63,8 +63,7 @@ class ModuleHelperModule : public BaseModule {
         int                mi      = 0;
         for (const auto & method : methods) {
             if (method.find(className + Symbols::SymbolContainer::SCOPE_SEPARATOR) == 0) {
-                methodsMap[std::to_string(mi++)] =
-                    Symbols::ValuePtr(buildMethodInfoMap(className, method, umm));
+                methodsMap[std::to_string(mi++)] = Symbols::ValuePtr(buildMethodInfoMap(className, method, umm));
             }
         }
         classInfo["methods"] = Symbols::ValuePtr(methodsMap);
@@ -114,8 +113,7 @@ class ModuleHelperModule : public BaseModule {
                     auto funcDoc           = umm.getFunctionDoc(fn);
                     docInfo["name"]        = Symbols::ValuePtr(funcDoc.name);
                     docInfo["description"] = Symbols::ValuePtr(funcDoc.description);
-                    docInfo["return_type"] =
-                        Symbols::ValuePtr(Symbols::Variables::TypeToString(funcDoc.returnType));
+                    docInfo["return_type"] = Symbols::ValuePtr(Symbols::Variables::TypeToString(funcDoc.returnType));
                     Symbols::ObjectMap paramsMap;
                     for (const auto & param : funcDoc.parameterList) {
                         paramsMap[param.name] = Symbols::ValuePtr(buildParameterInfoMap(param));

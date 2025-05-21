@@ -20,7 +20,7 @@ namespace Interpreter {
   */
 class ForStatementNode : public StatementNode {
   private:
-   // Symbols::Variables::Type                    keyType_;
+    // Symbols::Variables::Type                    keyType_;
     std::string                                 keyName_;
     std::string                                 valueName_;
     std::unique_ptr<ExpressionNode>             iterableExpr_;
@@ -32,7 +32,7 @@ class ForStatementNode : public StatementNode {
                      std::unique_ptr<ExpressionNode> iterableExpr, std::vector<std::unique_ptr<StatementNode>> body,
                      std::string loopScopeName, const std::string & file_name, int line, size_t column) :
         StatementNode(file_name, line, column),
-      //  keyType_(keyType),
+        //  keyType_(keyType),
         keyName_(std::move(keyName)),
         valueName_(std::move(valueName)),
         iterableExpr_(std::move(iterableExpr)),
@@ -49,7 +49,7 @@ class ForStatementNode : public StatementNode {
         bool entered_scope = false;
         try {
             auto iterableVal = iterableExpr_->evaluate(interpreter);
-            if (iterableVal->getType() != Symbols::Variables::Type::OBJECT) {
+            if (iterableVal != Symbols::Variables::Type::OBJECT) {
                 throw Exception("For-in loop applied to non-object", filename_, line_, column_);
             }
             const Symbols::ObjectMap & objMap       = iterableVal;
@@ -61,11 +61,12 @@ class ForStatementNode : public StatementNode {
             }
             symContainer->enter(loopScopeName_);
             entered_scope = true;
-            auto emptyVar = Symbols::ValuePtr::null();
 
             // Create the key and value variables once before the loop
-            auto keySym = Symbols::SymbolFactory::createVariable(keyName_, emptyVar, loopScopeName_);
-            auto valSym = Symbols::SymbolFactory::createVariable(valueName_, emptyVar, loopScopeName_);
+            auto keySym = Symbols::SymbolFactory::createVariable(
+                keyName_, Symbols::ValuePtr::null(Symbols::Variables::Type::STRING), loopScopeName_);
+            auto valSym = Symbols::SymbolFactory::createVariable(
+                valueName_, Symbols::ValuePtr::null(Symbols::Variables::Type::OBJECT), loopScopeName_);
             symContainer->add(keySym);
             symContainer->add(valSym);
 
