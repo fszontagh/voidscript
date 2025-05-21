@@ -185,11 +185,14 @@ class MethodCallExpressionNode : public ExpressionNode {
                                 Symbols::Variables::TypeToString(returnType) + ") did not return a value",
                             f, l, c);
 
-        } catch (const Interpreter::Exception & ie) {
-            throw; // Re-throw Interpreter::Exception directly
         } catch (const std::exception & e) {
-            // Wrap other std::exception types
-            throw Interpreter::Exception(e.what(), f, l, c);
+            const Interpreter::Exception* ie = dynamic_cast<const Interpreter::Exception*>(&e);
+            if (ie) {
+                throw; // It's already an Interpreter::Exception, re-throw it
+            } else {
+                // It's a different std::exception, wrap it
+                throw Interpreter::Exception(e.what(), f, l, c);
+            }
         }
     }
 
