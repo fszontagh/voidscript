@@ -63,6 +63,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             if (objVal != Symbols::Variables::Type::OBJECT && objVal != Symbols::Variables::Type::CLASS) {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", f, l, c);
             }
+
             const Symbols::ObjectMap objMap = objVal.get<Symbols::ObjectMap>();
 
             // Extract class name
