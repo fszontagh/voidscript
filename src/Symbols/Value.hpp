@@ -79,7 +79,9 @@ class Value {
             throw std::runtime_error(error_msg);
         }
         if (!data_) {  // Check if data pointer is null
-            throw std::runtime_error("Attempted to access data from a Value object with null data pointer.");
+            std::string type_str = Symbols::Variables::TypeToString(this->type_);
+            std::string err_msg = "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str + "', is_null='" + (this->is_null ? "true" : "false") + "'.";
+            throw std::runtime_error(err_msg);
         }
         return *std::static_pointer_cast<T>(data_);
     }
@@ -92,7 +94,9 @@ class Value {
             throw std::runtime_error(error_msg);
         }
         if (!data_) {  // Check if data pointer is null
-            throw std::runtime_error("Attempted to access data from a Value object with null data pointer.");
+            std::string type_str = Symbols::Variables::TypeToString(this->type_);
+            std::string err_msg = "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str + "', is_null='" + (this->is_null ? "true" : "false") + "'.";
+            throw std::runtime_error(err_msg);
         }
         return *std::static_pointer_cast<T>(data_);
     }

@@ -64,6 +64,13 @@ class MethodCallExpressionNode : public ExpressionNode {
                 throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", f, l, c);
             }
 
+            // Check for null instance before trying to get ObjectMap
+            if (objVal->isNULL()) {
+                if (objVal->getType() == Symbols::Variables::Type::CLASS || objVal->getType() == Symbols::Variables::Type::OBJECT) {
+                    throw Exception("Attempt to call method '" + methodName_ + "' on a null class instance. Instance type: '" + Symbols::Variables::TypeToString(objVal->getType()) + "'.", f, l, c);
+                }
+            }
+
             const Symbols::ObjectMap objMap = objVal.get<Symbols::ObjectMap>();
 
             // Extract class name
