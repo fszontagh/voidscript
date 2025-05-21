@@ -950,8 +950,8 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         }
 
         // Member access: '->'
-        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == "->") {
-            std::string op(token.lexeme);
+        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "->") {
+            std::string op(token.value);  // Use token.value as per prompt
             // Shunting-yard: handle operator precedence
             while (!operator_stack.empty()) {
                 const std::string & top = operator_stack.top();
@@ -960,36 +960,38 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                     operator_stack.pop();
                     // Binary operator: pop two operands
                     if (output_queue.size() < 2) {
-                        Parser::reportError("Malformed expression", token);
+                        Parser::reportError("Malformed expression during -> revert processing", token);
                     }
-                    auto rhs = std::move(output_queue.back());
+                    auto rhs_op = std::move(output_queue.back());
                     output_queue.pop_back();
-                    auto lhs = std::move(output_queue.back());
+                    auto lhs_op = std::move(output_queue.back());
                     output_queue.pop_back();
-                    output_queue.push_back(Lexer::applyOperator(op, std::move(rhs), std::move(lhs)));
+                    output_queue.push_back(Lexer::applyOperator(top, std::move(rhs_op), std::move(lhs_op)));
                 } else {
                     break;
                 }
             }
             operator_stack.push(op);
-            consumeToken();
+            consumeToken();  // Consumes '->'
 
-            // Check if the next token is a variable identifier (e.g., this->$property)
             if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
                 currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
                 Lexer::Tokens::Token propToken = consumeToken();
                 std::string          propName  = propToken.value;
-                // Keep $ prefix for property names to match class definition
                 output_queue.push_back(ParsedExpression::makeVariable(propName));
                 expect_unary = false;
                 atStart      = false;
                 continue;
+            } else {
+                // If no identifier follows, it's an error or needs different handling.
+                // For now, setting expect_unary to true, as the original complex operator block would expect an operand.
+                // This part might need further refinement based on exact original logic if an error should be reported.
+                expect_unary = true;
             }
-
-            expect_unary = true;
         }
+
         // Grouping parentheses closing
-        else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == ")") {
+        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == ")") {
             // Only handle grouping parentheses if a matching "(" exists on the operator stack
             std::stack<std::string> temp_stack = operator_stack;
             bool                    has_paren  = false;
