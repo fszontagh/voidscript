@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_NEW_EXPRESSION_NODE_HPP
 #define INTERPRETER_NEW_EXPRESSION_NODE_HPP
 
+#include <iostream> // Required for std::cerr
 #include <memory>
 #include <string>
 #include <vector>
@@ -183,6 +184,7 @@ class NewExpressionNode : public ExpressionNode {
             }
         }
 
+        std::cerr << "[DEBUG NewExpressionNode] Returning instance_vp. State: " << instance_vp.getDebugStateString() << " for class: " << className_ << std::endl;
         return instance_vp;
     }
 

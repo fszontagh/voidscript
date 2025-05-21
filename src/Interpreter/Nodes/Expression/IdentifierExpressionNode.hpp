@@ -1,6 +1,7 @@
 #ifndef IDENTIFIER_EXPRESSION_NODE_HPP
 #define IDENTIFIER_EXPRESSION_NODE_HPP
 
+#include <iostream> // Required for std::cerr
 #include "Interpreter/ExpressionNode.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -23,6 +24,7 @@ class IdentifierExpressionNode : public ExpressionNode {
         if (symbol) {
             // Check if symbol is accessible (e.g., private members if applicable)
             // For now, assume accessible if found
+            std::cerr << "[DEBUG IdentifierExpressionNode] Retrieving symbol '" << name_ << "'. State: " << symbol->getValue().getDebugStateString() << std::endl;
             return symbol->getValue();
         }
 

@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_DEFINE_VARIABLE_STATEMENT_NODE_HPP
 #define INTERPRETER_DEFINE_VARIABLE_STATEMENT_NODE_HPP
 
+#include <iostream> // Required for std::cerr
 #include <memory>
 #include <string>
 #include <utility>
@@ -87,6 +88,7 @@ class DeclareVariableStatementNode : public StatementNode {
 
             // Create a constant or variable symbol
             // The symbol's own context should be this current_runtime_scope_name
+            std::cerr << "[DEBUG DeclareVariableStatementNode] ValuePtr 'value' (before clone) for var '" << variableName_ << "'. State: " << value.getDebugStateString() << std::endl;
             std::shared_ptr<Symbols::Symbol> symbol_to_define;
             if (isConst_) {
                 symbol_to_define =
@@ -95,6 +97,7 @@ class DeclareVariableStatementNode : public StatementNode {
                 symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value.clone(),
                                                                           current_runtime_scope_name, variableType_);
             }
+            std::cerr << "[DEBUG DeclareVariableStatementNode] ValuePtr in created symbol '" << variableName_ << "' (after clone). State: " << symbol_to_define->getValue().getDebugStateString() << std::endl;
             // sc->add() uses SymbolContainer::currentScopeName() internally, which is current_runtime_scope_name
             sc->add(symbol_to_define);
         } catch (const Exception &) {
