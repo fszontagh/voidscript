@@ -112,7 +112,7 @@ class CallExpressionNode : public ExpressionNode {
                 auto &       v      = argValues[i];
                 // Symbol's context is this specific call's scope
                 auto         varSym = Symbols::SymbolFactory::createVariable(p.name, v.clone(), unique_call_scope_name);
-                sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
+                sc->addVariable(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 
             // Execute function body operations. These operations will use the current unique_call_scope_name.

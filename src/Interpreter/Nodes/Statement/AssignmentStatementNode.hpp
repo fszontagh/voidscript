@@ -30,11 +30,15 @@ class AssignmentStatementNode : public StatementNode {
         using namespace Symbols;
         auto * symContainer = SymbolContainer::instance();
 
-        // Find the target symbol hierarchically
-        auto symbol = symContainer->findSymbol(targetName_);
+        // First try to get the variable (most common case)
+        auto symbol = symContainer->getVariable(targetName_);
+        
+        // If not found, try to get it as a constant (which will fail for assignment later)
+        if (!symbol) {
+            symbol = symContainer->getConstant(targetName_);
+        }
 
         if (!symbol) {
-            // Use the error message from findSymbol which indicates search scope
             throw Exception(
                 "Variable '" + targetName_ + "' not found starting from scope: " + symContainer->currentScopeName(),
                 filename_, line_, column_);

@@ -145,7 +145,7 @@ class NewExpressionNode : public ExpressionNode {
                 std::string callScope = sc->enterFunctionCallScope(moduleClassInfo.constructorName);
 
                 // Add "this" to the current scope
-                sc->add(Symbols::SymbolFactory::createVariable("this", newObject, callScope));
+                sc->addVariable(Symbols::SymbolFactory::createVariable("this", newObject, callScope));
 
                 try {
                     // Since FunctionSymbol doesn't have direct access to operations,
@@ -154,7 +154,7 @@ class NewExpressionNode : public ExpressionNode {
                     // Add parameters to scope
                     const auto & params = constructorSymbol->parameters();
                     for (size_t i = 0; i < params.size(); ++i) {
-                        sc->add(Symbols::SymbolFactory::createVariable(params[i].name, evaluatedArgs[i], callScope));
+                        sc->addVariable(Symbols::SymbolFactory::createVariable(params[i].name, evaluatedArgs[i], callScope));
                     }
 
                     // Get the operations associated with this constructor from the operations container

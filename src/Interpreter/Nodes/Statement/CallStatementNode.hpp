@@ -100,7 +100,7 @@ class CallStatementNode : public StatementNode {
                 Symbols::ValuePtr v      = argValues[i];
                 // Symbol's context is this specific call's scope
                 auto              varSym = Symbols::SymbolFactory::createVariable(p.name, v, unique_call_scope_name);
-                sc->add(varSym);  // Adds to the current scope (unique_call_scope_name)
+                sc->addVariable(varSym);  // Adds to the current scope (unique_call_scope_name)
             }
 
             // Operations are associated with the canonical function name

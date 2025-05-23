@@ -22,7 +22,7 @@ class IdentifierExpressionNode : public ExpressionNode {
         if (name_ == "this") {
             std::cout << "DEBUG: IdentifierExpressionNode evaluating 'this' in scope: " << sc->currentScopeName() << std::endl;
             // 'this' should typically be found directly in the current function call scope or a class scope it's nested within.
-            auto thisSymbol = sc->findSymbol("this"); 
+            auto thisSymbol = sc->getVariable("this"); 
 
             if (thisSymbol) {
                 auto thisVal = thisSymbol->getValue();
@@ -47,13 +47,28 @@ class IdentifierExpressionNode : public ExpressionNode {
                 }
                 return thisVal;
             }
-            // If thisSymbol is null after sc->findSymbol("this")
+            // If thisSymbol is null after sc->getVariable("this")
             std::cout << "DEBUG: 'this' keyword not found in symbol table from scope: " << sc->currentScopeName() << std::endl;
             throw std::runtime_error("Keyword \'this\' not found in current context starting from scope: " + sc->currentScopeName());
         }
 
-        // Use a hierarchical find method starting from the current scope
-        auto symbol = sc->findSymbol(name_);  // Now uses the implemented findSymbol
+        // Try to get the variable first
+        auto symbol = sc->getVariable(name_);
+        
+        // If not found as a variable, try as a constant
+        if (!symbol) {
+            symbol = sc->getConstant(name_);
+        }
+        
+        // If not found as a variable or constant, try as a function
+        if (!symbol) {
+            symbol = sc->getFunction(name_);
+        }
+        
+        // If still not found, try as a method
+        if (!symbol) {
+            symbol = sc->getMethod(name_);
+        }
 
         if (symbol) {
             // Check if symbol is accessible (e.g., private members if applicable)

@@ -54,7 +54,7 @@ class DeclareFunctionStatementNode : public StatementNode {
 
             const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
             std::cout << "Defining function: " << func->name() << ": "<< ns << std::endl;
-            sc->defineInScope(ns, func); // Explicitly define in the target scope 'ns'
+            sc->addFunction(func, ns); // Explicitly define in the target scope 'ns'
 
         } catch (const Exception &) {
             throw;

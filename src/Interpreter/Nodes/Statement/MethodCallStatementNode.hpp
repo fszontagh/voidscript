@@ -91,9 +91,9 @@ public:
             sc->enter(methodNs);
 
             // Bind 'this' and parameters
-            sc->add(Symbols::SymbolFactory::createVariable("this", objValue, methodNs));
+            sc->addVariable(Symbols::SymbolFactory::createVariable("this", objValue, methodNs));
             for (size_t i = 0; i < params.size(); ++i) {
-                sc->add(Symbols::SymbolFactory::createVariable(params[i].name, argValues[i], methodNs));
+                sc->addVariable(Symbols::SymbolFactory::createVariable(params[i].name, argValues[i], methodNs));
             }
 
             // Execute method body

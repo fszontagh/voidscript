@@ -161,26 +161,19 @@ inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
 
         case Kind::Variable:
             {
-                // Lookup variable using findSymbol, which handles scope hierarchy and sub-namespaces correctly.
-                auto symbol = Symbols::SymbolContainer::instance()->findSymbol(expr->name);
+                // First try to get as a variable
+                auto symbol = Symbols::SymbolContainer::instance()->getVariable(expr->name);
+                
+                // If not found as a variable, try as a constant
                 if (!symbol) {
-                    // If not found by findSymbol, it could be a function name used as a variable, which is an error.
-                    // Or it's genuinely not found.
-                    // findSymbol checks both ::variables and constants.
+                    symbol = Symbols::SymbolContainer::instance()->getConstant(expr->name);
+                }
+                
+                if (!symbol) {
                     throw std::runtime_error("Symbol not found or cannot be used as a variable: " + expr->name);
                 }
-
-                // Check if the found symbol is a variable or constant (findSymbol checks both)
-                // If it's a function, it's an error because findSymbol doesn't return functions for this usage.
-                // This check is implicitly handled by findSymbol only looking in variable/constant namespaces.
-                // However, an explicit check might be desired if findSymbol's behavior changes.
-                // For now, if findSymbol returns something, it's usable as a variable/constant value.
-
-                // Ha a szimbólum nem egy változó, akkor hibát dobunk (Original Comment)
-                // This original check might be redundant if findSymbol is used correctly.
-                // if (symbol->getKind() == Symbols::Kind::Function) {
-                // throw std::runtime_error("Cannot use function as variable: " + expr->name);
-                // }
+                
+                // If we got here, we found a valid variable or constant
                 break;
             }
 

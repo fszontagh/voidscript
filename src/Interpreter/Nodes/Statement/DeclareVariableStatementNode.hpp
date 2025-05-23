@@ -137,13 +137,13 @@ class DeclareVariableStatementNode : public StatementNode {
             if (isConst_) {
                 symbol_to_define =
                     Symbols::SymbolFactory::createConstant(variableName_, value, current_runtime_scope_name);
+                sc->addConstant(symbol_to_define);
             } else {
                 symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value,
                                                                           current_runtime_scope_name, variableType_);
+                sc->addVariable(symbol_to_define);
             }
             std::cerr << "[DEBUG DeclareVariableStatementNode] ValuePtr in created symbol '" << variableName_ << "' (after clone). State: " << symbol_to_define->getValue().toString() << std::endl;
-            // sc->add() uses SymbolContainer::currentScopeName() internally, which is current_runtime_scope_name
-            sc->add(symbol_to_define);
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

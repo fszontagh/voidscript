@@ -176,16 +176,20 @@ struct ParsedExpression {
 
             case Kind::Variable:
                 {
-                    // Use findSymbol which correctly searches variables and constants up the scope chain.
-                    auto symbol = Symbols::SymbolContainer::instance()->findSymbol(name);
+                    // First try to get the variable
+                    auto symbol = Symbols::SymbolContainer::instance()->getVariable(name);
+                    
+                    // If not found as a variable, try as a constant
                     if (!symbol) {
-                        // findSymbol searches current scope and up for variables/constants
+                        symbol = Symbols::SymbolContainer::instance()->getConstant(name);
+                    }
+                    
+                    if (!symbol) {
                         throw std::runtime_error("Unknown variable or constant: " + name + " (searched from scope: " +
                                                  Symbols::SymbolContainer::instance()->currentScopeName() + ")" +
                                                  " File: " + filename + ":" + std::to_string(line));
                     }
-                    // findSymbol returns a SymbolPtr, which could be VariableSymbol or ConstantSymbol.
-                    // Both have getValue().
+                    
                     return symbol->getValue().getType();
                 }
 
