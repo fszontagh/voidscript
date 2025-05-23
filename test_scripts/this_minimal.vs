@@ -3,9 +3,14 @@ class MinTest {
     private: int $value = 20;
     
     function isAdult() bool {
-        // Fixed: use variable to store property first
-        int $age = this->$value;
-        return $age >= 18;
+        // First print the value 
+        printnl("DEBUG: Attempting to access property value");
+        printnl("DEBUG: Property value is: ", this->$value);
+        
+        // Now do the comparison with the property value
+        bool $result = this->$value >= 18;
+        printnl("DEBUG: Comparison result: ", $result);
+        return $result;
     }
 }
 

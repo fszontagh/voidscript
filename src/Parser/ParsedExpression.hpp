@@ -131,14 +131,15 @@ struct ParsedExpression {
     // Constructor for 'new' expression: instantiate class
     static ParsedExpressionPtr makeNew(const std::string & className, std::vector<ParsedExpressionPtr> arguments,
                                        const std::string & filename, int line, size_t column) {
-        auto expr      = std::make_shared<ParsedExpression>();
-        expr->kind     = Kind::New;
-        expr->name     = className;
-        expr->args     = std::move(arguments);
+        // Create the new expression node
+        auto expr = std::make_shared<ParsedExpression>();
+        expr->kind = Kind::New;
+        expr->name = className;  // Store the class name
+        expr->args = std::move(arguments);  // Store constructor arguments
         expr->filename = filename;
-        expr->line     = line;
-        expr->column   = column;
-
+        expr->line = line;
+        expr->column = column;
+        
         return expr;
     }
 
@@ -260,7 +261,13 @@ struct ParsedExpression {
                 }
             case Kind::MethodCall:
                 {
-                    std::string result = lhs->toString() + "->" + name + "(";
+                    std::string result;
+                    if (lhs && lhs->kind == Kind::Variable) {
+                        result = lhs->name;
+                    } else if (lhs) {
+                        result = lhs->toString();
+                    }
+                    result += "->" + name + "(";
                     for (size_t i = 0; i < args.size(); ++i) {
                         if (i > 0) {
                             result += ", ";

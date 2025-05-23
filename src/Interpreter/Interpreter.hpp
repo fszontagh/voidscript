@@ -4,13 +4,16 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 #include "BaseException.hpp"
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/Value.hpp"
 
 namespace Interpreter {
+
 class Exception : public BaseException {
   public:
     Exception(const std::string & msg, const std::string & filename, int line, size_t column) {
@@ -28,14 +31,12 @@ class Exception : public BaseException {
         return std::string("[Runtime ERROR] >>") + context_ + " << : " + rawMessage_;
     }
 };
-}  // namespace Interpreter
-
-namespace Interpreter {
 
 class Interpreter {
   private:
     bool debug_ = false;
     static inline unsigned long long next_call_id_ = 0;
+    Symbols::ValuePtr thisObject_;  // Current "this" object for method calls
 
   public:
     /**
@@ -44,65 +45,53 @@ class Interpreter {
      */
     Interpreter(bool debug = false) : debug_(debug) {}
 
-    static unsigned long long get_unique_call_id() {
-        return next_call_id_++;
-    }
+    /**
+     * @brief Sets the current "this" object for method calls
+     * @param obj The object to set as "this"
+     */
+    void setThisObject(const Symbols::ValuePtr& obj);
 
     /**
-     * @brief Execute all operations in the current namespace (e.g., file-level or function-level).
+     * @brief Clears the current "this" object
      */
-    void run() {
-        // Determine namespace to execute
-        const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
-        for (const auto & operation : Operations::Container::instance()->getAll(ns)) {
-            runOperation(*operation);
-        }
-    }
+    void clearThisObject();
 
-    void runOperation(const Operations::Operation & op) {
-        if (debug_) {
-            std::cerr << "[Debug][Interpreter] Operation: " << op.toString() << "\n";
-        }
+    /**
+     * @brief Gets the current "this" object
+     * @return The current "this" object or empty ValuePtr if none is set
+     */
+    const Symbols::ValuePtr& getThisObject() const;
 
-        switch (op.type) {
-            case Operations::Type::Declaration:
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                }
-                break;
-            case Operations::Type::Assignment:
-            case Operations::Type::Expression:
-            case Operations::Type::FuncDeclaration:
-                {
-                    op.statement->interpret(*this);
-                }
-                break;
+    /**
+     * @brief Execute a method on an object
+     * @param objectValue The object instance or name
+     * @param methodName The name of the method to call
+     * @param args Vector of arguments to pass to the method
+     * @return The result of the method call
+     * @throws Interpreter::Exception if method not found or execution fails
+     */
+    Symbols::ValuePtr executeMethod(const Symbols::ValuePtr& objectValue, 
+                                  const std::string& methodName,
+                                  const std::vector<Symbols::ValuePtr>& args);
 
-            case Operations::Type::FunctionCall:
-            case Operations::Type::Return:
-            case Operations::Type::Conditional:
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                    break;
-                }
-            case Operations::Type::Loop:
-            case Operations::Type::While:
-                // for-in or while loop
-                if (op.statement) {
-                    op.statement->interpret(*this);
-                }
-                break;
-            case Operations::Type::Break:
-            case Operations::Type::Continue:
-            case Operations::Type::Block:
-            case Operations::Type::Import:
-            case Operations::Type::Error:
-                // TODO: implement these operations later
-                break;
-            default:
-                throw std::runtime_error("Not implemented operation type");
-        }
-    }
+    /**
+     * @brief Get a unique identifier for function/method calls
+     * @return A unique ID for the current call
+     */
+    static unsigned long long get_unique_call_id();
+
+    /**
+     * @brief Execute all operations in the current namespace
+     * Executes operations at file-level or function-level scope
+     */
+    void run();
+
+    /**
+     * @brief Execute a single operation
+     * @param op The operation to execute
+     * @throws Interpreter::Exception if operation execution fails
+     */
+    void runOperation(const Operations::Operation& op);
 };  // class Interpreter
 
 }  // namespace Interpreter

@@ -13,6 +13,7 @@ enum class Type : std::uint8_t {
     Assignment,       // Variable assignment, e.g., $x = 5
     Expression,       // Evaluation of an expression (can be evaluated without side effects)
     FunctionCall,     // Call to a function, e.g., print(x)
+    MethodCall,       // Call to an object method, e.g., $obj->method()
     FuncDeclaration,  // declaration of new function
     Return,           // return statement
     Conditional,      // if/else structure
@@ -44,6 +45,7 @@ struct Operation {
             { Operations::Type::Assignment,      "Assignment"      },
             { Operations::Type::Expression,      "Expression"      },
             { Operations::Type::FunctionCall,    "FunctionCall"    },
+            { Operations::Type::MethodCall,      "MethodCall"      },
             { Operations::Type::FuncDeclaration, "FuncDeclaration" },
             { Operations::Type::Return,          "Return"          },
             { Operations::Type::Conditional,     "Conditional"     },

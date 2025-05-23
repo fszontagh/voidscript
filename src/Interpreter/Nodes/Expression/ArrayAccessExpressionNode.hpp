@@ -40,7 +40,7 @@ class ArrayAccessExpressionNode : public ExpressionNode {
         if (idxVal == Symbols::Variables::Type::INTEGER) {
             key = std::to_string(idxVal->get<int>());
         } else if (idxVal == Symbols::Variables::Type::STRING) {
-            key = idxVal;
+            key = idxVal.get<std::string>();
         } else {
             throw Exception("Array index must be integer or string", filename_, line_, column_);
         }

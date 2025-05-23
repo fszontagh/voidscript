@@ -9,7 +9,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -49,9 +49,9 @@ class CallExpressionNode : public ExpressionNode {
             }
 
             // Built-in function
-            auto & mgr = Modules::UnifiedModuleManager::instance();
-            if (mgr.hasFunction(functionName_)) {
-                return mgr.callFunction(functionName_, argValues);
+            auto & registry = Symbols::ClassRegistry::instance();
+            if (registry.getClassContainer().hasMethod("", functionName_)) {
+                return registry.getClassContainer().callMethod("", functionName_, argValues);
             }
 
             // User-defined function: lookup through scope hierarchy

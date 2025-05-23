@@ -69,14 +69,16 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
                                       std::vector<Parser::ParsedExpressionPtr> & output_queue) {
     // Literal operands: number, string, or keyword literals (e.g., true/false/null)
     if (token.type == Tokens::Type::NUMBER) {
-        // Numeric literal: only allowed if expected is numeric or unspecified
-        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE &&
+        // Allow numeric literals in any numeric context, including comparisons
+        // When used in comparisons, the result will be a boolean but operands can be numeric
+        if (expected_var_type != Symbols::Variables::Type::BOOLEAN && 
+            expected_var_type != Symbols::Variables::Type::NULL_TYPE &&
             expected_var_type != Symbols::Variables::Type::INTEGER &&
             expected_var_type != Symbols::Variables::Type::DOUBLE &&
             expected_var_type != Symbols::Variables::Type::FLOAT) {
             return false;
         }
-        // Auto-detect or cast to expected numeric type
+        // Auto-detect or cast to appropriate numeric type
         output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::ValuePtr::fromString(token.value)));
         return true;
     }

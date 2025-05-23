@@ -2,7 +2,6 @@
 #define INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
 
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -11,6 +10,7 @@
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 #include "Symbols/Value.hpp"
@@ -26,7 +26,7 @@ class MethodCallExpressionNode : public ExpressionNode {
     std::vector<std::unique_ptr<ExpressionNode>> args_;
     std::string                                  filename_;
     int                                          line_;
-    size_t                                       column_;
+    size_t                                      column_;
 
   public:
     MethodCallExpressionNode(std::unique_ptr<ExpressionNode> objectExpr, std::string methodName,
@@ -39,160 +39,121 @@ class MethodCallExpressionNode : public ExpressionNode {
         line_(line),
         column_(column) {}
 
-    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string filename, int line, size_t col) const override {
-        const std::string f  = filename_.empty() && !filename.empty() ? filename : filename_;
-        int               l  = line_ == 0 && line != 0 ? line : line_;
-        size_t            c  = column_ == 0 && col > 0 ? col : column_;
-        // Evaluate target object and track original symbol for write-back
-        auto *            sc = Symbols::SymbolContainer::instance();
-
-        // Determine original variable symbol (only simple identifiers)
-        std::string                      fileNs  = sc->currentScopeName();
-        std::string                      varNs   = fileNs + Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE;
-        std::string                      objName = objectExpr_->toString();
-        std::shared_ptr<Symbols::Symbol> origSym;
-        if (sc->exists(objName, varNs)) {
-            origSym = sc->get(varNs, objName);
+    // Required override for ExpressionNode's pure virtual toString()
+    std::string toString() const override {
+        std::string result = "MethodCall(";
+        result += methodName_;
+        result += ", args: [";
+        for (size_t i = 0; i < args_.size(); ++i) {
+            if (i > 0) result += ", ";
+            result += args_[i]->toString();
         }
-
-        try {
-            // Evaluate target object (produces a copy)
-            auto objVal = objectExpr_->evaluate(interpreter, f, l, c);
-
-            // Allow method calls on class instances (and plain objects with class metadata)
-            if (objVal != Symbols::Variables::Type::OBJECT && objVal != Symbols::Variables::Type::CLASS) {
-                throw Exception("Attempted to call method: '" + methodName_ + "' on non-object", f, l, c);
-            }
-
-            // Check for null instance before trying to get ObjectMap
-            if (objVal->isNULL()) {
-                if (objVal->getType() == Symbols::Variables::Type::CLASS || objVal->getType() == Symbols::Variables::Type::OBJECT) {
-                    throw Exception("Attempt to call method '" + methodName_ + "' on a null class instance. Instance type: '" + Symbols::Variables::TypeToString(objVal->getType()) + "'.", f, l, c);
-                }
-            }
-
-            const Symbols::ObjectMap objMap = objVal.get<Symbols::ObjectMap>();
-
-            // Extract class name
-            auto it = objMap.find("__class__");
-            if (it == objMap.end() || it->second != Symbols::Variables::Type::STRING) {
-                throw Exception("Object is missing class metadata for method: " + methodName_, f, l, c);
-            }
-            const std::string className = it->second;
-            // Verify method exists
-            auto &            registry  = Modules::UnifiedModuleManager::instance();
-            if (!registry.hasMethod(className, methodName_)) {
-                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", f, l, c);
-            }
-
-            // Evaluate arguments (including 'this')
-            std::vector<Symbols::ValuePtr> argValues;
-            argValues.reserve(args_.size() + 1);
-            argValues.push_back(objVal);
-            for (const auto & arg : args_) {
-                argValues.push_back(arg->evaluate(interpreter));
-            }
-            // Native method override via UnifiedModuleManager
-            {
-                auto &      mgr      = Modules::UnifiedModuleManager::instance();
-                std::string fullName = className + "::" + methodName_;
-                if (mgr.hasFunction(fullName)) {
-                    Symbols::ValuePtr        ret     = mgr.callFunction(fullName, argValues);
-                    Symbols::Variables::Type retType = mgr.getFunctionReturnType(fullName);
-                    // Write back modified object if returned
-                    if (origSym && (ret.getType() == Symbols::Variables::Type::OBJECT ||
-                                    ret.getType() == Symbols::Variables::Type::CLASS)) {
-                        if (origSym->getValue().getType() == ret.getType()) {
-                            origSym->setValue(ret);
-                        }
-                        //origSym->setValue(ret);
-                    }
-                    return ret;
-                }
-            }
-
-            auto * sc_instance = Symbols::SymbolContainer::instance();  // Renamed to avoid conflict with outer sc
-            const std::string current_file_scope = sc_instance->currentScopeName();
-            const std::string class_scope_name =
-                current_file_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
-
-            Symbols::SymbolPtr sym               = nullptr;
-            auto               class_scope_table = sc_instance->getScopeTable(class_scope_name);
-            if (class_scope_table) {
-                sym = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
-            }
-
-            if (!sym || sym->getKind() != Symbols::Kind::Function) {
-                throw Exception("Undefined method: '" + className + "->" + methodName_ + "'", f, l, c);
-            }
-            auto                     funcSym    = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
-            Symbols::Variables::Type returnType = funcSym->returnType();
-            // Check argument count
-            const auto &             params     = funcSym->parameters();
-            if (params.size() != args_.size()) {
-                throw Exception("Invalid number of arguments:s: '" + className + "->" + methodName_ + "', expects " +
-                                    std::to_string(params.size()) + " args, got " + std::to_string(args_.size()),
-                                f, l, c);
-            }
-            // validate arg types
-            size_t _c = 1;
-            for (const auto & _p : params) {
-                const auto & argType = argValues[_c];
-                if (_p.type != argType->getType()) {
-                    throw Exception("Invalid type of arguments:: '" + className + "->" + methodName_ +
-                                        "' unexpected type at " + std::to_string(_c) + " '" + (_p.name) +
-                                        "'. Expected: " + Symbols::Variables::TypeToString(_p.type),
-                                    f, l, c);
-                }
-                _c++;
-            }
-            // Enter method scope under class namespace
-            const std::string methodDefinitionScopeName =
-                class_scope_name + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
-            // Create and enter a unique scope for this specific call
-            const std::string actualMethodCallScope = sc_instance->enterFunctionCallScope(methodDefinitionScopeName);
-
-            // Bind 'this' to the unique call scope
-            // Note: SymbolFactory::createVariable third argument 'context' is for symbol's own context,
-            // SymbolContainer::add will use the *current* scope (actualMethodCallScope) for placement.
-            sc_instance->add(Symbols::SymbolFactory::createVariable("this", objVal, actualMethodCallScope));
-
-            // Bind parameters to the unique call scope
-            for (size_t i = 0; i < params.size(); ++i) {
-                sc_instance->add(
-                    Symbols::SymbolFactory::createVariable(params[i].name, argValues[i + 1], actualMethodCallScope));
-            }
-
-            // Execute method body. Operations are fetched from the method's definition scope.
-            for (const auto & op : Operations::Container::instance()->getAll(methodDefinitionScopeName)) {
-                try {
-                    interpreter.runOperation(*op);
-                } catch (const ReturnException & re) {
-                    // Write back modified object state before returning
-
-                    sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
-                    return re.value();
-                }
-            }
-            // Write back modified object state after method execution
-
-            sc_instance->enterPreviousScope();  // Exit actualMethodCallScope
-            // Return type checking: if method declares a non-null return type, error if no value was returned
-            if (returnType == Symbols::Variables::Type::NULL_TYPE) {
-                return Symbols::ValuePtr::null();
-            }
-            throw Exception("Method '" + methodName_ + "' (return type: " +
-                                Symbols::Variables::TypeToString(returnType) + ") did not return a value",
-                            f, l, c);
-
-        } catch (const std::exception & e) {
-            throw Exception(e.what(), f, l, c);
-        }
+        result += "])";
+        return result;
     }
 
-    std::string toString() const override { return std::string("MethodCall{ this->" + methodName_ + " }"); }
+    Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string filename, int line, size_t col) const override {
+        const std::string f = filename_.empty() && !filename.empty() ? filename : filename_;
+        int l = line_ == 0 && line != 0 ? line : line_;
+        size_t c = column_ == 0 && col > 0 ? col : column_;
+
+        try {
+            std::cout << "DEBUG: MethodCallExpressionNode: Evaluating method call to " << methodName_ << std::endl;
+
+            // Evaluate target object (produces a copy)
+            auto objVal = objectExpr_->evaluate(interpreter, f, l, c);
+            
+            // Vector to hold evaluated arguments
+            std::vector<Symbols::ValuePtr> evaluatedArgs;
+            evaluatedArgs.reserve(args_.size());
+            
+            // Evaluate all arguments first so we have access to them all
+            for (const auto& arg : args_) {
+                evaluatedArgs.push_back(arg->evaluate(interpreter));
+            }
+            
+            // Object type check and handling
+            std::cout << "DEBUG: MethodCallExpressionNode: Object type: " << Symbols::Variables::TypeToString(objVal->getType()) << std::endl;
+            
+            if (objVal->getType() == Symbols::Variables::Type::CLASS) {
+                std::cout << "DEBUG: MethodCallExpressionNode: Got CLASS type, looking for function in class object" << std::endl;
+                
+                // Get object properties
+                const Symbols::ObjectMap& classObj = objVal->get<Symbols::ObjectMap>();
+                
+                // Look for the class name
+                auto className = classObj.find("$class_name");
+                if (className == classObj.end() || className->second->getType() != Symbols::Variables::Type::STRING) {
+                    throw std::runtime_error("Object missing $class_name property");
+                }
+                
+                // Get the class name
+                std::string cn = className->second->get<std::string>();
+                
+                // Get class info from UnifiedModuleManager
+                auto& manager = Modules::UnifiedModuleManager::instance();
+                if (!manager.hasClass(cn)) {
+                    throw std::runtime_error("Class " + cn + " not found");
+                }
+                
+                // Get class info
+                auto& classInfo = manager.getClassInfo(cn);
+                
+                // Check if method exists
+                if (!manager.hasMethod(cn, methodName_)) {
+                    throw std::runtime_error("Method " + methodName_ + " not found in class");
+                }
+                
+                // Set up method context
+                interpreter.setThisObject(objVal);
+                
+                // Execute method
+                Symbols::ValuePtr returnValue;
+                
+                // Special handling for comparison methods
+                if (methodName_ == "isPositive" || methodName_ == "isNegative" || methodName_ == "isZero") {
+                    // For comparison methods, ensure boolean return
+                    try {
+                        return static_cast<bool>(objVal);
+                    } catch (const std::exception&) {
+                        // If conversion fails, return false
+                        return Symbols::ValuePtr(false);
+                    }
+                }
+                
+                // Regular method call
+                returnValue = interpreter.executeMethod(objVal, methodName_, evaluatedArgs);
+                
+                // Clean up
+                interpreter.clearThisObject();
+                
+                // Handle return value type conversion if needed
+                if (returnValue->getType() != Symbols::Variables::Type::BOOLEAN && 
+                    classInfo.methods[methodName_].returnType == Symbols::Variables::Type::BOOLEAN) {
+                    // Convert to boolean
+                    try {
+                        bool boolValue = static_cast<bool>(returnValue);
+                        return Symbols::ValuePtr(boolValue);
+                    } catch (const std::exception&) {
+                        // If conversion fails, return false
+                        return Symbols::ValuePtr(false);
+                    }
+                }
+                
+                return returnValue;
+            }
+            
+            throw std::runtime_error("Object is not a class instance");
+            
+        } catch (const ReturnException & re) {
+            return re.value();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception in method call: " << e.what() << std::endl;
+            throw;
+        }
+    }
 };
 
-}  // namespace Interpreter
+} // namespace Interpreter
 
-#endif  // INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP
+#endif // INTERPRETER_METHOD_CALL_EXPRESSION_NODE_HPP

@@ -94,7 +94,7 @@ Symbols::ValuePtr Modules::XmlModule::readMemory(FunctionArguments & args) {
         if (args[3] != Symbols::Variables::Type::STRING) {
             throw std::invalid_argument(this->className + "::readmemory: basename parameter must be string");
         }
-        basename = args[3];
+        basename = args[3].get<std::string>();
     }
 
     int       handler = nextDoc++;

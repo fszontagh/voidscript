@@ -48,8 +48,10 @@ class test1 {
 function getInt() int {
     return 10;
 }
-// create an instance of the class, where the $testClass variable type is the class name, adding parameters based on the constructor
-test1 $testclass = new test1("Batman", 17);
+test1 $testclass = new test1();
+
+// create an instance of the class with required constructor arguments
+test1 $testclass = new test1("John", 10);
 
 int $z = getInt();
 

@@ -23,6 +23,7 @@ namespace Parser {
 inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(const ParsedExpressionPtr & expr) {
     using Kind = ParsedExpression::Kind;
 
+    // Explicitly map ParsedExpression kinds to ExpressionNode types
     switch (expr->kind) {
         case Kind::Literal:
             return std::make_unique<Interpreter::LiteralExpressionNode>(expr->value);
@@ -39,45 +40,38 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                     return std::make_unique<Interpreter::ArrayAccessExpressionNode>(
                         std::move(arrExpr), std::move(idxExpr), expr->filename, expr->line, expr->column);
                 }
-                // Member access or method invocation: '->'
+                // Member access: '->' (never method call here)
                 if (expr->op == "->") {
                     auto objectExpr = buildExpressionFromParsed(expr->lhs);
-                    // Method call: rhs is a parsed call expression
-                    if (expr->rhs->kind == ParsedExpression::Kind::Call) {
-                        std::vector<std::unique_ptr<Interpreter::ExpressionNode>> methodArgs;
-                        methodArgs.reserve(expr->rhs->args.size());
-                        for (const auto & arg : expr->rhs->args) {
-                            methodArgs.push_back(buildExpressionFromParsed(arg));
+                    if (expr->rhs->kind == ParsedExpression::Kind::Call || expr->kind == ParsedExpression::Kind::MethodCall) {
+                        // Handle both object->method() syntax paths
+                        std::vector<std::unique_ptr<Interpreter::ExpressionNode>> callArgs;
+                        const auto& argsToUse = expr->kind == ParsedExpression::Kind::MethodCall ? expr->args : expr->rhs->args;
+                        callArgs.reserve(argsToUse.size());
+                        for (const auto & arg : argsToUse) {
+                            callArgs.push_back(buildExpressionFromParsed(arg));
                         }
+                        const std::string& methodName = expr->kind == ParsedExpression::Kind::MethodCall ? expr->name : expr->rhs->name;
                         return std::make_unique<Interpreter::MethodCallExpressionNode>(
-                            std::move(objectExpr), expr->rhs->name, std::move(methodArgs), expr->filename, expr->line,
-                            expr->column);
-                    }
-                    // Property access on object
-                    if (expr->rhs->kind == ParsedExpression::Kind::Literal) {
-                        // Static member name (string literal or identifier)
+                            std::move(objectExpr), methodName, std::move(callArgs), 
+                            expr->filename, expr->line, expr->column);
+                    } else if (expr->rhs->kind == ParsedExpression::Kind::Literal) {
                         std::string propName = expr->rhs->value->get<std::string>();
-                        // Check if it's a dynamic access marker
                         if (propName.size() > 3 && propName.substr(0, 2) == "${" && propName.back() == '}') {
-                            // For dynamic access, we'll create a special marker in the property path
-                            // that will be handled by the expression builder
                             return std::make_unique<Interpreter::DynamicMemberExpressionNode>(
                                 std::move(objectExpr),
                                 std::make_unique<Interpreter::IdentifierExpressionNode>(propName), expr->filename,
                                 expr->line, expr->column);
                         }
-                        // Regular static member access
                         return std::make_unique<Interpreter::MemberExpressionNode>(
                             std::move(objectExpr), propName, expr->filename, expr->line, expr->column);
                     }
                     if (expr->rhs->kind == ParsedExpression::Kind::Variable) {
-                        // Variable as property name - convert to static member access
                         return std::make_unique<Interpreter::MemberExpressionNode>(
                             std::move(objectExpr), expr->rhs->name, expr->filename, expr->line, expr->column);
                     }
                     std::string msg = "Invalid member access expression - right side has unexpected kind: " +
                                       ParsedExpression::kindToString(expr->rhs->kind);
-
                     throw Interpreter::Exception(msg, expr->filename, expr->line, expr->column);
                 }
                 // Default binary operator
@@ -93,6 +87,7 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
             }
         case Kind::MethodCall:
             {
+                // Only method calls (obj->method(args)) produce this node
                 std::vector<std::unique_ptr<Interpreter::ExpressionNode>> callArgs;
                 callArgs.reserve(expr->args.size());
                 for (const auto & arg : expr->args) {
@@ -198,20 +193,43 @@ inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
                 auto lhsType = expr->lhs->getType();
                 auto rhsType = expr->rhs->getType();
 
-                if (lhsType != rhsType) {
-                    throw std::runtime_error(
-                        "Type mismatch in binary expression: " + Symbols::Variables::TypeToString(lhsType) + " and " +
-                        Symbols::Variables::TypeToString(rhsType));
-                }
+                // Check if we're dealing with a comparison operator
+                bool isComparison = (expr->op == "==" || expr->op == "!=" ||
+                                   expr->op == "<" || expr->op == ">" ||
+                                   expr->op == "<=" || expr->op == ">=");
 
-                if (expr->op == "+" || expr->op == "-" || expr->op == "*" || expr->op == "/") {
-                    if (lhsType != Symbols::Variables::Type::INTEGER && lhsType != Symbols::Variables::Type::FLOAT) {
+                // For comparisons, both operands must be numeric or both string
+                if (isComparison) {
+                    bool lhsNumeric = (lhsType == Symbols::Variables::Type::INTEGER ||
+                                     lhsType == Symbols::Variables::Type::FLOAT ||
+                                     lhsType == Symbols::Variables::Type::DOUBLE);
+                    bool rhsNumeric = (rhsType == Symbols::Variables::Type::INTEGER ||
+                                     rhsType == Symbols::Variables::Type::FLOAT ||
+                                     rhsType == Symbols::Variables::Type::DOUBLE);
+                    
+                    if (lhsNumeric != rhsNumeric) {
+                        throw std::runtime_error("Type mismatch in comparison: " +
+                            Symbols::Variables::TypeToString(lhsType) + " " + expr->op + " " +
+                            Symbols::Variables::TypeToString(rhsType));
+                    }
+                }
+                // For arithmetic operators
+                else if (expr->op == "+" || expr->op == "-" || expr->op == "*" || expr->op == "/") {
+                    bool lhsNumeric = (lhsType == Symbols::Variables::Type::INTEGER ||
+                                     lhsType == Symbols::Variables::Type::FLOAT ||
+                                     lhsType == Symbols::Variables::Type::DOUBLE);
+                    bool rhsNumeric = (rhsType == Symbols::Variables::Type::INTEGER ||
+                                     rhsType == Symbols::Variables::Type::FLOAT ||
+                                     rhsType == Symbols::Variables::Type::DOUBLE);
+                    
+                    if (!lhsNumeric || !rhsNumeric) {
                         throw std::runtime_error("Operands must be numeric for operator: " + expr->op);
                     }
                 }
-                // Ha logikai operátorok, akkor boolean típus szükséges
+                // For logical operators, both operands must be boolean
                 else if (expr->op == "&&" || expr->op == "||") {
-                    if (lhsType != Symbols::Variables::Type::BOOLEAN) {
+                    if (lhsType != Symbols::Variables::Type::BOOLEAN ||
+                        rhsType != Symbols::Variables::Type::BOOLEAN) {
                         throw std::runtime_error("Operands must be boolean for operator: " + expr->op);
                     }
                 }

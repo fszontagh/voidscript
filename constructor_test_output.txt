@@ -1,0 +1,179 @@
+[Debug][Lexer] Tokens for namespace '../test_scripts/constructor_test.vs':
+Token { Type: KEYWORD_CLASS, Value: "class", Pos: [47, 52), Lexeme: "class" }
+Token { Type: IDENTIFIER, Value: "Person", Pos: [53, 59), Lexeme: "Person" }
+Token { Type: PUNCTUATION, Value: "{", Pos: [60, 61), Lexeme: "{" }
+Token { Type: KEYWORD_PUBLIC, Value: "public", Pos: [66, 72), Lexeme: "public" }
+Token { Type: PUNCTUATION, Value: ":", Pos: [72, 73), Lexeme: ":" }
+Token { Type: KEYWORD_STRING, Value: "string", Pos: [74, 80), Lexeme: "string" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$name", Pos: [81, 86), Lexeme: "$name" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [87, 88), Lexeme: "=" }
+Token { Type: STRING_LITERAL, Value: """", Pos: [89, 91), Lexeme: """" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [91, 92), Lexeme: ";" }
+Token { Type: KEYWORD_PUBLIC, Value: "public", Pos: [97, 103), Lexeme: "public" }
+Token { Type: PUNCTUATION, Value: ":", Pos: [103, 104), Lexeme: ":" }
+Token { Type: KEYWORD_INT, Value: "int", Pos: [105, 108), Lexeme: "int" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$age", Pos: [109, 113), Lexeme: "$age" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [114, 115), Lexeme: "=" }
+Token { Type: NUMBER, Value: "0", Pos: [116, 117), Lexeme: "0" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [117, 118), Lexeme: ";" }
+Token { Type: KEYWORD_FUNCTION, Value: "function", Pos: [166, 174), Lexeme: "function" }
+Token { Type: IDENTIFIER, Value: "construct", Pos: [175, 184), Lexeme: "construct" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [184, 185), Lexeme: "(" }
+Token { Type: KEYWORD_STRING, Value: "string", Pos: [185, 191), Lexeme: "string" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$name", Pos: [192, 197), Lexeme: "$name" }
+Token { Type: PUNCTUATION, Value: ",", Pos: [197, 198), Lexeme: "," }
+Token { Type: KEYWORD_INT, Value: "int", Pos: [199, 202), Lexeme: "int" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$age", Pos: [203, 207), Lexeme: "$age" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [207, 208), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: "{", Pos: [209, 210), Lexeme: "{" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [219, 223), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [223, 225), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$name", Pos: [225, 230), Lexeme: "$name" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [231, 232), Lexeme: "=" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$name", Pos: [233, 238), Lexeme: "$name" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [238, 239), Lexeme: ";" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [248, 252), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [252, 254), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$age", Pos: [254, 258), Lexeme: "$age" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [259, 260), Lexeme: "=" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$age", Pos: [261, 265), Lexeme: "$age" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [265, 266), Lexeme: ";" }
+Token { Type: IDENTIFIER, Value: "print", Pos: [275, 280), Lexeme: "print" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [280, 281), Lexeme: "(" }
+Token { Type: STRING_LITERAL, Value: "Person created with name: ", Pos: [281, 309), Lexeme: ""Person created with name: "" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [310, 311), Lexeme: "+" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [312, 316), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [316, 318), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$name", Pos: [318, 323), Lexeme: "$name" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [324, 325), Lexeme: "+" }
+Token { Type: STRING_LITERAL, Value: " and age: ", Pos: [326, 338), Lexeme: "" and age: "" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [339, 340), Lexeme: "+" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [341, 345), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [345, 347), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$age", Pos: [347, 351), Lexeme: "$age" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [352, 353), Lexeme: "+" }
+Token { Type: STRING_LITERAL, Value: "
+", Pos: [354, 358), Lexeme: ""\n"" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [358, 359), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [359, 360), Lexeme: ";" }
+Token { Type: PUNCTUATION, Value: "}", Pos: [365, 366), Lexeme: "}" }
+Token { Type: KEYWORD_FUNCTION, Value: "function", Pos: [402, 410), Lexeme: "function" }
+Token { Type: IDENTIFIER, Value: "getInfo", Pos: [411, 418), Lexeme: "getInfo" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [418, 419), Lexeme: "(" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [419, 420), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: "{", Pos: [421, 422), Lexeme: "{" }
+Token { Type: KEYWORD_RETURN, Value: "return", Pos: [431, 437), Lexeme: "return" }
+Token { Type: STRING_LITERAL, Value: "Name: ", Pos: [438, 446), Lexeme: ""Name: "" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [447, 448), Lexeme: "+" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [449, 453), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [453, 455), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$name", Pos: [455, 460), Lexeme: "$name" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [461, 462), Lexeme: "+" }
+Token { Type: STRING_LITERAL, Value: ", Age: ", Pos: [463, 472), Lexeme: "", Age: "" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [473, 474), Lexeme: "+" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [475, 479), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [479, 481), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$age", Pos: [481, 485), Lexeme: "$age" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [485, 486), Lexeme: ";" }
+Token { Type: PUNCTUATION, Value: "}", Pos: [491, 492), Lexeme: "}" }
+Token { Type: KEYWORD_FUNCTION, Value: "function", Pos: [520, 528), Lexeme: "function" }
+Token { Type: IDENTIFIER, Value: "setName", Pos: [529, 536), Lexeme: "setName" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [536, 537), Lexeme: "(" }
+Token { Type: KEYWORD_STRING, Value: "string", Pos: [537, 543), Lexeme: "string" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$new_name", Pos: [544, 553), Lexeme: "$new_name" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [553, 554), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: "{", Pos: [555, 556), Lexeme: "{" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [565, 569), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [569, 571), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$name", Pos: [571, 576), Lexeme: "$name" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [577, 578), Lexeme: "=" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$new_name", Pos: [579, 588), Lexeme: "$new_name" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [588, 589), Lexeme: ";" }
+Token { Type: PUNCTUATION, Value: "}", Pos: [594, 595), Lexeme: "}" }
+Token { Type: KEYWORD_FUNCTION, Value: "function", Pos: [601, 609), Lexeme: "function" }
+Token { Type: IDENTIFIER, Value: "setAge", Pos: [610, 616), Lexeme: "setAge" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [616, 617), Lexeme: "(" }
+Token { Type: KEYWORD_INT, Value: "int", Pos: [617, 620), Lexeme: "int" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$new_age", Pos: [621, 629), Lexeme: "$new_age" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [629, 630), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: "{", Pos: [631, 632), Lexeme: "{" }
+Token { Type: IDENTIFIER, Value: "this", Pos: [641, 645), Lexeme: "this" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [645, 647), Lexeme: "->" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$age", Pos: [647, 651), Lexeme: "$age" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [652, 653), Lexeme: "=" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$new_age", Pos: [654, 662), Lexeme: "$new_age" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [662, 663), Lexeme: ";" }
+Token { Type: PUNCTUATION, Value: "}", Pos: [668, 669), Lexeme: "}" }
+Token { Type: PUNCTUATION, Value: "}", Pos: [670, 671), Lexeme: "}" }
+Token { Type: IDENTIFIER, Value: "Person", Pos: [710, 716), Lexeme: "Person" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$person", Pos: [717, 724), Lexeme: "$person" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [725, 726), Lexeme: "=" }
+Token { Type: KEYWORD_NEW, Value: "new", Pos: [727, 730), Lexeme: "new" }
+Token { Type: IDENTIFIER, Value: "Person", Pos: [731, 737), Lexeme: "Person" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [737, 738), Lexeme: "(" }
+Token { Type: STRING_LITERAL, Value: "John Doe", Pos: [738, 748), Lexeme: ""John Doe"" }
+Token { Type: PUNCTUATION, Value: ",", Pos: [748, 749), Lexeme: "," }
+Token { Type: NUMBER, Value: "43", Pos: [750, 752), Lexeme: "43" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [752, 753), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [753, 754), Lexeme: ";" }
+Token { Type: IDENTIFIER, Value: "print", Pos: [755, 760), Lexeme: "print" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [760, 761), Lexeme: "(" }
+Token { Type: STRING_LITERAL, Value: "Person info: ", Pos: [761, 776), Lexeme: ""Person info: "" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [777, 778), Lexeme: "+" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$person", Pos: [779, 786), Lexeme: "$person" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [786, 788), Lexeme: "->" }
+Token { Type: IDENTIFIER, Value: "getInfo", Pos: [788, 795), Lexeme: "getInfo" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [795, 796), Lexeme: "(" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [796, 797), Lexeme: ")" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [798, 799), Lexeme: "+" }
+Token { Type: STRING_LITERAL, Value: "
+", Pos: [800, 804), Lexeme: ""\n"" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [804, 805), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [805, 806), Lexeme: ";" }
+Token { Type: IDENTIFIER, Value: "Person", Pos: [843, 849), Lexeme: "Person" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$person2", Pos: [850, 858), Lexeme: "$person2" }
+Token { Type: OPERATOR_ASSIGNMENT, Value: "=", Pos: [859, 860), Lexeme: "=" }
+Token { Type: KEYWORD_NEW, Value: "new", Pos: [861, 864), Lexeme: "new" }
+Token { Type: IDENTIFIER, Value: "Person", Pos: [865, 871), Lexeme: "Person" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [871, 872), Lexeme: "(" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [872, 873), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [873, 874), Lexeme: ";" }
+Token { Type: IDENTIFIER, Value: "print", Pos: [875, 880), Lexeme: "print" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [880, 881), Lexeme: "(" }
+Token { Type: STRING_LITERAL, Value: "Person 2 info: ", Pos: [881, 898), Lexeme: ""Person 2 info: "" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [899, 900), Lexeme: "+" }
+Token { Type: VARIABLE_IDENTIFIER, Value: "$person2", Pos: [901, 909), Lexeme: "$person2" }
+Token { Type: PUNCTUATION, Value: "->", Pos: [909, 911), Lexeme: "->" }
+Token { Type: IDENTIFIER, Value: "getInfo", Pos: [911, 918), Lexeme: "getInfo" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [918, 919), Lexeme: "(" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [919, 920), Lexeme: ")" }
+Token { Type: OPERATOR_ARITHMETIC, Value: "+", Pos: [921, 922), Lexeme: "+" }
+Token { Type: STRING_LITERAL, Value: "
+", Pos: [923, 927), Lexeme: ""\n"" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [927, 928), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [928, 929), Lexeme: ";" }
+Token { Type: IDENTIFIER, Value: "print", Pos: [931, 936), Lexeme: "print" }
+Token { Type: PUNCTUATION, Value: "(", Pos: [936, 937), Lexeme: "(" }
+Token { Type: STRING_LITERAL, Value: "Constructor test completed successfully!
+", Pos: [937, 981), Lexeme: ""Constructor test completed successfully!\n"" }
+Token { Type: PUNCTUATION, Value: ")", Pos: [981, 982), Lexeme: ")" }
+Token { Type: PUNCTUATION, Value: ";", Pos: [982, 983), Lexeme: ";" }
+Token { Type: END_OF_FILE, Value: "", Pos: [984, 984), Lexeme: "" }
+[Debug][Parser] Operations for namespace '../test_scripts/constructor_test.vs':
+Target: argc Type: Declaration Statement: variable name: argc type: int
+Target: argv Type: Declaration Statement: variable name: argv type: object
+Target: Person Type: Declaration Statement: ClassDefinition{ class=Person }
+Target: person Type: Declaration Statement: variable name: person type: class
+Target:  Type: FunctionCall Statement: CallStatementNode{ functionName='print', args=1 filename='../test_scripts/constructor_test.vs', line=32, column=6}
+Target: person2 Type: Declaration Statement: variable name: person2 type: class
+Target:  Type: FunctionCall Statement: CallStatementNode{ functionName='print', args=1 filename='../test_scripts/constructor_test.vs', line=37, column=6}
+Target:  Type: FunctionCall Statement: CallStatementNode{ functionName='print', args=1 filename='../test_scripts/constructor_test.vs', line=39, column=6}
+[Debug][Interpreter] Operation: Target: argc Type: Declaration Statement: variable name: argc type: int
+[Debug][Interpreter] Operation: Target: argv Type: Declaration Statement: variable name: argv type: object
+[Debug][Interpreter] Operation: Target: Person Type: Declaration Statement: ClassDefinition{ class=Person }
+[Debug][Interpreter] Operation: Target: ../test_scripts/constructor_test.vs::Person::construct Type: FuncDeclaration Statement:  FunctioName: ../test_scripts/constructor_test.vs::Person::construct return type: null params size: 2
+[Debug][Interpreter] Operation: Target: ../test_scripts/constructor_test.vs::Person::getInfo Type: FuncDeclaration Statement:  FunctioName: ../test_scripts/constructor_test.vs::Person::getInfo return type: null params size: 0
+[Debug][Interpreter] Operation: Target: ../test_scripts/constructor_test.vs::Person::setName Type: FuncDeclaration Statement:  FunctioName: ../test_scripts/constructor_test.vs::Person::setName return type: null params size: 1
+[Debug][Interpreter] Operation: Target: ../test_scripts/constructor_test.vs::Person::setAge Type: FuncDeclaration Statement:  FunctioName: ../test_scripts/constructor_test.vs::Person::setAge return type: null params size: 1
+[Debug][Interpreter] Operation: Target: person Type: Declaration Statement: variable name: person type: class
+[Runtime ERROR] >> in file "../test_scripts/constructor_test.vs" at line: 31, column: 28 << : Constructor '../test_scripts/constructor_test.vs::Person::construct' not found for class 'Person'

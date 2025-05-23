@@ -21,18 +21,22 @@ class ClassDefinitionStatementNode : public StatementNode {
     std::vector<Modules::ClassInfo::PropertyInfo> privateProperties_;
     std::vector<Modules::ClassInfo::PropertyInfo> publicProperties_;
     std::vector<std::string>                      methodNames_;
+    std::string                                   constructorName_; // Added
 
   public:
     ClassDefinitionStatementNode(const std::string &                           className,
                                  std::vector<Modules::ClassInfo::PropertyInfo> privateProps,
                                  std::vector<Modules::ClassInfo::PropertyInfo> publicProps,
-                                 std::vector<std::string> methods, const std::string & filename, int line,
+                                 std::vector<std::string> methods, 
+                                 const std::string& constructorName, // Added
+                                 const std::string & filename, int line,
                                  size_t column) :
         StatementNode(filename, line, column),
         className_(className),
         privateProperties_(std::move(privateProps)),
         publicProperties_(std::move(publicProps)),
-        methodNames_(std::move(methods)) {}
+        methodNames_(std::move(methods)),
+        constructorName_(constructorName) {} // Added
 
     void interpret(Interpreter & interpreter) const override {
         auto * sc       = Symbols::SymbolContainer::instance();
@@ -53,6 +57,12 @@ class ClassDefinitionStatementNode : public StatementNode {
         std::reverse(reversedMethods.begin(), reversedMethods.end());
         for (const auto & method : reversedMethods) {
             registry.addMethod(className_, method);
+        }
+        // Register constructor if it exists
+        if (!constructorName_.empty()) {
+            // The constructor (e.g. "test1::construct") should already be in methodNames_
+            // if the parser correctly added it. Here we just tell the registry which one it is.
+            registry.setConstructor(className_, constructorName_);
         }
         // After registering methods in class registry, also register function symbols
         // for class methods by executing their declaration operations

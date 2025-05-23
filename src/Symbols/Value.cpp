@@ -1,4 +1,16 @@
 #include "Symbols/Value.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/ClassRegistry.hpp"
+#include "Symbols/VariableTypes.hpp"
+
+#include <algorithm>
+#include <limits>
+#include <mutex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <typeindex>
+#include <vector>
 
 // Standard library includes that are likely needed by the moved implementations
 #include <algorithm>  // For std::transform in ValuePtr::fromStringToBool
@@ -242,10 +254,7 @@ ValuePtr ValuePtr::null(Symbols::Variables::Type type) {
     // Value::set<std::string>("") would make it a non-null empty string.
     // Let's stick to: a null ValuePtr of type STRING has its type_ = STRING, is_null = true, data_ = nullptr.
     // Value::get<std::string>() will throw if data_ is null. This is consistent.
-    // The Value::clone_data_from will call other.get<std::string>() which will fail if other is a null string.
-    // This implies clone_data_from needs to handle other.isNULL() before calling get<T> for copyable types.
-    // *Correction*: The clone_data_from in Value.hpp already calls this->set<std::string>(other.get<std::string>())
-    // and Value::clone() calls new_value->clone_data_from(*this) only if !this->is_null && this->data_
+    // The Value::clone_data_from will call new_value->clone_data_from(*this) only if !this->is_null && this->data_
     // So, if a Value is_null, its data won't be cloned via get<T>(). This is fine.
     // The ValuePtr::null(STRING) method sets the type to STRING. If it represents a null string,
     // its Value object will have type_ = STRING and is_null = true.
@@ -272,7 +281,7 @@ ValuePtr ValuePtr::null() {
 
 // Operators
 std::shared_ptr<Value> ValuePtr::operator->() {
-    if (!ptr_) {  // Should not happen with current constructors
+    if (!ptr_) {  // Should not happen
         ptr_ = std::make_shared<Value>();
         ptr_->setNULL();
     }
@@ -328,6 +337,68 @@ ValuePtr & ValuePtr::operator[](const std::string & key) {
 ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
     auto _class_instance_vp   = Symbols::ValuePtr(v);  // Calls ObjectMap constructor
     _class_instance_vp->type_ = Symbols::Variables::Type::CLASS;
+    
+    ObjectMap& props = _class_instance_vp->get<ObjectMap>();
+
+    std::cout << "DEBUG: Making class instance with properties: ";
+    for (const auto& prop : props) {
+        std::cout << prop.first << " ";
+    }
+    std::cout << std::endl;
+
+    // Ensure all properties are initialized
+    if (props.find("__class__") != props.end()) {
+        std::string className = props["__class__"]->get<std::string>();
+        std::cout << "DEBUG: Class name in makeClassInstance: " << className << std::endl;
+        auto& registry = Symbols::ClassRegistry::instance();
+
+        // Initialize any missing properties with default values
+        if (registry.hasClass(className)) {
+            std::cout << "DEBUG: Class found in registry: " << className << std::endl;
+            const auto& classInfo = registry.getClassContainer().getClassInfo(className);
+            for (const auto& propInfo : classInfo.properties) {
+                std::string instancePropName = propInfo.name;
+                // Ensure property name has $ prefix for instance properties
+                if (!instancePropName.empty() && instancePropName[0] != '$') {
+                    instancePropName.insert(0, 1, '$');
+                }
+                // Only set if property doesn't exist yet
+                if (props.find(instancePropName) == props.end()) {
+                    // Create default value for the property
+                    switch (propInfo.type) {
+                        case Variables::Type::INTEGER:
+                            props[instancePropName] = ValuePtr(0);
+                            break;
+                        case Variables::Type::DOUBLE:
+                            props[instancePropName] = ValuePtr(0.0);
+                            break;
+                        case Variables::Type::FLOAT:
+                            props[instancePropName] = ValuePtr(0.0f);
+                            break;
+                        case Variables::Type::STRING:
+                            props[instancePropName] = ValuePtr("");
+                            break;
+                        case Variables::Type::BOOLEAN:
+                            props[instancePropName] = ValuePtr(false);
+                            break;
+                        case Variables::Type::OBJECT:
+                            props[instancePropName] = ValuePtr(ObjectMap());
+                            break;
+                        default:
+                            props[instancePropName] = ValuePtr::null(propInfo.type);
+                            break;
+                    }
+                }
+            }
+        }
+    }
+
+    std::cout << "DEBUG: Final instance properties: ";
+    for (const auto& prop : props) {
+        std::cout << prop.first << " ";
+    }
+    std::cout << std::endl;
+
     return _class_instance_vp;
 }
 

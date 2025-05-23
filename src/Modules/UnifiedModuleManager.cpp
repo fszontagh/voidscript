@@ -1,3 +1,6 @@
+// DEPRECATED: This file is part of the legacy class/module management system.
+// Use Symbols::ClassRegistry and related classes instead.
+
 #include "Modules/UnifiedModuleManager.hpp"
 
 #include <filesystem>
@@ -168,6 +171,15 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
     auto callback = std::move(cb);
     this->registerFunction(methodName, callback, returnType);
     findOrThrow(classes_, className, "Class not found").info.methodNames.push_back(methodName);
+}
+
+void UnifiedModuleManager::setConstructor(const std::string& className, const std::string& constructorName) {
+    findOrThrow(classes_, className, "Class not found").info.constructorName = constructorName;
+    // Also, ensure the constructor is registered as a method if it's not already implicitly handled
+    // This might be redundant if addMethod is always called for constructors too, 
+    // but explicit is better than implicit.
+    // We assume the constructor (e.g., class::construct) is also added via addMethod.
+    // If not, it might need to be added here or ensured by the caller.
 }
 
 bool UnifiedModuleManager::hasProperty(const std::string & className, const std::string & propertyName) const {

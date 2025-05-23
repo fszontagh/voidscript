@@ -1,25 +1,25 @@
 #ifndef SYMBOLS_VALUE_HPP
 #define SYMBOLS_VALUE_HPP
 
-#include <algorithm>  // For ValuePtr::fromStringToBool, kept if any part of it remains in header
+#include <algorithm>
 #include <map>
 #include <memory>
-#include <stdexcept>  // For std::bad_cast, kept for get<T>
+#include <stdexcept>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
-#include <vector>  // Potentially for future use or if a moved method implicitly needed it via another header method
+#include <vector>
 
-#include "Symbols/VariableTypes.hpp"  // Essential
+#include "Symbols/VariableTypes.hpp"
 
 namespace Symbols {
 
-class Value;     // Forward declaration
-class ValuePtr;  // Forward declaration
+class Value;
+class ValuePtr;
 
 using ObjectMap = std::map<std::string, ValuePtr>;
 
-// This map is used by Value::set<T> which is templated and remains in the header.
+// Type mapping
 const static std::unordered_map<std::type_index, Symbols::Variables::Type> type_names = {
     { std::type_index(typeid(int)),         Symbols::Variables::Type::INTEGER   },
     { std::type_index(typeid(double)),      Symbols::Variables::Type::DOUBLE    },
@@ -156,8 +156,6 @@ class ValuePtr {
         // The new Value object created from 'v' should have its type correctly set
         // by Value's move constructor if it exists, or this needs careful handling.
         // Assuming Value's internals (type_, type_id_, is_null, data_) are correctly transferred.
-        // If Value's move constructor doesn't exist or fully set these, this might be an issue.
-        // For now, assume Value(std::move(v)) correctly sets up the new Value.
         // ptr_->type_ = v.getType(); // This would be problematic as v is moved from.
         // The type should be inherent in the moved Value object.
     }
@@ -196,10 +194,15 @@ class ValuePtr {
     // Subscript operator for objects - Declaration only
     ValuePtr & operator[](const std::string & key);
 
-    // toString method - Declaration only
+    ValuePtr & operator[](const char * key) {
+        return operator[](std::string(key));  // Reuse the string version
+    }
+
+    // toString method - For debug/printing
     std::string toString() const;
 
-    // Templated getter methods remain in the header
+    // Template conversion operator for all types
+    // Templated getter methods
     template <typename T> T & get() {
         if (!ptr_) {
             throw std::runtime_error("ValuePtr has null internal pointer in get<T>().");
@@ -214,29 +217,78 @@ class ValuePtr {
         return ptr_->get<T>();
     }
 
-    // Templated conversion operator: Remains in header.
-    // Added requires clause for SFINAE, assuming C++20.
+    // Universal conversion operator with type constraints
     template <typename T>
     requires(std::is_same_v<T, int> || std::is_same_v<T, float> || std::is_same_v<T, double> ||
              std::is_same_v<T, ObjectMap> || std::is_same_v<T, bool> ||
              std::is_same_v<T, std::string>) operator T() const {
         if (!ptr_) {
-            // This behavior might need refinement. What should converting a null ValuePtr return?
-            // For primitives, it might be 0/false/"". For ObjectMap, an empty map.
-            // Throwing an exception is safer to indicate an unexpected state.
-            throw std::runtime_error("Attempted to convert a ValuePtr with a null internal pointer.");
+            throw std::runtime_error("Cannot convert null ValuePtr");
         }
-        // Ensure that if ptr_ points to a NULL Value, get<T> handles it (throws or returns default for T)
-        // Current Value::get<T> throws if data_ is null.
         if (ptr_->isNULL()) {
-            // Handle conversion from a semantically NULL Value.
-            // This is tricky. For example, if T is int, should it be 0? If string, ""?
-            // Throwing might be the most consistent with Value::get behavior.
-            // Or, provide default values. For now, let get<T> handle it.
-            // This path will likely throw if ptr_->data_ is null.
-            throw std::runtime_error("Attempted to access to a NULL value.");
+            throw std::runtime_error("Cannot convert NULL value");
         }
+        
+        if constexpr (std::is_same_v<T, bool>) {
+            // For boolean conversion, handle numeric types and comparison results
+            switch (ptr_->getType()) {
+                case Variables::Type::BOOLEAN:
+                    return ptr_->get<bool>();
+                case Variables::Type::INTEGER:
+                    return ptr_->get<int>() != 0;
+                case Variables::Type::FLOAT:
+                    return ptr_->get<float>() != 0;
+                case Variables::Type::DOUBLE:
+                    return ptr_->get<double>() != 0;
+                case Variables::Type::STRING:
+                    return !ptr_->get<std::string>().empty();
+                case Variables::Type::OBJECT:
+                    // For objects (like comparison results), treat as boolean
+                    try {
+                        // Try to get as bool first
+                        return ptr_->get<bool>();
+                    } catch (const std::runtime_error&) {
+                        // If not a direct bool, assume non-empty object is true
+                        return !ptr_->get<ObjectMap>().empty();
+                    }
+                default:
+                    throw std::runtime_error("Bad cast, cannot convert type " + 
+                        std::to_string(static_cast<int>(ptr_->getType())) + " to bool");
+            }
+        }
+        
         return ptr_->get<T>();
+    }
+
+    // Specialized boolean conversion operator
+    operator bool() const {
+        if (!ptr_) {
+            throw std::runtime_error("Cannot convert null ValuePtr");
+        }
+        if (ptr_->isNULL()) {
+            throw std::runtime_error("Cannot convert NULL value");
+        }
+        
+        switch (ptr_->getType()) {
+            case Variables::Type::BOOLEAN:
+                return ptr_->get<bool>();
+            case Variables::Type::INTEGER:
+                return ptr_->get<int>() != 0;
+            case Variables::Type::FLOAT:
+                return ptr_->get<float>() != 0.0f;
+            case Variables::Type::DOUBLE:
+                return ptr_->get<double>() != 0.0;
+            case Variables::Type::STRING:
+                return !ptr_->get<std::string>().empty();
+            case Variables::Type::OBJECT:
+                try {
+                    return ptr_->get<bool>();
+                } catch (const std::runtime_error&) {
+                    return !ptr_->get<ObjectMap>().empty();
+                }
+            default:
+                throw std::runtime_error("Cannot convert type to boolean");
+        }
     }
 };
 

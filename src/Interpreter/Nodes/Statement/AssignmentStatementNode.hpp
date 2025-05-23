@@ -89,8 +89,8 @@ class AssignmentStatementNode : public StatementNode {
                                             filename_, line_, column_);
                         }
                     }
-                    // Perform the assignment using the cloned new value.
-                    map_ref[key] = newValueEvaluated.clone();
+                    // Only reference assignment, do not clone ValuePtr
+                    map_ref[key] = newValueEvaluated;
                 } else {
                     // Not the last property, so traverse deeper.
                     auto it = map_ref.find(key);
@@ -117,7 +117,8 @@ class AssignmentStatementNode : public StatementNode {
                                     Symbols::Variables::TypeToString(newValue) + "'",
                                 filename_, line_, column_);
             }
-            symbol->setValue(newValue.clone());  // Assign directly to the symbol
+            // Only reference assignment, do not clone ValuePtr
+            symbol->setValue(newValue);
         }
     }
 

@@ -259,6 +259,24 @@ class SymbolContainer {
         return nullptr;
     }
 
+    /**
+     * @brief Find the namespace in which a class is defined.
+     * @param className Name of the class to find.
+     * @return The namespace containing the class, or empty string if not found.
+     */
+    std::string findClassNamespace(const std::string & className) {
+        // Look in all scopes for a symbol with metadata indicating it's the class definition
+        for (const auto & [scopeName, table] : scopes_) {
+            // Classes are registered in the functions namespace
+            auto classSymbol = table->get(DEFAULT_FUNCTIONS_SCOPE, className);
+            if (classSymbol && classSymbol->getKind() == Kind::Function) {
+                // Found the class definition
+                return scopeName;
+            }
+        }
+        return "";
+    }
+
     static std::string dump() {
         std::string result;
 

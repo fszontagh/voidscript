@@ -17,6 +17,40 @@ class IdentifierExpressionNode : public ExpressionNode {
                                size_t /*column*/) const override {
         auto * sc = Symbols::SymbolContainer::instance();
 
+        // Special handling for 'this' keyword
+        if (name_ == "this") {
+            std::cout << "DEBUG: IdentifierExpressionNode evaluating 'this' in scope: " << sc->currentScopeName() << std::endl;
+            // 'this' should typically be found directly in the current function call scope or a class scope it's nested within.
+            auto thisSymbol = sc->findSymbol("this"); 
+
+            if (thisSymbol) {
+                auto thisVal = thisSymbol->getValue();
+                if (thisVal && (thisVal->getType() == Symbols::Variables::Type::CLASS || thisVal->getType() == Symbols::Variables::Type::OBJECT) ) {
+                    std::cout << "DEBUG: 'this' resolved to a CLASS or OBJECT. Type: " << Symbols::Variables::TypeToString(thisVal->getType()) << std::endl;
+                    Symbols::ObjectMap& map = thisVal->get<Symbols::ObjectMap>();
+                    std::cout << "DEBUG: 'this' object map keys: ";
+                    for (const auto& pair : map) {
+                        std::cout << pair.first << " (";
+                        if(pair.second) {
+                            std::cout << Symbols::Variables::TypeToString(pair.second->getType());
+                        } else {
+                            std::cout << "null_ptr";
+                        }
+                        std::cout << ") ";
+                    }
+                    std::cout << std::endl;
+                } else if (thisVal) {
+                    std::cout << "DEBUG: 'this' resolved but not to a CLASS or OBJECT. Type: " << Symbols::Variables::TypeToString(thisVal->getType()) << std::endl;
+                } else {
+                    std::cout << "DEBUG: 'this' resolved to a nullptr ValuePtr." << std::endl;
+                }
+                return thisVal;
+            }
+            // If thisSymbol is null after sc->findSymbol("this")
+            std::cout << "DEBUG: 'this' keyword not found in symbol table from scope: " << sc->currentScopeName() << std::endl;
+            throw std::runtime_error("Keyword \'this\' not found in current context starting from scope: " + sc->currentScopeName());
+        }
+
         // Use a hierarchical find method starting from the current scope
         auto symbol = sc->findSymbol(name_);  // Now uses the implemented findSymbol
 

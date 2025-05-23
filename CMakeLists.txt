@@ -139,8 +139,14 @@ add_library(voidscript
             src/Lexer/Operators.cpp
             src/Symbols/SymbolContainer.cpp
             src/Symbols/Value.cpp
+            src/Symbols/ClassContainer.cpp
+            src/Symbols/UnifiedClassContainer.cpp
+            src/Symbols/ClassFactory.cpp
+            src/Symbols/ClassRegistry.cpp
+            src/Symbols/ClassContainerAdapter.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
             src/Modules/UnifiedModuleManager.cpp
+            src/Interpreter/Interpreter.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")
@@ -258,16 +264,16 @@ set(CPACK_DEB_COMPONENT_INSTALL ON)
 if (BUILD_TESTS)
   enable_testing()
   include(cmake/catch2.cmake)
+  include(Catch)
+
 
   # Test executable for ModuleHelperModule
   add_executable(module_helper_tests
       tests/ModuleHelperTests.cpp
   )
   target_link_libraries(module_helper_tests PRIVATE voidscript Catch2::Catch2WithMain)
-  # Discover and register tests with CTest
-  include(CTest)
-  include(Catch)
   catch_discover_tests(module_helper_tests)
+
   # Test executable for all built-in modules
   add_executable(built_in_module_tests
       tests/BuiltInModuleTests.cpp
@@ -275,12 +281,14 @@ if (BUILD_TESTS)
   target_link_libraries(built_in_module_tests PRIVATE voidscript Catch2::Catch2WithMain)
   catch_discover_tests(built_in_module_tests)
 
-  # Test executable for value semantics
-  add_executable(value_semantics_tests
-      tests/ValueSemanticsTests.cpp
+
+
+  # Test executable for symbol container
+  add_executable(symbol_container_tests
+      tests/SymbolContainerTests.cpp
   )
-  target_link_libraries(value_semantics_tests PRIVATE voidscript Catch2::Catch2WithMain)
-  catch_discover_tests(value_semantics_tests)
+  target_link_libraries(symbol_container_tests PRIVATE voidscript Catch2::Catch2WithMain)
+  catch_discover_tests(symbol_container_tests)
 
   # Ensure voidscript target exists before adding tests that use it
   if(TARGET voidscript)

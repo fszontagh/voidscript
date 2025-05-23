@@ -13,6 +13,7 @@
 #include "Nodes/Statement/DeclareVariableStatementNode.hpp"
 #include "Nodes/Statement/ExpressionStatementNode.hpp"
 #include "Nodes/Statement/ReturnStatementNode.hpp"
+#include "Nodes/Statement/MethodCallStatementNode.hpp"
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -136,6 +137,38 @@ class OperationsFactory {
         auto stmt = std::make_unique<ExpressionStatementNode>(std::move(expr), fileName, line, column);
         Operations::Container::instance()->add(
             ns, Operations::Operation{ Operations::Type::Expression, std::string(), std::move(stmt) });
+    }
+
+    /**
+     * @brief Record a method call operation with argument expressions.
+     * @param objectName Name of the object instance.
+     * @param methodName Name of the method being called.
+     * @param parsedArgs Vector of parsed argument expressions.
+     * @param ns Current namespace scope for operations.
+     * @param fileName Source filename.
+     * @param line Line number of call.
+     * @param column Column number of call.
+     */
+    static void callMethod(const std::string & objectName, 
+                         const std::string & methodName,
+                         std::vector<Parser::ParsedExpressionPtr> && parsedArgs,
+                         const std::string & ns, 
+                         const std::string & fileName, 
+                         int line, 
+                         size_t column) {
+        // Build argument ExpressionNode list
+        std::vector<std::unique_ptr<ExpressionNode>> exprs;
+        exprs.reserve(parsedArgs.size());
+        for (auto & pexpr : parsedArgs) {
+            exprs.push_back(buildExpressionFromParsed(pexpr));
+        }
+        // Create method call statement node
+        auto stmt = std::make_unique<MethodCallStatementNode>(
+            objectName, methodName, std::move(exprs), fileName, line, column
+        );
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::MethodCall, objectName + "->" + methodName, std::move(stmt) }
+        );
     }
 };
 

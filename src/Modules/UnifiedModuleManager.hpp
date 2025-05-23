@@ -1,3 +1,6 @@
+// DEPRECATED: This file is part of the legacy class/module management system.
+// Use Symbols::ClassRegistry and related classes instead.
+
 #ifndef MODULES_UNIFIEDMODULEMANAGER_HPP
 #define MODULES_UNIFIEDMODULEMANAGER_HPP
 
@@ -59,6 +62,7 @@ struct ClassInfo {
 
     std::vector<Modules::ClassInfo::PropertyInfo>      properties;
     std::vector<std::string>                           methodNames;
+    std::string                                        constructorName; // Added
     std::unordered_map<std::string, Symbols::ValuePtr> objectProperties;  // Store object-specific properties
 };
 
@@ -96,6 +100,8 @@ class UnifiedModuleManager {
     void addMethod(const std::string & className, const std::string & methodName,
                    std::function<Symbols::ValuePtr(const std::vector<Symbols::ValuePtr> &)> cb,
                    const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
+    // Added setConstructor
+    void setConstructor(const std::string& className, const std::string& constructorName);
     bool hasProperty(const std::string & className, const std::string & propertyName) const;
     bool hasMethod(const std::string & className, const std::string & methodName) const;
     std::vector<std::string> getClassNames() const;

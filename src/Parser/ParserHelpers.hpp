@@ -8,7 +8,7 @@
 #include "Interpreter/Nodes/Expression/BinaryExpressionNode.hpp"
 #include "Symbols/Value.hpp"
 #include "Lexer/Token.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/ClassContainer.hpp"
 #include "Parser/Parser.hpp"
 
 namespace ParserHelpers {
@@ -33,7 +33,7 @@ inline std::unique_ptr<Interpreter::StatementNode> buildIncDecAssignmentNode(
 inline bool isTypeOrClassToken(const Lexer::Tokens::Token &tok) {
     if (Parser::Parser::variable_types.find(tok.type) != Parser::Parser::variable_types.end()) return true;
     if (tok.type == Lexer::Tokens::Type::IDENTIFIER &&
-        Modules::UnifiedModuleManager::instance().hasClass(tok.value)) return true;
+        Symbols::ClassContainer::instance()->hasClass(tok.value)) return true;
     return false;
 }
 

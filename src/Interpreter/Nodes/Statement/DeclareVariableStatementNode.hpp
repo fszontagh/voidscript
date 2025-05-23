@@ -35,6 +35,7 @@ class DeclareVariableStatementNode : public StatementNode {
 
     void interpret(Interpreter & interpreter) const override {
         try {
+            // Only reference, do not copy ValuePtr
             auto value = expression_->evaluate(interpreter);
 
             auto * sc = Symbols::SymbolContainer::instance();
@@ -77,9 +78,52 @@ class DeclareVariableStatementNode : public StatementNode {
                 value.setType(variableType_);
             }
 
-            if (value != variableType_) {
+            // For class types, we need to handle the comparison differently
+            if (variableType_ == Symbols::Variables::Type::CLASS) {
+                // The value should be either CLASS type or OBJECT type (from new ClassName())
+                if (value.getType() != Symbols::Variables::Type::CLASS && 
+                    value.getType() != Symbols::Variables::Type::OBJECT &&
+                    value.getType() != Symbols::Variables::Type::NULL_TYPE) {
+                    std::string expected = Symbols::Variables::TypeToString(variableType_);
+                    std::string actual = Symbols::Variables::TypeToString(value.getType());
+                    std::cout << "DEBUG: DeclareVariableStatementNode: Type mismatch for " << variableName_ << ": expected " 
+                              << expected << ", got " << actual << std::endl;
+                    throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
+                                    "' but got '" + actual + "' in scope '" + current_runtime_scope_name + "'",
+                                filename_, line_, column_);
+                }
+                
+                // If it's an OBJECT from a 'new' expression, ensure we set the type to CLASS
+                if (value.getType() == Symbols::Variables::Type::OBJECT) {
+                    std::cout << "DEBUG: DeclareVariableStatementNode: Checking if OBJECT should be converted to CLASS for " 
+                              << variableName_ << std::endl;
+                    auto& objMap = value.get<Symbols::ObjectMap>();
+                    
+                    // Debug keys in the object map
+                    std::cout << "DEBUG: Object keys for " << variableName_ << ": ";
+                    for (const auto& entry : objMap) {
+                        std::cout << entry.first << ", ";
+                    }
+                    std::cout << std::endl;
+                    
+                    // Check for various class name fields
+                    auto it = objMap.find("__class__");
+                    if (it == objMap.end()) {
+                        it = objMap.find("$class_name");
+                    }
+                    
+                    if (it != objMap.end() && it->second->getType() == Symbols::Variables::Type::STRING) {
+                        // This is actually a class instance, but we need to create a new ValuePtr using makeClassInstance
+                        std::cout << "DEBUG: DeclareVariableStatementNode: Creating CLASS instance for " << variableName_ 
+                                  << " (class: " << it->second->get<std::string>() << ")" << std::endl;
+                        
+                        // Create a properly typed class instance
+                        value = Symbols::ValuePtr::makeClassInstance(objMap);
+                    }
+                }
+            } else if (value.getType() != variableType_) {
                 std::string expected = Symbols::Variables::TypeToString(variableType_);
-                std::string actual   = Symbols::Variables::TypeToString(value);
+                std::string actual = Symbols::Variables::TypeToString(value.getType());
                 throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
                                     "' but got '" + actual + "' in scope '" + current_runtime_scope_name + "'",
                                 filename_, line_, column_);
@@ -90,9 +134,9 @@ class DeclareVariableStatementNode : public StatementNode {
             std::shared_ptr<Symbols::Symbol> symbol_to_define;
             if (isConst_) {
                 symbol_to_define =
-                    Symbols::SymbolFactory::createConstant(variableName_, value.clone(), current_runtime_scope_name);
+                    Symbols::SymbolFactory::createConstant(variableName_, value, current_runtime_scope_name);
             } else {
-                symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value.clone(),
+                symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value,
                                                                           current_runtime_scope_name, variableType_);
             }
             // sc->add() uses SymbolContainer::currentScopeName() internally, which is current_runtime_scope_name
