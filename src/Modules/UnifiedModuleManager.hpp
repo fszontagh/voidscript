@@ -1,5 +1,9 @@
 // DEPRECATED: This file is part of the legacy class/module management system.
 // Use Symbols::ClassRegistry and related classes instead.
+//
+// TRANSITION: This module now delegates class management operations to Symbols::ClassRegistry
+// while maintaining backward compatibility. It should ONLY be used directly from modules
+// (built-in and dynamic). All other code should use Symbols::ClassRegistry.
 
 #ifndef MODULES_UNIFIEDMODULEMANAGER_HPP
 #define MODULES_UNIFIEDMODULEMANAGER_HPP
@@ -21,6 +25,7 @@
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
+#include "Symbols/ClassRegistry.hpp"
 
 namespace Modules {
 
@@ -214,7 +219,17 @@ class UnifiedModuleManager {
             FunctionDoc{ fnName, retType, paramListVec, docStr });                  \
     } while (0)
 
-#define REGISTER_CLASS(className) UnifiedModuleManager::instance().registerClass(className, Modules::UnifiedModuleManager::instance().getCurrentModule()->name())
+#define REGISTER_CLASS(className) \
+    do { \
+        /* Check if the class is already registered in ClassRegistry */ \
+        if (!Symbols::ClassRegistry::instance().hasClass(className)) { \
+            /* Register in ClassRegistry */ \
+            Symbols::ClassRegistry::instance().registerClass(className, Modules::UnifiedModuleManager::instance().getCurrentModule()); \
+        } \
+        /* Register in UnifiedModuleManager for backward compatibility */ \
+        /* Note: This will update the class in UnifiedModuleManager if it already exists in ClassRegistry */ \
+        UnifiedModuleManager::instance().registerClass(className, Modules::UnifiedModuleManager::instance().getCurrentModule()->name()); \
+    } while (0)
 
 #define REGISTER_METHOD(className, methodName, paramList, callback, retType, docStr)                      \
     do {                                                                                                  \

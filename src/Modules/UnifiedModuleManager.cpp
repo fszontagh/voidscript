@@ -1,5 +1,9 @@
 // DEPRECATED: This file is part of the legacy class/module management system.
 // Use Symbols::ClassRegistry and related classes instead.
+//
+// TRANSITION: This module now delegates class management operations to Symbols::ClassRegistry
+// while maintaining backward compatibility. It should ONLY be used directly from modules
+// (built-in and dynamic). All other code should use Symbols::ClassRegistry.
 
 #include "Modules/UnifiedModuleManager.hpp"
 
@@ -9,6 +13,7 @@
 #include <utility>
 
 #include "utils.h"
+#include "Symbols/ClassRegistry.hpp" // Add ClassRegistry include
 
 using namespace Modules;
 
@@ -20,12 +25,18 @@ UnifiedModuleManager & UnifiedModuleManager::instance() {
 
 const std::vector<Modules::FunctParameterInfo> & UnifiedModuleManager::getMethodParameters(
     const std::string & className, const std::string & methodName) const {
+    // First try to use our backward compatibility structure
     if (classes_.find(className) != classes_.end() &&
         classes_.at(className).info.methods.find(methodName) != classes_.at(className).info.methods.end()) {
         return classes_.at(className).info.methods.at(methodName).parameters;
     }
+    
+    // If not found, return empty parameters
     static std::vector<FunctParameterInfo> empty;
     return empty;
+    
+    // Note: ClassRegistry doesn't provide a direct way to get method parameters
+    // in the same format, so we can't delegate this call
 }
 
 // --- Module management ---
@@ -142,13 +153,11 @@ Symbols::ValuePtr UnifiedModuleManager::getFunctionNullValue(const std::string &
 
 // --- Class registration ---
 bool UnifiedModuleManager::hasClass(const std::string & className) const {
-    return classes_.find(className) != classes_.end();
+    // Delegate to ClassRegistry
+    return Symbols::ClassRegistry::instance().hasClass(className);
 }
 
 void UnifiedModuleManager::registerClass(const std::string & className, const std::string & scopeName) {
-    if (classes_.find(className) != classes_.end()) {
-        throw std::runtime_error("Class already registered: " + className);
-    }
     if (className.empty()) {
         throw std::runtime_error("Class name cannot be empty");
     }
@@ -156,9 +165,20 @@ void UnifiedModuleManager::registerClass(const std::string & className, const st
         throw std::runtime_error("Scope name cannot be empty");
     }
 
-    classes_[className].info   = ClassInfo();
-    classes_[className].module = currentModule_;
-    classes_[className].scope   = scopeName;
+    // No need to register in ClassRegistry here - that's now handled in the REGISTER_CLASS macro
+    
+    // Check if we already have this class in our local structures
+    auto it = classes_.find(className);
+    if (it != classes_.end()) {
+        // Update the module and scope if needed
+        it->second.module = currentModule_;
+        it->second.scope = scopeName;
+    } else {
+        // Store in our local structures for backward compatibility
+        classes_[className].info = ClassInfo();
+        classes_[className].module = currentModule_;
+        classes_[className].scope = scopeName;
+    }
 }
 
 ClassInfo & UnifiedModuleManager::getClassInfo(const std::string & className) {
@@ -167,11 +187,15 @@ ClassInfo & UnifiedModuleManager::getClassInfo(const std::string & className) {
 
 void UnifiedModuleManager::addProperty(const std::string & className, const std::string & propertyName,
                                        Symbols::Variables::Type type, Parser::ParsedExpressionPtr defaultValueExpr) {
+    // Ensure the class exists in our backward compatibility structure
     ClassInfo & cls = findOrThrow(classes_, className, "Class not found").info;
     cls.properties.push_back({ propertyName, type, std::move(defaultValueExpr) });
+    
+    // We don't add properties to ClassRegistry here as that should be handled by the class implementation
 }
 
 void UnifiedModuleManager::addMethod(const std::string & className, const std::string & methodName) {
+    // Keep backward compatibility
     findOrThrow(classes_, className, "Class not found").info.methodNames.push_back(methodName);
 }
 
@@ -186,62 +210,65 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
 
 void UnifiedModuleManager::setConstructor(const std::string& className, const std::string& constructorName) {
     findOrThrow(classes_, className, "Class not found").info.constructorName = constructorName;
-    // Also, ensure the constructor is registered as a method if it's not already implicitly handled
-    // This might be redundant if addMethod is always called for constructors too, 
-    // but explicit is better than implicit.
-    // We assume the constructor (e.g., class::construct) is also added via addMethod.
-    // If not, it might need to be added here or ensured by the caller.
-}
-
-bool UnifiedModuleManager::hasProperty(const std::string & className, const std::string & propertyName) const {
-    const auto & props = findOrThrow(classes_, className, "Class not found").info.properties;
-    return std::any_of(props.begin(), props.end(),
-                       [&propertyName](const auto & prop) { return prop.name == propertyName; });
-}
-
-bool UnifiedModuleManager::hasMethod(const std::string & className, const std::string & methodName) const {
-    const auto & methods = findOrThrow(classes_, className, "Class not found").info.methodNames;
-    return std::find(methods.begin(), methods.end(), methodName) != methods.end();
-}
-
-std::vector<std::string> UnifiedModuleManager::getClassNames() const {
-    std::vector<std::string> names;
-    names.reserve(classes_.size());
-    for (const auto & pair : classes_) {
-        names.push_back(pair.first);
-    }
-    return names;
+    // We don't need to update ClassRegistry as constructors are handled differently there
 }
 
 // --- Object property management ---
 void UnifiedModuleManager::setObjectProperty(const std::string & className, const std::string & propertyName,
-                                             const Symbols::ValuePtr & value) {
-    auto & classEntry                              = findOrThrow(classes_, className, "Class not found");
+                       const Symbols::ValuePtr & value) {
+    // Use ClassRegistry to set static property
+    Symbols::ClassRegistry::instance().setStaticProperty(className, propertyName, value);
+    
+    // Also update our backward compatibility structure
+    auto & classEntry = findOrThrow(classes_, className, "Class not found");
     classEntry.info.objectProperties[propertyName] = value;
 }
 
-Symbols::ValuePtr UnifiedModuleManager::getObjectProperty(const std::string & className,
-                                                          const std::string & propertyName) const {
+Symbols::ValuePtr UnifiedModuleManager::getObjectProperty(const std::string & className, const std::string & propertyName) const {
+    // Use ClassRegistry to get static property
+    if (Symbols::ClassRegistry::instance().hasStaticProperty(className, propertyName)) {
+        return Symbols::ClassRegistry::instance().getStaticProperty(className, propertyName);
+    }
+    
+    // Fall back to our backward compatibility structure
     const auto & classEntry = findOrThrow(classes_, className, "Class not found");
-    auto         it         = classEntry.info.objectProperties.find(propertyName);
+    auto it = classEntry.info.objectProperties.find(propertyName);
     if (it == classEntry.info.objectProperties.end()) {
-        return Symbols::ValuePtr::null(Symbols::Variables::Type::NULL_TYPE);
+        throw std::runtime_error("Property not found: " + className + "." + propertyName);
     }
     return it->second;
 }
 
 void UnifiedModuleManager::deleteObjectProperty(const std::string & className, const std::string & propertyName) {
+    // There's no direct method to delete static properties in ClassRegistry,
+    // but we can set it to null
+    Symbols::ClassRegistry::instance().setStaticProperty(className, propertyName, Symbols::ValuePtr::null());
+    
+    // Remove from our backward compatibility structure
     auto & classEntry = findOrThrow(classes_, className, "Class not found");
     classEntry.info.objectProperties.erase(propertyName);
 }
 
 bool UnifiedModuleManager::hasObjectProperty(const std::string & className, const std::string & propertyName) const {
+    // Check in ClassRegistry first
+    if (Symbols::ClassRegistry::instance().hasStaticProperty(className, propertyName)) {
+        return true;
+    }
+    
+    // Fall back to our backward compatibility structure
     const auto & classEntry = findOrThrow(classes_, className, "Class not found");
     return classEntry.info.objectProperties.find(propertyName) != classEntry.info.objectProperties.end();
 }
 
 void UnifiedModuleManager::clearObjectProperties(const std::string & className) {
+    // We can't easily clear all static properties in ClassRegistry
+    // So we'll need to iterate through our known ones
     auto & classEntry = findOrThrow(classes_, className, "Class not found");
+    for (const auto& prop : classEntry.info.objectProperties) {
+        Symbols::ClassRegistry::instance().setStaticProperty(className, prop.first, Symbols::ValuePtr::null());
+    }
+    
+    // Clear our backward compatibility structure
     classEntry.info.objectProperties.clear();
 }
 
@@ -373,11 +400,18 @@ void UnifiedModuleManager::generateMarkdownDocs(const std::string & outputDir) c
 
 // --- Macro compatibility: getClassModule ---
 BaseModule * UnifiedModuleManager::getClassModule(const std::string & clsname) const {
-    auto it = functions_.find(clsname);
-    if (it != functions_.end()) {
-        return it->second.module;
+    // First try to get the module from ClassRegistry via its container
+    try {
+        auto& container = Symbols::ClassRegistry::instance().getClassContainer();
+        return container.getClassModule(clsname);
+    } catch (const std::exception&) {
+        // If that fails, fall back to our legacy behavior
+        auto it = functions_.find(clsname);
+        if (it != functions_.end()) {
+            return it->second.module;
+        }
+        return nullptr;
     }
-    return nullptr;
 }
 
 // --- Destructor ---
@@ -403,3 +437,42 @@ const Modules::FunctionDoc & Modules::UnifiedModuleManager::getFunctionDoc(const
     }
     return it->second.doc;
 };
+
+std::vector<std::string> UnifiedModuleManager::getClassNames() const {
+    // Delegate to ClassRegistry
+    return Symbols::ClassRegistry::instance().getClassContainer().getClassNames();
+}
+
+bool UnifiedModuleManager::hasMethod(const std::string & className, const std::string & methodName) const {
+    // Use our backward compatibility structure
+    auto it = classes_.find(className);
+    if (it == classes_.end()) {
+        return false;
+    }
+    
+    for (const auto & mName : it->second.info.methodNames) {
+        if (mName == methodName) {
+            return true;
+        }
+    }
+    
+    // ClassRegistry doesn't provide a direct way to check for methods
+    // so we can't delegate this call
+    return false;
+}
+
+bool UnifiedModuleManager::hasProperty(const std::string & className, const std::string & propertyName) const {
+    // Use our backward compatibility structure
+    auto it = classes_.find(className);
+    if (it == classes_.end()) {
+        return false;
+    }
+    
+    for (const auto & prop : it->second.info.properties) {
+        if (prop.name == propertyName) {
+            return true;
+        }
+    }
+    
+    return false;
+}
