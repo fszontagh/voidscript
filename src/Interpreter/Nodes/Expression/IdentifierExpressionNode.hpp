@@ -58,7 +58,7 @@ class IdentifierExpressionNode : public ExpressionNode {
         if (symbol) {
             // Check if symbol is accessible (e.g., private members if applicable)
             // For now, assume accessible if found
-            std::cerr << "[DEBUG IdentifierExpressionNode] Retrieving symbol '" << name_ << "'. State: " << symbol->getValue().getDebugStateString() << std::endl;
+            std::cerr << "[DEBUG IdentifierExpressionNode] Retrieving symbol '" << name_ << "'. State: " << symbol->getValue().toString() << std::endl;
             return symbol->getValue();
         }
 
