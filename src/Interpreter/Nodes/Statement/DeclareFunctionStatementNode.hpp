@@ -53,12 +53,7 @@ class DeclareFunctionStatementNode : public StatementNode {
             // The old check Symbols::SymbolContainer::instance()->exists(functionName_) was too broad and could lead to incorrect shadowing issues or missed re-declarations.
 
             const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
-            // DefineInScope is more appropriate here if we want to ensure it's in the 'ns' scope specifically.
-            // However, 'add' uses currentScopeName(), which should be 'ns' if the parser logic for entering/exiting scopes around function parsing is correct.
-            // Let's assume 'ns' is indeed the current scope at this point of execution for this node.
-            // If 'add' is used, ensure currentScopeName() == ns.
-            // If defineInScope(ns, func) is used, it's more explicit.
-            // Given the symbol factory sets context to 'ns', getNamespaceForSymbol in 'add' or 'defineInScope' will use DEFAULT_FUNCTIONS_SCOPE.
+            std::cout << "Defining function: " << func->name() << ": "<< ns << std::endl;
             sc->defineInScope(ns, func); // Explicitly define in the target scope 'ns'
 
         } catch (const Exception &) {

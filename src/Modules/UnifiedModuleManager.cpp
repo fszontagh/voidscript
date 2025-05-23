@@ -145,9 +145,20 @@ bool UnifiedModuleManager::hasClass(const std::string & className) const {
     return classes_.find(className) != classes_.end();
 }
 
-void UnifiedModuleManager::registerClass(const std::string & className) {
+void UnifiedModuleManager::registerClass(const std::string & className, const std::string & scopeName) {
+    if (classes_.find(className) != classes_.end()) {
+        throw std::runtime_error("Class already registered: " + className);
+    }
+    if (className.empty()) {
+        throw std::runtime_error("Class name cannot be empty");
+    }
+    if (scopeName.empty()) {
+        throw std::runtime_error("Scope name cannot be empty");
+    }
+
     classes_[className].info   = ClassInfo();
     classes_[className].module = currentModule_;
+    classes_[className].scope   = scopeName;
 }
 
 ClassInfo & UnifiedModuleManager::getClassInfo(const std::string & className) {

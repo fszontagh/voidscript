@@ -50,21 +50,3 @@ function getInt() int {
 }
 test1 $testclass = new test1();
 
-// create an instance of the class with required constructor arguments
-test1 $testclass = new test1("John", 10);
-
-int $z = getInt();
-
-printnl("Z: ", $z);
-
-if ($testclass->isAdult() == false) {
-    printnl($testclass->getName(), " is not adult.. incrementing the age");
-    int $new_age = $testclass->incrementAge(1);
-    printnl("New age would be: ", $testclass->incrementAge(1));
-}
-
-if ($testclass->isAdult()) {
-    printnl($testclass->getName(), " is adult ", $testclass->getAge());
-} else {
-    printnl($testclass->getName(), " is not adult ", $testclass->getAge());
-}

@@ -92,7 +92,7 @@ class UnifiedModuleManager {
 
     // --- Class registration ---
     bool        hasClass(const std::string & className) const;
-    void        registerClass(const std::string & className);
+    void        registerClass(const std::string & className, const std::string & scopeName);
     ClassInfo & getClassInfo(const std::string & className);
     void addProperty(const std::string & className, const std::string & propertyName, Symbols::Variables::Type type,
                      Parser::ParsedExpressionPtr defaultValueExpr = nullptr);
@@ -192,6 +192,7 @@ class UnifiedModuleManager {
 
     struct ClassEntry : public RegistryEntry {
         ClassInfo info;
+        std::string scope;
     };
 
     // --- Registries ---
@@ -213,7 +214,7 @@ class UnifiedModuleManager {
             FunctionDoc{ fnName, retType, paramListVec, docStr });                  \
     } while (0)
 
-#define REGISTER_CLASS(className) UnifiedModuleManager::instance().registerClass(className)
+#define REGISTER_CLASS(className) UnifiedModuleManager::instance().registerClass(className, Modules::UnifiedModuleManager::instance().getCurrentModule()->name())
 
 #define REGISTER_METHOD(className, methodName, paramList, callback, retType, docStr)                      \
     do {                                                                                                  \

@@ -316,7 +316,7 @@ class SymbolContainer {
         if (value == Variables::Type::OBJECT) {
             Symbols::ObjectMap objMap = value;
             for (const auto & [key, childVal] : objMap) {
-                result += std::string(indent, '\t') + "- " + key + ": '" + childVal.get<std::string>() + "'\n";
+                result += std::string(indent, '\t') + "- " + key + ": '" + childVal.toString() + "'\n";
                 dumpValue(childVal, result, indent + 1);
             }
         }

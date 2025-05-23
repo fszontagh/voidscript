@@ -18,32 +18,33 @@ namespace Interpreter {
  */
 class ClassDefinitionStatementNode : public StatementNode {
     std::string                                   className_;
+    std::string                                   classNs_;
     std::vector<Modules::ClassInfo::PropertyInfo> privateProperties_;
     std::vector<Modules::ClassInfo::PropertyInfo> publicProperties_;
     std::vector<std::string>                      methodNames_;
-    std::string                                   constructorName_; // Added
+    std::string                                   constructorName_;  // Added
 
   public:
-    ClassDefinitionStatementNode(const std::string &                           className,
+    ClassDefinitionStatementNode(const std::string & className, const std::string & classNs,
                                  std::vector<Modules::ClassInfo::PropertyInfo> privateProps,
                                  std::vector<Modules::ClassInfo::PropertyInfo> publicProps,
-                                 std::vector<std::string> methods, 
-                                 const std::string& constructorName, // Added
-                                 const std::string & filename, int line,
-                                 size_t column) :
+                                 std::vector<std::string>                      methods,
+                                 const std::string &                           constructorName,  // Added
+                                 const std::string & filename, int line, size_t column) :
         StatementNode(filename, line, column),
         className_(className),
+        classNs_(classNs),
         privateProperties_(std::move(privateProps)),
         publicProperties_(std::move(publicProps)),
         methodNames_(std::move(methods)),
-        constructorName_(constructorName) {} // Added
+        constructorName_(constructorName) {}  // Added
 
     void interpret(Interpreter & interpreter) const override {
         auto * sc       = Symbols::SymbolContainer::instance();
         // Register class and its members in class registry
         auto & registry = Modules::UnifiedModuleManager::instance();
         // Register the class itself
-        registry.registerClass(className_);
+        registry.registerClass(className_, sc->currentScopeName());
         // Register private and public properties (privacy not enforced yet)
         for (const auto & prop : privateProperties_) {
             registry.addProperty(className_, prop.name, prop.type, prop.defaultValueExpr);

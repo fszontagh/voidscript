@@ -40,7 +40,8 @@ enum class Type : std::uint8_t {
     KEYWORD_PRIVATE,
     KEYWORD_PUBLIC,
     KEYWORD_NEW,
-    UNKNOWN  // Ismeretlen karakter/szekvencia
+    KEYWORD_THIS,
+    UNKNOWN  // Unknown token type
 };
 
 inline std::string TypeToString(Lexer::Tokens::Type type) {

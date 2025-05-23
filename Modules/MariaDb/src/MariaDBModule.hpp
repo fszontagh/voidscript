@@ -13,8 +13,10 @@ namespace Modules {
 class MariaDBModule : public BaseModule {
   public:
     void registerModule() override;
-
+    MariaDBModule() { this->setModuleName("MariaDB"); }
+    ~MariaDBModule() override = default;
   private:
+    
     // Methods exposed for MariaDB class
     Symbols::ValuePtr connect(FunctionArguments & args);
     Symbols::ValuePtr query(FunctionArguments & args);
