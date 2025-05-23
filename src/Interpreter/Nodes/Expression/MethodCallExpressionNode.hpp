@@ -125,21 +125,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 returnValue = interpreter.executeMethod(objVal, methodName_, evaluatedArgs);
                 
                 // Clean up
-                interpreter.clearThisObject();
-                
-                // Handle return value type conversion if needed
-                if (returnValue->getType() != Symbols::Variables::Type::BOOLEAN && 
-                    classInfo.methods[methodName_].returnType == Symbols::Variables::Type::BOOLEAN) {
-                    // Convert to boolean
-                    try {
-                        bool boolValue = static_cast<bool>(returnValue);
-                        return Symbols::ValuePtr(boolValue);
-                    } catch (const std::exception&) {
-                        // If conversion fails, return false
-                        return Symbols::ValuePtr(false);
-                    }
-                }
-                
+                interpreter.clearThisObject();                
                 return returnValue;
             }
             

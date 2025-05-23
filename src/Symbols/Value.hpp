@@ -70,6 +70,13 @@ class Value {
     Symbols::Variables::Type getType() const;
     std::string              toString() const;
 
+    std::string getDebugStateString() const {
+        std::string type_str = Symbols::Variables::TypeToString(this->type_);
+        std::string null_str = this->is_null ? "true" : "false";
+        std::string data_valid_str = this->data_ ? "true" : "false";
+        return "type='" + type_str + "', is_null='" + null_str + "', data_ptr_valid='" + data_valid_str + "'";
+    }
+
     // Templated methods remain in the header
     template <typename T> const T & get() const {
         if (type_id_ != typeid(T)) {

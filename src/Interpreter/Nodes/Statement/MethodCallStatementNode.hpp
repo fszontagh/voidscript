@@ -48,8 +48,7 @@ public:
 
             // Get the target object from the symbol container in the current scope
             auto* sc = Symbols::SymbolContainer::instance();
-            auto currentScope = sc->currentScopeName();
-            auto sym = sc->get(currentScope, targetObject_);
+            auto sym = sc->get(sc->currentScopeName(), targetObject_);
             if (!sym) {
                 throw Exception("Object not found: " + targetObject_, filename_, line_, column_);
             }
@@ -69,8 +68,8 @@ public:
             }
             std::string className = it->second.get<std::string>();
 
-            // Build the full class scope name
-            const std::string class_scope_name = currentScope + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
+            // Build the full class scope name using the file scope
+            const std::string class_scope_name = filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
 
             // Look up method in class scope
             auto class_scope_table = sc->getScopeTable(class_scope_name);

@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_NEW_EXPRESSION_NODE_HPP
 #define INTERPRETER_NEW_EXPRESSION_NODE_HPP
 
+#include <iostream> // Required for std::cerr
 #include <memory>
 #include <string>
 #include <vector>
