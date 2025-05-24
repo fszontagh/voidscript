@@ -13,7 +13,6 @@ if (!module_exists("modules-xml2")) {
     throw_error("Xml2 module not found");
 }
 
-module_print_info("modules-xml2");
 Xml2 $xml = new Xml2();
 
 $xml->readMemory($xml_test_string);

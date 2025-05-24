@@ -14,7 +14,7 @@ void Modules::XmlModule::registerModule() {
 
     // Register methods for Xml2 class
     std::vector<Modules::FunctParameterInfo> params = {
-        { "filename", Symbols::Variables::Type::STRING }
+        { "filename", Symbols::Variables::Type::STRING, "The path to the XML file to read" }
     };
 
     REGISTER_METHOD(
@@ -23,7 +23,7 @@ void Modules::XmlModule::registerModule() {
         Symbols::Variables::Type::CLASS, "Read XML from a file");
 
     params = {
-        { "string", Symbols::Variables::Type::STRING }
+        { "string", Symbols::Variables::Type::STRING, "The XML content as a string to parse" }
     };
 
     REGISTER_METHOD(

@@ -49,13 +49,7 @@ class CallExpressionNode : public ExpressionNode {
                 argValues.push_back(expr->evaluate(interpreter, filename_, line_, column_));
             }
 
-            // Built-in function
-            auto & registry = Symbols::ClassRegistry::instance();
-            if (registry.getClassContainer().hasMethod("", functionName_)) {
-                return registry.getClassContainer().callMethod("", functionName_, argValues);
-            }
-
-            // Module functions via UnifiedModuleManager
+            // Check for module functions via UnifiedModuleManager first
             auto & moduleManager = Modules::UnifiedModuleManager::instance();
             if (moduleManager.hasFunction(functionName_)) {
                 return moduleManager.callFunction(functionName_, argValues);

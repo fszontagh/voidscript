@@ -32,8 +32,8 @@ void Modules::ImagickModule::registerModule() {
         Symbols::Variables::Type::NULL_TYPE, "Extracts a region of the image");
 
     params = {
-        { "width",  Symbols::Variables::Type::INTEGER },
-        { "height", Symbols::Variables::Type::INTEGER }
+        { "width",  Symbols::Variables::Type::INTEGER, "The new width of the image" },
+        { "height", Symbols::Variables::Type::INTEGER, "The new height of the image" }
     };
 
     REGISTER_METHOD(
@@ -49,8 +49,8 @@ void Modules::ImagickModule::registerModule() {
     //        Symbols::Variables::Type::NULL_TYPE, "Change image mode");
 
     params = {
-        { "radius", Symbols::Variables::Type::DOUBLE },
-        { "sigma",  Symbols::Variables::Type::DOUBLE },
+        { "radius", Symbols::Variables::Type::DOUBLE, "The blur radius" },
+        { "sigma",  Symbols::Variables::Type::DOUBLE, "The standard deviation of the blur" },
     };
 
     REGISTER_METHOD(
@@ -58,12 +58,16 @@ void Modules::ImagickModule::registerModule() {
         Symbols::Variables::Type::NULL_TYPE, "Blur an image");
 
     params = {
-        { "degrees", Symbols::Variables::Type::DOUBLE },
+        { "degrees", Symbols::Variables::Type::DOUBLE, "The angle in degrees to rotate the image" },
     };
 
     REGISTER_METHOD(
         this->name(), "rotate", params, [this](const FunctionArguments & args) { return this->rotate(args); },
         Symbols::Variables::Type::NULL_TYPE, "Rotate image");
+
+    params = {
+        { "direction", Symbols::Variables::Type::STRING, "The direction to flip the image (horizontal or vertical)" },
+    };
 
     REGISTER_METHOD(
         this->name(), "flip", params, [this](const FunctionArguments & args) { return this->flip(args); },

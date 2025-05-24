@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Symbols/ClassRegistry.hpp"
+
 #if defined(_WIN32) || defined(_WIN64)
 #    include <windows.h>
 #else
@@ -23,9 +25,9 @@
 
 #include "BaseModule.hpp"
 #include "Parser/ParsedExpression.hpp"
+#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
-#include "Symbols/ClassRegistry.hpp"
 
 namespace Modules {
 
@@ -67,7 +69,7 @@ struct ClassInfo {
 
     std::vector<Modules::ClassInfo::PropertyInfo>      properties;
     std::vector<std::string>                           methodNames;
-    std::string                                        constructorName; // Added
+    std::string                                        constructorName;   // Added
     std::unordered_map<std::string, Symbols::ValuePtr> objectProperties;  // Store object-specific properties
 };
 
@@ -96,12 +98,11 @@ class UnifiedModuleManager {
     Symbols::ValuePtr        getFunctionNullValue(const std::string & name);
 
     // --- Method registration (separate from functions) ---
-    void                     registerMethod(const std::string & className, const std::string & methodName, 
-                                            CallbackFunction cb,
-                                            const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
-    bool                     hasMethod(const std::string & className, const std::string & methodName) const;
-    Symbols::ValuePtr        callMethod(const std::string & className, const std::string & methodName, 
-                                        FunctionArguments & args) const;
+    void              registerMethod(const std::string & className, const std::string & methodName, CallbackFunction cb,
+                                     const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
+    bool              hasMethod(const std::string & className, const std::string & methodName) const;
+    Symbols::ValuePtr callMethod(const std::string & className, const std::string & methodName,
+                                 FunctionArguments & args) const;
     Symbols::Variables::Type getMethodReturnType(const std::string & className, const std::string & methodName);
     std::vector<std::string> getMethodNames(const std::string & className) const;
 
@@ -116,7 +117,7 @@ class UnifiedModuleManager {
                    std::function<Symbols::ValuePtr(const std::vector<Symbols::ValuePtr> &)> cb,
                    const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
     // Added setConstructor
-    void setConstructor(const std::string& className, const std::string& constructorName);
+    void setConstructor(const std::string & className, const std::string & constructorName);
     bool hasProperty(const std::string & className, const std::string & propertyName) const;
     std::vector<std::string> getClassNames() const;
 
@@ -137,6 +138,8 @@ class UnifiedModuleManager {
 
     // --- Utility functions ---
     std::vector<std::string>  getFunctionNamesForModule(BaseModule * module) const;
+    std::vector<std::string>  getMethodNamesForModules(BaseModule * module) const;
+    std::vector<std::string>  getMethodNamesForModuleClasses(BaseModule * module, const std::string &className) const;
     std::vector<std::string>  getPluginPaths() const;
     std::vector<BaseModule *> getPluginModules() const;
     BaseModule *              getCurrentModule() const;
@@ -210,14 +213,14 @@ class UnifiedModuleManager {
     };
 
     struct ClassEntry : public RegistryEntry {
-        ClassInfo info;
+        ClassInfo   info;
         std::string scope;
     };
 
     // --- Registries ---
     std::unordered_map<std::string, FunctionEntry> functions_;
     std::unordered_map<std::string, ClassEntry>    classes_;
-    
+
     // Separate storage for methods (qualified name -> method info)
     std::unordered_map<std::string, FunctionEntry> methods_;
 
@@ -228,31 +231,36 @@ class UnifiedModuleManager {
 
 }  // namespace Modules
 
-#define REGISTER_FUNCTION(fnName, retType, paramListVec, docStr, lambda)            \
+#define REGISTER_FUNCTION(fnName, retType, paramListVec, docStr, callback)         \
     do {                                                                            \
-        UnifiedModuleManager::instance().registerFunction(fnName, lambda, retType); \
+        UnifiedModuleManager::instance().registerFunction(fnName, callback, retType); \
         UnifiedModuleManager::instance().registerDoc(                               \
             Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),   \
             FunctionDoc{ fnName, retType, paramListVec, docStr });                  \
+        /* Note: Functions are standalone and should NOT be registered as methods */ \
+        /* with empty class names in ClassRegistry. Functions are handled by */     \
+        /* UnifiedModuleManager, methods are handled by ClassRegistry separately */ \
     } while (0)
 
-#define REGISTER_CLASS(className) \
-    do { \
-        /* Check if the class is already registered in ClassRegistry */ \
-        if (!Symbols::ClassRegistry::instance().hasClass(className)) { \
-            /* Register in ClassRegistry */ \
-            Symbols::ClassRegistry::instance().registerClass(className, Modules::UnifiedModuleManager::instance().getCurrentModule()); \
-        } \
-        /* Register in UnifiedModuleManager for backward compatibility */ \
+#define REGISTER_CLASS(className)                                                                            \
+    do {                                                                                                     \
+        /* Check if the class is already registered in ClassRegistry */                                      \
+        if (!Symbols::ClassRegistry::instance().hasClass(className)) {                                       \
+            /* Register in ClassRegistry */                                                                  \
+            Symbols::ClassRegistry::instance().registerClass(                                                \
+                className, Modules::UnifiedModuleManager::instance().getCurrentModule());                    \
+        }                                                                                                    \
+        /* Register in UnifiedModuleManager for backward compatibility */                                    \
         /* Note: This will update the class in UnifiedModuleManager if it already exists in ClassRegistry */ \
-        UnifiedModuleManager::instance().registerClass(className, Modules::UnifiedModuleManager::instance().getCurrentModule()->name()); \
+        UnifiedModuleManager::instance().registerClass(                                                      \
+            className, Modules::UnifiedModuleManager::instance().getCurrentModule()->name());                \
     } while (0)
 
 #define REGISTER_METHOD(className, methodName, paramList, callback, retType, docStr)                      \
     do {                                                                                                  \
         std::string fullMethodName =                                                                      \
             std::string(className) + Symbols::SymbolContainer::SCOPE_SEPARATOR + std::string(methodName); \
-        UnifiedModuleManager::instance().registerMethod(className, methodName, callback, retType);       \
+        UnifiedModuleManager::instance().registerMethod(className, methodName, callback, retType);        \
         UnifiedModuleManager::instance().addMethod(className, methodName, callback, retType);             \
         UnifiedModuleManager::instance().registerDoc(                                                     \
             Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),                         \

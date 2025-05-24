@@ -70,7 +70,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             }
             
             // Object type check and handling
-            if (objVal->getType() == Symbols::Variables::Type::CLASS || objVal->getType() == Symbols::Variables::Type::OBJECT) {
+            if (objVal->getType() == Symbols::Variables::Type::CLASS) {
                 
                 // Get object properties
                 const Symbols::ObjectMap& classObj = objVal->get<Symbols::ObjectMap>();
