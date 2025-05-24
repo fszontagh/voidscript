@@ -5,7 +5,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Modules/BaseModule.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {
@@ -15,7 +16,9 @@ namespace Modules {
  */
 class HeaderModule : public BaseModule {
   public:
-    void registerModule() override {
+    HeaderModule() { setModuleName("Header"); }
+    
+    void registerFunctions() override {
         std::vector<FunctParameterInfo> params = {
             { "key",   Symbols::Variables::Type::STRING, "HTTP header key"   },
             { "value", Symbols::Variables::Type::STRING, "HTTP header value" }

@@ -84,9 +84,9 @@ When updating existing modules:
 ### Modules
 - [x] Update `PrintModule.hpp` to use the new registration system
 - [x] Update `ModuleHelperModule.hpp` and `ModuleHelperModule.cpp` to use `SymbolContainer`
-- [ ] Update `JsonModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
-- [ ] Update `StringModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
-- [ ] Update `HeaderModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
+- [x] Update `JsonModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
+- [x] Update `StringModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
+- [x] Update `HeaderModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
 - [ ] Update `ArrayModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
 - [ ] Update `FileModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
 - [ ] Update `VariableHelpersModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`

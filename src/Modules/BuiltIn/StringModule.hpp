@@ -4,7 +4,7 @@
 #include <string>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {
@@ -13,7 +13,7 @@ class StringModule : public BaseModule {
   public:
     StringModule() { setModuleName("String"); }
 
-    void registerModule() override {
+    void registerFunctions() override {
         // string_length
         std::vector<FunctParameterInfo> param_list = {
             { "string", Symbols::Variables::Type::STRING, "The string to calculate the length of" }
