@@ -7,6 +7,7 @@
 
 #include "Modules/UnifiedModuleManager.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -31,7 +32,8 @@ const std::vector<Modules::FunctParameterInfo> & UnifiedModuleManager::getMethod
         return classes_.at(className).info.methods.at(methodName).parameters;
     }
     
-    // If not found, return empty parameters
+    // For new method storage, we need to store parameters separately or in documentation
+    // For now, return empty parameters
     static std::vector<FunctParameterInfo> empty;
     return empty;
     
@@ -151,6 +153,46 @@ Symbols::ValuePtr UnifiedModuleManager::getFunctionNullValue(const std::string &
     return Symbols::ValuePtr::null(it->second.returnType);
 }
 
+// --- Method registration (separate from functions) ---
+void UnifiedModuleManager::registerMethod(const std::string & className, const std::string & methodName, 
+                                          CallbackFunction cb, const Symbols::Variables::Type & returnType) {
+    const std::string qualifiedName = createQualifiedMethodName(className, methodName);
+    // Allow overriding existing methods instead of throwing an error
+    methods_[qualifiedName].callback   = std::make_shared<CallbackFunction>(std::move(cb));
+    methods_[qualifiedName].returnType = returnType;
+    methods_[qualifiedName].module     = currentModule_;
+}
+
+Symbols::ValuePtr UnifiedModuleManager::callMethod(const std::string & className, const std::string & methodName, 
+                                                   FunctionArguments & args) const {
+    const std::string qualifiedName = createQualifiedMethodName(className, methodName);
+    const auto & entry = findOrThrow(methods_, qualifiedName, "Method not found");
+    return (*entry.callback)(args);
+}
+
+Symbols::Variables::Type UnifiedModuleManager::getMethodReturnType(const std::string & className, const std::string & methodName) {
+    const std::string qualifiedName = createQualifiedMethodName(className, methodName);
+    auto it = methods_.find(qualifiedName);
+    if (it == methods_.end()) {
+        return Symbols::Variables::Type::NULL_TYPE;
+    }
+    return it->second.returnType;
+}
+
+std::vector<std::string> UnifiedModuleManager::getMethodNames(const std::string & className) const {
+    std::vector<std::string> methodNames;
+    const std::string prefix = className + "::";
+    
+    for (const auto & [qualifiedName, entry] : methods_) {
+        if (qualifiedName.substr(0, prefix.length()) == prefix) {
+            std::string methodName = qualifiedName.substr(prefix.length());
+            methodNames.push_back(methodName);
+        }
+    }
+    
+    return methodNames;
+}
+
 // --- Class registration ---
 bool UnifiedModuleManager::hasClass(const std::string & className) const {
     // Delegate to ClassRegistry
@@ -204,8 +246,15 @@ void UnifiedModuleManager::addMethod(const std::string & className, const std::s
                                      const Symbols::Variables::Type & returnType) {
     // Create a copy of the callback before registering
     auto callback = std::move(cb);
-    this->registerFunction(methodName, callback, returnType);
-    findOrThrow(classes_, className, "Class not found").info.methodNames.push_back(methodName);
+    // Register method using the new method storage instead of function storage
+    this->registerMethod(className, methodName, callback, returnType);
+    
+    // Add to backward compatibility structure only if not already present
+    auto & classEntry = findOrThrow(classes_, className, "Class not found");
+    auto & methodNames = classEntry.info.methodNames;
+    if (std::find(methodNames.begin(), methodNames.end(), methodName) == methodNames.end()) {
+        methodNames.push_back(methodName);
+    }
 }
 
 void UnifiedModuleManager::setConstructor(const std::string& className, const std::string& constructorName) {
@@ -272,148 +321,6 @@ void UnifiedModuleManager::clearObjectProperties(const std::string & className) 
     classEntry.info.objectProperties.clear();
 }
 
-// --- Utility functions ---
-std::vector<std::string> UnifiedModuleManager::getFunctionNamesForModule(BaseModule * module) const {
-    std::vector<std::string> names;
-    for (const auto & pair : functions_) {
-        if (pair.second.module == module) {
-            names.push_back(pair.first);
-        }
-    }
-    return names;
-}
-
-std::vector<std::string> UnifiedModuleManager::getPluginPaths() const {
-    std::vector<std::string> paths;
-    paths.reserve(plugins_.size());
-    for (const auto & plugin : plugins_) {
-        paths.push_back(plugin.path);
-    }
-    return paths;
-}
-
-std::vector<BaseModule *> UnifiedModuleManager::getPluginModules() const {
-    std::vector<BaseModule *> modules;
-    modules.reserve(plugins_.size());
-    for (const auto & plugin : plugins_) {
-        modules.push_back(plugin.module);
-    }
-    return modules;
-}
-
-BaseModule * UnifiedModuleManager::getCurrentModule() const {
-    return currentModule_;
-}
-
-std::string UnifiedModuleManager::getCurrentModuleName() const {
-    return currentModule_ ? currentModule_->name() : "";
-}
-
-// --- Documentation helpers ---
-void UnifiedModuleManager::writeDoc(std::ofstream & file, const std::string & name, const RegistryEntry & entry,
-                                    const std::string & prefix, const Symbols::Variables::Type & returnType) const {
-    file << prefix << name << "\n";
-    file << "Return Type: " << Symbols::Variables::TypeToString(returnType) << "\n\n";
-
-    if (!entry.doc.description.empty()) {
-        file << "Description: " << entry.doc.description << "\n\n";
-    }
-
-    file << "Parameters:\n";
-    for (const auto & param : entry.doc.parameterList) {
-        file << "- `" << param.name << "`: " << Symbols::Variables::TypeToString(param.type) << " - "
-             << param.description << "\n";
-    }
-    file << "\n";
-}
-
-void UnifiedModuleManager::generateMarkdownDocs(const std::string & outputDir) const {
-    utils::create_directories(outputDir);
-
-    std::unordered_map<std::string, std::vector<std::string>> moduleFunctions;
-    std::unordered_map<std::string, std::vector<std::string>> moduleClasses;
-
-    // Collect functions and classes by module
-    for (const auto & [name, entry] : functions_) {
-        if (entry.module) {
-            std::string moduleName = normalizeModuleName(entry.module->name());
-            moduleFunctions[moduleName].push_back(name);
-        }
-    }
-
-    for (const auto & [name, entry] : classes_) {
-        if (entry.module) {
-            std::string moduleName = normalizeModuleName(entry.module->name());
-            moduleClasses[moduleName].push_back(name);
-        }
-    }
-
-    // Generate documentation for each module
-    for (const auto & [moduleName, functionNames] : moduleFunctions) {
-        std::string filename = outputDir + "/" + moduleName + ".md";
-
-        std::ofstream file(filename);
-        if (!file.is_open()) {
-            continue;
-        }
-
-        file << "# Module: " << moduleName << "\n\n";
-
-        // Write function documentation
-        for (const auto & name : functionNames) {
-            auto it = functions_.find(name);
-            if (it == functions_.end()) {
-                continue;
-            }
-            writeDoc(file, name, it->second, "## Function: ", it->second.returnType);
-        }
-
-        // Write class documentation
-        for (const auto & className : moduleClasses[moduleName]) {
-            auto classIt = classes_.find(className);
-            if (classIt == classes_.end()) {
-                continue;
-            }
-
-            const auto & classEntry = classIt->second;
-            file << "## Class: " << className << "\n";
-
-            // Write properties
-            for (const auto & prop : classEntry.info.properties) {
-                file << "### Property: " << prop.name << "\n";
-                file << "Type: " << Symbols::Variables::TypeToString(prop.type) << "\n\n";
-            }
-
-            // Write methods
-            for (const auto & methodName : classEntry.info.methodNames) {
-                auto methodIt = functions_.find(methodName);
-                if (methodIt == functions_.end()) {
-                    continue;
-                }
-                writeDoc(file, methodName, methodIt->second, "### Method: ", methodIt->second.returnType);
-            }
-        }
-
-        file.close();
-    }
-}
-
-// --- Macro compatibility: getClassModule ---
-BaseModule * UnifiedModuleManager::getClassModule(const std::string & clsname) const {
-    // First try to get the module from ClassRegistry via its container
-    try {
-        auto& container = Symbols::ClassRegistry::instance().getClassContainer();
-        return container.getClassModule(clsname);
-    } catch (const std::exception&) {
-        // If that fails, fall back to our legacy behavior
-        auto it = functions_.find(clsname);
-        if (it != functions_.end()) {
-            return it->second.module;
-        }
-        return nullptr;
-    }
-}
-
 // --- Destructor ---
 UnifiedModuleManager::~UnifiedModuleManager() {
     plugins_.clear();
@@ -444,7 +351,13 @@ std::vector<std::string> UnifiedModuleManager::getClassNames() const {
 }
 
 bool UnifiedModuleManager::hasMethod(const std::string & className, const std::string & methodName) const {
-    // Use our backward compatibility structure
+    // First check the new separate method storage
+    const std::string qualifiedName = createQualifiedMethodName(className, methodName);
+    if (methods_.find(qualifiedName) != methods_.end()) {
+        return true;
+    }
+    
+    // Fall back to backward compatibility structure for existing methods
     auto it = classes_.find(className);
     if (it == classes_.end()) {
         return false;
@@ -456,8 +369,6 @@ bool UnifiedModuleManager::hasMethod(const std::string & className, const std::s
         }
     }
     
-    // ClassRegistry doesn't provide a direct way to check for methods
-    // so we can't delegate this call
     return false;
 }
 
@@ -475,4 +386,65 @@ bool UnifiedModuleManager::hasProperty(const std::string & className, const std:
     }
     
     return false;
+}
+
+// --- Missing function implementations ---
+
+BaseModule * UnifiedModuleManager::getCurrentModule() const {
+    return currentModule_;
+}
+
+std::string UnifiedModuleManager::getCurrentModuleName() const {
+    return currentModule_ ? currentModule_->name() : "";
+}
+
+std::vector<std::string> UnifiedModuleManager::getFunctionNamesForModule(BaseModule * module) const {
+    std::vector<std::string> names;
+    
+    // Get function names from the functions_ map
+    for (const auto & [functionName, entry] : functions_) {
+        if (entry.module == module) {
+            names.push_back(functionName);
+        }
+    }
+    
+    // Get method names from the methods_ map for this module
+    for (const auto & [qualifiedMethodName, entry] : methods_) {
+        if (entry.module == module) {
+            names.push_back(qualifiedMethodName);
+        }
+    }
+    
+    return names;
+}
+
+BaseModule * UnifiedModuleManager::getClassModule(const std::string & className) const {
+    // Check the new class storage first
+    if (Symbols::ClassRegistry::instance().getClassContainer().hasClass(className)) {
+        return Symbols::ClassRegistry::instance().getClassContainer().getClassModule(className);
+    }
+    
+    // Fall back to backward compatibility structure
+    auto it = classes_.find(className);
+    if (it != classes_.end()) {
+        return it->second.module;
+    }
+    
+    return nullptr;
+}
+
+std::vector<BaseModule *> UnifiedModuleManager::getPluginModules() const {
+    std::vector<BaseModule *> modules;
+    for (const auto & plugin : plugins_) {
+        modules.push_back(plugin.module);
+    }
+    return modules;
+}
+
+std::vector<std::string> UnifiedModuleManager::getPluginPaths() const {
+    std::vector<std::string> paths;
+    for (const auto & plugin : plugins_) {
+        paths.push_back(plugin.path);
+    }
+    return paths;
 }

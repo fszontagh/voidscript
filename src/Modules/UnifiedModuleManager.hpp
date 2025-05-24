@@ -95,6 +95,16 @@ class UnifiedModuleManager {
     Symbols::Variables::Type getFunctionReturnType(const std::string & name);
     Symbols::ValuePtr        getFunctionNullValue(const std::string & name);
 
+    // --- Method registration (separate from functions) ---
+    void                     registerMethod(const std::string & className, const std::string & methodName, 
+                                            CallbackFunction cb,
+                                            const Symbols::Variables::Type & returnType = Symbols::Variables::Type::NULL_TYPE);
+    bool                     hasMethod(const std::string & className, const std::string & methodName) const;
+    Symbols::ValuePtr        callMethod(const std::string & className, const std::string & methodName, 
+                                        FunctionArguments & args) const;
+    Symbols::Variables::Type getMethodReturnType(const std::string & className, const std::string & methodName);
+    std::vector<std::string> getMethodNames(const std::string & className) const;
+
     // --- Class registration ---
     bool        hasClass(const std::string & className) const;
     void        registerClass(const std::string & className, const std::string & scopeName);
@@ -108,7 +118,6 @@ class UnifiedModuleManager {
     // Added setConstructor
     void setConstructor(const std::string& className, const std::string& constructorName);
     bool hasProperty(const std::string & className, const std::string & propertyName) const;
-    bool hasMethod(const std::string & className, const std::string & methodName) const;
     std::vector<std::string> getClassNames() const;
 
     // --- Object property management ---
@@ -173,6 +182,11 @@ class UnifiedModuleManager {
         return name;
     }
 
+    // Helper for creating qualified method names
+    static std::string createQualifiedMethodName(const std::string & className, const std::string & methodName) {
+        return className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName;
+    }
+
     // --- Module management ---
     struct PluginInfo {
         void *       handle;
@@ -203,6 +217,9 @@ class UnifiedModuleManager {
     // --- Registries ---
     std::unordered_map<std::string, FunctionEntry> functions_;
     std::unordered_map<std::string, ClassEntry>    classes_;
+    
+    // Separate storage for methods (qualified name -> method info)
+    std::unordered_map<std::string, FunctionEntry> methods_;
 
     // Helper for documentation generation
     void writeDoc(std::ofstream & file, const std::string & name, const RegistryEntry & entry,
@@ -235,7 +252,7 @@ class UnifiedModuleManager {
     do {                                                                                                  \
         std::string fullMethodName =                                                                      \
             std::string(className) + Symbols::SymbolContainer::SCOPE_SEPARATOR + std::string(methodName); \
-        UnifiedModuleManager::instance().registerFunction(fullMethodName, callback, retType);             \
+        UnifiedModuleManager::instance().registerMethod(className, methodName, callback, retType);       \
         UnifiedModuleManager::instance().addMethod(className, methodName, callback, retType);             \
         UnifiedModuleManager::instance().registerDoc(                                                     \
             Modules::UnifiedModuleManager::instance().getCurrentModule()->name(),                         \
