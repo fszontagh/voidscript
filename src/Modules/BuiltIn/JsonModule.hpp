@@ -8,7 +8,7 @@
 #include <variant>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
 
@@ -23,7 +23,7 @@ class JsonModule : public BaseModule {
   public:
     JsonModule() { setModuleName("Json"); }
 
-    void registerModule() override {
+    void registerFunctions() override {
         std::vector<FunctParameterInfo> params = {
             { "object", Symbols::Variables::Type::OBJECT, "The object / array to serialize" },
         };

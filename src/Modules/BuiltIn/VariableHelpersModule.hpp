@@ -6,7 +6,7 @@
 #include <string>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
 
@@ -22,7 +22,7 @@ class VariableHelpersModule : public BaseModule {
   public:
     VariableHelpersModule() { setModuleName("VariableHelpers"); }
 
-    void registerModule() override {
+    void registerFunctions() override {
         std::vector<FunctParameterInfo> param_list = {
             { "string", Symbols::Variables::Type::STRING, "The string to calculate the length of" },
             { "string", Symbols::Variables::Type::STRING, "The type to compare against", true }

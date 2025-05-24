@@ -12,7 +12,6 @@
 #include "Modules/BuiltIn/ArrayModule.hpp"
 #include "Modules/BuiltIn/FileModule.hpp"
 #include "Modules/BuiltIn/JsonModule.hpp"
-#include "Modules/BuiltIn/ModuleHelperModule.hpp"
 #include "Modules/BuiltIn/PrintModule.hpp"
 #include "Modules/BuiltIn/StringModule.hpp"
 #include "Modules/BuiltIn/VariableHelpersModule.hpp"
@@ -84,23 +83,34 @@ class VoidScript {
 
         // Register built-in modules (print, etc.)
         // print functions
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
+        auto printModule = std::make_unique<Modules::PrintModule>();
+        printModule->registerFunctions();
+        
         // variable helpers (typeof)
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::VariableHelpersModule>());
+        auto varHelpersModule = std::make_unique<Modules::VariableHelpersModule>();
+        varHelpersModule->registerFunctions();
+        
         // string helper functions
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::StringModule>());
+        auto stringModule = std::make_unique<Modules::StringModule>();
+        stringModule->registerFunctions();
+        
         // array helper functions (sizeof)
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ArrayModule>());
+        auto arrayModule = std::make_unique<Modules::ArrayModule>();
+        arrayModule->registerFunctions();
+        
         // file I/O builtin
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::FileModule>());
+        auto fileModule = std::make_unique<Modules::FileModule>();
+        fileModule->registerFunctions();
+        
         // JSON encode/decode builtin
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::JsonModule>());
+        auto jsonModule = std::make_unique<Modules::JsonModule>();
+        jsonModule->registerFunctions();
+        
 #ifdef FCGI
         // FastCGI header() function module
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::HeaderModule>());
+        auto headerModule = std::make_unique<Modules::HeaderModule>();
+        headerModule->registerFunctions();
 #endif
-        // Module helper builtin (list, exists, info for plugin modules)
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ModuleHelperModule>());
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
@@ -108,12 +118,8 @@ class VoidScript {
 
     int run() {
         try {
-            // Load plugin modules from 'modules' directory (case-insensitive)
-            Modules::UnifiedModuleManager::instance().loadPlugins("Modules");
-            Modules::UnifiedModuleManager::instance().loadPlugins("build/Modules");
-            Modules::UnifiedModuleManager::instance().loadPlugins(MODULES_FOLDER);
-            // Register all built-in and plugin modules before execution
-            Modules::UnifiedModuleManager::instance().registerAll();
+            // Plugin loading is now handled directly by the modules themselves
+            // Each module registers its functions with SymbolContainer
             while (!files.empty()) {
                 std::string       file         = files.back();
                 const std::string file_content = readFile(file);

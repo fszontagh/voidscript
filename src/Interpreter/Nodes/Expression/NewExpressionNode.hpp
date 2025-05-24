@@ -11,7 +11,7 @@
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
 #include "Parser/ParsedExpression.hpp"
-#include "Symbols/ClassRegistry.hpp"
+
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -45,21 +45,20 @@ class NewExpressionNode : public ExpressionNode {
     Symbols::ValuePtr evaluate(class Interpreter & interpreter, std::string filename = "", int line = 0,
                                size_t column = 0) const override {
         auto                                     sc            = Symbols::SymbolContainer::instance();
-        auto &                                   classRegistry = Symbols::ClassRegistry::instance();
         std::map<std::string, Symbols::ValuePtr> objProperties;
 
         // First try to find the class info with the name as provided
         std::string       fqClassName = className_;
-        bool              classFound  = classRegistry.hasClass(fqClassName);
+        bool              classFound  = sc->hasClass(fqClassName);
         const std::string classNs = sc->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + fqClassName;
 
         if (!classFound) {
             throw Exception("Class not found: " + className_, filename_, line_, column_);
         }
 
-        // Now get the class properties from class registry
+        // Now get the class properties from symbol container
         try {
-            const auto & classInfo = classRegistry.getClassContainer().getClassInfo(fqClassName);
+            const auto & classInfo = sc->getClassInfo(fqClassName);
 
             // Initialize properties with default values from class definition
             for (const auto & prop : classInfo.properties) {
@@ -139,22 +138,15 @@ class NewExpressionNode : public ExpressionNode {
         newObject["$class_name"] = Symbols::ValuePtr(className_);
 
         // Check if class has a constructor registered
-        Symbols::UnifiedClassContainer::ClassInfo moduleClassInfo;
-        bool                                      hasModuleClassInfo = false;
-        try {
-            moduleClassInfo    = classRegistry.getClassContainer().getClassInfo(fqClassName);
-            hasModuleClassInfo = true;
-        } catch (const std::exception & e) {
-            // Class might not be in class registry
-        }
-
-        if (hasModuleClassInfo) {
+        bool hasClassInfo = sc->hasClass(fqClassName);
+        
+        if (hasClassInfo) {
             // Check for common constructor method names
             std::vector<std::string> constructorNames = { "constructor", "construct", "__construct" };
             std::string              foundConstructor;
 
             for (const auto & constructorName : constructorNames) {
-                if (classRegistry.getClassContainer().hasMethod(fqClassName, constructorName)) {
+                if (sc->hasMethod(fqClassName, constructorName)) {
                     foundConstructor = constructorName;
                     break;
                 }

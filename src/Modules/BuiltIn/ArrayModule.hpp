@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
 
@@ -22,7 +22,7 @@ class ArrayModule : public BaseModule {
   public:
     ArrayModule() { setModuleName("Array"); }
 
-    void registerModule() override {
+    void registerFunctions() override {
         std::vector<FunctParameterInfo> params = {
             { "array", Symbols::Variables::Type::OBJECT, "The array/object to get the size of" }
         };

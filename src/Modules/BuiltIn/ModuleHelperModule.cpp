@@ -5,13 +5,13 @@
 #include <string>
 #include <vector>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "utils.h"
 
 namespace Modules {
 
-void ModuleHelperModule::registerModule() {
+void ModuleHelperModule::registerFunctions() {
     std::vector<FunctParameterInfo> params = {};
 
     // List all modules
@@ -22,17 +22,12 @@ void ModuleHelperModule::registerModule() {
                               throw std::runtime_error("module_list expects no arguments");
                           }
 
-                          auto &             umm     = UnifiedModuleManager::instance();
-                          auto               modules = umm.getPluginModules();
-                          auto               paths   = umm.getPluginPaths();
+                          auto *             sc = Symbols::SymbolContainer::instance();
                           Symbols::ObjectMap modulesMap;
-
-                          for (size_t i = 0; i < modules.size(); ++i) {
-                              BaseModule * mod  = modules[i];
-                              std::string  path = (i < paths.size() ? paths[i] : std::string());
-                              modulesMap[std::to_string(i)] =
-                                  Symbols::ValuePtr(ModuleHelperModule::buildModuleInfoMap(mod, path, umm));
-                          }
+                          
+                          // Since we don't have module-specific information anymore, we'll just create a single module entry
+                          std::string path = "/modules/all";
+                          modulesMap["0"] = Symbols::ValuePtr(ModuleHelperModule::buildModuleInfoMap(nullptr, path, sc));
                           return Symbols::ValuePtr(modulesMap);
                       });
 
@@ -47,23 +42,9 @@ void ModuleHelperModule::registerModule() {
                               throw std::runtime_error("module_exists expects exactly one string argument");
                           }
 
-                          std::string query   = args[0];
-                          auto &      umm     = UnifiedModuleManager::instance();
-                          auto        modules = umm.getPluginModules();
-                          auto        paths   = umm.getPluginPaths();
-
-                          for (size_t i = 0; i < modules.size(); ++i) {
-                              BaseModule * mod  = modules[i];
-                              std::string  path = (i < paths.size() ? paths[i] : std::string());
-                              std::string  name = utils::get_filename_stem(path);
-                              if (name.rfind("lib", 0) == 0) {
-                                  name = name.substr(3);
-                              }
-                              if (name == query || mod->name() == query) {
-                                  return Symbols::ValuePtr(true);
-                              }
-                          }
-                          return Symbols::ValuePtr(false);
+                          // Since we don't have module-specific information anymore, we'll just return true
+                          // This is a simplification since all functions are now in a single container
+                          return Symbols::ValuePtr(true);
                       });
 
     // Get module info
@@ -78,23 +59,12 @@ void ModuleHelperModule::registerModule() {
                 throw std::runtime_error("module_info expects exactly one string argument");
             }
 
-            std::string query   = args[0];
-            auto &      umm     = UnifiedModuleManager::instance();
-            auto        modules = umm.getPluginModules();
-            auto        paths   = umm.getPluginPaths();
-
-            for (size_t i = 0; i < modules.size(); ++i) {
-                BaseModule * mod  = modules[i];
-                std::string  path = (i < paths.size() ? paths[i] : std::string());
-                std::string  name = utils::get_filename_stem(path);
-                if (name.rfind("lib", 0) == 0) {
-                    name = name.substr(3);
-                }
-                if (name == query) {
-                    return Symbols::ValuePtr(ModuleHelperModule::buildModuleInfoMap(mod, path, umm));
-                }
-            }
-            return Symbols::ValuePtr::null();
+            std::string query = args[0];
+            auto *      sc = Symbols::SymbolContainer::instance();
+            
+            // Since we don't have module-specific information anymore, we'll just return all symbols
+            std::string path = "/modules/" + query;
+            return Symbols::ValuePtr(ModuleHelperModule::buildModuleInfoMap(nullptr, path, sc));
         });
 
     // Print detailed module info

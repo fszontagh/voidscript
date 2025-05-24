@@ -9,7 +9,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
-#include "Symbols/ClassRegistry.hpp"
+
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 #include "Symbols/Value.hpp"
@@ -84,51 +84,17 @@ class MethodCallExpressionNode : public ExpressionNode {
                 // Get the class name
                 std::string cn = className->second->get<std::string>();
                 
-                // Get class info from ClassRegistry or from SymbolContainer
-                auto& classRegistry = Symbols::ClassRegistry::instance();
+                // Get class info from SymbolContainer
+                auto& symbolContainer = Symbols::SymbolContainer::instance();
                 
-                // Check if class exists either in ClassRegistry or as a Class symbol
-                bool classFoundInClassRegistry = classRegistry.hasClass(cn);
+                // Check if class exists in SymbolContainer
+                if (!symbolContainer->hasClass(cn)) {
+                    throw std::runtime_error("Class " + cn + " not found");
+                }
                 
-                // If not found in class registry, check in SymbolContainer
-                if (!classFoundInClassRegistry) {
-                    // Build the class scope name using the file and class name
-                    // Get the current scope from SymbolContainer
-                    const std::string current_scope = Symbols::SymbolContainer::instance()->currentScopeName();
-                    const std::string class_scope_name = current_scope.empty() ? cn : current_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + cn;
-                    
-                    // Look up in SymbolContainer
-                    auto* sc = Symbols::SymbolContainer::instance();
-                    auto class_scope_table = sc->getScopeTable(class_scope_name);
-                    
-                    if (!class_scope_table) {
-                        // Try to look up the class without additional scope prefixing
-                        auto direct_class_table = sc->getScopeTable(cn);
-                        if (!direct_class_table) {
-                            throw std::runtime_error("Class " + cn + " not found in scope " + class_scope_name);
-                        }
-                        
-                        class_scope_table = direct_class_table;
-                    }
-                    
-                    // Check if method exists in class scope
-                    auto sym_method = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
-                    
-                    if (!sym_method || (sym_method->getKind() != Symbols::Kind::Function && 
-                                       sym_method->getKind() != Symbols::Kind::Method)) {
-                        throw std::runtime_error("Method '" + methodName_ + "' not found in class " + cn);
-                    }
-                    
-                    // Method found in SymbolContainer, proceed with execution
-                    
-                } else {
-                    // Get class info from ClassRegistry
-                    auto& classInfo = classRegistry.getClassContainer().getClassInfo(cn);
-                    
-                    // Check if method exists in ClassRegistry
-                    if (!classRegistry.getClassContainer().hasMethod(cn, methodName_)) {
-                        throw std::runtime_error("Method " + methodName_ + " not found in class");
-                    }
+                // Check if method exists in class
+                if (!symbolContainer->hasMethod(cn, methodName_)) {
+                    throw std::runtime_error("Method '" + methodName_ + "' not found in class " + cn);
                 }
                 
                 // Set up method context
@@ -148,51 +114,25 @@ class MethodCallExpressionNode : public ExpressionNode {
                     }
                 }
                 
-                // Regular method call
-                // First try ClassRegistry, then fallback to SymbolContainer
+                // Regular method call using SymbolContainer
                 try {
+                    // Use the interpreter's executeMethod which now uses SymbolContainer
                     returnValue = interpreter.executeMethod(objVal, methodName_, evaluatedArgs);
                 } catch (const std::exception& e) {
-                    // Method not found in ClassRegistry, try using SymbolContainer
-                    
-                    // Get the current scope from SymbolContainer
-                    const std::string current_scope = Symbols::SymbolContainer::instance()->currentScopeName();
-                    // Build the class scope names to try
-                    std::vector<std::string> class_scope_names;
-                    
-                    // First try: direct class name
-                    class_scope_names.push_back(cn);
-                    // Second try: current scope + class name
-                    if (!current_scope.empty()) {
-                        class_scope_names.push_back(current_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + cn);
-                    }
-                    // Third try: filename + class name (backward compatibility)
-                    if (!filename_.empty()) {
-                        class_scope_names.push_back(filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + cn);
-                    }
+                    // If executeMethod fails, we'll try a more direct approach
                     
                     // Get SymbolContainer instance
                     auto* sc = Symbols::SymbolContainer::instance();
-                    std::shared_ptr<Symbols::Symbol> sym_method = nullptr;
-                    std::string method_scope_name;
                     
-                    // Try each possible scope for the class
-                    for (const auto& scope_name : class_scope_names) {
-                        auto class_scope_table = sc->getScopeTable(scope_name);
-                        
-                        if (class_scope_table) {
-                            sym_method = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
-                            if (sym_method && (sym_method->getKind() == Symbols::Kind::Function || 
-                                             sym_method->getKind() == Symbols::Kind::Method)) {
-                                method_scope_name = scope_name;
-                                break;
-                            }
-                        }
-                    }
+                    // Get method information
+                    std::shared_ptr<Symbols::Symbol> sym_method = sc->getMethod(cn, methodName_);
                     
                     if (!sym_method) {
                         throw std::runtime_error("Method '" + methodName_ + "' not found in class " + cn);
                     }
+                    
+                    // Build the method scope name
+                    std::string method_scope_name = cn;
                     
                     // Execute the method directly through the interpreter
                     std::shared_ptr<Symbols::FunctionSymbol> funcSym;

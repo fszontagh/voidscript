@@ -9,8 +9,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/StatementNode.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
-#include "Symbols/ClassRegistry.hpp"
+
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -40,10 +39,10 @@ class CallStatementNode : public StatementNode {
                 argValues.push_back(expr->evaluate(interpreter));
             }
             
-            // Check for module functions via UnifiedModuleManager first
-            auto & moduleManager = Modules::UnifiedModuleManager::instance();
-            if (moduleManager.hasFunction(functionName_)) {
-                moduleManager.callFunction(functionName_, argValues);
+            // Check for module functions via SymbolContainer first
+            auto & symbolContainer = Symbols::SymbolContainer::instance();
+            if (symbolContainer->hasFunction(functionName_)) {
+                symbolContainer->callFunction(functionName_, argValues);
                 return;  // Function call statements don't return values
             }
             

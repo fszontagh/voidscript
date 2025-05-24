@@ -1,5 +1,4 @@
 #include "Symbols/ClassContainer.hpp"
-#include "Symbols/ClassContainerAdapter.hpp"
 
 static_assert(sizeof(Symbols::ClassContainer::ClassInfo) > 0, "ClassInfo is not visible after include!");
 
@@ -11,8 +10,8 @@ const std::vector<functionParameterType> ClassContainer::empty_parameters_ = {};
 
 ClassContainer* ClassContainer::instance() {
     if (!instance_) {
-        // Use the adapter to the new class system instead of the original implementation
-        instance_ = new ClassContainerAdapter();
+        // Create a new instance of ClassContainer
+        instance_ = new ClassContainer();
     }
     return instance_;
 }
