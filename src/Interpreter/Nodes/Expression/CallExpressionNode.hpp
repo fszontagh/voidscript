@@ -9,10 +9,8 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
-#include "Symbols/ClassRegistry.hpp"
-#include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolFactory.hpp"
 #include "Symbols/Value.hpp"
 
@@ -49,10 +47,10 @@ class CallExpressionNode : public ExpressionNode {
                 argValues.push_back(expr->evaluate(interpreter, filename_, line_, column_));
             }
 
-            // Check for module functions via UnifiedModuleManager first
-            auto & moduleManager = Modules::UnifiedModuleManager::instance();
-            if (moduleManager.hasFunction(functionName_)) {
-                return moduleManager.callFunction(functionName_, argValues);
+            // Check for module functions via SymbolContainer first
+            auto & symbolContainer = Symbols::SymbolContainer::instance();
+            if (symbolContainer->hasFunction(functionName_)) {
+                return symbolContainer->callFunction(functionName_, argValues);
             }
 
             // User-defined function: lookup through scope hierarchy

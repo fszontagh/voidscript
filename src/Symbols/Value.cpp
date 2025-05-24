@@ -1,6 +1,5 @@
 #include "Symbols/Value.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
-#include "Symbols/ClassRegistry.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/VariableTypes.hpp"
 
 #include <algorithm>
@@ -383,11 +382,11 @@ ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
     // Ensure all properties are initialized
     if (props.find("__class__") != props.end()) {
         std::string className = props["__class__"]->get<std::string>();
-        auto& registry = Symbols::ClassRegistry::instance();
+        auto& symbolContainer = Symbols::SymbolContainer::instance();
 
         // Initialize any missing properties with default values
-        if (registry.hasClass(className)) {
-            const auto& classInfo = registry.getClassContainer().getClassInfo(className);
+        if (symbolContainer->hasClass(className)) {
+            const auto& classInfo = symbolContainer->getClassInfo(className);
             for (const auto& propInfo : classInfo.properties) {
                 std::string instancePropName = propInfo.name;
                 // Ensure property name has $ prefix for instance properties

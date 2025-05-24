@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "Interpreter/ReturnException.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {
@@ -60,22 +60,22 @@ Symbols::ValuePtr Interpreter::executeMethod(const Symbols::ValuePtr & objectVal
     thisObject_ = objectValue;
 
     try {
-        // Get the method from the UnifiedModuleManager
-        auto & mgr = Modules::UnifiedModuleManager::instance();
+        // Get the method from the SymbolContainer
+        auto & symbolContainer = Symbols::SymbolContainer::instance();
 
-        if (!mgr.hasClass(className)) {
-            throw Exception("Class not found in UnifiedModuleManager: " + className, "-", 0, 0);
+        if (!symbolContainer->hasClass(className)) {
+            throw Exception("Class not found in SymbolContainer: " + className, "-", 0, 0);
         }
 
         std::string fullMethodName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName;
-        if (!mgr.hasMethod(className, fullMethodName)) {
+        if (!symbolContainer->hasMethod(className, methodName)) {
             throw Exception(
-                "Method '" + methodName + "' not found in class '" + className + "' using UnifiedModuleManager", "-", 0,
+                "Method '" + methodName + "' not found in class '" + className + "'", "-", 0,
                 0);
         }
 
         // Execute the method
-        auto result = mgr.callMethod(className, fullMethodName, args);
+        auto result = symbolContainer->callMethod(className, methodName, args);
         //auto result = mgr.callFunction(fullMethodName, const_cast<std::vector<Symbols::ValuePtr> &>(args));
 
         // Restore the previous "this" object

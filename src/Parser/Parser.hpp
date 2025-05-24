@@ -12,7 +12,7 @@
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
-#include "Symbols/ClassRegistry.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 namespace Parser {
 
