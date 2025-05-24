@@ -142,10 +142,10 @@ add_library(voidscript
             src/Symbols/ClassContainer.cpp
             src/Symbols/UnifiedClassContainer.cpp
             src/Symbols/ClassFactory.cpp
-            src/Symbols/ClassRegistry.cpp
-            src/Symbols/ClassContainerAdapter.cpp
+            # Removed: src/Symbols/ClassRegistry.cpp
+            # Removed: src/Symbols/ClassContainerAdapter.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
-            src/Modules/UnifiedModuleManager.cpp
+            # Removed: src/Modules/UnifiedModuleManager.cpp
             src/Interpreter/Interpreter.cpp
 )
 

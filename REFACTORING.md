@@ -92,9 +92,9 @@ When updating existing modules:
 - [x] Update `VariableHelpersModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
 
 ### Cleanup
-- [ ] Remove `ClassMigration.hpp` if no longer needed
-- [ ] Remove `ClassContainerAdapter.hpp` and `ClassContainerAdapter.cpp`
-- [ ] Update CMakeLists.txt to remove references to removed files
+- [x] Remove `ClassMigration.hpp` if no longer needed
+- [x] Remove `ClassContainerAdapter.hpp` and `ClassContainerAdapter.cpp`
+- [x] Update CMakeLists.txt to remove references to removed files
 
 ### Testing
 - [ ] Run all tests to ensure functionality is preserved
