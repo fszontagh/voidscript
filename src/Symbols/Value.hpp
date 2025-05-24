@@ -157,6 +157,14 @@ class ValuePtr {
 
     ValuePtr(const ObjectMap & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
+    // Constructor for class types
+    ValuePtr(const ObjectMap & v, bool isClass) : ptr_(std::make_shared<Value>()) { 
+        ptr_->set(v); 
+        if (isClass) {
+            ptr_->type_ = Variables::Type::CLASS;
+        }
+    }
+
     // Constructor from Value&& : Inlined. Captures type correctly.
     ValuePtr(Value && v) : ptr_(std::make_shared<Value>(std::move(v))) {
         // The moved-from 'v' is in an unspecified state.
@@ -185,6 +193,9 @@ class ValuePtr {
     static ValuePtr fromStringToDouble(const std::string & str);
     static ValuePtr fromStringToFloat(const std::string & str);
     static ValuePtr fromStringToBool(const std::string & str);
+    
+    // Convert an object to a class type
+    static ValuePtr asClass(const ValuePtr & obj);
 
     // Operators - Declarations for those moved, inline for trivial ones
     std::shared_ptr<Value>       operator->();
@@ -250,7 +261,8 @@ class ValuePtr {
                 case Variables::Type::STRING:
                     return !ptr_->get<std::string>().empty();
                 case Variables::Type::OBJECT:
-                    // For objects (like comparison results), treat as boolean
+                case Variables::Type::CLASS:
+                    // For objects and classes, treat as boolean
                     try {
                         // Try to get as bool first
                         return ptr_->get<bool>();
@@ -288,6 +300,7 @@ class ValuePtr {
             case Variables::Type::STRING:
                 return !ptr_->get<std::string>().empty();
             case Variables::Type::OBJECT:
+            case Variables::Type::CLASS:
                 try {
                     return ptr_->get<bool>();
                 } catch (const std::runtime_error&) {

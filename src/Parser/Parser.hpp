@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 
 #include "BaseException.hpp"
 #include "Interpreter/StatementNode.hpp"
@@ -11,6 +12,7 @@
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/ClassRegistry.hpp"
 
 namespace Parser {
 
@@ -65,6 +67,7 @@ class Parser {
     std::string_view                  input_str_view_;
     size_t                            current_token_index_;
     std::string                       current_filename_;
+    std::set<std::string>             parsed_class_names_;  // Track class names encountered during parsing
 
     // Validation functions
     void validateTokenStream();

@@ -154,6 +154,10 @@ class SymbolContainer {
                 return addVariable(symbol);
             case Symbols::Kind::Function:
                 return addFunction(symbol);
+            case Symbols::Kind::Method:
+                return addMethod(symbol);
+            case Symbols::Kind::Class:
+                return addClass(symbol);
             case Symbols::Kind::Constant:
                 return addConstant(symbol);
             default:
@@ -206,8 +210,8 @@ class SymbolContainer {
      * @return Namespace under which the method was defined
      */
     std::string addMethod(const SymbolPtr & method) {
-        if (method->getKind() != Symbols::Kind::Function) {
-            throw std::runtime_error("Symbol must be a function to use addMethod");
+        if (method->getKind() != Symbols::Kind::Function && method->getKind() != Symbols::Kind::Method) {
+            throw std::runtime_error("Symbol must be a function or method to use addMethod");
         }
         const std::string ns = METHOD_SCOPE;
         scopes_[currentScopeName()]->define(ns, method);
@@ -221,8 +225,8 @@ class SymbolContainer {
      * @return Namespace under which the method was defined
      */
     std::string addMethod(const SymbolPtr & method, const std::string & scopeName) {
-        if (method->getKind() != Symbols::Kind::Function) {
-            throw std::runtime_error("Symbol must be a function to use addMethod");
+        if (method->getKind() != Symbols::Kind::Function && method->getKind() != Symbols::Kind::Method) {
+            throw std::runtime_error("Symbol must be a function or method to use addMethod");
         }
         
         auto it = scopes_.find(scopeName);
@@ -302,6 +306,42 @@ class SymbolContainer {
         
         const std::string ns = DEFAULT_CONSTANTS_SCOPE;
         it->second->define(ns, constant);
+        return ns;
+    }
+
+    /**
+     * @brief Add a class definition to the current scope
+     * @param classSymbol The class symbol to add
+     * @return Namespace under which the class was defined
+     */
+    std::string addClass(const SymbolPtr & classSymbol) {
+        if (classSymbol->getKind() != Symbols::Kind::Class) {
+            throw std::runtime_error("Symbol must be a class to use addClass");
+        }
+        // Classes are stored in the default namespace
+        const std::string ns = DEFAULT_VARIABLES_SCOPE;
+        scopes_[currentScopeName()]->define(ns, classSymbol);
+        return ns;
+    }
+
+    /**
+     * @brief Add a class definition to a specific scope
+     * @param classSymbol The class symbol to add
+     * @param scopeName The name of the scope to define the class in
+     * @return Namespace under which the class was defined
+     */
+    std::string addClass(const SymbolPtr & classSymbol, const std::string & scopeName) {
+        if (classSymbol->getKind() != Symbols::Kind::Class) {
+            throw std::runtime_error("Symbol must be a class to use addClass");
+        }
+        
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            throw std::runtime_error("Cannot define class in non-existent scope: " + scopeName);
+        }
+        
+        const std::string ns = DEFAULT_VARIABLES_SCOPE;
+        it->second->define(ns, classSymbol);
         return ns;
     }
 

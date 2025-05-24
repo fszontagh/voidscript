@@ -1,5 +1,6 @@
 #include "Parser/Parser.hpp"
 
+#include <fstream>
 #include <sstream>
 #include <stack>
 
@@ -531,15 +532,20 @@ void Parser::parseClassDefinition() {
     // Use :: as namespace separator
     const std::string classNs = fileNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
 
-    // Register class name with fully qualified name so parseType can recognize it as CLASS
-    //Modules::UnifiedModuleManager::instance().registerClass(className, fileNs);
+    // Track this class name for parseType to recognize it as CLASS type
+    parsed_class_names_.insert(className);
+    parsed_class_names_.insert(classNs);  // Also add fully qualified name
+    
+    // Create a ClassSymbol in the symbol table
+    auto classSymbol = Symbols::SymbolFactory::createClass(className, fileNs);
+    Symbols::SymbolContainer::instance()->add(classSymbol);
 
     // Create class scope (automatically enters it)
     Symbols::SymbolContainer::instance()->create(classNs);
 
     // Gather class members (registration happens at interpretation)
-    std::vector<Modules::ClassInfo::PropertyInfo> privateProps;
-    std::vector<Modules::ClassInfo::PropertyInfo> publicProps;
+    std::vector<Symbols::UnifiedClassContainer::PropertyInfo> privateProps;
+    std::vector<Symbols::UnifiedClassContainer::PropertyInfo> publicProps;
     std::vector<std::string>                      methodNames;
 
     enum AccessLevel : std::uint8_t { PRIVATE, PUBLIC } currentAccess = PRIVATE;
@@ -591,7 +597,7 @@ void Parser::parseClassDefinition() {
                 defaultValue = parseParsedExpression(propType);
             }
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
-            Modules::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue) };
+            Symbols::UnifiedClassContainer::PropertyInfo info{ propName, propType, std::move(defaultValue) };
             if (currentAccess == PRIVATE) {
                 privateProps.push_back(std::move(info));
             } else {
@@ -621,7 +627,7 @@ void Parser::parseClassDefinition() {
                 defaultValue = parseParsedExpression(propType);
             }
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
-            Modules::ClassInfo::PropertyInfo info{ propName, propType, std::move(defaultValue) };
+            Symbols::UnifiedClassContainer::PropertyInfo info{ propName, propType, std::move(defaultValue) };
             if (currentAccess == PRIVATE) {
                 privateProps.push_back(std::move(info));
             } else {
@@ -683,7 +689,7 @@ void Parser::parseClassDefinition() {
     std::string constructorName;
     for (const auto & methodName : methodNames) {
         if (methodName == "construct") {
-            constructorName = classNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName;
+            constructorName = methodName;  // Store just the method name, not the full qualified name
             break;
         }
     }
@@ -832,10 +838,41 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
     innerParser.parseScript(filtered_tokens, input_string, this->current_filename_);
     // Exit the function scope
     Symbols::SymbolContainer::instance()->enterPreviousScope();
-    // Define the function symbol now that its body is recorded
+    // Check if this is a method (part of a class) or a regular function
+    std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
+    size_t lastSeparator = currentScope.find_last_of(Symbols::SymbolContainer::SCOPE_SEPARATOR);
+    
+    if (lastSeparator != std::string::npos) {
+        std::string possibleClassName = currentScope.substr(lastSeparator + 1);
+        std::string previousScope = currentScope.substr(0, lastSeparator);
+        
+        // Check if the parent scope contains a ClassSymbol with this name
+        auto maybeClassSymbol = Symbols::SymbolContainer::instance()->get(possibleClassName, previousScope);
+        if (maybeClassSymbol && maybeClassSymbol->getKind() == Symbols::Kind::Class) {
+            // This is a method, use MethodSymbol
+            auto methodSymbol = Symbols::SymbolFactory::createMethod(function_name, currentScope, 
+                                                                   possibleClassName, params,
+                                                                   std::string(input_string), return_type);
+            Symbols::SymbolContainer::instance()->add(methodSymbol);
+            
+            // Also register method in ClassRegistry if class exists there
+            try {
+                if (Symbols::ClassRegistry::instance().hasClass(possibleClassName)) {
+                    Symbols::ClassRegistry::instance().getClassContainer().addMethod(possibleClassName, function_name, return_type);
+                }
+            } catch (const std::exception& e) {
+                // Log the error but continue, as the method is already registered with SymbolContainer
+                std::cerr << "Warning: Could not register method with ClassRegistry: " << e.what() << std::endl;
+            }
+            
+            return; // Method is already defined, no need to call defineFunction
+        }
+    }
+    
+    // Regular function, use FunctionSymbol
     Interpreter::OperationsFactory::defineFunction(function_name, params, return_type,
-                                                   Symbols::SymbolContainer::instance()->currentScopeName(),
-                                                   this->current_filename_, openTok.line_number, openTok.column_number);
+                                                Symbols::SymbolContainer::instance()->currentScopeName(),
+                                                this->current_filename_, openTok.line_number, openTok.column_number);
 }
 
 ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type & expected_var_type) {
@@ -1315,18 +1352,28 @@ Symbols::Variables::Type Parser::parseType() {
         // Consume the identifier token
         consumeToken();
 
-        // Check if this name is a defined class - try both direct name and fully qualified name
-        auto & moduleManager = Modules::UnifiedModuleManager::instance();
-
-        // First try as is (might be a fully qualified name already)
-        if (moduleManager.hasClass(typeName)) {
+        // First check if this was a class name we parsed during this session
+        if (parsed_class_names_.find(typeName) != parsed_class_names_.end()) {
             return Symbols::Variables::Type::CLASS;
         }
 
         // Then try with current namespace prefix
         std::string currentNs  = Symbols::SymbolContainer::instance()->currentScopeName();
         std::string fqTypeName = currentNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + typeName;
-        if (moduleManager.hasClass(fqTypeName)) {
+        if (parsed_class_names_.find(fqTypeName) != parsed_class_names_.end()) {
+            return Symbols::Variables::Type::CLASS;
+        }
+
+        // Check if this name is a defined class in the class registry (for external classes)
+        auto & classRegistry = Symbols::ClassRegistry::instance();
+
+        // First try as is (might be a fully qualified name already)
+        if (classRegistry.hasClass(typeName)) {
+            return Symbols::Variables::Type::CLASS;
+        }
+
+        // Then try with current namespace prefix
+        if (classRegistry.hasClass(fqTypeName)) {
             return Symbols::Variables::Type::CLASS;
         }
 
@@ -1674,9 +1721,9 @@ void Parser::parseTopLevelStatement() {
     // Variable definition with a type keyword or a class name
     else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
               (token_type == Lexer::Tokens::Type::IDENTIFIER &&
-               (Modules::UnifiedModuleManager::instance().hasClass(token_val) ||
+               (Symbols::ClassRegistry::instance().hasClass(token_val) ||
                 // Try with namespace prefix as well
-                Modules::UnifiedModuleManager::instance().hasClass(
+                Symbols::ClassRegistry::instance().hasClass(
                     Symbols::SymbolContainer::instance()->currentScopeName() +
                     Symbols::SymbolContainer::SCOPE_SEPARATOR + token_val)))) &&
              peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {

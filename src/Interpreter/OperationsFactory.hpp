@@ -170,6 +170,28 @@ class OperationsFactory {
             ns, Operations::Operation{ Operations::Type::MethodCall, objectName + "->" + methodName, std::move(stmt) }
         );
     }
+
+    /**
+     * @brief Define a class method in the operations container
+     * 
+     * @param methodName Name of the method
+     * @param params Method parameters
+     * @param className Name of the class containing this method
+     * @param returnType Return type of the method
+     * @param ns Current namespace
+     * @param fileName Source file name
+     * @param line Line number
+     * @param column Column number
+     */
+    static void defineMethod(const std::string & methodName, const Symbols::FunctionParameterInfo & params,
+                           const std::string & className,
+                           const Symbols::Variables::Type & returnType, const std::string & ns,
+                           const std::string & fileName, int line, size_t column) {
+        std::unique_ptr<DeclareFunctionStatementNode> stmt = std::make_unique<DeclareFunctionStatementNode>(
+            methodName, ns, params, returnType, nullptr, fileName, line, column, className);
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::MethodDeclaration, methodName, std::move(stmt) });
+    }
 };
 
 }  // namespace Interpreter

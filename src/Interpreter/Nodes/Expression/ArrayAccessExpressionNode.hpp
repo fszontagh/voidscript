@@ -30,7 +30,7 @@ class ArrayAccessExpressionNode : public ExpressionNode {
                                size_t /*col */) const override {
         // Evaluate the container (object or array)
         Symbols::ValuePtr container = arrayExpr_->evaluate(interpreter, filename_, line_, column_);
-        if (container != Symbols::Variables::Type::OBJECT) {
+        if (container != Symbols::Variables::Type::OBJECT && container != Symbols::Variables::Type::CLASS) {
             throw Exception("Attempted to index non-array", filename_, line_, column_);
         }
         const auto & map    = container->get<Symbols::ObjectMap>();

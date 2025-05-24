@@ -87,8 +87,6 @@ class DeclareVariableStatementNode : public StatementNode {
                     value.getType() != Symbols::Variables::Type::NULL_TYPE) {
                     std::string expected = Symbols::Variables::TypeToString(variableType_);
                     std::string actual = Symbols::Variables::TypeToString(value.getType());
-                    std::cout << "DEBUG: DeclareVariableStatementNode: Type mismatch for " << variableName_ << ": expected " 
-                              << expected << ", got " << actual << std::endl;
                     throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
                                     "' but got '" + actual + "' in scope '" + current_runtime_scope_name + "'",
                                 filename_, line_, column_);
@@ -96,16 +94,8 @@ class DeclareVariableStatementNode : public StatementNode {
                 
                 // If it's an OBJECT from a 'new' expression, ensure we set the type to CLASS
                 if (value.getType() == Symbols::Variables::Type::OBJECT) {
-                    std::cout << "DEBUG: DeclareVariableStatementNode: Checking if OBJECT should be converted to CLASS for " 
-                              << variableName_ << std::endl;
                     auto& objMap = value.get<Symbols::ObjectMap>();
                     
-                    // Debug keys in the object map
-                    std::cout << "DEBUG: Object keys for " << variableName_ << ": ";
-                    for (const auto& entry : objMap) {
-                        std::cout << entry.first << ", ";
-                    }
-                    std::cout << std::endl;
                     
                     // Check for various class name fields
                     auto it = objMap.find("__class__");
@@ -115,8 +105,6 @@ class DeclareVariableStatementNode : public StatementNode {
                     
                     if (it != objMap.end() && it->second->getType() == Symbols::Variables::Type::STRING) {
                         // This is actually a class instance, but we need to create a new ValuePtr using makeClassInstance
-                        std::cout << "DEBUG: DeclareVariableStatementNode: Creating CLASS instance for " << variableName_ 
-                                  << " (class: " << it->second->get<std::string>() << ")" << std::endl;
                         
                         // Create a properly typed class instance
                         value = Symbols::ValuePtr::makeClassInstance(objMap);
@@ -132,7 +120,6 @@ class DeclareVariableStatementNode : public StatementNode {
 
             // Create a constant or variable symbol
             // The symbol's own context should be this current_runtime_scope_name
-            std::cerr << "[DEBUG DeclareVariableStatementNode] ValuePtr 'value' (before clone) for var '" << variableName_ << "'. State: " << value.toString() << std::endl;
             std::shared_ptr<Symbols::Symbol> symbol_to_define;
             if (isConst_) {
                 symbol_to_define =
@@ -143,7 +130,6 @@ class DeclareVariableStatementNode : public StatementNode {
                                                                           current_runtime_scope_name, variableType_);
                 sc->addVariable(symbol_to_define);
             }
-            std::cerr << "[DEBUG DeclareVariableStatementNode] ValuePtr in created symbol '" << variableName_ << "' (after clone). State: " << symbol_to_define->getValue().toString() << std::endl;
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

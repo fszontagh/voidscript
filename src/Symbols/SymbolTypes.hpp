@@ -13,7 +13,7 @@ namespace Symbols {
 
 using SymbolPtr = std::shared_ptr<Symbol>;
 
-// Namespace -> név -> szimbólum
+// Namespace -> name -> symbol
 using SymbolMap    = std::unordered_map<std::string, SymbolPtr>;
 using NamespaceMap = std::unordered_map<std::string, SymbolMap>;
 

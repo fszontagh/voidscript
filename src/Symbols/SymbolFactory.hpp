@@ -5,8 +5,10 @@
 #include <memory>
 #include <string>
 
+#include "ClassSymbol.hpp"
 #include "ConstantSymbol.hpp"
 #include "FunctionSymbol.hpp"
+#include "MethodSymbol.hpp"
 #include "VariableSymbol.hpp"
 
 namespace Symbols {
@@ -41,6 +43,37 @@ class SymbolFactory {
                                                   const Symbols::FunctionParameterInfo & parameters,
                                                   const std::string & plainBody, Symbols::Variables::Type returnType) {
         return std::make_shared<FunctionSymbol>(name, context, parameters, plainBody, returnType);
+    }
+
+    static std::shared_ptr<Symbol> createMethod(const std::string & name, 
+                                                 const std::string & context,
+                                                 const std::string & className,
+                                                 const Symbols::FunctionParameterInfo & parameters = {}) {
+        return std::make_shared<MethodSymbol>(name, context, className, parameters);
+    }
+
+    static std::shared_ptr<Symbol> createMethod(const std::string & name, 
+                                                 const std::string & context,
+                                                 const std::string & className,
+                                                 const Symbols::FunctionParameterInfo & parameters,
+                                                 const std::string & plainBody) {
+        return std::make_shared<MethodSymbol>(name, context, className, parameters, plainBody);
+    }
+
+    static std::shared_ptr<Symbol> createMethod(const std::string & name, 
+                                                 const std::string & context,
+                                                 const std::string & className,
+                                                 const Symbols::FunctionParameterInfo & parameters,
+                                                 const std::string & plainBody, 
+                                                 Symbols::Variables::Type returnType) {
+        return std::make_shared<MethodSymbol>(name, context, className, parameters, plainBody, returnType);
+    }
+
+    static std::shared_ptr<Symbol> createClass(const std::string & name, 
+                                                const std::string & context,
+                                                const std::string & parentClass = "",
+                                                bool isAbstract = false) {
+        return std::make_shared<ClassSymbol>(name, context, parentClass, isAbstract);
     }
 
     // Overloadok

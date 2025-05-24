@@ -9,6 +9,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
+#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/ClassRegistry.hpp"
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
@@ -52,6 +53,12 @@ class CallExpressionNode : public ExpressionNode {
             auto & registry = Symbols::ClassRegistry::instance();
             if (registry.getClassContainer().hasMethod("", functionName_)) {
                 return registry.getClassContainer().callMethod("", functionName_, argValues);
+            }
+
+            // Module functions via UnifiedModuleManager
+            auto & moduleManager = Modules::UnifiedModuleManager::instance();
+            if (moduleManager.hasFunction(functionName_)) {
+                return moduleManager.callFunction(functionName_, argValues);
             }
 
             // User-defined function: lookup through scope hierarchy

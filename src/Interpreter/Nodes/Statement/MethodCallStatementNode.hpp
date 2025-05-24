@@ -9,7 +9,6 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/StatementNode.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
@@ -68,43 +67,87 @@ public:
             }
             std::string className = it->second.get<std::string>();
 
-            // Build the full class scope name using the file scope
-            const std::string class_scope_name = filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + className;
-
-            // Look up method in class scope
-            auto class_scope_table = sc->getScopeTable(class_scope_name);
-            if (!class_scope_table) {
-                throw Exception("Class " + className + " not found in scope " + class_scope_name, filename_, line_, column_);
+            // Build possible class scope names to search for the method
+            std::vector<std::string> class_scope_names;
+            
+            // Try multiple possible scope paths
+            // 1. Current scope + class name
+            const std::string current_scope = sc->currentScopeName();
+            class_scope_names.push_back(current_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + className);
+            
+            // 2. Just the class name (for global classes)
+            class_scope_names.push_back(className);
+            
+            // 3. File scope + class name (traditional approach)
+            class_scope_names.push_back(filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + className);
+            
+            // Look up method in potential class scopes
+            std::shared_ptr<Symbols::Symbol> sym_method;
+            std::string resolved_class_scope;
+            
+            for (const auto& class_scope_name : class_scope_names) {
+                auto class_scope_table = sc->getScopeTable(class_scope_name);
+                if (class_scope_table) {
+                    sym_method = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
+                    if (sym_method && (sym_method->getKind() == Symbols::Kind::Function || 
+                                     sym_method->getKind() == Symbols::Kind::Method)) {
+                        resolved_class_scope = class_scope_name;
+                        break;
+                    }
+                }
             }
-
-            auto sym_method = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
-            if (!sym_method || sym_method->getKind() != Symbols::Kind::Function) {
+            
+            if (!sym_method) {
                 throw Exception("Method '" + methodName_ + "' not found in class " + className, filename_, line_, column_);
             }
 
             // Execute the method through the interpreter
-            auto funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(sym_method);
+            std::shared_ptr<Symbols::FunctionSymbol> funcSym;
+            
+            // Both Function and Method can be cast to FunctionSymbol since Method inherits from Function
+            if (sym_method->getKind() == Symbols::Kind::Method) {
+                funcSym = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(sym_method);
+            } else {
+                funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(sym_method);
+            }
+            
             const auto& params = funcSym->parameters();
             
             // Create and enter method scope
-            const std::string methodNs = class_scope_name + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
-            sc->enter(methodNs);
-
+            const std::string methodNs = resolved_class_scope + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
+            
+            // Create a new scope for method execution
+            sc->create(methodNs);
+            
+            // Set up the method context
+            interpreter.setThisObject(objValue);
+            
             // Bind 'this' and parameters
             sc->addVariable(Symbols::SymbolFactory::createVariable("this", objValue, methodNs));
-            for (size_t i = 0; i < params.size(); ++i) {
+            
+            // Add parameters
+            for (size_t i = 0; i < std::min(params.size(), argValues.size()); ++i) {
                 sc->addVariable(Symbols::SymbolFactory::createVariable(params[i].name, argValues[i], methodNs));
             }
 
             // Execute method body
-            for (const auto& op : Operations::Container::instance()->getAll(methodNs)) {
-                try {
-                    interpreter.runOperation(*op);
-                } catch (const ReturnException& re) {
-                    // Allow return values to propagate
-                    sc->enterPreviousScope();
-                    throw;
+            try {
+                for (const auto& op : Operations::Container::instance()->getAll(methodNs)) {
+                    try {
+                        interpreter.runOperation(*op);
+                    } catch (const ReturnException& re) {
+                        // Clean up
+                        interpreter.clearThisObject();
+                        sc->enterPreviousScope();
+                        // Allow return values to propagate
+                        throw;
+                    }
                 }
+            } catch (...) {
+                // Make sure we clean up even on exceptions
+                interpreter.clearThisObject();
+                sc->enterPreviousScope();
+                throw;
             }
 
             // Exit method scope

@@ -20,35 +20,21 @@ class IdentifierExpressionNode : public ExpressionNode {
 
         // Special handling for 'this' keyword
         if (name_ == "this") {
-            std::cout << "DEBUG: IdentifierExpressionNode evaluating 'this' in scope: " << sc->currentScopeName() << std::endl;
             // 'this' should typically be found directly in the current function call scope or a class scope it's nested within.
             auto thisSymbol = sc->getVariable("this"); 
 
             if (thisSymbol) {
                 auto thisVal = thisSymbol->getValue();
-                if (thisVal && (thisVal->getType() == Symbols::Variables::Type::CLASS || thisVal->getType() == Symbols::Variables::Type::OBJECT) ) {
-                    std::cout << "DEBUG: 'this' resolved to a CLASS or OBJECT. Type: " << Symbols::Variables::TypeToString(thisVal->getType()) << std::endl;
-                    Symbols::ObjectMap& map = thisVal->get<Symbols::ObjectMap>();
-                    std::cout << "DEBUG: 'this' object map keys: ";
-                    for (const auto& pair : map) {
-                        std::cout << pair.first << " (";
-                        if(pair.second) {
-                            std::cout << Symbols::Variables::TypeToString(pair.second->getType());
-                        } else {
-                            std::cout << "null_ptr";
-                        }
-                        std::cout << ") ";
-                    }
-                    std::cout << std::endl;
+                if (thisVal && (thisVal->getType() == Symbols::Variables::Type::CLASS || thisVal->getType() == Symbols::Variables::Type::OBJECT)) {
+                    // thisVal is a CLASS or OBJECT type
                 } else if (thisVal) {
-                    std::cout << "DEBUG: 'this' resolved but not to a CLASS or OBJECT. Type: " << Symbols::Variables::TypeToString(thisVal->getType()) << std::endl;
+                    // thisVal is some other type
                 } else {
-                    std::cout << "DEBUG: 'this' resolved to a nullptr ValuePtr." << std::endl;
+                    // thisVal is a nullptr
                 }
                 return thisVal;
             }
             // If thisSymbol is null after sc->getVariable("this")
-            std::cout << "DEBUG: 'this' keyword not found in symbol table from scope: " << sc->currentScopeName() << std::endl;
             throw std::runtime_error("Keyword \'this\' not found in current context starting from scope: " + sc->currentScopeName());
         }
 
@@ -73,7 +59,6 @@ class IdentifierExpressionNode : public ExpressionNode {
         if (symbol) {
             // Check if symbol is accessible (e.g., private members if applicable)
             // For now, assume accessible if found
-            std::cerr << "[DEBUG IdentifierExpressionNode] Retrieving symbol '" << name_ << "'. State: " << symbol->getValue().toString() << std::endl;
             return symbol->getValue();
         }
 

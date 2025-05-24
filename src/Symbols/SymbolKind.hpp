@@ -11,8 +11,10 @@ namespace Symbols {
 enum class Kind : std::uint8_t {
     Variable,
     Constant,
-    Function
-    // Later: Module, Class, etc..
+    Function,
+    Method,   // Method belongs to a class
+    Class     // Class definition
+    // Later: Module, etc..
 };
 
 static std::string kindToString(Symbols::Kind kind) {
@@ -20,6 +22,8 @@ static std::string kindToString(Symbols::Kind kind) {
         { Symbols::Kind::Variable, "Variable" },
         { Symbols::Kind::Constant, "Constant" },
         { Symbols::Kind::Function, "Function" },
+        { Symbols::Kind::Method,   "Method"   },
+        { Symbols::Kind::Class,    "Class"    },
     };
 
     auto it = KindToString.find(kind);

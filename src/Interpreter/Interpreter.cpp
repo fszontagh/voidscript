@@ -25,15 +25,31 @@ Symbols::ValuePtr Interpreter::executeMethod(const Symbols::ValuePtr& objectValu
         throw Exception("Cannot call method on null value", "-", 0, 0);
     }
 
-    if (objectValue->getType() != Symbols::Variables::Type::OBJECT) {
-        throw Exception("Cannot call method on non-object value", "-", 0, 0);
+    if (objectValue->getType() != Symbols::Variables::Type::OBJECT && 
+        objectValue->getType() != Symbols::Variables::Type::CLASS) {
+        throw Exception("Cannot call method on non-object value of type " + 
+                     Symbols::Variables::TypeToString(objectValue->getType()), "-", 0, 0);
     }
 
     const auto& objMap = objectValue->get<Symbols::ObjectMap>();
-    auto classNameIt = objMap.find("__class__");
+    
+    // Look for class name in the object
+    std::string className;
+    auto classNameIt = objMap.find("$class_name");
     if (classNameIt == objMap.end()) {
-        throw Exception("Cannot call method on non-class object", "-", 0, 0);
+        // Try alternative class name key
+        classNameIt = objMap.find("__class__");
+        if (classNameIt == objMap.end()) {
+            throw Exception("Cannot call method on object without class name", "-", 0, 0);
+        }
     }
+    
+    // Get the class name from the object
+    const auto& classNameVal = classNameIt->second;
+    if (classNameVal->getType() != Symbols::Variables::Type::STRING) {
+        throw Exception("Invalid class name type", "-", 0, 0);
+    }
+    className = classNameVal->get<std::string>();
 
     // Save the previous "this" object
     auto previousThis = thisObject_;
@@ -44,19 +60,14 @@ Symbols::ValuePtr Interpreter::executeMethod(const Symbols::ValuePtr& objectValu
     try {
         // Get the method from the UnifiedModuleManager
         auto& mgr = Modules::UnifiedModuleManager::instance();
-        const auto& classNameVal = classNameIt->second;
-        if (classNameVal->getType() != Symbols::Variables::Type::STRING) {
-            throw Exception("Invalid class name type", "-", 0, 0);
-        }
-
-        std::string className = classNameVal->get<std::string>();
+        
         if (!mgr.hasClass(className)) {
-            throw Exception("Class not found: " + className, "-", 0, 0);
+            throw Exception("Class not found in UnifiedModuleManager: " + className, "-", 0, 0);
         }
 
         std::string fullMethodName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName;
         if (!mgr.hasFunction(fullMethodName)) {
-            throw Exception("Method '" + methodName + "' not found in class '" + className + "'", "-", 0, 0);
+            throw Exception("Method '" + methodName + "' not found in class '" + className + "' using UnifiedModuleManager", "-", 0, 0);
         }
 
         // Execute the method

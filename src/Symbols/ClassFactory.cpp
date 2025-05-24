@@ -199,9 +199,55 @@ void ClassFactory::initializeInstance(ValuePtr& instance, const std::string& cla
             continue;
         }
         if (prop.defaultValueExpr) {
-            map[prop.name] = ValuePtr::null(prop.type); // TODO: evaluate defaultValueExpr
+            // TODO: evaluate defaultValueExpr - for now use type defaults
+            switch (prop.type) {
+                case Variables::Type::INTEGER:
+                    map[prop.name] = ValuePtr(0);
+                    break;
+                case Variables::Type::DOUBLE:
+                    map[prop.name] = ValuePtr(0.0);
+                    break;
+                case Variables::Type::FLOAT:
+                    map[prop.name] = ValuePtr(0.0f);
+                    break;
+                case Variables::Type::STRING:
+                    map[prop.name] = ValuePtr("");
+                    break;
+                case Variables::Type::BOOLEAN:
+                    map[prop.name] = ValuePtr(false);
+                    break;
+                case Variables::Type::OBJECT:
+                    map[prop.name] = ValuePtr(ObjectMap());
+                    break;
+                default:
+                    map[prop.name] = ValuePtr::null(prop.type);
+                    break;
+            }
         } else {
-            map[prop.name] = ValuePtr::null(prop.type);
+            // Create default value for the property type instead of null
+            switch (prop.type) {
+                case Variables::Type::INTEGER:
+                    map[prop.name] = ValuePtr(0);
+                    break;
+                case Variables::Type::DOUBLE:
+                    map[prop.name] = ValuePtr(0.0);
+                    break;
+                case Variables::Type::FLOAT:
+                    map[prop.name] = ValuePtr(0.0f);
+                    break;
+                case Variables::Type::STRING:
+                    map[prop.name] = ValuePtr("");
+                    break;
+                case Variables::Type::BOOLEAN:
+                    map[prop.name] = ValuePtr(false);
+                    break;
+                case Variables::Type::OBJECT:
+                    map[prop.name] = ValuePtr(ObjectMap());
+                    break;
+                default:
+                    map[prop.name] = ValuePtr::null(prop.type);
+                    break;
+            }
         }
     }
     if (!classInfo.parentClass.empty()) {

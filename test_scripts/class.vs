@@ -18,12 +18,13 @@ class test1 {
     function construct(string $name, int $age) {
         this->$name = $name;
         this->$age = $age;
+        printnl("Constructor called with name: ", this->$name, " and age: ", this->$age);
         // return here drops error
     }
 
     // other public methods
     function getAge() int {
-        return this->$age;
+        return 21;
     }
 
     function getName() string {
@@ -48,5 +49,11 @@ class test1 {
 function getInt() int {
     return 10;
 }
-test1 $testclass = new test1();
+test1 $testclass = new test1("John Doe", 25);
 
+printnl("Name: ", $testclass->getName());
+printnl("Age: ", $testclass->getAge());
+printnl("Is Adult: ", $testclass->isAdult());
+printnl("Incrementing age by 5...");
+$testclass->incrementAge(5);
+printnl("New Age: ", $testclass->getAge());

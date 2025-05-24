@@ -20,19 +20,23 @@ class DeclareFunctionStatementNode : public StatementNode {
     Symbols::FunctionParameterInfo  params_;
     std::unique_ptr<ExpressionNode> expression_;
     std::string                     ns;
+    std::string                     className_; // Class name if this is a method, empty otherwise
+    bool                           isMethod_; // Whether this is a class method
 
 
   public:
     DeclareFunctionStatementNode(const std::string & function_name, const std::string & ns,
                                  const Symbols::FunctionParameterInfo & params, Symbols::Variables::Type return_type,
                                  std::unique_ptr<ExpressionNode> expr, const std::string & file_name, int file_line,
-                                 size_t line_column) :
+                                 size_t line_column, const std::string & class_name = "") :
         StatementNode(file_name, file_line, line_column),
         functionName_(function_name),
         returnType_(return_type),
         params_(params),
         expression_(std::move(expr)),
-        ns(ns) {}
+        ns(ns),
+        className_(class_name),
+        isMethod_(!class_name.empty()) {}
 
     void interpret(Interpreter & /*interpreter*/) const override {
         try {
@@ -52,9 +56,15 @@ class DeclareFunctionStatementNode : public StatementNode {
             // If we are here, the function is not yet defined in the current scope's function namespace.
             // The old check Symbols::SymbolContainer::instance()->exists(functionName_) was too broad and could lead to incorrect shadowing issues or missed re-declarations.
 
-            const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
-            std::cout << "Defining function: " << func->name() << ": "<< ns << std::endl;
-            sc->addFunction(func, ns); // Explicitly define in the target scope 'ns'
+            if (isMethod_) {
+                // This is a class method
+                const auto method = Symbols::SymbolFactory::createMethod(functionName_, ns, className_, params_, "", returnType_);
+                sc->addFunction(method, ns); // We use addFunction for methods too
+            } else {
+                // Regular function
+                const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);
+                sc->addFunction(func, ns); // Explicitly define in the target scope 'ns'
+            }
 
         } catch (const Exception &) {
             throw;

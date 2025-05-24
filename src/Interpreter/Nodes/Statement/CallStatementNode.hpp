@@ -10,6 +10,7 @@
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/StatementNode.hpp"
 #include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/ClassRegistry.hpp"
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -38,13 +39,14 @@ class CallStatementNode : public StatementNode {
             for (const auto & expr : args_) {
                 argValues.push_back(expr->evaluate(interpreter));
             }
-            {
-                auto & mgr = Modules::UnifiedModuleManager::instance();
-                if (mgr.hasFunction(functionName_)) {
-                    mgr.callFunction(functionName_, argValues);
-                    return;
-                }
+            
+            // Check for module functions via UnifiedModuleManager first
+            auto & moduleManager = Modules::UnifiedModuleManager::instance();
+            if (moduleManager.hasFunction(functionName_)) {
+                moduleManager.callFunction(functionName_, argValues);
+                return;  // Function call statements don't return values
             }
+            
             // User-defined function: lookup through scope hierarchy
             Symbols::SymbolContainer *               sc       = Symbols::SymbolContainer::instance();
             std::string                              lookupNs = sc->currentScopeName();

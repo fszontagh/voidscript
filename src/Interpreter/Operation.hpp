@@ -15,6 +15,7 @@ enum class Type : std::uint8_t {
     FunctionCall,     // Call to a function, e.g., print(x)
     MethodCall,       // Call to an object method, e.g., $obj->method()
     FuncDeclaration,  // declaration of new function
+    MethodDeclaration,// declaration of a class method, e.g., function xyz() in class ABC
     Return,           // return statement
     Conditional,      // if/else structure
     Loop,             // while/for loop
@@ -47,6 +48,7 @@ struct Operation {
             { Operations::Type::FunctionCall,    "FunctionCall"    },
             { Operations::Type::MethodCall,      "MethodCall"      },
             { Operations::Type::FuncDeclaration, "FuncDeclaration" },
+            { Operations::Type::MethodDeclaration, "MethodDeclaration" },
             { Operations::Type::Return,          "Return"          },
             { Operations::Type::Conditional,     "Conditional"     },
             { Operations::Type::Loop,            "Loop"            },
