@@ -5,8 +5,8 @@
 #include <iostream>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 
 namespace Modules {
 
@@ -17,8 +17,8 @@ class PrintModule : public BaseModule {
   public:
     PrintModule() { setModuleName("Print"); }
 
-    void registerModule() override {
-        std::vector<FunctParameterInfo> params = {
+    void registerFunctions() override {
+        std::vector<Symbols::FunctionParameterInfo> params = {
             { "msg", Symbols::Variables::Type::STRING, "The error message to throw" }
         };
 
@@ -36,7 +36,7 @@ class PrintModule : public BaseModule {
         };
 
         REGISTER_FUNCTION("printnl", Symbols::Variables::Type::NULL_TYPE, params,
-                          "Output any to the standard output ending wint new line", &PrintModule::PrintNL);
+                          "Output any to the standard output ending with new line", &PrintModule::PrintNL);
 
         REGISTER_FUNCTION("print", Symbols::Variables::Type::NULL_TYPE, params, "Output any to the standard output",
                           &PrintModule::Print);

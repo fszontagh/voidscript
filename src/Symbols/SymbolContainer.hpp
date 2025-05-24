@@ -7,10 +7,74 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 #include "SymbolTable.hpp"
+#include "Symbols/Value.hpp"
+#include "Symbols/VariableTypes.hpp"
+#include "Parser/ParsedExpression.hpp"
+#include "Modules/BaseModule.hpp"
 
 namespace Symbols {
+
+/**
+ * @brief Documentation structure for function parameters.
+ */
+struct FunctionParameterInfo {
+    std::string              name;                 // the name of the parameter
+    Variables::Type          type;                 // the type of the parameter
+    std::string              description;          // the description of the parameter
+    bool                     optional    = false;  // if the parameter is optional
+    bool                     interpolate = false;  // if the parameter is interpolated
+};
+
+/**
+ * @brief Documentation structure for functions and methods.
+ */
+struct FunctionDoc {
+    std::string                     name;           // function/method name
+    Variables::Type                 returnType;     // return type
+    std::vector<FunctionParameterInfo> parameterList;  // parameter list
+    std::string                     description;    // short description
+};
+
+/**
+ * @brief Information about a class property
+ */
+struct PropertyInfo {
+    std::string                 name;
+    Variables::Type             type;
+    Parser::ParsedExpressionPtr defaultValueExpr;
+    bool                        isPrivate = false;
+};
+
+/**
+ * @brief Information about a class method
+ */
+struct MethodInfo {
+    std::string                 name;
+    std::string                 qualifiedName;
+    Variables::Type             returnType;
+    std::vector<FunctionParameterInfo> parameters;
+    bool                        isPrivate = false;
+    std::function<ValuePtr(const std::vector<ValuePtr>&)> nativeImplementation;
+    FunctionDoc                 documentation;
+};
+
+/**
+ * @brief Information about a class
+ */
+struct ClassInfo {
+    std::string                 name;
+    std::string                 parentClass;  // For inheritance
+    std::vector<PropertyInfo>   properties;
+    std::vector<MethodInfo>     methods;
+    std::unordered_map<std::string, ValuePtr> staticProperties;
+    Modules::BaseModule*        module = nullptr;  // Module that defined this class
+};
+
+using FunctionArguments = const std::vector<ValuePtr>;
+using CallbackFunction  = std::function<ValuePtr(FunctionArguments &)>;
 
 class SymbolContainer {
     std::unordered_map<std::string, std::shared_ptr<SymbolTable>> scopes_;
@@ -23,6 +87,13 @@ class SymbolContainer {
     // For singleton initialization
     static std::string initial_scope_name_for_singleton_;
     static bool        is_initialized_for_singleton_;
+
+    // Class registry
+    std::unordered_map<std::string, ClassInfo> classes_;
+    
+    // Function registry
+    std::unordered_map<std::string, CallbackFunction> functions_;
+    std::unordered_map<std::string, FunctionDoc> functionDocs_;
 
     // Private constructor
     explicit SymbolContainer(const std::string & default_scope_name) {
@@ -68,14 +139,10 @@ class SymbolContainer {
     constexpr static const std::string DEFAULT_CONSTANTS_SCOPE = "constants";
     constexpr static const std::string DEFAULT_FUNCTIONS_SCOPE = SCOPE_SEPARATOR + "functions";
     constexpr static const std::string DEFAULT_OTHERS_SCOPE    = SCOPE_SEPARATOR + "others";
+    constexpr static const std::string METHOD_SCOPE            = SCOPE_SEPARATOR + "methods";
 
     // other scope names
-    // TODO: add for_ and while_ too
     constexpr static const std::string CALL_SCOPE = SCOPE_SEPARATOR + "call_";
-    constexpr static const std::string METHOD_SCOPE    = SCOPE_SEPARATOR + "methods";
-
-    // The following explicit constructor is now replaced by the private one and initialize() pattern
-    // explicit SymbolContainer(const std::string & default_scope_name) { create(default_scope_name); }
 
     // --- Scope management ---
 
@@ -663,6 +730,420 @@ class SymbolContainer {
         return nullptr;         // Scope not found
     }
 
+    // --- Class Registry Methods ---
+
+    /**
+     * @brief Register a new class
+     * @param className Name of the class to register
+     * @param module Pointer to the module that defines this class (nullptr for script-defined classes)
+     * @return Reference to the newly created ClassInfo
+     */
+    ClassInfo& registerClass(const std::string& className, Modules::BaseModule* module = nullptr) {
+        if (hasClass(className)) {
+            throw std::runtime_error("Class already registered: " + className);
+        }
+        
+        ClassInfo classInfo;
+        classInfo.name = className;
+        classInfo.module = module;
+        
+        classes_[className] = classInfo;
+        return classes_[className];
+    }
+
+    /**
+     * @brief Register a new class with inheritance
+     * @param className Name of the class to register
+     * @param parentClassName Name of the parent class
+     * @param module Pointer to the module that defines this class (nullptr for script-defined classes)
+     * @return Reference to the newly created ClassInfo
+     */
+    ClassInfo& registerClass(const std::string& className, const std::string& parentClassName, 
+                           Modules::BaseModule* module = nullptr) {
+        if (hasClass(className)) {
+            throw std::runtime_error("Class already registered: " + className);
+        }
+        
+        if (!hasClass(parentClassName)) {
+            throw std::runtime_error("Parent class not found: " + parentClassName);
+        }
+        
+        ClassInfo classInfo;
+        classInfo.name = className;
+        classInfo.parentClass = parentClassName;
+        classInfo.module = module;
+        
+        classes_[className] = classInfo;
+        return classes_[className];
+    }
+
+    /**
+     * @brief Check if a class is registered
+     * @param className Name of the class to check
+     * @return True if the class is registered, false otherwise
+     */
+    bool hasClass(const std::string& className) const {
+        return classes_.find(className) != classes_.end();
+    }
+
+    /**
+     * @brief Get information about a registered class
+     * @param className Name of the class to get information for
+     * @return Reference to the ClassInfo for the class
+     */
+    ClassInfo& getClassInfo(const std::string& className) {
+        auto it = classes_.find(className);
+        if (it == classes_.end()) {
+            throw std::runtime_error("Class not found: " + className);
+        }
+        return it->second;
+    }
+
+    /**
+     * @brief Get information about a registered class (const version)
+     * @param className Name of the class to get information for
+     * @return Const reference to the ClassInfo for the class
+     */
+    const ClassInfo& getClassInfo(const std::string& className) const {
+        auto it = classes_.find(className);
+        if (it == classes_.end()) {
+            throw std::runtime_error("Class not found: " + className);
+        }
+        return it->second;
+    }
+
+    /**
+     * @brief Add a property to a class
+     * @param className Name of the class to add the property to
+     * @param propertyName Name of the property
+     * @param type Type of the property
+     * @param isPrivate Whether the property is private
+     * @param defaultValueExpr Expression for the default value (optional)
+     */
+    void addProperty(const std::string& className, const std::string& propertyName, 
+                    Variables::Type type, bool isPrivate = false, 
+                    Parser::ParsedExpressionPtr defaultValueExpr = nullptr) {
+        ClassInfo& classInfo = getClassInfo(className);
+        
+        // Check if property already exists
+        for (const auto& prop : classInfo.properties) {
+            if (prop.name == propertyName) {
+                throw std::runtime_error("Property already exists in class: " + className + "::" + propertyName);
+            }
+        }
+        
+        PropertyInfo propertyInfo;
+        propertyInfo.name = propertyName;
+        propertyInfo.type = type;
+        propertyInfo.isPrivate = isPrivate;
+        propertyInfo.defaultValueExpr = defaultValueExpr;
+        
+        classInfo.properties.push_back(propertyInfo);
+    }
+
+    /**
+     * @brief Add a method to a class
+     * @param className Name of the class to add the method to
+     * @param methodName Name of the method
+     * @param returnType Return type of the method
+     * @param parameters Method parameters
+     * @param isPrivate Whether the method is private
+     */
+    void addMethod(const std::string& className, const std::string& methodName,
+                  Variables::Type returnType = Variables::Type::NULL_TYPE,
+                  const std::vector<FunctionParameterInfo>& parameters = {},
+                  bool isPrivate = false) {
+        ClassInfo& classInfo = getClassInfo(className);
+        
+        // Check if method already exists
+        for (const auto& method : classInfo.methods) {
+            if (method.name == methodName) {
+                throw std::runtime_error("Method already exists in class: " + className + "::" + methodName);
+            }
+        }
+        
+        MethodInfo methodInfo;
+        methodInfo.name = methodName;
+        methodInfo.qualifiedName = className + SCOPE_SEPARATOR + methodName;
+        methodInfo.returnType = returnType;
+        methodInfo.parameters = parameters;
+        methodInfo.isPrivate = isPrivate;
+        
+        // Create documentation
+        FunctionDoc doc;
+        doc.name = methodInfo.qualifiedName;
+        doc.returnType = returnType;
+        doc.parameterList = parameters;
+        methodInfo.documentation = doc;
+        
+        classInfo.methods.push_back(methodInfo);
+    }
+
+    /**
+     * @brief Add a native method to a class
+     * @param className Name of the class to add the method to
+     * @param methodName Name of the method
+     * @param implementation Native implementation of the method
+     * @param returnType Return type of the method
+     * @param parameters Method parameters
+     * @param isPrivate Whether the method is private
+     */
+    void addNativeMethod(const std::string& className, const std::string& methodName,
+                        std::function<ValuePtr(const std::vector<ValuePtr>&)> implementation,
+                        Variables::Type returnType = Variables::Type::NULL_TYPE,
+                        const std::vector<FunctionParameterInfo>& parameters = {},
+                        bool isPrivate = false) {
+        ClassInfo& classInfo = getClassInfo(className);
+        
+        // Check if method already exists
+        for (const auto& method : classInfo.methods) {
+            if (method.name == methodName) {
+                throw std::runtime_error("Method already exists in class: " + className + "::" + methodName);
+            }
+        }
+        
+        MethodInfo methodInfo;
+        methodInfo.name = methodName;
+        methodInfo.qualifiedName = className + SCOPE_SEPARATOR + methodName;
+        methodInfo.returnType = returnType;
+        methodInfo.parameters = parameters;
+        methodInfo.isPrivate = isPrivate;
+        methodInfo.nativeImplementation = implementation;
+        
+        // Create documentation
+        FunctionDoc doc;
+        doc.name = methodInfo.qualifiedName;
+        doc.returnType = returnType;
+        doc.parameterList = parameters;
+        methodInfo.documentation = doc;
+        
+        classInfo.methods.push_back(methodInfo);
+    }
+
+    /**
+     * @brief Check if a class has a specific property
+     * @param className Name of the class to check
+     * @param propertyName Name of the property to check for
+     * @return True if the property exists, false otherwise
+     */
+    bool hasProperty(const std::string& className, const std::string& propertyName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+        
+        const ClassInfo& classInfo = getClassInfo(className);
+        
+        // Check in this class
+        for (const auto& prop : classInfo.properties) {
+            if (prop.name == propertyName) {
+                return true;
+            }
+        }
+        
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return hasProperty(classInfo.parentClass, propertyName);
+        }
+        
+        return false;
+    }
+
+    /**
+     * @brief Check if a class has a specific method
+     * @param className Name of the class to check
+     * @param methodName Name of the method to check for
+     * @return True if the method exists, false otherwise
+     */
+    bool hasMethod(const std::string& className, const std::string& methodName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+        
+        const ClassInfo& classInfo = getClassInfo(className);
+        
+        // Check in this class
+        for (const auto& method : classInfo.methods) {
+            if (method.name == methodName) {
+                return true;
+            }
+        }
+        
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return hasMethod(classInfo.parentClass, methodName);
+        }
+        
+        return false;
+    }
+
+    /**
+     * @brief Get a list of all registered class names
+     * @return Vector of registered class names
+     */
+    std::vector<std::string> getClassNames() const {
+        std::vector<std::string> result;
+        result.reserve(classes_.size());
+        
+        for (const auto& [className, _] : classes_) {
+            result.push_back(className);
+        }
+        
+        return result;
+    }
+
+    /**
+     * @brief Set a static property value for a class
+     * @param className Name of the class
+     * @param propertyName Name of the property
+     * @param value Value to set
+     */
+    void setStaticProperty(const std::string& className, const std::string& propertyName, const ValuePtr& value) {
+        ClassInfo& classInfo = getClassInfo(className);
+        classInfo.staticProperties[propertyName] = value;
+    }
+
+    /**
+     * @brief Get a static property value from a class
+     * @param className Name of the class
+     * @param propertyName Name of the property
+     * @return Value of the property
+     */
+    ValuePtr getStaticProperty(const std::string& className, const std::string& propertyName) const {
+        const ClassInfo& classInfo = getClassInfo(className);
+        
+        auto it = classInfo.staticProperties.find(propertyName);
+        if (it != classInfo.staticProperties.end()) {
+            return it->second;
+        }
+        
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return getStaticProperty(classInfo.parentClass, propertyName);
+        }
+        
+        throw std::runtime_error("Static property not found: " + className + "::" + propertyName);
+    }
+
+    /**
+     * @brief Check if a class has a specific static property
+     * @param className Name of the class to check
+     * @param propertyName Name of the property to check for
+     * @return True if the property exists, false otherwise
+     */
+    bool hasStaticProperty(const std::string& className, const std::string& propertyName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+        
+        const ClassInfo& classInfo = getClassInfo(className);
+        
+        // Check in this class
+        if (classInfo.staticProperties.find(propertyName) != classInfo.staticProperties.end()) {
+            return true;
+        }
+        
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return hasStaticProperty(classInfo.parentClass, propertyName);
+        }
+        
+        return false;
+    }
+
+    /**
+     * @brief Get the module that defined a class
+     * @param className Name of the class
+     * @return Pointer to the module, or nullptr for script-defined classes
+     */
+    Modules::BaseModule* getClassModule(const std::string& className) const {
+        const ClassInfo& classInfo = getClassInfo(className);
+        return classInfo.module;
+    }
+
+    // --- Function Registry Methods ---
+
+    /**
+     * @brief Register a function
+     * @param name Name of the function
+     * @param callback Function implementation
+     * @param returnType Return type of the function
+     */
+    void registerFunction(const std::string& name, CallbackFunction callback, 
+                         const Variables::Type& returnType = Variables::Type::NULL_TYPE) {
+        functions_[name] = callback;
+        
+        // Create documentation if it doesn't exist
+        if (functionDocs_.find(name) == functionDocs_.end()) {
+            FunctionDoc doc;
+            doc.name = name;
+            doc.returnType = returnType;
+            functionDocs_[name] = doc;
+        }
+    }
+
+    /**
+     * @brief Register documentation for a function
+     * @param name Name of the function
+     * @param doc Documentation for the function
+     */
+    void registerDoc(const std::string& name, const FunctionDoc& doc) {
+        functionDocs_[name] = doc;
+    }
+
+    /**
+     * @brief Check if a function is registered
+     * @param name Name of the function to check
+     * @return True if the function is registered, false otherwise
+     */
+    bool hasFunction(const std::string& name) const {
+        return functions_.find(name) != functions_.end();
+    }
+
+    /**
+     * @brief Call a registered function
+     * @param name Name of the function to call
+     * @param args Arguments to pass to the function
+     * @return Value returned by the function
+     */
+    ValuePtr callFunction(const std::string& name, FunctionArguments& args) const {
+        auto it = functions_.find(name);
+        if (it == functions_.end()) {
+            throw std::runtime_error("Function not found: " + name);
+        }
+        
+        return it->second(args);
+    }
+
+    /**
+     * @brief Get the return type of a function
+     * @param name Name of the function
+     * @return Return type of the function
+     */
+    Variables::Type getFunctionReturnType(const std::string& name) const {
+        auto it = functionDocs_.find(name);
+        if (it == functionDocs_.end()) {
+            return Variables::Type::NULL_TYPE;
+        }
+        
+        return it->second.returnType;
+    }
+
+    /**
+     * @brief Get the documentation for a function
+     * @param name Name of the function
+     * @return Documentation for the function
+     */
+    const FunctionDoc& getFunctionDoc(const std::string& name) const {
+        static const FunctionDoc emptyDoc;
+        
+        auto it = functionDocs_.find(name);
+        if (it == functionDocs_.end()) {
+            return emptyDoc;
+        }
+        
+        return it->second;
+    }
+
   private:
     static void dumpValue(const Symbols::ValuePtr & value, std::string & result, int indent) {
         if (value == Variables::Type::OBJECT) {
@@ -724,4 +1205,4 @@ class SymbolContainer {
 
 }  // namespace Symbols
 
-#endif
+#endif // SYMBOL_CONTAINER_HPP

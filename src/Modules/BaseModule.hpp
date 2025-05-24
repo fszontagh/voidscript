@@ -32,7 +32,11 @@ class BaseModule {
     BaseModule()          = default;
     virtual ~BaseModule() = default;
 
-    virtual void registerModule() = 0;
+    /**
+     * @brief Register module functions with the SymbolContainer
+     * This method should be implemented by each module to register its functions
+     */
+    virtual void registerFunctions() = 0;
 
     void setModuleName(const std::string & name) { this->moduleName = name; }
 

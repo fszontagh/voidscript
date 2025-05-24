@@ -855,14 +855,14 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
                                                                    std::string(input_string), return_type);
             Symbols::SymbolContainer::instance()->add(methodSymbol);
             
-            // Also register method in ClassRegistry if class exists there
+            // Also register method in SymbolContainer's class registry
             try {
-                if (Symbols::ClassRegistry::instance().hasClass(possibleClassName)) {
-                    Symbols::ClassRegistry::instance().getClassContainer().addMethod(possibleClassName, function_name, return_type);
+                if (Symbols::SymbolContainer::instance()->hasClass(possibleClassName)) {
+                    Symbols::SymbolContainer::instance()->addMethod(possibleClassName, function_name, return_type);
                 }
             } catch (const std::exception& e) {
                 // Log the error but continue, as the method is already registered with SymbolContainer
-                std::cerr << "Warning: Could not register method with ClassRegistry: " << e.what() << std::endl;
+                std::cerr << "Warning: Could not register method with SymbolContainer: " << e.what() << std::endl;
             }
             
             return; // Method is already defined, no need to call defineFunction
@@ -1364,16 +1364,16 @@ Symbols::Variables::Type Parser::parseType() {
             return Symbols::Variables::Type::CLASS;
         }
 
-        // Check if this name is a defined class in the class registry (for external classes)
-        auto & classRegistry = Symbols::ClassRegistry::instance();
+        // Check if this name is a defined class in the symbol container
+        auto * symbolContainer = Symbols::SymbolContainer::instance();
 
         // First try as is (might be a fully qualified name already)
-        if (classRegistry.hasClass(typeName)) {
+        if (symbolContainer->hasClass(typeName)) {
             return Symbols::Variables::Type::CLASS;
         }
 
         // Then try with current namespace prefix
-        if (classRegistry.hasClass(fqTypeName)) {
+        if (symbolContainer->hasClass(fqTypeName)) {
             return Symbols::Variables::Type::CLASS;
         }
 
@@ -1721,9 +1721,9 @@ void Parser::parseTopLevelStatement() {
     // Variable definition with a type keyword or a class name
     else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
               (token_type == Lexer::Tokens::Type::IDENTIFIER &&
-               (Symbols::ClassRegistry::instance().hasClass(token_val) ||
+               (Symbols::SymbolContainer::instance()->hasClass(token_val) ||
                 // Try with namespace prefix as well
-                Symbols::ClassRegistry::instance().hasClass(
+                Symbols::SymbolContainer::instance()->hasClass(
                     Symbols::SymbolContainer::instance()->currentScopeName() +
                     Symbols::SymbolContainer::SCOPE_SEPARATOR + token_val)))) &&
              peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
