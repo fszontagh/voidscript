@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "utils.h"
 
@@ -26,7 +26,7 @@ class FileModule : public BaseModule {
   public:
     FileModule() { setModuleName("File"); }
 
-    void registerModule() override {
+    void registerFunctions() override {
         std::vector<FunctParameterInfo> params = {
             { "file_name", Symbols::Variables::Type::STRING, "The file name" }
         };

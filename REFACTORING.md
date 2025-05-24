@@ -87,9 +87,9 @@ When updating existing modules:
 - [x] Update `JsonModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
 - [x] Update `StringModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
 - [x] Update `HeaderModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
-- [ ] Update `ArrayModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
-- [ ] Update `FileModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
-- [ ] Update `VariableHelpersModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
+- [x] Update `ArrayModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
+- [x] Update `FileModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
+- [x] Update `VariableHelpersModule.hpp` to use `SymbolContainer` instead of `UnifiedModuleManager`
 
 ### Cleanup
 - [ ] Remove `ClassMigration.hpp` if no longer needed
