@@ -34,8 +34,7 @@ class MemberExpressionNode : public ExpressionNode {
                             column_);
         }
 
-        Symbols::ObjectMap& map = objVal->get<Symbols::ObjectMap>();
-
+        const auto & map = objVal->get<Symbols::ObjectMap>();
 
         // Try both the property name as-is and with '$' prefix for class properties
         std::string propertyNameWithPrefix = propertyName_[0] == '$' ? propertyName_ : "$" + propertyName_;
@@ -46,7 +45,7 @@ class MemberExpressionNode : public ExpressionNode {
             auto classIt = map.find("$class_name");
             if (classIt != map.end() && classIt->second->getType() == Symbols::Variables::Type::STRING) {
                 std::string className = classIt->second->get<std::string>();
-                auto &      symbolContainer = Symbols::SymbolContainer::instance();
+                auto *      symbolContainer = Symbols::SymbolContainer::instance();
                 
                 if (symbolContainer->hasClass(className)) {
                     // First check if we need to try the propertyName with $ prefix

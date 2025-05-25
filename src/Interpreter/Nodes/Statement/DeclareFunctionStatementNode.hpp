@@ -17,7 +17,7 @@ namespace Interpreter {
 class DeclareFunctionStatementNode : public StatementNode {
     std::string                     functionName_;
     Symbols::Variables::Type        returnType_;
-    Symbols::FunctionParameterInfo  params_;
+    std::vector<Symbols::FunctionParameterInfo>  params_;
     std::unique_ptr<ExpressionNode> expression_;
     std::string                     ns;
     std::string                     className_; // Class name if this is a method, empty otherwise
@@ -26,7 +26,7 @@ class DeclareFunctionStatementNode : public StatementNode {
 
   public:
     DeclareFunctionStatementNode(const std::string & function_name, const std::string & ns,
-                                 const Symbols::FunctionParameterInfo & params, Symbols::Variables::Type return_type,
+                                 const std::vector<Symbols::FunctionParameterInfo> & params, Symbols::Variables::Type return_type,
                                  std::unique_ptr<ExpressionNode> expr, const std::string & file_name, int file_line,
                                  size_t line_column, const std::string & class_name = "") :
         StatementNode(file_name, file_line, line_column),
@@ -59,7 +59,19 @@ class DeclareFunctionStatementNode : public StatementNode {
             if (isMethod_) {
                 // This is a class method
                 const auto method = Symbols::SymbolFactory::createMethod(functionName_, ns, className_, params_, "", returnType_);
-                sc->addFunction(method, ns); // We use addFunction for methods too
+                sc->addMethod(method, ns); // Store method symbol in the class namespace
+                
+                // Register the method in the class info for hasMethod() to find it (only if class exists)
+                if (sc->hasClass(className_)) {
+                    try {
+                        // Only register if method doesn't already exist in class registry
+                        if (!sc->hasMethod(className_, functionName_)) {
+                            sc->addMethod(className_, functionName_, returnType_, params_, false);
+                        }
+                    } catch (const std::exception& e) {
+                        // Silently continue if method registration fails
+                    }
+                }
             } else {
                 // Regular function
                 const auto func = Symbols::SymbolFactory::createFunction(functionName_, ns, params_, "", returnType_);

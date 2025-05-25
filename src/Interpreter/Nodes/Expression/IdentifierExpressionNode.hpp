@@ -25,13 +25,6 @@ class IdentifierExpressionNode : public ExpressionNode {
 
             if (thisSymbol) {
                 auto thisVal = thisSymbol->getValue();
-                if (thisVal && (thisVal->getType() == Symbols::Variables::Type::CLASS || thisVal->getType() == Symbols::Variables::Type::OBJECT)) {
-                    // thisVal is a CLASS or OBJECT type
-                } else if (thisVal) {
-                    // thisVal is some other type
-                } else {
-                    // thisVal is a nullptr
-                }
                 return thisVal;
             }
             // If thisSymbol is null after sc->getVariable("this")
