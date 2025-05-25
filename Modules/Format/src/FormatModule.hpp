@@ -1,4 +1,4 @@
-// CurlModule: declares a module that provides 'curl' function via libcurl
+// FormatModule: declares a module that provides string formatting via fmt library
 #ifndef FORMATMODULE_HPP
 #define FORMATMODULE_HPP
 
@@ -11,9 +11,9 @@ class FormatModule : public BaseModule {
     FormatModule() { setModuleName("format"); }
 
     /**
-     * @brief Register this module's symbols
+     * @brief Register this module's functions
      */
-    void registerModule();
+    void registerFunctions() override;
 };
 
 }  // namespace Modules

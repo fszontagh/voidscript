@@ -2,8 +2,9 @@
 #include <memory>
 
 #include "ImagickModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 extern "C" void plugin_init() {
-    Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ImagickModule>());
+    auto module = std::make_unique<Modules::ImagickModule>();
+    module->registerFunctions();
 }

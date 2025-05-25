@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Modules {
@@ -15,11 +15,11 @@ namespace Modules {
 static std::map<int, MYSQL *> connMap;
 static int                    nextConnId = 1;
 
-void MariaDBModule::registerModule() {
+void MariaDBModule::registerFunctions() {
     // Register MariaDB class and its methods
     REGISTER_CLASS(this->name());
 
-    std::vector<FunctParameterInfo> params = {
+    std::vector<Symbols::FunctionParameterInfo> params = {
         { "host", Symbols::Variables::Type::STRING, "Database host to connect",  false },
         { "user", Symbols::Variables::Type::STRING, "Username to authnenticate", false },
         { "pass", Symbols::Variables::Type::STRING, "Password to authenticate",  false },
@@ -81,13 +81,13 @@ Symbols::ValuePtr MariaDBModule::connect(FunctionArguments & args) {
     connMap[handle] = conn;
 
     // Use the new property management system
-    auto & manager = UnifiedModuleManager::instance();
-    manager.setObjectProperty(this->name(), "__conn_id__", Symbols::ValuePtr(handle));
-    manager.setObjectProperty(this->name(), "__class__", Symbols::ValuePtr(name()));
+    auto symbolContainer = Symbols::SymbolContainer::instance();
+    symbolContainer->setObjectProperty(this->name(), "__conn_id__", Symbols::ValuePtr(handle));
+    symbolContainer->setObjectProperty(this->name(), "__class__", Symbols::ValuePtr(name()));
 
     // Copy properties to the object map for backward compatibility
-    objMap["__conn_id__"] = manager.getObjectProperty(this->name(), "__conn_id__");
-    objMap["__class__"]   = manager.getObjectProperty(this->name(), "__class__");
+    objMap["__conn_id__"] = symbolContainer->getObjectProperty(this->name(), "__conn_id__");
+    objMap["__class__"]   = symbolContainer->getObjectProperty(this->name(), "__class__");
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -103,11 +103,12 @@ Symbols::ValuePtr MariaDBModule::query(FunctionArguments & args) {
     Symbols::ObjectMap objMap = objVal;
 
     // Get connection handle using the new property management system
-    auto & manager = UnifiedModuleManager::instance();
-    if (!manager.hasObjectProperty(this->name(), "__conn_id__")) {
+    auto symbolContainer = Symbols::SymbolContainer::instance();
+    auto connIdProperty = symbolContainer->getObjectProperty(this->name(), "__conn_id__");
+    if (!connIdProperty) {
         throw std::runtime_error("MariaDB query: no valid connection");
     }
-    int handle = manager.getObjectProperty(this->name(), "__conn_id__");
+    int handle = connIdProperty;
 
     auto connIt = connMap.find(handle);
     if (connIt == connMap.end()) {
@@ -160,16 +161,17 @@ Symbols::ValuePtr MariaDBModule::close(FunctionArguments & args) {
     Symbols::ObjectMap objMap = objVal;
 
     // Use the new property management system
-    auto & manager = UnifiedModuleManager::instance();
-    if (manager.hasObjectProperty(this->name(), "__conn_id__")) {
-        int  handle = manager.getObjectProperty(this->name(), "__conn_id__");
+    auto symbolContainer = Symbols::SymbolContainer::instance();
+    auto connIdProperty = symbolContainer->getObjectProperty(this->name(), "__conn_id__");
+    if (connIdProperty) {
+        int  handle = connIdProperty;
         auto connIt = connMap.find(handle);
         if (connIt != connMap.end()) {
             mysql_close(connIt->second);
             connMap.erase(connIt);
         }
         // Clear the connection property
-        manager.deleteObjectProperty(this->name(), "__conn_id__");
+        symbolContainer->setObjectProperty(this->name(), "__conn_id__", nullptr);
     }
 
     return Symbols::ValuePtr::null();

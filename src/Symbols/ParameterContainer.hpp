@@ -12,6 +12,6 @@ struct functionParameterType {
     Symbols::Variables::Type type;
 };
 
-using FunctionParameterInfo = std::vector<Symbols::functionParameterType>;
+// Note: FunctionParameterInfo is now a struct defined in SymbolContainer.hpp
 }  // namespace Symbols
 #endif

@@ -48,7 +48,7 @@ class CallExpressionNode : public ExpressionNode {
             }
 
             // Check for module functions via SymbolContainer first
-            auto & symbolContainer = Symbols::SymbolContainer::instance();
+            auto * symbolContainer = Symbols::SymbolContainer::instance();
             if (symbolContainer->hasFunction(functionName_)) {
                 return symbolContainer->callFunction(functionName_, argValues);
             }

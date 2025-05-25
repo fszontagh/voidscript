@@ -12,28 +12,26 @@
 #include "SymbolTable.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
-#include "Parser/ParsedExpression.hpp"
-#include "Modules/BaseModule.hpp"
+#include "Symbols/FunctionParameterInfo.hpp"
+
+// Forward declarations to avoid circular dependencies
+namespace Parser {
+    class ParsedExpression;
+    using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
+}
+
+namespace Modules {
+    class BaseModule;
+}
 
 namespace Symbols {
-
-/**
- * @brief Documentation structure for function parameters.
- */
-struct FunctionParameterInfo {
-    std::string              name;                 // the name of the parameter
-    Variables::Type          type;                 // the type of the parameter
-    std::string              description;          // the description of the parameter
-    bool                     optional    = false;  // if the parameter is optional
-    bool                     interpolate = false;  // if the parameter is interpolated
-};
 
 /**
  * @brief Documentation structure for functions and methods.
  */
 struct FunctionDoc {
     std::string                     name;           // function/method name
-    Variables::Type                 returnType;     // return type
+    Variables::Type                 returnType = Variables::Type::NULL_TYPE;     // return type
     std::vector<FunctionParameterInfo> parameterList;  // parameter list
     std::string                     description;    // short description
 };
@@ -94,6 +92,9 @@ class SymbolContainer {
     // Function registry
     std::unordered_map<std::string, CallbackFunction> functions_;
     std::unordered_map<std::string, FunctionDoc> functionDocs_;
+    
+    // Current module being registered (for macro support)
+    Modules::BaseModule* currentModule_ = nullptr;
 
     // Private constructor
     explicit SymbolContainer(const std::string & default_scope_name) {
@@ -511,9 +512,9 @@ class SymbolContainer {
     std::string findClassNamespace(const std::string & className) {
         // Look in all scopes for a symbol with metadata indicating it's the class definition
         for (const auto & [scopeName, table] : scopes_) {
-            // Classes are registered in the functions namespace
-            auto classSymbol = table->get(DEFAULT_FUNCTIONS_SCOPE, className);
-            if (classSymbol && classSymbol->getKind() == Kind::Function) {
+            // Classes are registered in the variables namespace (as per addClass method)
+            auto classSymbol = table->get(DEFAULT_VARIABLES_SCOPE, className);
+            if (classSymbol && classSymbol->getKind() == Kind::Class) {
                 // Found the class definition
                 return scopeName;
             }
@@ -534,13 +535,16 @@ class SymbolContainer {
             return nullptr; // Class not found
         }
         
-        // Get the symbol table for the class scope
-        auto scopeTable = getScopeTable(classScope);
+        // The method is stored in a class-specific namespace: classScope::className
+        std::string classMethodScope = classScope + SCOPE_SEPARATOR + className;
+        
+        // Get the symbol table for the class-specific method scope
+        auto scopeTable = getScopeTable(classMethodScope);
         if (!scopeTable) {
             return nullptr;
         }
         
-        // Look for the method in the methods namespace
+        // Look for the method in the methods namespace within the class-specific scope
         return scopeTable->get(METHOD_SCOPE, methodName);
     }
 
@@ -1060,6 +1064,48 @@ class SymbolContainer {
         return classInfo.module;
     }
 
+    /**
+     * @brief Get the current module being registered
+     * @return Pointer to the current module, or nullptr if no module is being registered
+     */
+    Modules::BaseModule* getCurrentModule() const {
+        return currentModule_;
+    }
+
+    /**
+     * @brief Set the current module being registered
+     * @param module Pointer to the module that is currently registering symbols
+     */
+    void setCurrentModule(Modules::BaseModule* module) {
+        currentModule_ = module;
+    }
+
+    /**
+     * @brief Set a static property for a class
+     * @param className Name of the class
+     * @param propertyName Name of the property
+     * @param value Value to set
+     */
+    void setObjectProperty(const std::string& className, const std::string& propertyName, const ValuePtr& value) {
+        auto& classInfo = getClassInfo(className);
+        classInfo.staticProperties[propertyName] = value;
+    }
+
+    /**
+     * @brief Get a static property for a class
+     * @param className Name of the class
+     * @param propertyName Name of the property
+     * @return Value of the property, or nullptr if not found
+     */
+    ValuePtr getObjectProperty(const std::string& className, const std::string& propertyName) const {
+        const auto& classInfo = getClassInfo(className);
+        auto it = classInfo.staticProperties.find(propertyName);
+        if (it != classInfo.staticProperties.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+
     // --- Function Registry Methods ---
 
     /**
@@ -1144,6 +1190,94 @@ class SymbolContainer {
         return it->second;
     }
 
+    /**
+     * @brief Get all function names
+     * @return Vector of function names
+     */
+    std::vector<std::string> getFunctionNames() const {
+        std::vector<std::string> names;
+        for (const auto& [name, func] : functions_) {
+            names.push_back(name);
+        }
+        return names;
+    }
+
+    /**
+     * @brief Get all method names for a class
+     * @param className Name of the class
+     * @return Vector of method names
+     */
+    std::vector<std::string> getMethodNames(const std::string& className) const {
+        std::vector<std::string> names;
+        auto it = classes_.find(className);
+        if (it != classes_.end()) {
+            for (const auto& method : it->second.methods) {
+                names.push_back(method.name);
+            }
+        }
+        return names;
+    }
+
+    /**
+     * @brief Get the return type of a method
+     * @param className Name of the class
+     * @param methodName Name of the method
+     * @return Return type of the method
+     */
+    Variables::Type getMethodReturnType(const std::string& className, const std::string& methodName) const {
+        auto it = classes_.find(className);
+        if (it != classes_.end()) {
+            for (const auto& method : it->second.methods) {
+                if (method.name == methodName) {
+                    return method.returnType;
+                }
+            }
+        }
+        return Variables::Type::NULL_TYPE;
+    }
+
+    /**
+     * @brief Get the parameters of a method
+     * @param className Name of the class
+     * @param methodName Name of the method
+     * @return Vector of method parameters
+     */
+    std::vector<FunctionParameterInfo> getMethodParameters(const std::string& className, const std::string& methodName) const {
+        auto it = classes_.find(className);
+        if (it != classes_.end()) {
+            for (const auto& method : it->second.methods) {
+                if (method.name == methodName) {
+                    return method.parameters;
+                }
+            }
+        }
+        return {};
+    }
+
+    /**
+     * @brief Call a method on a class instance
+     * @param className Name of the class
+     * @param methodName Name of the method
+     * @param args Arguments to pass to the method
+     * @return Value returned by the method
+     */
+    ValuePtr callMethod(const std::string& className, const std::string& methodName, FunctionArguments& args) {
+        auto it = classes_.find(className);
+        if (it == classes_.end()) {
+            throw std::runtime_error("Class not found: " + className);
+        }
+        
+        for (const auto& method : it->second.methods) {
+            if (method.name == methodName) {
+                if (method.nativeImplementation) {
+                    return method.nativeImplementation(args);
+                }
+                break;
+            }
+        }
+        
+        throw std::runtime_error("Method not found: " + className + "::" + methodName);
+    }
   private:
     static void dumpValue(const Symbols::ValuePtr & value, std::string & result, int indent) {
         if (value == Variables::Type::OBJECT) {

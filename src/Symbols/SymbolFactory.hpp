@@ -29,18 +29,18 @@ class SymbolFactory {
     }
 
     static std::shared_ptr<Symbol> createFunction(const std::string & name, const std::string & context,
-                                                  const Symbols::FunctionParameterInfo & parameters = {}) {
+                                                  const std::vector<Symbols::FunctionParameterInfo> & parameters = {}) {
         return std::make_shared<FunctionSymbol>(name, context, parameters);
     }
 
     static std::shared_ptr<Symbol> createFunction(const std::string & name, const std::string & context,
-                                                  const Symbols::FunctionParameterInfo & parameters,
+                                                  const std::vector<Symbols::FunctionParameterInfo> & parameters,
                                                   const std::string &                    plainBody) {
         return std::make_shared<FunctionSymbol>(name, context, parameters, plainBody);
     }
 
     static std::shared_ptr<Symbol> createFunction(const std::string & name, const std::string & context,
-                                                  const Symbols::FunctionParameterInfo & parameters,
+                                                  const std::vector<Symbols::FunctionParameterInfo> & parameters,
                                                   const std::string & plainBody, Symbols::Variables::Type returnType) {
         return std::make_shared<FunctionSymbol>(name, context, parameters, plainBody, returnType);
     }
@@ -48,14 +48,14 @@ class SymbolFactory {
     static std::shared_ptr<Symbol> createMethod(const std::string & name, 
                                                  const std::string & context,
                                                  const std::string & className,
-                                                 const Symbols::FunctionParameterInfo & parameters = {}) {
+                                                 const std::vector<Symbols::FunctionParameterInfo> & parameters = {}) {
         return std::make_shared<MethodSymbol>(name, context, className, parameters);
     }
 
     static std::shared_ptr<Symbol> createMethod(const std::string & name, 
                                                  const std::string & context,
                                                  const std::string & className,
-                                                 const Symbols::FunctionParameterInfo & parameters,
+                                                 const std::vector<Symbols::FunctionParameterInfo> & parameters,
                                                  const std::string & plainBody) {
         return std::make_shared<MethodSymbol>(name, context, className, parameters, plainBody);
     }
@@ -63,7 +63,7 @@ class SymbolFactory {
     static std::shared_ptr<Symbol> createMethod(const std::string & name, 
                                                  const std::string & context,
                                                  const std::string & className,
-                                                 const Symbols::FunctionParameterInfo & parameters,
+                                                 const std::vector<Symbols::FunctionParameterInfo> & parameters,
                                                  const std::string & plainBody, 
                                                  Symbols::Variables::Type returnType) {
         return std::make_shared<MethodSymbol>(name, context, className, parameters, plainBody, returnType);

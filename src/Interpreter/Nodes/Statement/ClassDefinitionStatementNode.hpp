@@ -10,6 +10,7 @@
 #include "Interpreter/StatementNode.hpp"
 
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/SymbolFactory.hpp"
 
 namespace Interpreter {
 
@@ -19,15 +20,15 @@ namespace Interpreter {
 class ClassDefinitionStatementNode : public StatementNode {
     std::string                                   className_;
     std::string                                   classNs_;
-    std::vector<Symbols::SymbolContainer::PropertyInfo> privateProperties_;
-    std::vector<Symbols::SymbolContainer::PropertyInfo> publicProperties_;
+    std::vector<Symbols::PropertyInfo> privateProperties_;
+    std::vector<Symbols::PropertyInfo> publicProperties_;
     std::vector<std::string>                      methodNames_;
     std::string                                   constructorName_;  // Added
 
   public:
     ClassDefinitionStatementNode(const std::string & className, const std::string & classNs,
-                                 std::vector<Symbols::SymbolContainer::PropertyInfo> privateProps,
-                                 std::vector<Symbols::SymbolContainer::PropertyInfo> publicProps,
+                                 std::vector<Symbols::PropertyInfo> privateProps,
+                                 std::vector<Symbols::PropertyInfo> publicProps,
                                  std::vector<std::string>                      methods,
                                  const std::string &                           constructorName,  // Added
                                  const std::string & filename, int line, size_t column) :
@@ -42,8 +43,14 @@ class ClassDefinitionStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         auto * sc = Symbols::SymbolContainer::instance();
         
-        // Register the class itself
-        sc->registerClass(className_);
+        // Register the class itself (only if not already registered)
+        if (!sc->hasClass(className_)) {
+            sc->registerClass(className_);
+            
+            // Also create a class symbol in the scope table for findClassNamespace to find
+            auto classSymbol = Symbols::SymbolFactory::createClass(className_, classNs_);
+            sc->addClass(classSymbol);
+        }
         
         // Register private and public properties (privacy not enforced yet)
         for (const auto & prop : privateProperties_) {
@@ -53,13 +60,15 @@ class ClassDefinitionStatementNode : public StatementNode {
             sc->addProperty(className_, prop.name, prop.type, false, prop.defaultValueExpr);
         }
         
-        // Register methods
+        // Register methods (only if not already registered)
         // Reverse the methodNames_ to fix the order issue
         std::vector<std::string> reversedMethods = methodNames_;
         std::reverse(reversedMethods.begin(), reversedMethods.end());
         
         for (const auto & method : reversedMethods) {
-            sc->addMethod(className_, method);
+            if (!sc->hasMethod(className_, method)) {
+                sc->addMethod(className_, method);
+            }
         }
         
         // Register constructor if it exists

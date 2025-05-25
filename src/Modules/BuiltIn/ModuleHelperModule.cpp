@@ -7,12 +7,14 @@
 
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/RegistrationMacros.hpp"
+#include "Symbols/FunctionParameterInfo.hpp"
 #include "utils.h"
 
 namespace Modules {
 
 void ModuleHelperModule::registerFunctions() {
-    std::vector<FunctParameterInfo> params = {};
+    std::vector<Symbols::FunctionParameterInfo> params = {};
 
     // List all modules
     REGISTER_FUNCTION("module_list", Symbols::Variables::Type::OBJECT, params,
@@ -33,7 +35,7 @@ void ModuleHelperModule::registerFunctions() {
 
     // Check if module exists
     params = {
-        { "name", Symbols::Variables::Type::STRING, "Name of the module to check" }
+        {"name", Symbols::Variables::Type::STRING, "Name of the module to check", false, false}
     };
     REGISTER_FUNCTION("module_exists", Symbols::Variables::Type::BOOLEAN, params,
                       "Check if a module with the given name exists",
@@ -49,7 +51,7 @@ void ModuleHelperModule::registerFunctions() {
 
     // Get module info
     params = {
-        { "name", Symbols::Variables::Type::STRING, "Name of the module to get info for" }
+        {"name", Symbols::Variables::Type::STRING, "Name of the module to get info for", false, false}
     };
     REGISTER_FUNCTION(
         "module_info", Symbols::Variables::Type::OBJECT, params,
@@ -69,7 +71,7 @@ void ModuleHelperModule::registerFunctions() {
 
     // Print detailed module info
     params = {
-        { "name", Symbols::Variables::Type::STRING, "Name of the module to print info for" }
+        {"name", Symbols::Variables::Type::STRING, "Name of the module to print info for", false, false}
     };
 
     REGISTER_FUNCTION("module_print_info", Symbols::Variables::Type::NULL_TYPE, params,
@@ -78,7 +80,7 @@ void ModuleHelperModule::registerFunctions() {
 
     // Get function documentation
     params = {
-        { "name", Symbols::Variables::Type::STRING, "Name of the function to get documentation for" }
+        {"name", Symbols::Variables::Type::STRING, "Name of the function to get documentation for", false, false}
     };
     REGISTER_FUNCTION("function_doc", Symbols::Variables::Type::OBJECT, params,
                       "Get documentation for a specific function including parameters and return type",

@@ -5,11 +5,12 @@
 #include <string>
 
 #include "Symbols/Value.hpp"
+#include "Symbols/FunctionParameterInfo.hpp"
 
 namespace Modules {
 
-using FunctionArguments = const std::vector<Symbols::Value>;
-using CallbackFunction  = std::function<Symbols::Value(FunctionArguments &)>;
+using FunctionArguments = const std::vector<Symbols::ValuePtr>;
+using CallbackFunction  = std::function<Symbols::ValuePtr(FunctionArguments &)>;
 
 
 
@@ -21,7 +22,7 @@ struct FunctionDoc {
     std::string                     name;
     Symbols::Variables::Type        returnType;
     // list of the parameters, empty if no parameters required
-    std::vector<FunctParameterInfo> parameterList;
+    std::vector<Symbols::FunctionParameterInfo> parameterList;
     // short description of the function / method
     std::string                     description;
 };

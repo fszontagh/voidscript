@@ -11,6 +11,7 @@
 #include "Modules/BaseModule.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 #include "utils.h"
 
 namespace Modules {
@@ -27,12 +28,12 @@ class FileModule : public BaseModule {
     FileModule() { setModuleName("File"); }
 
     void registerFunctions() override {
-        std::vector<FunctParameterInfo> params = {
-            { "file_name", Symbols::Variables::Type::STRING, "The file name" }
+        std::vector<Symbols::FunctionParameterInfo> params = {
+            { "file_name", Symbols::Variables::Type::STRING, "The file name", false, false }
         };
 
         REGISTER_FUNCTION("file_get_contents", Symbols::Variables::Type::STRING, params, "Read the content of a file",
-                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_get_contents expects 1 argument");
                               }
@@ -54,13 +55,13 @@ class FileModule : public BaseModule {
                           });
 
         params = {
-            { "file_name", Symbols::Variables::Type::STRING,  "The file name"                              },
-            { "content",   Symbols::Variables::Type::STRING,  "The content to write to the file"           },
-            { "overwrite", Symbols::Variables::Type::BOOLEAN, "Whether to overwrite the file if it exists" }
+            { "file_name", Symbols::Variables::Type::STRING,  "The file name", false, false },
+            { "content",   Symbols::Variables::Type::STRING,  "The content to write to the file", false, false },
+            { "overwrite", Symbols::Variables::Type::BOOLEAN, "Whether to overwrite the file if it exists", false, false }
         };
         // Write content to file, with optional overwrite
         REGISTER_FUNCTION("file_put_contents", Symbols::Variables::Type::NULL_TYPE, params, "Write content into a file",
-                          [](FunctionArguments & args) -> Symbols::ValuePtr {
+                          [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 3) {
                                   throw std::runtime_error("file_put_contents expects 3 arguments");
                               }
@@ -87,12 +88,12 @@ class FileModule : public BaseModule {
                               return Symbols::ValuePtr::null();
                           });
         params = {
-            { "file_name", Symbols::Variables::Type::STRING, "The file name" }
+            { "file_name", Symbols::Variables::Type::STRING, "The file name", false, false }
         };
 
         // Check if file exists
         REGISTER_FUNCTION("file_exists", Symbols::Variables::Type::BOOLEAN, params, "Check if a file exists or not",
-                          [](FunctionArguments & args) -> Symbols::ValuePtr {
+                          [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_exists expects 1 argument");
                               }
@@ -104,11 +105,11 @@ class FileModule : public BaseModule {
                           });
 
         params = {
-            { "file_name", Symbols::Variables::Type::STRING, "The file name" }
+            { "file_name", Symbols::Variables::Type::STRING, "The file name", false, false }
         };
 
         REGISTER_FUNCTION("file_size", Symbols::Variables::Type::INTEGER, params, "Get the size of a file",
-                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1) {
                                   throw std::runtime_error("file_size expects 1 argument");
                               }

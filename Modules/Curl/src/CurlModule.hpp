@@ -56,7 +56,7 @@ class CurlModule final : public BaseModule {
     /**
      * @brief Register this module's symbols (HTTP GET and POST functions).
      */
-    void registerModule() override;
+    void registerFunctions() override;
 
     /**
      * @brief Perform HTTP GET: curlGet(url [, options])

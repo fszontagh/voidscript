@@ -8,18 +8,19 @@
 #include "Lexer/Token.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/VariableTypes.hpp"
+#include "Symbols/FunctionParameterInfo.hpp"
 
 namespace Symbols {
 
 class FunctionSymbol : public Symbol {
     // store the variables name and type
-    FunctionParameterInfo             parameters_;
+    std::vector<FunctionParameterInfo> parameters_;
     Symbols::Variables::Type          returnType_;
     std::string                       plainBody_;
     std::vector<Lexer::Tokens::Token> tokens_;
 
   public:
-    FunctionSymbol(const std::string & name, const std::string & context, const FunctionParameterInfo & parameters,
+    FunctionSymbol(const std::string & name, const std::string & context, const std::vector<FunctionParameterInfo> & parameters,
                    const std::string &      plainbody  = "",
                    Symbols::Variables::Type returnType = Symbols::Variables::Type::NULL_TYPE) :
         Symbol(name, "", context, Symbols::Kind::Function),
@@ -31,7 +32,7 @@ class FunctionSymbol : public Symbol {
 
     Symbols::Variables::Type returnType() const { return returnType_; }
 
-    const FunctionParameterInfo & parameters() const { return parameters_; }
+    const std::vector<FunctionParameterInfo> & parameters() const { return parameters_; }
 
     const std::string & plainBody() const { return plainBody_; }
 

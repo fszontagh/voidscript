@@ -382,7 +382,7 @@ ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
     // Ensure all properties are initialized
     if (props.find("__class__") != props.end()) {
         std::string className = props["__class__"]->get<std::string>();
-        auto& symbolContainer = Symbols::SymbolContainer::instance();
+        auto* symbolContainer = Symbols::SymbolContainer::instance();
 
         // Initialize any missing properties with default values
         if (symbolContainer->hasClass(className)) {

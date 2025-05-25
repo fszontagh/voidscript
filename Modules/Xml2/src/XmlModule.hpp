@@ -25,7 +25,7 @@ class XmlModule : public BaseModule {
     /**
      * @brief Register this module's symbols
      */
-    void registerModule() override;
+    void registerFunctions() override;
 
     ~XmlModule() {
         for (auto dox : docHolder) {

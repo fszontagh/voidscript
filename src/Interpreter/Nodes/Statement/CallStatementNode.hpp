@@ -40,7 +40,7 @@ class CallStatementNode : public StatementNode {
             }
             
             // Check for module functions via SymbolContainer first
-            auto & symbolContainer = Symbols::SymbolContainer::instance();
+            auto * symbolContainer = Symbols::SymbolContainer::instance();
             if (symbolContainer->hasFunction(functionName_)) {
                 symbolContainer->callFunction(functionName_, argValues);
                 return;  // Function call statements don't return values

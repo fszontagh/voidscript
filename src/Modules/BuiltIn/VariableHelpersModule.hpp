@@ -9,6 +9,7 @@
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 
 namespace Modules {
 
@@ -23,12 +24,12 @@ class VariableHelpersModule : public BaseModule {
     VariableHelpersModule() { setModuleName("VariableHelpers"); }
 
     void registerFunctions() override {
-        std::vector<FunctParameterInfo> param_list = {
-            { "string", Symbols::Variables::Type::STRING, "The string to calculate the length of" },
-            { "string", Symbols::Variables::Type::STRING, "The type to compare against", true }
+        std::vector<Symbols::FunctionParameterInfo> param_list = {
+            { "string", Symbols::Variables::Type::STRING, "The string to calculate the length of", false, false },
+            { "string", Symbols::Variables::Type::STRING, "The type to compare against", true, false }
         };
         REGISTER_FUNCTION("typeof", Symbols::Variables::Type::STRING, param_list, "Get the type of a variable",
-                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() == 1) {
                                   Symbols::Variables::Type t = args[0]->getType();
                                   //return Symbols::ValuePtr(Symbols::Variables::TypeToString(t));

@@ -5,6 +5,7 @@
 #include "Modules/BaseModule.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/FunctionParameterInfo.hpp"
 #include "utils.h"
 
 namespace Modules {
@@ -128,7 +129,7 @@ class ModuleHelperModule : public BaseModule {
     }
 
     // Helper methods for building documentation
-    static Symbols::ObjectMap buildParameterInfoMap(const FunctParameterInfo & param) {
+    static Symbols::ObjectMap buildParameterInfoMap(const Symbols::FunctionParameterInfo & param) {
         Symbols::ObjectMap paramInfo;
         paramInfo["name"]        = Symbols::ValuePtr(param.name);
         paramInfo["type"]        = Symbols::ValuePtr(Symbols::Variables::TypeToString(param.type));

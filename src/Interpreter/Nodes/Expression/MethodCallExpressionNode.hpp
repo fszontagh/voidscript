@@ -85,7 +85,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 std::string cn = className->second->get<std::string>();
                 
                 // Get class info from SymbolContainer
-                auto& symbolContainer = Symbols::SymbolContainer::instance();
+                auto* symbolContainer = Symbols::SymbolContainer::instance();
                 
                 // Check if class exists in SymbolContainer
                 if (!symbolContainer->hasClass(cn)) {
@@ -114,27 +114,27 @@ class MethodCallExpressionNode : public ExpressionNode {
                     }
                 }
                 
-                // Regular method call using SymbolContainer
+                // Method call handling through Operations system
+                auto* sc = Symbols::SymbolContainer::instance();
+                
+                // Try native method first
                 try {
-                    // Use the interpreter's executeMethod which now uses SymbolContainer
-                    returnValue = interpreter.executeMethod(objVal, methodName_, evaluatedArgs);
+                    returnValue = sc->callMethod(cn, methodName_, evaluatedArgs);
+                    interpreter.clearThisObject();
+                    return returnValue;
                 } catch (const std::exception& e) {
-                    // If executeMethod fails, we'll try a more direct approach
+                    // If native method call fails, try script method execution
                     
-                    // Get SymbolContainer instance
-                    auto* sc = Symbols::SymbolContainer::instance();
+                    std::string classNamespace = sc->findClassNamespace(cn);
                     
-                    // Get method information
-                    std::shared_ptr<Symbols::Symbol> sym_method = sc->getMethod(cn, methodName_);
+                    // Get method information using findMethod which searches scope tables
+                    std::shared_ptr<Symbols::Symbol> sym_method = sc->findMethod(cn, methodName_);
                     
                     if (!sym_method) {
                         throw std::runtime_error("Method '" + methodName_ + "' not found in class " + cn);
                     }
                     
-                    // Build the method scope name
-                    std::string method_scope_name = cn;
-                    
-                    // Execute the method directly through the interpreter
+                    // Execute the method directly through the operations system
                     std::shared_ptr<Symbols::FunctionSymbol> funcSym;
                     
                     if (sym_method->getKind() == Symbols::Kind::Method) {
@@ -146,23 +146,23 @@ class MethodCallExpressionNode : public ExpressionNode {
                     const auto& params = funcSym->parameters();
                     
                     // Create and enter method scope
-                    const std::string methodNs = method_scope_name + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
+                    const std::string methodNs = cn + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName_;
                     sc->create(methodNs);
                     
-                    // Bind 'this' and parameters
-                    // This is crucial - create a variable named "this" in the method scope
-                    // that points to the object instance
-                    sc->addVariable(Symbols::SymbolFactory::createVariable("this", objVal, methodNs));
-                    
-                    // Add parameters
-                    for (size_t i = 0; i < std::min(params.size(), evaluatedArgs.size()); ++i) {
-                        sc->addVariable(Symbols::SymbolFactory::createVariable(params[i].name, evaluatedArgs[i], methodNs));
-                    }
-                    
-                    // Execute method body
-                    bool returnCaught = false;
                     try {
-                        for (const auto& op : Operations::Container::instance()->getAll(methodNs)) {
+                        // Bind 'this' and parameters
+                        sc->addVariable(Symbols::SymbolFactory::createVariable("this", objVal, methodNs));
+                        
+                        // Add parameters
+                        for (size_t i = 0; i < std::min(params.size(), evaluatedArgs.size()); ++i) {
+                            sc->addVariable(Symbols::SymbolFactory::createVariable(params[i].name, evaluatedArgs[i], methodNs));
+                        }
+                        
+                        // Execute method body
+                        bool returnCaught = false;
+                        auto methodOps = Operations::Container::instance()->getAll(methodNs);
+                        
+                        for (const auto& op : methodOps) {
                             try {
                                 interpreter.runOperation(*op);
                             } catch (const ReturnException& re) {

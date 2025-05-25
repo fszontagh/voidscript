@@ -20,79 +20,6 @@ const Symbols::ValuePtr & Interpreter::getThisObject() const {
     return thisObject_;
 }
 
-Symbols::ValuePtr Interpreter::executeMethod(const Symbols::ValuePtr & objectValue, const std::string & methodName,
-                                             const std::vector<Symbols::ValuePtr> & args) {
-    if (!objectValue) {
-        throw Exception("Cannot call method on null value", "-", 0, 0);
-    }
-
-    if (objectValue->getType() != Symbols::Variables::Type::OBJECT &&
-        objectValue->getType() != Symbols::Variables::Type::CLASS) {
-        throw Exception("Cannot call method on non-object value of type " +
-                            Symbols::Variables::TypeToString(objectValue->getType()),
-                        "-", 0, 0);
-    }
-
-    const auto & objMap = objectValue->get<Symbols::ObjectMap>();
-
-    // Look for class name in the object
-    std::string className;
-    auto        classNameIt = objMap.find("$class_name");
-    if (classNameIt == objMap.end()) {
-        // Try alternative class name key
-        classNameIt = objMap.find("__class__");
-        if (classNameIt == objMap.end()) {
-            throw Exception("Cannot call method on object without class name", "-", 0, 0);
-        }
-    }
-
-    // Get the class name from the object
-    const auto & classNameVal = classNameIt->second;
-    if (classNameVal->getType() != Symbols::Variables::Type::STRING) {
-        throw Exception("Invalid class name type", "-", 0, 0);
-    }
-    className = classNameVal->get<std::string>();
-
-    // Save the previous "this" object
-    auto previousThis = thisObject_;
-
-    // Set the new "this" object
-    thisObject_ = objectValue;
-
-    try {
-        // Get the method from the SymbolContainer
-        auto & symbolContainer = Symbols::SymbolContainer::instance();
-
-        if (!symbolContainer->hasClass(className)) {
-            throw Exception("Class not found in SymbolContainer: " + className, "-", 0, 0);
-        }
-
-        std::string fullMethodName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName;
-        if (!symbolContainer->hasMethod(className, methodName)) {
-            throw Exception(
-                "Method '" + methodName + "' not found in class '" + className + "'", "-", 0,
-                0);
-        }
-
-        // Execute the method
-        auto result = symbolContainer->callMethod(className, methodName, args);
-        //auto result = mgr.callFunction(fullMethodName, const_cast<std::vector<Symbols::ValuePtr> &>(args));
-
-        // Restore the previous "this" object
-        thisObject_ = previousThis;
-
-        return result;
-    } catch (const ReturnException & re) {
-        // Special handling for return statements
-        thisObject_ = previousThis;
-        return re.value();
-    } catch (const std::exception & e) {
-        // Restore the previous "this" object even if an error occurred
-        thisObject_ = previousThis;
-        throw;
-    }
-}
-
 void Interpreter::run() {
     // Determine namespace to execute
     const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
@@ -121,6 +48,7 @@ void Interpreter::runOperation(const Operations::Operation & op) {
 
             // Function-related operations
             case Operations::Type::FuncDeclaration:
+            case Operations::Type::MethodDeclaration:
             case Operations::Type::FunctionCall:
             case Operations::Type::MethodCall:
             case Operations::Type::Return:

@@ -14,9 +14,9 @@ class ImagickModule : public BaseModule {
     ImagickModule() { setModuleName("Imagick"); }
 
     /**
-     * @brief Register this module's symbols
+     * @brief Register this module's functions
      */
-    void registerModule() override;
+    void registerFunctions() override;
 
   private:
     std::unordered_map<int, Magick::Image> images_;

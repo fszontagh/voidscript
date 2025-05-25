@@ -9,8 +9,12 @@
 #include <vector>
 
 #include "../BaseException.hpp"
-#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
+
+// Forward declaration to avoid circular dependency
+namespace Symbols {
+    class SymbolContainer;
+}
 
 using FunctionArguments = const std::vector<Symbols::ValuePtr>;
 using CallbackFunction  = std::function<Symbols::ValuePtr(FunctionArguments &)>;
@@ -43,15 +47,16 @@ class BaseModule {
     std::string name() const { return this->moduleName; }
 
     Symbols::ObjectMap getObjectMap(const FunctionArguments & args, const std::string & funcName) {
+        constexpr const char* SCOPE_SEP = "::";  // Local definition to avoid circular dependency
         if (!args.empty()) {
             if (args[0] != Symbols::Variables::Type::CLASS &&
                 args[0] != Symbols::Variables::Type::OBJECT) {
-                throw std::runtime_error(this->moduleName + Symbols::SymbolContainer::SCOPE_SEPARATOR + funcName +
+                throw std::runtime_error(this->moduleName + SCOPE_SEP + funcName +
                                          " must be called on " + this->moduleName + " instance");
             }
             return args[0];
         }
-        throw std::invalid_argument(this->moduleName +  Symbols::SymbolContainer::SCOPE_SEPARATOR + funcName + ": invalid arguments size");
+        throw std::invalid_argument(this->moduleName + SCOPE_SEP + funcName + ": invalid arguments size");
     }
 
     template <typename T> int storeType(const T & data) {

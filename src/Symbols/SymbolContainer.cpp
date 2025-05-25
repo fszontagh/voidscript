@@ -1,4 +1,5 @@
 #include "SymbolContainer.hpp" 
+#include "Parser/ParsedExpression.hpp"  // For implementation methods using ParsedExpressionPtr
 
 namespace Symbols {
     std::string SymbolContainer::initial_scope_name_for_singleton_;

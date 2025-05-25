@@ -171,7 +171,7 @@ class Parser {
      * @param params           Parameter list for the function.
      */
     void                parseFunctionBody(size_t opening_brace_idx, const std::string & function_name,
-                                          Symbols::Variables::Type return_type, const Symbols::FunctionParameterInfo & params);
+                                          Symbols::Variables::Type return_type, const std::vector<Symbols::FunctionParameterInfo> & params);
     ParsedExpressionPtr parseParsedExpression(const Symbols::Variables::Type & expected_var_type);
 
     // Helper to parse an identifier name, stripping leading '$' if present
