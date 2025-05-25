@@ -126,6 +126,61 @@ class FileModule : public BaseModule {
                               size_t size = utils::file_size(filename);
                               return static_cast<int>(size);
                           });
+
+        // Create directory with optional recursive creation
+        params = {
+            { "dir_path", Symbols::Variables::Type::STRING, "The directory path", false, false },
+            { "recursive", Symbols::Variables::Type::BOOLEAN, "Whether to create parent directories recursively", true, false }
+        };
+
+        REGISTER_FUNCTION("mkdir", Symbols::Variables::Type::BOOLEAN, params, "Create a directory",
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() < 1 || args.size() > 2) {
+                                  throw std::runtime_error("mkdir expects 1 or 2 arguments");
+                              }
+                              if (args[0]->getType() != Symbols::Variables::Type::STRING) {
+                                  throw std::runtime_error("mkdir expects string directory path");
+                              }
+                              
+                              const std::string dir_path = args[0]->get<std::string>();
+                              bool recursive = false;
+                              
+                              if (args.size() == 2) {
+                                  if (args[1]->getType() != Symbols::Variables::Type::BOOLEAN) {
+                                      throw std::runtime_error("mkdir second argument must be boolean (recursive)");
+                                  }
+                                  recursive = args[1]->get<bool>();
+                              }
+                              
+                              bool success;
+                              if (recursive) {
+                                  success = utils::create_directories(dir_path);
+                              } else {
+                                  success = utils::create_directory(dir_path);
+                              }
+                              
+                              return Symbols::ValuePtr(success);
+                          });
+
+        // Remove directory (only if empty)
+        params = {
+            { "dir_path", Symbols::Variables::Type::STRING, "The directory path", false, false }
+        };
+
+        REGISTER_FUNCTION("rmdir", Symbols::Variables::Type::BOOLEAN, params, "Remove an empty directory",
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() != 1) {
+                                  throw std::runtime_error("rmdir expects 1 argument");
+                              }
+                              if (args[0]->getType() != Symbols::Variables::Type::STRING) {
+                                  throw std::runtime_error("rmdir expects string directory path");
+                              }
+                              
+                              const std::string dir_path = args[0]->get<std::string>();
+                              bool success = utils::remove_directory(dir_path);
+                              
+                              return Symbols::ValuePtr(success);
+                          });
     }
 };
 

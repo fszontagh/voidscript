@@ -224,7 +224,7 @@ Symbols::ValuePtr CurlModule::curlGet(FunctionArguments & args) {
     const std::string url     = args[0];
     Symbols::ValuePtr options = Symbols::ValuePtr::null();
 
-    if (args.size() == 3) {
+    if (args.size() == 2) {
         options = args[1];
     }
     return Symbols::ValuePtr(client.get(url, options));
