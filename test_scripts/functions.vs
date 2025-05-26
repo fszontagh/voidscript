@@ -18,6 +18,24 @@ function mulSum (int $x, int $y, int $z) int {
     return $result;
 }
 
+function forloopinFunct(int $from, int $to) int {
+    int $c = 0;
+    for (int $i = $from; $i < $to; $i++) {
+        $c++;
+    }
+    return $c;
+}
+
+function loopOverArray(string[] $texts) int {
+    int $z = 0;
+
+    for (string $r : $tests) {
+        $z++;
+    }
+
+    return $z;
+}
+
 # Call the functions and print results
 greet("VoidScript");
 
@@ -30,3 +48,11 @@ printnl("mulSum(2, 3, 4) = ", $result2);
 # Demonstrate nested call in expression
 int $combined = mulSum(1, 2, 3) + sum(3, 4);
 printnl("combined (mulSum(1,2,3) + sum(3,4)) = ", $combined);
+
+
+const int $retint = forloopinFunct(0,5);
+printnl("Retint: ", $retint);
+
+
+string[] $arrayString = ["apple", "banana", "cherry"];
+int $loopOverArrayCount = loopOverArray($arrayString);

@@ -6,12 +6,10 @@
 #include "XmlModule.hpp"
 
 extern "C" void plugin_init() {
-    // Register XmlModule
+    // Create and register XmlModule using the new pattern
     auto module = std::make_unique<Modules::XmlModule>();
     module->setModuleName("Xml2");
     
-    // Set as current module for registration macros
-    Symbols::SymbolContainer::instance()->setCurrentModule(module.get());
-    module->registerFunctions();
-    Symbols::SymbolContainer::instance()->setCurrentModule(nullptr);
+    // Register and store the module in one call
+    Symbols::SymbolContainer::instance()->registerModule(Modules::make_base_module_ptr(std::move(module)));
 }

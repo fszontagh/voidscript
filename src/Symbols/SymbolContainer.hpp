@@ -2,26 +2,37 @@
 #define SYMBOL_CONTAINER_HPP
 
 #include <atomic>  // Required for std::atomic
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
-#include <functional>
 
-#include "SymbolTable.hpp"
+#include "Symbols/FunctionParameterInfo.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
-#include "Symbols/FunctionParameterInfo.hpp"
+#include "SymbolTable.hpp"
 
 // Forward declarations to avoid circular dependencies
 namespace Parser {
-    class ParsedExpression;
-    using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
-}
+class ParsedExpression;
+using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
+}  // namespace Parser
 
 namespace Modules {
-    class BaseModule;
+class BaseModule;
+
+// Custom deleter for BaseModule to work with forward declaration
+struct BaseModuleDeleter {
+    void operator()(BaseModule* module) const;
+};
+
+// Type alias for easier usage
+using BaseModulePtr = std::unique_ptr<BaseModule, BaseModuleDeleter>;
+
+// Helper function to create BaseModulePtr from standard unique_ptr
+BaseModulePtr make_base_module_ptr(std::unique_ptr<BaseModule> module);
 }
 
 namespace Symbols {
@@ -30,10 +41,10 @@ namespace Symbols {
  * @brief Documentation structure for functions and methods.
  */
 struct FunctionDoc {
-    std::string                     name;           // function/method name
-    Variables::Type                 returnType = Variables::Type::NULL_TYPE;     // return type
-    std::vector<FunctionParameterInfo> parameterList;  // parameter list
-    std::string                     description;    // short description
+    std::string                        name;                                     // function/method name
+    Variables::Type                    returnType = Variables::Type::NULL_TYPE;  // return type
+    std::vector<FunctionParameterInfo> parameterList;                            // parameter list
+    std::string                        description;                              // short description
 };
 
 /**
@@ -50,25 +61,25 @@ struct PropertyInfo {
  * @brief Information about a class method
  */
 struct MethodInfo {
-    std::string                 name;
-    std::string                 qualifiedName;
-    Variables::Type             returnType;
-    std::vector<FunctionParameterInfo> parameters;
-    bool                        isPrivate = false;
-    std::function<ValuePtr(const std::vector<ValuePtr>&)> nativeImplementation;
-    FunctionDoc                 documentation;
+    std::string                                            name;
+    std::string                                            qualifiedName;
+    Variables::Type                                        returnType;
+    std::vector<FunctionParameterInfo>                     parameters;
+    bool                                                   isPrivate = false;
+    std::function<ValuePtr(const std::vector<ValuePtr> &)> nativeImplementation;
+    FunctionDoc                                            documentation;
 };
 
 /**
  * @brief Information about a class
  */
 struct ClassInfo {
-    std::string                 name;
-    std::string                 parentClass;  // For inheritance
-    std::vector<PropertyInfo>   properties;
-    std::vector<MethodInfo>     methods;
+    std::string                               name;
+    std::string                               parentClass;  // For inheritance
+    std::vector<PropertyInfo>                 properties;
+    std::vector<MethodInfo>                   methods;
     std::unordered_map<std::string, ValuePtr> staticProperties;
-    Modules::BaseModule*        module = nullptr;  // Module that defined this class
+    Modules::BaseModule *                     module = nullptr;  // Module that defined this class
 };
 
 using FunctionArguments = const std::vector<ValuePtr>;
@@ -88,13 +99,16 @@ class SymbolContainer {
 
     // Class registry
     std::unordered_map<std::string, ClassInfo> classes_;
-    
+
     // Function registry
     std::unordered_map<std::string, CallbackFunction> functions_;
-    std::unordered_map<std::string, FunctionDoc> functionDocs_;
-    
+    std::unordered_map<std::string, FunctionDoc>      functionDocs_;
+
+    // Module storage by name
+    std::unordered_map<std::string, Modules::BaseModulePtr> modules_;
+
     // Current module being registered (for macro support)
-    Modules::BaseModule* currentModule_ = nullptr;
+    Modules::BaseModule * currentModule_ = nullptr;
 
     // Private constructor
     explicit SymbolContainer(const std::string & default_scope_name) {
@@ -261,12 +275,12 @@ class SymbolContainer {
         if (function->getKind() != Symbols::Kind::Function) {
             throw std::runtime_error("Symbol must be a function to use addFunction");
         }
-        
+
         auto it = scopes_.find(scopeName);
         if (it == scopes_.end()) {
             throw std::runtime_error("Cannot define function in non-existent scope: " + scopeName);
         }
-        
+
         const std::string ns = DEFAULT_FUNCTIONS_SCOPE;
         it->second->define(ns, function);
         return ns;
@@ -296,12 +310,12 @@ class SymbolContainer {
         if (method->getKind() != Symbols::Kind::Function && method->getKind() != Symbols::Kind::Method) {
             throw std::runtime_error("Symbol must be a function or method to use addMethod");
         }
-        
+
         auto it = scopes_.find(scopeName);
         if (it == scopes_.end()) {
             throw std::runtime_error("Cannot define method in non-existent scope: " + scopeName);
         }
-        
+
         const std::string ns = METHOD_SCOPE;
         it->second->define(ns, method);
         return ns;
@@ -331,12 +345,12 @@ class SymbolContainer {
         if (variable->getKind() != Symbols::Kind::Variable) {
             throw std::runtime_error("Symbol must be a variable to use addVariable");
         }
-        
+
         auto it = scopes_.find(scopeName);
         if (it == scopes_.end()) {
             throw std::runtime_error("Cannot define variable in non-existent scope: " + scopeName);
         }
-        
+
         const std::string ns = DEFAULT_VARIABLES_SCOPE;
         it->second->define(ns, variable);
         return ns;
@@ -366,12 +380,12 @@ class SymbolContainer {
         if (constant->getKind() != Symbols::Kind::Constant) {
             throw std::runtime_error("Symbol must be a constant to use addConstant");
         }
-        
+
         auto it = scopes_.find(scopeName);
         if (it == scopes_.end()) {
             throw std::runtime_error("Cannot define constant in non-existent scope: " + scopeName);
         }
-        
+
         const std::string ns = DEFAULT_CONSTANTS_SCOPE;
         it->second->define(ns, constant);
         return ns;
@@ -402,12 +416,12 @@ class SymbolContainer {
         if (classSymbol->getKind() != Symbols::Kind::Class) {
             throw std::runtime_error("Symbol must be a class to use addClass");
         }
-        
+
         auto it = scopes_.find(scopeName);
         if (it == scopes_.end()) {
             throw std::runtime_error("Cannot define class in non-existent scope: " + scopeName);
         }
-        
+
         const std::string ns = DEFAULT_VARIABLES_SCOPE;
         it->second->define(ns, classSymbol);
         return ns;
@@ -475,19 +489,19 @@ class SymbolContainer {
         if (SymbolPtr variable = getVariable(name)) {
             return variable;
         }
-        
+
         if (SymbolPtr constant = getConstant(name)) {
             return constant;
         }
-        
+
         if (SymbolPtr function = getFunction(name)) {
             return function;
         }
-        
+
         if (SymbolPtr method = getMethod(name)) {
             return method;
         }
-        
+
         // If we're in a loop scope, we need special handling for parent scope lookups
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const std::string & scope_name = *it;
@@ -532,18 +546,18 @@ class SymbolContainer {
         // First find the class's scope
         std::string classScope = findClassNamespace(className);
         if (classScope.empty()) {
-            return nullptr; // Class not found
+            return nullptr;  // Class not found
         }
-        
+
         // The method is stored in a class-specific namespace: classScope::className
         std::string classMethodScope = classScope + SCOPE_SEPARATOR + className;
-        
+
         // Get the symbol table for the class-specific method scope
         auto scopeTable = getScopeTable(classMethodScope);
         if (!scopeTable) {
             return nullptr;
         }
-        
+
         // Look for the method in the methods namespace within the class-specific scope
         return scopeTable->get(METHOD_SCOPE, methodName);
     }
@@ -557,7 +571,7 @@ class SymbolContainer {
         // Search scopes in innermost-to-outermost order
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const std::string & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
+            auto                tableIt   = scopes_.find(scopeName);
             if (tableIt != scopes_.end()) {
                 auto func = tableIt->second->get(DEFAULT_FUNCTIONS_SCOPE, name);
                 if (func && func->getKind() == Kind::Function) {
@@ -595,7 +609,7 @@ class SymbolContainer {
         // Search scopes in innermost-to-outermost order
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const std::string & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
+            auto                tableIt   = scopes_.find(scopeName);
             if (tableIt != scopes_.end()) {
                 auto method = tableIt->second->get(METHOD_SCOPE, name);
                 if (method && method->getKind() == Kind::Function) {
@@ -633,7 +647,7 @@ class SymbolContainer {
         // Search scopes in innermost-to-outermost order
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const std::string & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
+            auto                tableIt   = scopes_.find(scopeName);
             if (tableIt != scopes_.end()) {
                 auto variable = tableIt->second->get(DEFAULT_VARIABLES_SCOPE, name);
                 if (variable && variable->getKind() == Kind::Variable) {
@@ -671,7 +685,7 @@ class SymbolContainer {
         // Search scopes in innermost-to-outermost order
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
             const std::string & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
+            auto                tableIt   = scopes_.find(scopeName);
             if (tableIt != scopes_.end()) {
                 auto constant = tableIt->second->get(DEFAULT_CONSTANTS_SCOPE, name);
                 if (constant && constant->getKind() == Kind::Constant) {
@@ -742,15 +756,15 @@ class SymbolContainer {
      * @param module Pointer to the module that defines this class (nullptr for script-defined classes)
      * @return Reference to the newly created ClassInfo
      */
-    ClassInfo& registerClass(const std::string& className, Modules::BaseModule* module = nullptr) {
+    ClassInfo & registerClass(const std::string & className, Modules::BaseModule * module = nullptr) {
         if (hasClass(className)) {
             throw std::runtime_error("Class already registered: " + className);
         }
-        
+
         ClassInfo classInfo;
-        classInfo.name = className;
+        classInfo.name   = className;
         classInfo.module = module;
-        
+
         classes_[className] = classInfo;
         return classes_[className];
     }
@@ -762,21 +776,21 @@ class SymbolContainer {
      * @param module Pointer to the module that defines this class (nullptr for script-defined classes)
      * @return Reference to the newly created ClassInfo
      */
-    ClassInfo& registerClass(const std::string& className, const std::string& parentClassName, 
-                           Modules::BaseModule* module = nullptr) {
+    ClassInfo & registerClass(const std::string & className, const std::string & parentClassName,
+                              Modules::BaseModule * module = nullptr) {
         if (hasClass(className)) {
             throw std::runtime_error("Class already registered: " + className);
         }
-        
+
         if (!hasClass(parentClassName)) {
             throw std::runtime_error("Parent class not found: " + parentClassName);
         }
-        
+
         ClassInfo classInfo;
-        classInfo.name = className;
+        classInfo.name        = className;
         classInfo.parentClass = parentClassName;
-        classInfo.module = module;
-        
+        classInfo.module      = module;
+
         classes_[className] = classInfo;
         return classes_[className];
     }
@@ -786,16 +800,14 @@ class SymbolContainer {
      * @param className Name of the class to check
      * @return True if the class is registered, false otherwise
      */
-    bool hasClass(const std::string& className) const {
-        return classes_.find(className) != classes_.end();
-    }
+    bool hasClass(const std::string & className) const { return classes_.find(className) != classes_.end(); }
 
     /**
      * @brief Get information about a registered class
      * @param className Name of the class to get information for
      * @return Reference to the ClassInfo for the class
      */
-    ClassInfo& getClassInfo(const std::string& className) {
+    ClassInfo & getClassInfo(const std::string & className) {
         auto it = classes_.find(className);
         if (it == classes_.end()) {
             throw std::runtime_error("Class not found: " + className);
@@ -808,7 +820,7 @@ class SymbolContainer {
      * @param className Name of the class to get information for
      * @return Const reference to the ClassInfo for the class
      */
-    const ClassInfo& getClassInfo(const std::string& className) const {
+    const ClassInfo & getClassInfo(const std::string & className) const {
         auto it = classes_.find(className);
         if (it == classes_.end()) {
             throw std::runtime_error("Class not found: " + className);
@@ -824,24 +836,23 @@ class SymbolContainer {
      * @param isPrivate Whether the property is private
      * @param defaultValueExpr Expression for the default value (optional)
      */
-    void addProperty(const std::string& className, const std::string& propertyName, 
-                    Variables::Type type, bool isPrivate = false, 
-                    Parser::ParsedExpressionPtr defaultValueExpr = nullptr) {
-        ClassInfo& classInfo = getClassInfo(className);
-        
+    void addProperty(const std::string & className, const std::string & propertyName, Variables::Type type,
+                     bool isPrivate = false, Parser::ParsedExpressionPtr defaultValueExpr = nullptr) {
+        ClassInfo & classInfo = getClassInfo(className);
+
         // Check if property already exists
-        for (const auto& prop : classInfo.properties) {
+        for (const auto & prop : classInfo.properties) {
             if (prop.name == propertyName) {
                 throw std::runtime_error("Property already exists in class: " + className + "::" + propertyName);
             }
         }
-        
+
         PropertyInfo propertyInfo;
-        propertyInfo.name = propertyName;
-        propertyInfo.type = type;
-        propertyInfo.isPrivate = isPrivate;
+        propertyInfo.name             = propertyName;
+        propertyInfo.type             = type;
+        propertyInfo.isPrivate        = isPrivate;
         propertyInfo.defaultValueExpr = defaultValueExpr;
-        
+
         classInfo.properties.push_back(propertyInfo);
     }
 
@@ -853,33 +864,32 @@ class SymbolContainer {
      * @param parameters Method parameters
      * @param isPrivate Whether the method is private
      */
-    void addMethod(const std::string& className, const std::string& methodName,
-                  Variables::Type returnType = Variables::Type::NULL_TYPE,
-                  const std::vector<FunctionParameterInfo>& parameters = {},
-                  bool isPrivate = false) {
-        ClassInfo& classInfo = getClassInfo(className);
-        
+    void addMethod(const std::string & className, const std::string & methodName,
+                   Variables::Type                            returnType = Variables::Type::NULL_TYPE,
+                   const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false) {
+        ClassInfo & classInfo = getClassInfo(className);
+
         // Check if method already exists
-        for (const auto& method : classInfo.methods) {
+        for (const auto & method : classInfo.methods) {
             if (method.name == methodName) {
                 throw std::runtime_error("Method already exists in class: " + className + "::" + methodName);
             }
         }
-        
+
         MethodInfo methodInfo;
-        methodInfo.name = methodName;
+        methodInfo.name          = methodName;
         methodInfo.qualifiedName = className + SCOPE_SEPARATOR + methodName;
-        methodInfo.returnType = returnType;
-        methodInfo.parameters = parameters;
-        methodInfo.isPrivate = isPrivate;
-        
+        methodInfo.returnType    = returnType;
+        methodInfo.parameters    = parameters;
+        methodInfo.isPrivate     = isPrivate;
+
         // Create documentation
         FunctionDoc doc;
-        doc.name = methodInfo.qualifiedName;
-        doc.returnType = returnType;
-        doc.parameterList = parameters;
+        doc.name                 = methodInfo.qualifiedName;
+        doc.returnType           = returnType;
+        doc.parameterList        = parameters;
         methodInfo.documentation = doc;
-        
+
         classInfo.methods.push_back(methodInfo);
     }
 
@@ -892,35 +902,34 @@ class SymbolContainer {
      * @param parameters Method parameters
      * @param isPrivate Whether the method is private
      */
-    void addNativeMethod(const std::string& className, const std::string& methodName,
-                        std::function<ValuePtr(const std::vector<ValuePtr>&)> implementation,
-                        Variables::Type returnType = Variables::Type::NULL_TYPE,
-                        const std::vector<FunctionParameterInfo>& parameters = {},
-                        bool isPrivate = false) {
-        ClassInfo& classInfo = getClassInfo(className);
-        
+    void addNativeMethod(const std::string & className, const std::string & methodName,
+                         std::function<ValuePtr(const std::vector<ValuePtr> &)> implementation,
+                         Variables::Type                                        returnType = Variables::Type::NULL_TYPE,
+                         const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false) {
+        ClassInfo & classInfo = getClassInfo(className);
+
         // Check if method already exists
-        for (const auto& method : classInfo.methods) {
+        for (const auto & method : classInfo.methods) {
             if (method.name == methodName) {
                 throw std::runtime_error("Method already exists in class: " + className + "::" + methodName);
             }
         }
-        
+
         MethodInfo methodInfo;
-        methodInfo.name = methodName;
-        methodInfo.qualifiedName = className + SCOPE_SEPARATOR + methodName;
-        methodInfo.returnType = returnType;
-        methodInfo.parameters = parameters;
-        methodInfo.isPrivate = isPrivate;
+        methodInfo.name                 = methodName;
+        methodInfo.qualifiedName        = className + SCOPE_SEPARATOR + methodName;
+        methodInfo.returnType           = returnType;
+        methodInfo.parameters           = parameters;
+        methodInfo.isPrivate            = isPrivate;
         methodInfo.nativeImplementation = implementation;
-        
+
         // Create documentation
         FunctionDoc doc;
-        doc.name = methodInfo.qualifiedName;
-        doc.returnType = returnType;
-        doc.parameterList = parameters;
+        doc.name                 = methodInfo.qualifiedName;
+        doc.returnType           = returnType;
+        doc.parameterList        = parameters;
         methodInfo.documentation = doc;
-        
+
         classInfo.methods.push_back(methodInfo);
     }
 
@@ -930,25 +939,25 @@ class SymbolContainer {
      * @param propertyName Name of the property to check for
      * @return True if the property exists, false otherwise
      */
-    bool hasProperty(const std::string& className, const std::string& propertyName) const {
+    bool hasProperty(const std::string & className, const std::string & propertyName) const {
         if (!hasClass(className)) {
             return false;
         }
-        
-        const ClassInfo& classInfo = getClassInfo(className);
-        
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
         // Check in this class
-        for (const auto& prop : classInfo.properties) {
+        for (const auto & prop : classInfo.properties) {
             if (prop.name == propertyName) {
                 return true;
             }
         }
-        
+
         // Check in parent class if exists
         if (!classInfo.parentClass.empty()) {
             return hasProperty(classInfo.parentClass, propertyName);
         }
-        
+
         return false;
     }
 
@@ -958,25 +967,25 @@ class SymbolContainer {
      * @param methodName Name of the method to check for
      * @return True if the method exists, false otherwise
      */
-    bool hasMethod(const std::string& className, const std::string& methodName) const {
+    bool hasMethod(const std::string & className, const std::string & methodName) const {
         if (!hasClass(className)) {
             return false;
         }
-        
-        const ClassInfo& classInfo = getClassInfo(className);
-        
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
         // Check in this class
-        for (const auto& method : classInfo.methods) {
+        for (const auto & method : classInfo.methods) {
             if (method.name == methodName) {
                 return true;
             }
         }
-        
+
         // Check in parent class if exists
         if (!classInfo.parentClass.empty()) {
             return hasMethod(classInfo.parentClass, methodName);
         }
-        
+
         return false;
     }
 
@@ -987,11 +996,11 @@ class SymbolContainer {
     std::vector<std::string> getClassNames() const {
         std::vector<std::string> result;
         result.reserve(classes_.size());
-        
-        for (const auto& [className, _] : classes_) {
+
+        for (const auto & [className, _] : classes_) {
             result.push_back(className);
         }
-        
+
         return result;
     }
 
@@ -1001,8 +1010,8 @@ class SymbolContainer {
      * @param propertyName Name of the property
      * @param value Value to set
      */
-    void setStaticProperty(const std::string& className, const std::string& propertyName, const ValuePtr& value) {
-        ClassInfo& classInfo = getClassInfo(className);
+    void setStaticProperty(const std::string & className, const std::string & propertyName, const ValuePtr & value) {
+        ClassInfo & classInfo                    = getClassInfo(className);
         classInfo.staticProperties[propertyName] = value;
     }
 
@@ -1012,19 +1021,19 @@ class SymbolContainer {
      * @param propertyName Name of the property
      * @return Value of the property
      */
-    ValuePtr getStaticProperty(const std::string& className, const std::string& propertyName) const {
-        const ClassInfo& classInfo = getClassInfo(className);
-        
+    ValuePtr getStaticProperty(const std::string & className, const std::string & propertyName) const {
+        const ClassInfo & classInfo = getClassInfo(className);
+
         auto it = classInfo.staticProperties.find(propertyName);
         if (it != classInfo.staticProperties.end()) {
             return it->second;
         }
-        
+
         // Check in parent class if exists
         if (!classInfo.parentClass.empty()) {
             return getStaticProperty(classInfo.parentClass, propertyName);
         }
-        
+
         throw std::runtime_error("Static property not found: " + className + "::" + propertyName);
     }
 
@@ -1034,23 +1043,23 @@ class SymbolContainer {
      * @param propertyName Name of the property to check for
      * @return True if the property exists, false otherwise
      */
-    bool hasStaticProperty(const std::string& className, const std::string& propertyName) const {
+    bool hasStaticProperty(const std::string & className, const std::string & propertyName) const {
         if (!hasClass(className)) {
             return false;
         }
-        
-        const ClassInfo& classInfo = getClassInfo(className);
-        
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
         // Check in this class
         if (classInfo.staticProperties.find(propertyName) != classInfo.staticProperties.end()) {
             return true;
         }
-        
+
         // Check in parent class if exists
         if (!classInfo.parentClass.empty()) {
             return hasStaticProperty(classInfo.parentClass, propertyName);
         }
-        
+
         return false;
     }
 
@@ -1059,8 +1068,8 @@ class SymbolContainer {
      * @param className Name of the class
      * @return Pointer to the module, or nullptr for script-defined classes
      */
-    Modules::BaseModule* getClassModule(const std::string& className) const {
-        const ClassInfo& classInfo = getClassInfo(className);
+    Modules::BaseModule * getClassModule(const std::string & className) const {
+        const ClassInfo & classInfo = getClassInfo(className);
         return classInfo.module;
     }
 
@@ -1068,17 +1077,77 @@ class SymbolContainer {
      * @brief Get the current module being registered
      * @return Pointer to the current module, or nullptr if no module is being registered
      */
-    Modules::BaseModule* getCurrentModule() const {
-        return currentModule_;
-    }
+    Modules::BaseModule * getCurrentModule() const { return currentModule_; }
 
     /**
      * @brief Set the current module being registered
      * @param module Pointer to the module that is currently registering symbols
      */
-    void setCurrentModule(Modules::BaseModule* module) {
-        currentModule_ = module;
+    void setCurrentModule(Modules::BaseModule * module) { currentModule_ = module; }
+
+    // --- Module Storage Management ---
+
+    /**
+     * @brief Store a module by its name
+     * @param module Unique pointer to the module to store
+     */
+    void storeModule(Modules::BaseModulePtr module);
+
+    /**
+     * @brief Get a module by its name
+     * @param moduleName Name of the module to retrieve
+     * @return Pointer to the module, or nullptr if not found
+     */
+    Modules::BaseModule * getModule(const std::string & moduleName) const {
+        auto it = modules_.find(moduleName);
+        return (it != modules_.end()) ? it->second.get() : nullptr;
     }
+
+    /**
+     * @brief Check if a module with the given name is stored
+     * @param moduleName Name of the module to check
+     * @return True if the module exists, false otherwise
+     */
+    bool hasModule(const std::string & moduleName) const {
+        return modules_.find(moduleName) != modules_.end();
+    }
+
+    /**
+     * @brief Get all stored module names
+     * @return Vector of module names
+     */
+    std::vector<std::string> getModuleNames() const {
+        std::vector<std::string> names;
+        names.reserve(modules_.size());
+        for (const auto & [name, module] : modules_) {
+            names.push_back(name);
+        }
+        return names;
+    }
+
+    /**
+     * @brief Remove a module by its name
+     * @param moduleName Name of the module to remove
+     * @return True if the module was removed, false if it didn't exist
+     */
+    bool removeModule(const std::string & moduleName) {
+        auto it = modules_.find(moduleName);
+        if (it != modules_.end()) {
+            // If this is the current module, clear it
+            if (currentModule_ == it->second.get()) {
+                currentModule_ = nullptr;
+            }
+            modules_.erase(it);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @brief Register and store a module in one call (convenience function for plugins)
+     * @param module Unique pointer to the module to register and store
+     */
+    void registerModule(Modules::BaseModulePtr module);
 
     /**
      * @brief Set a static property for a class
@@ -1086,8 +1155,8 @@ class SymbolContainer {
      * @param propertyName Name of the property
      * @param value Value to set
      */
-    void setObjectProperty(const std::string& className, const std::string& propertyName, const ValuePtr& value) {
-        auto& classInfo = getClassInfo(className);
+    void setObjectProperty(const std::string & className, const std::string & propertyName, const ValuePtr & value) {
+        auto & classInfo                         = getClassInfo(className);
         classInfo.staticProperties[propertyName] = value;
     }
 
@@ -1097,9 +1166,9 @@ class SymbolContainer {
      * @param propertyName Name of the property
      * @return Value of the property, or nullptr if not found
      */
-    ValuePtr getObjectProperty(const std::string& className, const std::string& propertyName) const {
-        const auto& classInfo = getClassInfo(className);
-        auto it = classInfo.staticProperties.find(propertyName);
+    ValuePtr getObjectProperty(const std::string & className, const std::string & propertyName) const {
+        const auto & classInfo = getClassInfo(className);
+        auto         it        = classInfo.staticProperties.find(propertyName);
         if (it != classInfo.staticProperties.end()) {
             return it->second;
         }
@@ -1114,15 +1183,15 @@ class SymbolContainer {
      * @param callback Function implementation
      * @param returnType Return type of the function
      */
-    void registerFunction(const std::string& name, CallbackFunction callback, 
-                         const Variables::Type& returnType = Variables::Type::NULL_TYPE) {
+    void registerFunction(const std::string & name, CallbackFunction callback,
+                          const Variables::Type & returnType = Variables::Type::NULL_TYPE) {
         functions_[name] = callback;
-        
+
         // Create documentation if it doesn't exist
         if (functionDocs_.find(name) == functionDocs_.end()) {
             FunctionDoc doc;
-            doc.name = name;
-            doc.returnType = returnType;
+            doc.name            = name;
+            doc.returnType      = returnType;
             functionDocs_[name] = doc;
         }
     }
@@ -1132,18 +1201,14 @@ class SymbolContainer {
      * @param name Name of the function
      * @param doc Documentation for the function
      */
-    void registerDoc(const std::string& name, const FunctionDoc& doc) {
-        functionDocs_[name] = doc;
-    }
+    void registerDoc(const std::string & name, const FunctionDoc & doc) { functionDocs_[name] = doc; }
 
     /**
      * @brief Check if a function is registered
      * @param name Name of the function to check
      * @return True if the function is registered, false otherwise
      */
-    bool hasFunction(const std::string& name) const {
-        return functions_.find(name) != functions_.end();
-    }
+    bool hasFunction(const std::string & name) const { return functions_.find(name) != functions_.end(); }
 
     /**
      * @brief Call a registered function
@@ -1151,12 +1216,12 @@ class SymbolContainer {
      * @param args Arguments to pass to the function
      * @return Value returned by the function
      */
-    ValuePtr callFunction(const std::string& name, FunctionArguments& args) const {
+    ValuePtr callFunction(const std::string & name, FunctionArguments & args) const {
         auto it = functions_.find(name);
         if (it == functions_.end()) {
             throw std::runtime_error("Function not found: " + name);
         }
-        
+
         return it->second(args);
     }
 
@@ -1165,12 +1230,12 @@ class SymbolContainer {
      * @param name Name of the function
      * @return Return type of the function
      */
-    Variables::Type getFunctionReturnType(const std::string& name) const {
+    Variables::Type getFunctionReturnType(const std::string & name) const {
         auto it = functionDocs_.find(name);
         if (it == functionDocs_.end()) {
             return Variables::Type::NULL_TYPE;
         }
-        
+
         return it->second.returnType;
     }
 
@@ -1179,14 +1244,14 @@ class SymbolContainer {
      * @param name Name of the function
      * @return Documentation for the function
      */
-    const FunctionDoc& getFunctionDoc(const std::string& name) const {
+    const FunctionDoc & getFunctionDoc(const std::string & name) const {
         static const FunctionDoc emptyDoc;
-        
+
         auto it = functionDocs_.find(name);
         if (it == functionDocs_.end()) {
             return emptyDoc;
         }
-        
+
         return it->second;
     }
 
@@ -1196,7 +1261,7 @@ class SymbolContainer {
      */
     std::vector<std::string> getFunctionNames() const {
         std::vector<std::string> names;
-        for (const auto& [name, func] : functions_) {
+        for (const auto & [name, func] : functions_) {
             names.push_back(name);
         }
         return names;
@@ -1207,11 +1272,11 @@ class SymbolContainer {
      * @param className Name of the class
      * @return Vector of method names
      */
-    std::vector<std::string> getMethodNames(const std::string& className) const {
+    std::vector<std::string> getMethodNames(const std::string & className) const {
         std::vector<std::string> names;
-        auto it = classes_.find(className);
+        auto                     it = classes_.find(className);
         if (it != classes_.end()) {
-            for (const auto& method : it->second.methods) {
+            for (const auto & method : it->second.methods) {
                 names.push_back(method.name);
             }
         }
@@ -1224,10 +1289,10 @@ class SymbolContainer {
      * @param methodName Name of the method
      * @return Return type of the method
      */
-    Variables::Type getMethodReturnType(const std::string& className, const std::string& methodName) const {
+    Variables::Type getMethodReturnType(const std::string & className, const std::string & methodName) const {
         auto it = classes_.find(className);
         if (it != classes_.end()) {
-            for (const auto& method : it->second.methods) {
+            for (const auto & method : it->second.methods) {
                 if (method.name == methodName) {
                     return method.returnType;
                 }
@@ -1242,10 +1307,11 @@ class SymbolContainer {
      * @param methodName Name of the method
      * @return Vector of method parameters
      */
-    std::vector<FunctionParameterInfo> getMethodParameters(const std::string& className, const std::string& methodName) const {
+    std::vector<FunctionParameterInfo> getMethodParameters(const std::string & className,
+                                                           const std::string & methodName) const {
         auto it = classes_.find(className);
         if (it != classes_.end()) {
-            for (const auto& method : it->second.methods) {
+            for (const auto & method : it->second.methods) {
                 if (method.name == methodName) {
                     return method.parameters;
                 }
@@ -1261,13 +1327,13 @@ class SymbolContainer {
      * @param args Arguments to pass to the method
      * @return Value returned by the method
      */
-    ValuePtr callMethod(const std::string& className, const std::string& methodName, FunctionArguments& args) {
+    ValuePtr callMethod(const std::string & className, const std::string & methodName, FunctionArguments & args) {
         auto it = classes_.find(className);
         if (it == classes_.end()) {
             throw std::runtime_error("Class not found: " + className);
         }
-        
-        for (const auto& method : it->second.methods) {
+
+        for (const auto & method : it->second.methods) {
             if (method.name == methodName) {
                 if (method.nativeImplementation) {
                     return method.nativeImplementation(args);
@@ -1275,7 +1341,7 @@ class SymbolContainer {
                 break;
             }
         }
-        
+
         throw std::runtime_error("Method not found: " + className + "::" + methodName);
     }
   private:
@@ -1316,7 +1382,7 @@ class SymbolContainer {
         if (it == scopes_.end()) {
             throw std::runtime_error("Cannot define symbol in non-existent scope: " + scopeName);
         }
-        
+
         // Use specialized methods based on symbol type
         switch (symbol->getKind()) {
             case Symbols::Kind::Variable:
@@ -1339,4 +1405,4 @@ class SymbolContainer {
 
 }  // namespace Symbols
 
-#endif // SYMBOL_CONTAINER_HPP
+#endif  // SYMBOL_CONTAINER_HPP

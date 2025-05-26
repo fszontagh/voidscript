@@ -50,7 +50,8 @@ class ForStatementNode : public StatementNode {
         try {
             auto iterableVal = iterableExpr_->evaluate(interpreter);
             if (iterableVal != Symbols::Variables::Type::OBJECT) {
-                throw Exception("For-in loop applied to non-object", filename_, line_, column_);
+                throw Exception("For-in loop applied to non-object: " + Symbols::Variables::TypeToString(iterableVal),
+                                filename_, line_, column_);
             }
             const Symbols::ObjectMap & objMap       = iterableVal;
             auto *                     symContainer = Symbols::SymbolContainer::instance();

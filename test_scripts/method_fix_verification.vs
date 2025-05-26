@@ -1,8 +1,15 @@
 // Test script to verify method call fix works for multiple scenarios
 
 class Calculator {
-    int $value = 0;
-    string $name = "Default Calculator";
+    int $value;
+    string $name;
+    
+    // Constructor to initialize values properly
+    function construct() {
+        this->$value = 42;
+        this->$name = "Default Calculator";
+        printnl("Constructor: Setting value to 42 and name to Default Calculator");
+    }
     
     // Getter method
     function getValue() int {

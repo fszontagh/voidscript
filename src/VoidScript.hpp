@@ -165,38 +165,48 @@ class VoidScript {
         Symbols::SymbolContainer::initialize(file);
 
         // Register built-in modules (print, etc.)
+        auto symbolContainer = Symbols::SymbolContainer::instance();
+        
         // print functions
         auto printModule = std::make_unique<Modules::PrintModule>();
-        printModule->registerFunctions();
+        printModule->setModuleName("Print");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(printModule)));
         
         // variable helpers (typeof)
         auto varHelpersModule = std::make_unique<Modules::VariableHelpersModule>();
-        varHelpersModule->registerFunctions();
+        varHelpersModule->setModuleName("VariableHelpers");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(varHelpersModule)));
         
         // string helper functions
         auto stringModule = std::make_unique<Modules::StringModule>();
-        stringModule->registerFunctions();
+        stringModule->setModuleName("String");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(stringModule)));
         
         // array helper functions (sizeof)
         auto arrayModule = std::make_unique<Modules::ArrayModule>();
-        arrayModule->registerFunctions();
+        arrayModule->setModuleName("Array");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(arrayModule)));
         
         // file I/O builtin
         auto fileModule = std::make_unique<Modules::FileModule>();
-        fileModule->registerFunctions();
+        fileModule->setModuleName("File");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(fileModule)));
         
         // JSON encode/decode builtin
         auto jsonModule = std::make_unique<Modules::JsonModule>();
-        jsonModule->registerFunctions();
+        jsonModule->setModuleName("Json");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(jsonModule)));
         
         // module helper functions (module_list, module_info, etc.)
         auto moduleHelperModule = std::make_unique<Modules::ModuleHelperModule>();
-        moduleHelperModule->registerFunctions();
+        moduleHelperModule->setModuleName("ModuleHelper");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(moduleHelperModule)));
         
 #ifdef FCGI
         // FastCGI header() function module
         auto headerModule = std::make_unique<Modules::HeaderModule>();
-        headerModule->registerFunctions();
+        headerModule->setModuleName("Header");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(headerModule)));
 #endif
 
         // Load dynamic plugins from modules directory

@@ -62,7 +62,7 @@ class ArrayModule : public BaseModule {
                     return 1;
                 }
             default:
-                throw std::runtime_error("sizeof unsupported type");
+                throw std::runtime_error("sizeof unsupported type: "+Symbols::Variables::TypeToString(val));
         }
     }  // SizeOf
 };
