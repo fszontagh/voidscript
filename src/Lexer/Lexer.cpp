@@ -323,4 +323,11 @@ Lexer::Lexer::Lexer() {
     }
 
     operators_ += "$";
+
+    // Initialize keywords
+    keywords["enum"]    = Tokens::Type::KEYWORD_ENUM;
+    keywords["switch"]  = Tokens::Type::KEYWORD_SWITCH;
+    keywords["case"]    = Tokens::Type::KEYWORD_CASE;
+    keywords["default"] = Tokens::Type::KEYWORD_DEFAULT;
+    keywords["break"]   = Tokens::Type::KEYWORD_BREAK;
 }

@@ -15,6 +15,9 @@
 #include "Interpreter/Nodes/Statement/ForStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/ReturnStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/WhileStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/EnumDeclarationNode.hpp" // Added for EnumDeclarationNode
+#include "Interpreter/Nodes/Statement/BreakNode.hpp"         // Added for BreakNode
+#include "Interpreter/Nodes/Statement/SwitchStatementNode.hpp" // Added for SwitchStatementNode
 #include "Interpreter/OperationsFactory.hpp"
 #include "Lexer/Lexer.hpp"
 #include "Lexer/Operators.hpp"
@@ -342,6 +345,18 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD_RETURN) {
         return parseReturnStatementNode();  // Use the node-returning version
     }
+    // Enum declaration
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_ENUM) {
+        return parseEnumDeclaration();
+    }
+    // Break statement
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_BREAK) {
+        return parseBreakStatement();
+    }
+    // Switch statement
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_SWITCH) {
+        return parseSwitchStatement();
+    }
 
     // Prefix increment/decrement statement (++$var; or --$var;)
     if (currentToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT &&
@@ -415,6 +430,19 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     const auto peekToken2Value   = peekToken(2).value;
     const auto peekToken3Type    = peekToken(3).type;
     const auto peekToken3Value   = peekToken(3).value;
+
+    // Enum declaration (handled above, but if missed for some reason, could be a fallback)
+    if (currentTokenType == Lexer::Tokens::Type::KEYWORD_ENUM) {
+        return parseEnumDeclaration();
+    }
+    // Break statement (handled above)
+    if (currentTokenType == Lexer::Tokens::Type::KEYWORD_BREAK) {
+        return parseBreakStatement();
+    }
+    // Switch statement (handled above)
+    if (currentTokenType == Lexer::Tokens::Type::KEYWORD_SWITCH) {
+        return parseSwitchStatement();
+    }
     // <<< ADD VARIABLE DEFINITION CHECK HERE >>>
     // Check if current token is a known type keyword OR a registered class identifier
     bool       is_type_keyword   = (Parser::variable_types.find(currentTokenType) != Parser::variable_types.end());
@@ -1787,6 +1815,25 @@ void Parser::parseTopLevelStatement() {
         // After class definition, we don't need a semicolon - just continue parsing
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_INCLUDE) {
         parseIncludeStatement();
+    } else if (token_type == Lexer::Tokens::Type::KEYWORD_ENUM) {
+        // Enum declaration at top level
+        auto enumNode = parseEnumDeclaration();
+        if (enumNode) {
+             // Similar to how class definitions are handled, add to operations container
+            Operations::Container::instance()->add(
+                Symbols::SymbolContainer::instance()->currentScopeName(),
+                Operations::Operation{ Operations::Type::Declaration, "", std::move(enumNode) }
+            );
+        }
+    } else if (token_type == Lexer::Tokens::Type::KEYWORD_SWITCH) {
+        // Switch statement at top level
+        auto switchNode = parseSwitchStatement();
+        if (switchNode) {
+            Operations::Container::instance()->add(
+                Symbols::SymbolContainer::instance()->currentScopeName(),
+                Operations::Operation{ Operations::Type::ControlFlow, "", std::move(switchNode) } // Assuming ControlFlow type
+            );
+        }
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
     }
@@ -1917,6 +1964,177 @@ void Parser::parseTopLevelStatement() {
         }
     }
 }
+
+// NEW: Parse an enum definition and return its node
+std::unique_ptr<Interpreter::StatementNode> Parser::parseEnumDeclaration() {
+    auto enumKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_ENUM);
+    auto enumNameToken = expect(Lexer::Tokens::Type::IDENTIFIER);
+    std::string enumName = enumNameToken.value;
+
+    expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+
+    std::vector<std::pair<std::string, std::optional<int>>> enumerators;
+
+    // Handle empty enum: enum MyEnum {};
+    if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}") {
+        expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+        return std::make_unique<Interpreter::Nodes::Statement::EnumDeclarationNode>(
+            enumKeywordToken.filename, 
+            enumKeywordToken.line_number, 
+            enumKeywordToken.column_number,
+            enumName, 
+            std::move(enumerators)
+        );
+    }
+
+    while (true) {
+        if (isAtEnd()) {
+            reportError("Unterminated enum declaration, missing '}'", enumKeywordToken);
+        }
+
+        auto enumeratorNameToken = expect(Lexer::Tokens::Type::IDENTIFIER);
+        std::string enumeratorName = enumeratorNameToken.value;
+        std::optional<int> enumeratorValue = std::nullopt;
+
+        if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
+            bool isNegative = false;
+            if (currentToken().type == Lexer::Tokens::Type::OPERATOR_ARITHMETIC && currentToken().value == "-") {
+                consumeToken(); // consume '-'
+                isNegative = true;
+            }
+            auto valueToken = expect(Lexer::Tokens::Type::NUMBER);
+            try {
+                int val = std::stoi(valueToken.value);
+                enumeratorValue = isNegative ? -val : val;
+            } catch (const std::invalid_argument& ia) {
+                reportError("Invalid integer literal for enum value: " + valueToken.value, valueToken);
+            } catch (const std::out_of_range& oor) {
+                reportError("Integer literal out of range for enum value: " + valueToken.value, valueToken);
+            }
+        }
+        enumerators.emplace_back(enumeratorName, enumeratorValue);
+
+        // After an enumerator, expect either a comma or a closing brace
+        if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}") {
+            expect(Lexer::Tokens::Type::PUNCTUATION, "}"); // Consume the brace
+            break; // End of list
+        } else if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+            // If it's a comma, check if the next token is '}', allowing trailing comma
+            if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}") {
+                expect(Lexer::Tokens::Type::PUNCTUATION, "}"); // Consume the brace
+                break; 
+            }
+            // Otherwise, the loop continues to expect the next enumerator name
+        } else {
+            reportError("Expected ',' or '}' after enumerator", currentToken());
+        }
+    }
+    
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+    
+    // Use location from the 'enum' keyword token
+    return std::make_unique<Interpreter::Nodes::Statement::EnumDeclarationNode>(
+        enumKeywordToken.filename, 
+        enumKeywordToken.line_number, 
+        enumKeywordToken.column_number,
+        enumName, 
+        std::move(enumerators)
+    );
+}
+
+// NEW: Parse a break statement and return its node
+std::unique_ptr<Interpreter::StatementNode> Parser::parseBreakStatement() {
+    auto breakKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_BREAK);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+
+    return std::make_unique<Interpreter::Nodes::Statement::BreakNode>(
+        breakKeywordToken.filename,
+        breakKeywordToken.line_number,
+        breakKeywordToken.column_number
+    );
+}
+
+// NEW: Parse a switch statement and return its node
+std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
+    auto switchKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_SWITCH);
+
+    expect(Lexer::Tokens::Type::PUNCTUATION, "(");
+    // Parse the switch expression. Using NULL_TYPE as expected_var_type to allow any type.
+    auto parsedSwitchExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+    auto switchExprNode = buildExpressionFromParsed(parsedSwitchExpr);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+
+    expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+
+    std::vector<Interpreter::Nodes::Statement::SwitchStatementNode::CaseBlock> caseBlocks;
+    std::optional<Interpreter::Nodes::Statement::SwitchStatementNode::DefaultBlock> defaultBlockOpt = std::nullopt;
+    bool defaultDeclared = false;
+
+    while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+        if (isAtEnd()) {
+            reportError("Unterminated switch statement, missing '}'", switchKeywordToken);
+        }
+
+        if (currentToken().type == Lexer::Tokens::Type::KEYWORD_CASE) {
+            consumeToken(); // Consume KEYWORD_CASE
+            auto parsedCaseExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+            auto caseExprNode = buildExpressionFromParsed(parsedCaseExpr);
+            expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+
+            std::vector<std::unique_ptr<Interpreter::StatementNode>> caseStatements;
+            while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}") &&
+                   !(currentToken().type == Lexer::Tokens::Type::KEYWORD_CASE) &&
+                   !(currentToken().type == Lexer::Tokens::Type::KEYWORD_DEFAULT)) {
+                if (isAtEnd()) {
+                    reportError("Unterminated case block in switch statement", switchKeywordToken);
+                }
+                auto stmt = parseStatementNode(); // This should handle break statements
+                if (stmt) {
+                    caseStatements.push_back(std::move(stmt));
+                }
+            }
+            caseBlocks.emplace_back(std::move(caseExprNode), std::move(caseStatements));
+
+        } else if (currentToken().type == Lexer::Tokens::Type::KEYWORD_DEFAULT) {
+            consumeToken(); // Consume KEYWORD_DEFAULT
+            if (defaultDeclared) {
+                reportError("Multiple default blocks in switch statement are not allowed", currentToken());
+            }
+            expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+            defaultDeclared = true;
+
+            std::vector<std::unique_ptr<Interpreter::StatementNode>> defaultStatements;
+            while (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}") &&
+                   !(currentToken().type == Lexer::Tokens::Type::KEYWORD_CASE) &&
+                   !(currentToken().type == Lexer::Tokens::Type::KEYWORD_DEFAULT)) {
+                 if (isAtEnd()) {
+                    reportError("Unterminated default block in switch statement", switchKeywordToken);
+                }
+                auto stmt = parseStatementNode();
+                if (stmt) {
+                    defaultStatements.push_back(std::move(stmt));
+                }
+            }
+            defaultBlockOpt = Interpreter::Nodes::Statement::SwitchStatementNode::DefaultBlock(std::move(defaultStatements));
+            
+        } else {
+            reportError("Expected 'case' or 'default' keyword, or '}' to close switch statement", currentToken());
+        }
+    }
+
+    expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+
+    return std::make_unique<Interpreter::Nodes::Statement::SwitchStatementNode>(
+        switchKeywordToken.filename,
+        switchKeywordToken.line_number,
+        switchKeywordToken.column_number,
+        std::move(switchExprNode),
+        std::move(caseBlocks),
+        std::move(defaultBlockOpt)
+    );
+}
+
 
 // NEW: Parse a variable definition and return its node
 std::unique_ptr<Interpreter::StatementNode> Parser::parseVariableDefinitionNode() {

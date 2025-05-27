@@ -12,6 +12,14 @@
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
+// Forward declaration for node types used in Visit methods
+namespace Nodes::Statement {
+    class EnumDeclarationNode;
+    class SwitchStatementNode;
+    class BreakNode;
+    // Add other node forward declarations here as needed for Visit methods
+}
+
 namespace Interpreter {
 
 class Exception : public BaseException {
@@ -92,6 +100,13 @@ class Interpreter {
      * @throws Interpreter::Exception if operation execution fails
      */
     void runOperation(const Operations::Operation& op);
+
+    // Visitor methods for AST nodes
+    void Visit(const Nodes::Statement::EnumDeclarationNode& node);
+    void Visit(const Nodes::Statement::SwitchStatementNode& node);
+    void Visit(const Nodes::Statement::BreakNode& node);
+    // Add other Visit methods here as they are implemented
+
 };  // class Interpreter
 
 }  // namespace Interpreter

@@ -13,7 +13,8 @@ enum class Kind : std::uint8_t {
     Constant,
     Function,
     Method,   // Method belongs to a class
-    Class     // Class definition
+    Class,    // Class definition
+    ENUM      // Enum definition
     // Later: Module, etc..
 };
 
@@ -24,6 +25,7 @@ static std::string kindToString(Symbols::Kind kind) {
         { Symbols::Kind::Function, "Function" },
         { Symbols::Kind::Method,   "Method"   },
         { Symbols::Kind::Class,    "Class"    },
+        { Symbols::Kind::ENUM,     "Enum"     },
     };
 
     auto it = KindToString.find(kind);

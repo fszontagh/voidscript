@@ -156,6 +156,15 @@ class Parser {
     // NEW: Parse a variable definition within a block and return its node
     std::unique_ptr<Interpreter::StatementNode> parseVariableDefinitionNode();
 
+    // NEW: Parse an enum definition and return its node
+    std::unique_ptr<Interpreter::StatementNode> parseEnumDeclaration();
+
+    // NEW: Parse a break statement and return its node
+    std::unique_ptr<Interpreter::StatementNode> parseBreakStatement();
+
+    // NEW: Parse a switch statement and return its node
+    std::unique_ptr<Interpreter::StatementNode> parseSwitchStatement();
+
     // --- Parsing helper functions ---
 
     // type : KEYWORD_STRING | KEYWORD_INT | KEYWORD_DOUBLE

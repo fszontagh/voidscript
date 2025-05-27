@@ -41,6 +41,12 @@ enum class Type : std::uint8_t {
     KEYWORD_PUBLIC,
     KEYWORD_NEW,
     KEYWORD_THIS,
+    // Enum and Switch keywords
+    KEYWORD_ENUM,
+    KEYWORD_SWITCH,
+    KEYWORD_CASE,
+    KEYWORD_DEFAULT,
+    KEYWORD_BREAK, // Added for break statements
     UNKNOWN  // Unknown token type
 };
 
@@ -110,6 +116,16 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_CONST";
         case Lexer::Tokens::Type::KEYWORD_INCLUDE:
             return "KEYWORD_INCLUDE";
+        case Lexer::Tokens::Type::KEYWORD_ENUM:
+            return "KEYWORD_ENUM";
+        case Lexer::Tokens::Type::KEYWORD_SWITCH:
+            return "KEYWORD_SWITCH";
+        case Lexer::Tokens::Type::KEYWORD_CASE:
+            return "KEYWORD_CASE";
+        case Lexer::Tokens::Type::KEYWORD_DEFAULT:
+            return "KEYWORD_DEFAULT";
+        case Lexer::Tokens::Type::KEYWORD_BREAK:
+            return "KEYWORD_BREAK";
         case Lexer::Tokens::Type::UNKNOWN:
             return "UNKNOWN";
         default:
