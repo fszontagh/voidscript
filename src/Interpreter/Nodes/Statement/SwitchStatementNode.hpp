@@ -55,6 +55,9 @@ public:
 
     void Accept(::Interpreter::Interpreter& interpreter) const;
 
+    // interpret() is pure virtual in StatementNode.
+    void interpret(::Interpreter::Interpreter& interpreter) const override;
+
     // It's good practice to have a toString for debugging
     std::string toString() const override {
         std::string str = "SwitchStatementNode(\n";

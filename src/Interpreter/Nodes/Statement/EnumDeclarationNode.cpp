@@ -7,4 +7,10 @@ void EnumDeclarationNode::Accept(class Interpreter::Interpreter& interpreter) co
     interpreter.Visit(*this);
 }
 
+void EnumDeclarationNode::interpret(::Interpreter::Interpreter& interpreter) const {
+    this->Accept(interpreter);
+    // Or directly: interpreter.Visit(*this);
+    // Calling Accept is slightly cleaner if Accept might do more in the future.
+}
+
 } // namespace Interpreter::Nodes::Statement
