@@ -209,6 +209,14 @@ class SymbolContainer {
         return result;
     }
 
+    /**
+     * @brief Get the current scope stack (from most global to most local).
+     * @return Vector of scope names in stack order.
+     */
+    [[nodiscard]] const std::vector<std::string>& getScopeStack() const {
+        return scopeStack_;
+    }
+
     // --- Symbol operations ---
 
     /**
@@ -480,12 +488,7 @@ class SymbolContainer {
      * @return Shared pointer to the found symbol, or nullptr if not found.
      */
     SymbolPtr findSymbol(const std::string & name) {
-        // Helper to check if a scope is a loop scope
-        auto isLoopScope = [](const std::string & scope) {
-            return scope.find("for_") != std::string::npos || scope.find("while_") != std::string::npos;
-        };
-
-        // First try the specialized getter methods
+        // Try the specialized getter methods which already handle scope traversal correctly
         if (SymbolPtr variable = getVariable(name)) {
             return variable;
         }
@@ -500,18 +503,6 @@ class SymbolContainer {
 
         if (SymbolPtr method = getMethod(name)) {
             return method;
-        }
-
-        // If we're in a loop scope, we need special handling for parent scope lookups
-        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
-            const std::string & scope_name = *it;
-            // If we're in any loop scope, continue searching parent scopes
-            if (isLoopScope(scope_name)) {
-                continue;
-            }
-            // For non-loop scopes, we already checked with the getters above
-            // and didn't find the symbol, so we can stop looking
-            break;
         }
 
         // If not found in any scope

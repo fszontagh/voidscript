@@ -29,7 +29,7 @@ function forloopinFunct(int $from, int $to) int {
 function loopOverArray(string[] $texts) int {
     int $z = 0;
 
-    for (string $r : $tests) {
+    for (string $r : $texts) {
         $z++;
     }
 

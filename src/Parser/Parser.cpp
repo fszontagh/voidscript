@@ -427,12 +427,25 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         is_class_name = true;
     }
 
-    if ((is_type_keyword || is_class_name) &&
-        (peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-         peekToken().type == Lexer::Tokens::Type::IDENTIFIER) &&
-        peekToken(2).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
-        // Parse as variable definition using the new node-returning function
-        return parseVariableDefinitionNode();
+    // Handle variable declarations with optional array syntax
+    if (is_type_keyword || is_class_name) {
+        size_t lookahead_offset = 1; // Start after the type keyword
+        
+        // Check for optional array syntax: type[]
+        if (peekToken(lookahead_offset).type == Lexer::Tokens::Type::PUNCTUATION &&
+            peekToken(lookahead_offset).value == "[" &&
+            peekToken(lookahead_offset + 1).type == Lexer::Tokens::Type::PUNCTUATION &&
+            peekToken(lookahead_offset + 1).value == "]") {
+            lookahead_offset += 2; // Skip past []
+        }
+        
+        // Check if we have: variable_identifier = ...
+        if ((peekToken(lookahead_offset).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+             peekToken(lookahead_offset).type == Lexer::Tokens::Type::IDENTIFIER) &&
+            peekToken(lookahead_offset + 1).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
+            // Parse as variable definition using the new node-returning function
+            return parseVariableDefinitionNode();
+        }
     }
     // <<< END VARIABLE DEFINITION CHECK >>>
 
