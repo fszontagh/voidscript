@@ -9,6 +9,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/Value.hpp" // Required for Symbols::ValuePtr(true)
 
 namespace Interpreter {
 
@@ -21,7 +22,10 @@ class CStyleForStatementNode : public StatementNode {
     std::unique_ptr<ExpressionNode>             condExpr_;
     std::unique_ptr<StatementNode>              incrStmt_;
     std::vector<std::unique_ptr<StatementNode>> body_;
-    std::string                                 loopScopeName_;
+    // loopScopeName_ is no longer strictly necessary for init variable scoping,
+    // but might be useful for debugging or if loop body needs a predictable name base.
+    // For now, its direct usage for init var scoping is removed.
+    // std::string                                 loopScopeName_; 
 
   public:
     CStyleForStatementNode(std::unique_ptr<StatementNode> initStmt, std::unique_ptr<ExpressionNode> condExpr,
@@ -32,78 +36,87 @@ class CStyleForStatementNode : public StatementNode {
         condExpr_(std::move(condExpr)),
         incrStmt_(std::move(incrStmt)),
         body_(std::move(body)) {
-        // Create a unique scope name for this for loop
-        loopScopeName_ = Symbols::SymbolContainer::instance()->currentScopeName() + "::for_" + std::to_string(line) +
-                         "_" + std::to_string(column);
+        // loopScopeName_ initialization removed as its primary purpose changed.
+        // If needed for other reasons, it would be:
+        // loopScopeName_ = Symbols::SymbolContainer::instance()->currentScopeName() + "::for_" + std::to_string(line) +
+        //                  "_" + std::to_string(column);
     }
 
     void interpret(Interpreter & interpreter) const override {
-        bool entered_scope = false;
+        // Get symbol container instance
+        auto * symContainer = Symbols::SymbolContainer::instance();
+
+        // 1. Execute initialization statement in the current (parent) scope
+        if (initStmt_) {
+            initStmt_->interpret(interpreter);
+        }
+
+        // Flag to track if the specific loop scope was entered
+        bool entered_loop_scope = false;
+        // Define the name for the loop's own operational scope (for body, condition, increment)
+        // This scope is nested within the parent scope where initStmt_ vars now reside.
+        std::string runtime_loop_scope_name = symContainer->currentScopeName() + 
+                                           Symbols::SymbolContainer::SCOPE_SEPARATOR + "for_" +
+                                           std::to_string(line_) + "_" + 
+                                           std::to_string(column_);
         try {
-            using namespace Symbols;
-            auto * symContainer = SymbolContainer::instance();
-
-            // Build loop scope name based on current runtime scope, not parse-time scope
-            std::string runtime_loop_scope = symContainer->currentScopeName() + 
-                                           SymbolContainer::SCOPE_SEPARATOR + "for_" +
-                                           std::to_string(line_) + "_" + std::to_string(column_);
-
-            // Create and enter the loop scope only once
-            if (!symContainer->getScopeTable(runtime_loop_scope)) {
-                symContainer->create(runtime_loop_scope);
-                entered_scope = true;
+            // 2. Create and enter the specific operational scope for the loop
+            if (!symContainer->getScopeTable(runtime_loop_scope_name)) {
+                symContainer->create(runtime_loop_scope_name);
             } else {
-                symContainer->enter(runtime_loop_scope);
-                entered_scope = true;
+                // If scope exists (e.g. from a previous identical loop construct not recommended),
+                // for now, just enter. Future: consider if SymbolTable needs a clearVariables()
+                symContainer->enter(runtime_loop_scope_name);
             }
+            entered_loop_scope = true;
 
-            // Initialize the loop
-            if (initStmt_) {
-                initStmt_->interpret(interpreter);
-            }
-
-            // Loop condition and body
+            // 3. Loop condition, body, and increment execute within runtime_loop_scope_name
             while (true) {
-                // Evaluate condition
-                Symbols::ValuePtr condVal = condExpr_->evaluate(interpreter);
-                if (condVal != Variables::Type::BOOLEAN) {
-                    if (entered_scope) {
-                        symContainer->enterPreviousScope();  // Exit scope before throwing
-                    }
+                // Evaluate condition (in loop scope, can access parent scope vars like $i)
+                Symbols::ValuePtr condVal;
+                if (condExpr_) { // Condition can be null for infinite loops like for(;;)
+                    condVal = condExpr_->evaluate(interpreter);
+                } else {
+                    // If no condition expression, it's an infinite loop, effectively true.
+                    condVal = Symbols::ValuePtr(true); 
+                }
+                
+                if (condVal != Symbols::Variables::Type::BOOLEAN) {
+                    // No need to manually pop scope here, catch block will handle it
                     throw Exception("For loop condition not boolean", filename_, line_, column_);
                 }
-                bool shouldContinue = condVal;
+                bool shouldContinue = condVal; // Implicit conversion from ValuePtr to bool
                 if (!shouldContinue) {
                     break;
                 }
 
-                // Execute body
+                // Execute body (in loop scope)
                 for (const auto & stmt : body_) {
                     if (stmt) {
                         stmt->interpret(interpreter);
                     }
                 }
 
-                // Execute increment
+                // Execute increment (in loop scope)
                 if (incrStmt_) {
                     incrStmt_->interpret(interpreter);
                 }
             }
-        } catch (const Exception & e) {
-            if (entered_scope) {
-                Symbols::SymbolContainer::instance()->enterPreviousScope();  // Ensure exit on exception
+        } catch (const Exception &) { // Catch voidscript specific exceptions
+            if (entered_loop_scope) {
+                symContainer->enterPreviousScope();  // Ensure exit on exception
             }
-            throw;
-        } catch (const std::exception & e) {
-            if (entered_scope) {
-                Symbols::SymbolContainer::instance()->enterPreviousScope();  // Ensure exit on exception
+            throw; // Re-throw
+        } catch (const std::exception & e) { // Catch standard C++ exceptions
+            if (entered_loop_scope) {
+                symContainer->enterPreviousScope();  // Ensure exit on exception
             }
-            throw Exception(e.what(), filename_, line_, column_);
+            throw Exception(e.what(), filename_, line_, column_); // Wrap and re-throw
         }
 
-        // Exit the loop scope only once at the end
-        if (entered_scope) {
-            Symbols::SymbolContainer::instance()->enterPreviousScope();
+        // 4. Exit the loop's specific operational scope
+        if (entered_loop_scope) {
+            symContainer->enterPreviousScope();
         }
     }
 
