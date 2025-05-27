@@ -15,29 +15,29 @@
 
 namespace Interpreter::Nodes::Statement {
 
-class SwitchStatementNode : public Interpreter::StatementNode {
+class SwitchStatementNode : public ::Interpreter::StatementNode {
 public:
     // Nested structure for CaseBlock
     struct CaseBlock {
-        std::unique_ptr<Interpreter::ExpressionNode> expression;
-        std::vector<std::unique_ptr<Interpreter::StatementNode>> statements;
+        std::unique_ptr<::Interpreter::ExpressionNode> expression;
+        std::vector<std::unique_ptr<::Interpreter::StatementNode>> statements;
 
         CaseBlock(
-            std::unique_ptr<Interpreter::ExpressionNode> expr,
-            std::vector<std::unique_ptr<Interpreter::StatementNode>> stmts
+            std::unique_ptr<::Interpreter::ExpressionNode> expr,
+            std::vector<std::unique_ptr<::Interpreter::StatementNode>> stmts
         ) : expression(std::move(expr)), statements(std::move(stmts)) {}
     };
 
     // Nested structure for DefaultBlock
     struct DefaultBlock {
-        std::vector<std::unique_ptr<Interpreter::StatementNode>> statements;
+        std::vector<std::unique_ptr<::Interpreter::StatementNode>> statements;
 
         explicit DefaultBlock(
-            std::vector<std::unique_ptr<Interpreter::StatementNode>> stmts
+            std::vector<std::unique_ptr<::Interpreter::StatementNode>> stmts
         ) : statements(std::move(stmts)) {}
     };
 
-    std::unique_ptr<Interpreter::ExpressionNode> switchExpression;
+    std::unique_ptr<::Interpreter::ExpressionNode> switchExpression;
     std::vector<CaseBlock> caseBlocks;
     std::optional<DefaultBlock> defaultBlock;
 
@@ -45,15 +45,15 @@ public:
         const std::string& file_name,
         int file_line,
         size_t line_column,
-        std::unique_ptr<Interpreter::ExpressionNode> switch_expr,
+        std::unique_ptr<::Interpreter::ExpressionNode> switch_expr,
         std::vector<CaseBlock> cases,
         std::optional<DefaultBlock> default_case
-    ) : StatementNode(file_name, file_line, line_column),
+    ) : ::Interpreter::StatementNode(file_name, file_line, line_column),
         switchExpression(std::move(switch_expr)),
         caseBlocks(std::move(cases)),
         defaultBlock(std::move(default_case)) {}
 
-    void Accept(class Interpreter::Interpreter& interpreter) const override;
+    void Accept(::Interpreter::Interpreter& interpreter) const;
 
     // It's good practice to have a toString for debugging
     std::string toString() const override {

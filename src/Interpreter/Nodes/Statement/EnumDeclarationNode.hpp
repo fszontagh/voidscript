@@ -15,7 +15,7 @@
 
 namespace Interpreter::Nodes::Statement {
 
-class EnumDeclarationNode : public Interpreter::StatementNode {
+class EnumDeclarationNode : public ::Interpreter::StatementNode {
 public:
     std::string enumName;
     std::vector<std::pair<std::string, std::optional<int>>> enumerators;
@@ -26,11 +26,11 @@ public:
         size_t line_column,
         std::string name,
         std::vector<std::pair<std::string, std::optional<int>>> enums
-    ) : StatementNode(file_name, file_line, line_column),
+    ) : ::Interpreter::StatementNode(file_name, file_line, line_column),
         enumName(std::move(name)),
         enumerators(std::move(enums)) {}
 
-    void Accept(class Interpreter::Interpreter& interpreter) const override;
+    void Accept(class Interpreter::Interpreter& interpreter) const;
 
     // It's good practice to have a toString for debugging, though not strictly required by the task
     std::string toString() const override {

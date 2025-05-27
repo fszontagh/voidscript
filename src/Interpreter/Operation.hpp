@@ -26,6 +26,7 @@ enum class Type : std::uint8_t {
     Declaration,      // declaration of new variable (if different from assignment) int $x = 1
     Import,           // import of another script or module
     Error,            // error or non-interpretable operation (error handling)
+    ControlFlow       // For statements like switch, if not covered by Conditional/Loop
 };
 
 struct Operation {
@@ -57,7 +58,8 @@ struct Operation {
             { Operations::Type::Block,           "Block"           },
             { Operations::Type::Declaration,     "Declaration"     },
             { Operations::Type::Import,          "Import"          },
-            { Operations::Type::Error,           "Error"           }
+            { Operations::Type::Error,           "Error"           },
+            { Operations::Type::ControlFlow,     "ControlFlow"     }
         };
         auto it = types.find(type);
         if (it != types.end()) {

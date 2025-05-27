@@ -134,7 +134,7 @@ void Interpreter::Visit(const Nodes::Statement::EnumDeclarationNode& node) {
     } catch (const std::runtime_error& e) {
         // Catch errors from EnumSymbol constructor (e.g., duplicate enumerator names)
         // or from SymbolContainer (e.g., duplicate symbol name in scope)
-        throw Interpreter::Exception(e.what(), node.filename_, node.line_, node.column_);
+        throw Exception(e.what(), node.filename_, node.line_, node.column_);
     }
 }
 
@@ -160,7 +160,7 @@ void Interpreter::Visit(const Nodes::Statement::SwitchStatementNode& node) {
     if (!switch_value || switch_value->isNULL() || switch_value->getType() != Symbols::Variables::Type::INTEGER) {
         // Use location from the switch expression node if possible, otherwise the switch statement node
         const auto& expr_node = *node.switchExpression; // Assuming switchExpression is not null
-        throw Interpreter::Exception("Switch expression must evaluate to a non-null integer type.", 
+        throw Exception("Switch expression must evaluate to a non-null integer type.", 
                                      expr_node.filename.empty() ? node.filename_ : expr_node.filename, 
                                      expr_node.line == 0 ? node.line_ : expr_node.line, 
                                      expr_node.column == 0 ? node.column_ : expr_node.column);
@@ -184,7 +184,7 @@ void Interpreter::Visit(const Nodes::Statement::SwitchStatementNode& node) {
             
             // Validate case expression type
             if (!case_expr_value || case_expr_value->isNULL() || case_expr_value->getType() != Symbols::Variables::Type::INTEGER) {
-                 throw Interpreter::Exception("Case expression must evaluate to a non-null integer type.", 
+                 throw Exception("Case expression must evaluate to a non-null integer type.", 
                                      case_expr_node_ref.filename.empty() ? node.filename_ : case_expr_node_ref.filename, 
                                      case_expr_node_ref.line == 0 ? node.line_ : case_expr_node_ref.line, 
                                      case_expr_node_ref.column == 0 ? node.column_ : case_expr_node_ref.column);
@@ -196,7 +196,7 @@ void Interpreter::Visit(const Nodes::Statement::SwitchStatementNode& node) {
                 // Comparison is now only between integers.
                 values_equal = (switch_value->get<int>() == case_expr_value->get<int>());
             } catch (const std::runtime_error& e) { // Should be less likely now with type checks
-                 throw Interpreter::Exception(std::string("Error during case value comparison: ") + e.what(), 
+                 throw Exception(std::string("Error during case value comparison: ") + e.what(), 
                                      case_expr_node_ref.filename.empty() ? node.filename_ : case_expr_node_ref.filename, 
                                      case_expr_node_ref.line == 0 ? node.line_ : case_expr_node_ref.line, 
                                      case_expr_node_ref.column == 0 ? node.column_ : case_expr_node_ref.column);
@@ -219,7 +219,7 @@ void Interpreter::Visit(const Nodes::Statement::SwitchStatementNode& node) {
             } catch (const Interpreter::Exception& e) { // Catch interpreter exceptions to rethrow
                 throw; 
             } catch (const std::runtime_error& e) { // Catch other runtime errors
-                throw Interpreter::Exception(e.what(), node.filename_, node.line_, node.column_);
+                throw Exception(e.what(), node.filename_, node.line_, node.column_);
             }
         }
     }

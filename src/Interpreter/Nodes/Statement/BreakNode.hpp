@@ -12,22 +12,22 @@
 
 namespace Interpreter::Nodes::Statement {
 
-class BreakNode : public Interpreter::StatementNode {
+class BreakNode : public ::Interpreter::StatementNode {
 public:
     BreakNode(
         const std::string& file_name,
         int file_line,
         size_t line_column
-    ) : StatementNode(file_name, file_line, line_column) {}
+    ) : ::Interpreter::StatementNode(file_name, file_line, line_column) {}
 
     // The Accept method is the equivalent of 'interpret' for the visitor pattern
-    void Accept(class Interpreter::Interpreter& interpreter) const override;
+    void Accept(::Interpreter::Interpreter& interpreter) const;
 
     // Implementation for the pure virtual toString() method
     std::string toString() const override;
 
     // interpret() is pure virtual in StatementNode.
-    void interpret(class Interpreter::Interpreter& interpreter) const override;
+    void interpret(::Interpreter::Interpreter& interpreter) const override;
 };
 
 } // namespace Interpreter::Nodes::Statement

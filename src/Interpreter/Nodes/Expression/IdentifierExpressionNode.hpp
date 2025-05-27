@@ -39,32 +39,32 @@ class IdentifierExpressionNode : public ExpressionNode {
             std::string member_name = name_.substr(scope_res_pos + 2);
 
             if (scope_name.empty() || member_name.empty()) {
-                throw Interpreter::Exception("Invalid scope resolution format: '" + name_ + "'", eval_filename, eval_line, eval_column);
+                throw Exception("Invalid scope resolution format: '" + name_ + "'", eval_filename, eval_line, eval_column);
             }
 
             // Try to find the scope name as a symbol (should be an EnumSymbol)
             // We need to search in the current and parent scopes, or globally depending on language rules for enums.
             // Assuming SymbolContainer::get searches appropriately.
-            auto enum_symbol_ptr = sc->get(scope_name);
+            auto enum_symbol_ptr = sc->get("", scope_name);
 
             if (!enum_symbol_ptr) {
-                throw Interpreter::Exception("Enum '" + scope_name + "' not found.", eval_filename, eval_line, eval_column);
+                throw Exception("Enum '" + scope_name + "' not found.", eval_filename, eval_line, eval_column);
             }
 
             if (enum_symbol_ptr->kind() != Symbols::Kind::ENUM) {
-                throw Interpreter::Exception("Symbol '" + scope_name + "' is not an enum.", eval_filename, eval_line, eval_column);
+                throw Exception("Symbol '" + scope_name + "' is not an enum.", eval_filename, eval_line, eval_column);
             }
 
             // Cast to EnumSymbol to access its members
             auto actual_enum_symbol = std::dynamic_pointer_cast<Symbols::EnumSymbol>(enum_symbol_ptr);
             if (!actual_enum_symbol) {
                  // This should not happen if kind() == ENUM, but as a safeguard
-                throw Interpreter::Exception("Internal error: Symbol '" + scope_name + "' identified as ENUM but failed to cast.", eval_filename, eval_line, eval_column);
+                throw Exception("Internal error: Symbol '" + scope_name + "' identified as ENUM but failed to cast.", eval_filename, eval_line, eval_column);
             }
 
             std::optional<int> member_value = actual_enum_symbol->GetValue(member_name);
             if (!member_value) {
-                throw Interpreter::Exception("Member '" + member_name + "' not found in enum '" + scope_name + "'.", eval_filename, eval_line, eval_column);
+                throw Exception("Member '" + member_name + "' not found in enum '" + scope_name + "'.", eval_filename, eval_line, eval_column);
             }
             return Symbols::ValuePtr(member_value.value()); // Enum members are integers
         }
@@ -85,7 +85,7 @@ class IdentifierExpressionNode : public ExpressionNode {
             if (interpreterThis && !interpreterThis->isNULL()) { // Check if interpreter's 'this' is valid
                  return interpreterThis;
             }
-            throw Interpreter::Exception("Keyword 'this' not found or not valid in current context.", eval_filename, eval_line, eval_column);
+            throw Exception("Keyword 'this' not found or not valid in current context.", eval_filename, eval_line, eval_column);
         }
 
         auto symbol = sc->getVariable(name_);
@@ -100,7 +100,8 @@ class IdentifierExpressionNode : public ExpressionNode {
             return symbol->getValue();
         }
         
-        throw Interpreter::Exception("Identifier '" + name_ + "' not found.", eval_filename, eval_line, eval_column);
+        throw Exception("Identifier '" + name_ + "' not found.", eval_filename, eval_line, eval_column);
+        return nullptr; // Should be unreachable, but satisfies compiler warning.
     }
 
     std::string toString() const override { return name_; }

@@ -1980,7 +1980,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseEnumDeclaration() {
         expect(Lexer::Tokens::Type::PUNCTUATION, "}");
         expect(Lexer::Tokens::Type::PUNCTUATION, ";");
         return std::make_unique<Interpreter::Nodes::Statement::EnumDeclarationNode>(
-            enumKeywordToken.filename, 
+            current_filename_, // Use Parser's current_filename_
             enumKeywordToken.line_number, 
             enumKeywordToken.column_number,
             enumName, 
@@ -2035,7 +2035,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseEnumDeclaration() {
     
     // Use location from the 'enum' keyword token
     return std::make_unique<Interpreter::Nodes::Statement::EnumDeclarationNode>(
-        enumKeywordToken.filename, 
+        current_filename_, // Use Parser's current_filename_
         enumKeywordToken.line_number, 
         enumKeywordToken.column_number,
         enumName, 
@@ -2049,7 +2049,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseBreakStatement() {
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
     return std::make_unique<Interpreter::Nodes::Statement::BreakNode>(
-        breakKeywordToken.filename,
+        current_filename_, // Use Parser's current_filename_
         breakKeywordToken.line_number,
         breakKeywordToken.column_number
     );
@@ -2094,7 +2094,12 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
                     caseStatements.push_back(std::move(stmt));
                 }
             }
-            caseBlocks.emplace_back(std::move(caseExprNode), std::move(caseStatements));
+            // caseBlocks.emplace_back(std::move(caseExprNode), std::move(caseStatements));
+            Interpreter::Nodes::Statement::SwitchStatementNode::CaseBlock newCaseBlock(
+                std::move(caseExprNode), 
+                std::move(caseStatements)
+            );
+            caseBlocks.push_back(std::move(newCaseBlock));
 
         } else if (currentToken().type == Lexer::Tokens::Type::KEYWORD_DEFAULT) {
             consumeToken(); // Consume KEYWORD_DEFAULT
@@ -2116,7 +2121,8 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
                     defaultStatements.push_back(std::move(stmt));
                 }
             }
-            defaultBlockOpt = Interpreter::Nodes::Statement::SwitchStatementNode::DefaultBlock(std::move(defaultStatements));
+            // defaultBlockOpt = Interpreter::Nodes::Statement::SwitchStatementNode::DefaultBlock(std::move(defaultStatements));
+            defaultBlockOpt.emplace(std::move(defaultStatements));
             
         } else {
             reportError("Expected 'case' or 'default' keyword, or '}' to close switch statement", currentToken());
@@ -2126,7 +2132,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
 
     return std::make_unique<Interpreter::Nodes::Statement::SwitchStatementNode>(
-        switchKeywordToken.filename,
+        current_filename_, // Use Parser's current_filename_
         switchKeywordToken.line_number,
         switchKeywordToken.column_number,
         std::move(switchExprNode),
