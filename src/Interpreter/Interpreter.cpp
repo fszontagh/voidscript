@@ -101,7 +101,7 @@ unsigned long long Interpreter::get_unique_call_id() {
 }
 
 // Visitor method implementations
-void Interpreter::Visit(const Nodes::Statement::EnumDeclarationNode& node) {
+void Interpreter::Interpreter::Visit(const Nodes::Statement::EnumDeclarationNode& node) {
     std::string current_scope_name = Symbols::SymbolContainer::instance()->currentScopeName();
     
     // Context for the EnumSymbol (e.g., for error messages if needed later)
@@ -140,7 +140,7 @@ void Interpreter::Visit(const Nodes::Statement::EnumDeclarationNode& node) {
 
 // Implement Visit for SwitchStatementNode and BreakNode in the next subtask.
 
-void Interpreter::Visit(const Nodes::Statement::BreakNode& node) {
+void Interpreter::Interpreter::Visit(const Nodes::Statement::BreakNode& node) {
     if (debug_) {
         std::cerr << "[Debug][Interpreter] Executing BreakNode at "
                   << node.filename_ << ":" << node.line_ << ":" << node.column_ << std::endl;
@@ -148,7 +148,7 @@ void Interpreter::Visit(const Nodes::Statement::BreakNode& node) {
     throw BreakException();
 }
 
-void Interpreter::Visit(const Nodes::Statement::SwitchStatementNode& node) {
+void Interpreter::Interpreter::Visit(const Nodes::Statement::SwitchStatementNode& node) {
     if (debug_) {
         std::cerr << "[Debug][Interpreter] Executing SwitchStatementNode at "
                   << node.filename_ << ":" << node.line_ << ":" << node.column_ << std::endl;
