@@ -102,9 +102,6 @@ class Interpreter {
     void runOperation(const Operations::Operation& op);
 
     // Visitor methods for AST nodes
-    void Visit(const Nodes::Statement::EnumDeclarationNode& node);
-    void Visit(const Nodes::Statement::SwitchStatementNode& node);
-    void Visit(const Nodes::Statement::BreakNode& node);
     // Add other Visit methods here as they are implemented
 
 };  // class Interpreter
