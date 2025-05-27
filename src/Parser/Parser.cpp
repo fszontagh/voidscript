@@ -427,12 +427,25 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         is_class_name = true;
     }
 
-    if ((is_type_keyword || is_class_name) &&
-        (peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-         peekToken().type == Lexer::Tokens::Type::IDENTIFIER) &&
-        peekToken(2).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
-        // Parse as variable definition using the new node-returning function
-        return parseVariableDefinitionNode();
+    // Handle variable declarations with optional array syntax
+    if (is_type_keyword || is_class_name) {
+        size_t lookahead_offset = 1; // Start after the type keyword
+        
+        // Check for optional array syntax: type[]
+        if (peekToken(lookahead_offset).type == Lexer::Tokens::Type::PUNCTUATION &&
+            peekToken(lookahead_offset).value == "[" &&
+            peekToken(lookahead_offset + 1).type == Lexer::Tokens::Type::PUNCTUATION &&
+            peekToken(lookahead_offset + 1).value == "]") {
+            lookahead_offset += 2; // Skip past []
+        }
+        
+        // Check if we have: variable_identifier = ...
+        if ((peekToken(lookahead_offset).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+             peekToken(lookahead_offset).type == Lexer::Tokens::Type::IDENTIFIER) &&
+            peekToken(lookahead_offset + 1).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
+            // Parse as variable definition using the new node-returning function
+            return parseVariableDefinitionNode();
+        }
     }
     // <<< END VARIABLE DEFINITION CHECK >>>
 
@@ -475,7 +488,7 @@ void Parser::parseFunctionDefinition() {
     // note: '=' before parameter list is no longer required; function name is followed directly by '('
     expect(Lexer::Tokens::Type::PUNCTUATION, "(");
 
-    Symbols::FunctionParameterInfo param_infos;
+    std::vector<Symbols::FunctionParameterInfo> param_infos;
 
     if (currentToken().type != Lexer::Tokens::Type::PUNCTUATION || currentToken().value != ")") {
         while (true) {
@@ -489,7 +502,7 @@ void Parser::parseFunctionDefinition() {
                 param_name = param_name.substr(1);
             }
 
-            param_infos.push_back({ param_name, param_type });
+            param_infos.push_back({ param_name, param_type, "", false, false });
 
             // Expecting comma or closing parenthesis?
             if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
@@ -539,13 +552,16 @@ void Parser::parseClassDefinition() {
     // Create a ClassSymbol in the symbol table
     auto classSymbol = Symbols::SymbolFactory::createClass(className, fileNs);
     Symbols::SymbolContainer::instance()->add(classSymbol);
+    
+    // Register class in the classes registry so hasClass() and getClassInfo() work
+    Symbols::SymbolContainer::instance()->registerClass(className);
 
     // Create class scope (automatically enters it)
     Symbols::SymbolContainer::instance()->create(classNs);
 
     // Gather class members (registration happens at interpretation)
-    std::vector<Symbols::UnifiedClassContainer::PropertyInfo> privateProps;
-    std::vector<Symbols::UnifiedClassContainer::PropertyInfo> publicProps;
+    std::vector<Symbols::PropertyInfo> privateProps;
+    std::vector<Symbols::PropertyInfo> publicProps;
     std::vector<std::string>                      methodNames;
 
     enum AccessLevel : std::uint8_t { PRIVATE, PUBLIC } currentAccess = PRIVATE;
@@ -597,7 +613,7 @@ void Parser::parseClassDefinition() {
                 defaultValue = parseParsedExpression(propType);
             }
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
-            Symbols::UnifiedClassContainer::PropertyInfo info{ propName, propType, std::move(defaultValue) };
+            Symbols::PropertyInfo info{ propName, propType, std::move(defaultValue) };
             if (currentAccess == PRIVATE) {
                 privateProps.push_back(std::move(info));
             } else {
@@ -627,7 +643,7 @@ void Parser::parseClassDefinition() {
                 defaultValue = parseParsedExpression(propType);
             }
             expect(Lexer::Tokens::Type::PUNCTUATION, ";");
-            Symbols::UnifiedClassContainer::PropertyInfo info{ propName, propType, std::move(defaultValue) };
+            Symbols::PropertyInfo info{ propName, propType, std::move(defaultValue) };
             if (currentAccess == PRIVATE) {
                 privateProps.push_back(std::move(info));
             } else {
@@ -645,7 +661,7 @@ void Parser::parseClassDefinition() {
             // Parsing method in current class scope; method bodies handled in parseFunctionBody
             // Parse parameters
             expect(Lexer::Tokens::Type::PUNCTUATION, "(");
-            Symbols::FunctionParameterInfo params;
+            std::vector<Symbols::FunctionParameterInfo> params;
             if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ")")) {
                 while (true) {
                     auto        paramType = parseType();
@@ -654,7 +670,7 @@ void Parser::parseClassDefinition() {
                     if (!paramName.empty() && paramName[0] == '$') {
                         paramName = paramName.substr(1);
                     }
-                    params.push_back({ paramName, paramType });
+                    params.push_back({ paramName, paramType, "", false, false });
                     if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
                         continue;
                     }
@@ -673,7 +689,48 @@ void Parser::parseClassDefinition() {
             // Parse and record method body
             expect(Lexer::Tokens::Type::PUNCTUATION, "{");
             size_t opening_brace_idx = current_token_index_ - 1;
-            parseFunctionBody(opening_brace_idx, methodName, returnType, params);
+            
+            // Create method operation directly in class namespace instead of relying on parseFunctionBody detection
+            std::vector<Lexer::Tokens::Token> method_tokens;
+            size_t brace_count = 1;
+            while (brace_count > 0 && !isAtEnd()) {
+                auto tok = consumeToken();
+                method_tokens.push_back(tok);
+                if (tok.type == Lexer::Tokens::Type::PUNCTUATION) {
+                    if (tok.value == "{") {
+                        brace_count++;
+                    } else if (tok.value == "}") {
+                        brace_count--;
+                    }
+                }
+            }
+            
+            // Remove the last closing brace from method_tokens as it's not part of the method body
+            if (!method_tokens.empty() && method_tokens.back().value == "}") {
+                method_tokens.pop_back();
+            }
+            
+            // Create method namespace
+            // Use the same namespace pattern that method execution expects: "ClassName::methodName"
+            const std::string methodNs = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName;
+            Symbols::SymbolContainer::instance()->create(methodNs);
+            
+            // Parse method body in its own parser instance
+            if (!method_tokens.empty()) {
+                Parser innerParser;
+                innerParser.parseScript(method_tokens, input_str_view_, this->current_filename_);
+            }
+            
+            // Exit the method scope
+            Symbols::SymbolContainer::instance()->enterPreviousScope();
+            
+            // Register method in SymbolContainer's class registry for method lookup
+            Symbols::SymbolContainer::instance()->addMethod(className, methodName, returnType, params);
+            
+            // Create method operation directly in class namespace
+            Interpreter::OperationsFactory::defineMethod(methodName, params, className, returnType, classNs, 
+                                                        current_filename_, nameId.line_number, nameId.column_number);
+            
             // Track method name for class registry
             methodNames.push_back(methodName);
             continue;
@@ -795,7 +852,7 @@ Symbols::ValuePtr Parser::parseNumericLiteral(const std::string & value, bool is
 }
 
 void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & function_name,
-                               Symbols::Variables::Type return_type, const Symbols::FunctionParameterInfo & params) {
+                               Symbols::Variables::Type return_type, const std::vector<Symbols::FunctionParameterInfo> & params) {
     // Find the matching closing brace for the function body
     size_t braceDepth  = 0;
     size_t closing_idx = opening_brace_idx;
@@ -836,18 +893,26 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
     // Parse function body in its own parser instance
     Parser innerParser;
     innerParser.parseScript(filtered_tokens, input_string, this->current_filename_);
+    
+    // CRITICAL FIX: Transfer operations from innerParser to the method namespace
+    // The innerParser creates operations in the method namespace (newns), but they need
+    // to be accessible when the method is executed later
+    auto methodOperations = Operations::Container::instance()->getAll(newns);
+    
     // Exit the function scope
     Symbols::SymbolContainer::instance()->enterPreviousScope();
     // Check if this is a method (part of a class) or a regular function
     std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
-    size_t lastSeparator = currentScope.find_last_of(Symbols::SymbolContainer::SCOPE_SEPARATOR);
+    
+    size_t lastSeparator = currentScope.rfind(Symbols::SymbolContainer::SCOPE_SEPARATOR);
     
     if (lastSeparator != std::string::npos) {
-        std::string possibleClassName = currentScope.substr(lastSeparator + 1);
+        std::string possibleClassName = currentScope.substr(lastSeparator + 2); // Skip "::"
         std::string previousScope = currentScope.substr(0, lastSeparator);
         
         // Check if the parent scope contains a ClassSymbol with this name
         auto maybeClassSymbol = Symbols::SymbolContainer::instance()->get(possibleClassName, previousScope);
+        
         if (maybeClassSymbol && maybeClassSymbol->getKind() == Symbols::Kind::Class) {
             // This is a method, use MethodSymbol
             auto methodSymbol = Symbols::SymbolFactory::createMethod(function_name, currentScope, 
@@ -855,17 +920,24 @@ void Parser::parseFunctionBody(size_t opening_brace_idx, const std::string & fun
                                                                    std::string(input_string), return_type);
             Symbols::SymbolContainer::instance()->add(methodSymbol);
             
-            // Also register method in ClassRegistry if class exists there
+            // Also register method in SymbolContainer's class registry
             try {
-                if (Symbols::ClassRegistry::instance().hasClass(possibleClassName)) {
-                    Symbols::ClassRegistry::instance().getClassContainer().addMethod(possibleClassName, function_name, return_type);
+                if (Symbols::SymbolContainer::instance()->hasClass(possibleClassName)) {
+                    Symbols::SymbolContainer::instance()->addMethod(possibleClassName, function_name, return_type);
                 }
             } catch (const std::exception& e) {
                 // Log the error but continue, as the method is already registered with SymbolContainer
-                std::cerr << "Warning: Could not register method with ClassRegistry: " << e.what() << std::endl;
+                std::cerr << "Warning: Could not register method with SymbolContainer: " << e.what() << std::endl;
             }
             
-            return; // Method is already defined, no need to call defineFunction
+            // Create method declaration operation in the class namespace
+            // Get the file namespace (same pattern as ClassDefinitionStatementNode)
+            const std::string fileNs = this->current_filename_;
+            const std::string classNs = fileNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + possibleClassName;
+            Interpreter::OperationsFactory::defineMethod(function_name, params, possibleClassName, return_type,
+                                                        classNs,
+                                                        this->current_filename_, openTok.line_number, openTok.column_number);
+            return;
         }
     }
     
@@ -1364,16 +1436,16 @@ Symbols::Variables::Type Parser::parseType() {
             return Symbols::Variables::Type::CLASS;
         }
 
-        // Check if this name is a defined class in the class registry (for external classes)
-        auto & classRegistry = Symbols::ClassRegistry::instance();
+        // Check if this name is a defined class in the symbol container
+        auto * symbolContainer = Symbols::SymbolContainer::instance();
 
         // First try as is (might be a fully qualified name already)
-        if (classRegistry.hasClass(typeName)) {
+        if (symbolContainer->hasClass(typeName)) {
             return Symbols::Variables::Type::CLASS;
         }
 
         // Then try with current namespace prefix
-        if (classRegistry.hasClass(fqTypeName)) {
+        if (symbolContainer->hasClass(fqTypeName)) {
             return Symbols::Variables::Type::CLASS;
         }
 
@@ -1721,9 +1793,9 @@ void Parser::parseTopLevelStatement() {
     // Variable definition with a type keyword or a class name
     else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
               (token_type == Lexer::Tokens::Type::IDENTIFIER &&
-               (Symbols::ClassRegistry::instance().hasClass(token_val) ||
+               (Symbols::SymbolContainer::instance()->hasClass(token_val) ||
                 // Try with namespace prefix as well
-                Symbols::ClassRegistry::instance().hasClass(
+                Symbols::SymbolContainer::instance()->hasClass(
                     Symbols::SymbolContainer::instance()->currentScopeName() +
                     Symbols::SymbolContainer::SCOPE_SEPARATOR + token_val)))) &&
              peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {

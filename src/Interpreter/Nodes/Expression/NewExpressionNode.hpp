@@ -11,7 +11,7 @@
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/ReturnException.hpp"
 #include "Parser/ParsedExpression.hpp"
-#include "Symbols/ClassRegistry.hpp"
+
 #include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -45,21 +45,20 @@ class NewExpressionNode : public ExpressionNode {
     Symbols::ValuePtr evaluate(class Interpreter & interpreter, std::string filename = "", int line = 0,
                                size_t column = 0) const override {
         auto                                     sc            = Symbols::SymbolContainer::instance();
-        auto &                                   classRegistry = Symbols::ClassRegistry::instance();
         std::map<std::string, Symbols::ValuePtr> objProperties;
 
         // First try to find the class info with the name as provided
         std::string       fqClassName = className_;
-        bool              classFound  = classRegistry.hasClass(fqClassName);
+        bool              classFound  = sc->hasClass(fqClassName);
         const std::string classNs = sc->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + fqClassName;
 
         if (!classFound) {
             throw Exception("Class not found: " + className_, filename_, line_, column_);
         }
 
-        // Now get the class properties from class registry
+        // Now get the class properties from symbol container
         try {
-            const auto & classInfo = classRegistry.getClassContainer().getClassInfo(fqClassName);
+            const auto & classInfo = sc->getClassInfo(fqClassName);
 
             // Initialize properties with default values from class definition
             for (const auto & prop : classInfo.properties) {
@@ -139,22 +138,17 @@ class NewExpressionNode : public ExpressionNode {
         newObject["$class_name"] = Symbols::ValuePtr(className_);
 
         // Check if class has a constructor registered
-        Symbols::UnifiedClassContainer::ClassInfo moduleClassInfo;
-        bool                                      hasModuleClassInfo = false;
-        try {
-            moduleClassInfo    = classRegistry.getClassContainer().getClassInfo(fqClassName);
-            hasModuleClassInfo = true;
-        } catch (const std::exception & e) {
-            // Class might not be in class registry
-        }
-
-        if (hasModuleClassInfo) {
+        bool hasClassInfo = sc->hasClass(fqClassName);
+        
+        if (hasClassInfo) {
             // Check for common constructor method names
             std::vector<std::string> constructorNames = { "constructor", "construct", "__construct" };
             std::string              foundConstructor;
 
             for (const auto & constructorName : constructorNames) {
-                if (classRegistry.getClassContainer().hasMethod(fqClassName, constructorName)) {
+                bool hasMethod = sc->hasMethod(fqClassName, constructorName);
+                
+                if (hasMethod) {
                     foundConstructor = constructorName;
                     break;
                 }
@@ -169,15 +163,49 @@ class NewExpressionNode : public ExpressionNode {
                     evaluatedArgs.push_back(argExpr->evaluate(interpreter));
                 }
 
-                // Get function symbol for constructor using the correct namespace
-                std::string constructorFullName =
-                    classNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
-                std::shared_ptr<Symbols::FunctionSymbol> constructorSymbol =
-                    std::dynamic_pointer_cast<Symbols::FunctionSymbol>(sc->get(classNs, foundConstructor));
+                // Get function symbol for constructor using different approaches
+                
+                std::shared_ptr<Symbols::FunctionSymbol> constructorSymbol = nullptr;
+                
+                // First try: Look for the constructor in the class scope using different namespace patterns
+                std::vector<std::string> possibleScopes = {
+                    classNs,
+                    fqClassName,
+                    sc->currentScopeName(),
+                    sc->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + fqClassName
+                };
+                
+                for (const auto& scope : possibleScopes) {
+                    auto symbol = sc->get(scope, foundConstructor);
+                    if (symbol) {
+                        constructorSymbol = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(symbol);
+                        if (constructorSymbol) {
+                            break;
+                        }
+                    }
+                }
+                
+                // Second try: Use findMethod
+                if (!constructorSymbol) {
+                    auto symbol = sc->findMethod(fqClassName, foundConstructor);
+                    if (symbol) {
+                        constructorSymbol = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(symbol);
+                    }
+                }
+                
+                // Third try: Use getMethod
+                if (!constructorSymbol) {
+                    auto symbol = sc->getMethod(foundConstructor);
+                    if (symbol) {
+                        constructorSymbol = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(symbol);
+                    }
+                }
+                
                 if (constructorSymbol) {
-                    // Fill missing arguments with type-appropriate defaults
+                    
+                    // Validate argument count
                     const auto & params = constructorSymbol->parameters();
-                    if (evaluatedArgs.size() > params.size()) {
+                    if (evaluatedArgs.size() != params.size()) {
                         throw Exception("Argument count mismatch for constructor '" + foundConstructor +
                                             "' of class '" + className_ + "'. Expected " +
                                             std::to_string(params.size()) + ", got " +
@@ -216,6 +244,7 @@ class NewExpressionNode : public ExpressionNode {
                         }
 
                         // Get the operations associated with this constructor from the operations container
+                        std::string constructorFullName = fqClassName + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
                         const auto & operations = Operations::Container::instance()->getAll(constructorFullName);
 
                         // Execute each operation
@@ -234,9 +263,49 @@ class NewExpressionNode : public ExpressionNode {
                     sc->enterPreviousScope();
 
                 } else {
-                    //  throw Exception(
-                    //      "Constructor '" + moduleClassInfo.constructorName + "' not found for class '" + className_ + "'",
-                    //      filename_, line_, column_);
+                    // Alternative approach: Call constructor directly using operations container
+                    std::string callScope = sc->enterFunctionCallScope(foundConstructor);
+
+                    // Add "this" to the current scope
+                    sc->addVariable(Symbols::SymbolFactory::createVariable("this", newObject, callScope));
+
+                    try {
+                        // Add constructor parameters to scope using the class method parameters
+                        auto methodParams = sc->getMethodParameters(fqClassName, foundConstructor);
+                        
+                        // Validate argument count
+                        if (evaluatedArgs.size() != methodParams.size()) {
+                            throw Exception("Argument count mismatch for constructor '" + foundConstructor +
+                                                "' of class '" + className_ + "'. Expected " +
+                                                std::to_string(methodParams.size()) + ", got " +
+                                                std::to_string(evaluatedArgs.size()),
+                                            filename_, line_, column_);
+                        }
+                        
+                        for (size_t i = 0; i < evaluatedArgs.size() && i < methodParams.size(); ++i) {
+                            sc->addVariable(
+                                Symbols::SymbolFactory::createVariable(methodParams[i].name, evaluatedArgs[i], callScope));
+                        }
+
+                        // Get and execute constructor operations
+                        std::string constructorFullName = fqClassName + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
+                        
+                        const auto & operations = Operations::Container::instance()->getAll(constructorFullName);
+
+                        // Execute each operation
+                        for (const auto & op : operations) {
+                            interpreter.runOperation(*op);
+                        }
+
+                    } catch (const ReturnException & re) {
+                        // Constructor return value is ignored
+                    } catch (const std::exception& e) {
+                        sc->enterPreviousScope();  // Ensure we pop the scope
+                        throw;
+                    }
+
+                    // Exit the constructor scope
+                    sc->enterPreviousScope();
                 }
 
             } else if (!args_.empty()) {

@@ -4,11 +4,15 @@
 #include <memory>
 
 #include "CurlModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 /**
- * @brief Plugin initialization. Registers CurlModule with the ModuleManager.
+ * @brief Plugin initialization. Registers CurlModule functions with SymbolContainer.
  */
 extern "C" void plugin_init() {
-    Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::CurlModule>());
+    auto module = std::make_unique<Modules::CurlModule>();
+    module->setModuleName("Curl");
+    
+    // Register and store the module using the new pattern
+    Symbols::SymbolContainer::instance()->registerModule(Modules::make_base_module_ptr(std::move(module)));
 }

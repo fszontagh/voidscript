@@ -1,7 +1,4 @@
 #include "Symbols/Value.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
-#include "Symbols/ClassRegistry.hpp"
-#include "Symbols/VariableTypes.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -11,6 +8,9 @@
 #include <string>
 #include <typeindex>
 #include <vector>
+
+#include "Symbols/SymbolContainer.hpp"
+#include "Symbols/VariableTypes.hpp"
 
 // Standard library includes that are likely needed by the moved implementations
 #include <algorithm>  // For std::transform in ValuePtr::fromStringToBool
@@ -72,7 +72,7 @@ void Value::clone_data_from(const Value & other) {
                     new_map[pair.first] = pair.second.clone();
                 }
                 this->set<ObjectMap>(new_map);
-                this->type_ = Symbols::Variables::Type::CLASS; // Override the type to CLASS
+                this->type_ = Symbols::Variables::Type::CLASS;  // Override the type to CLASS
                 break;
             }
         case Symbols::Variables::Type::NULL_TYPE:
@@ -119,6 +119,9 @@ Symbols::Variables::Type Value::getType() const {
 }
 
 std::string Value::toString() const {
+    if (type_ == Symbols::Variables::Type::UNDEFINED_TYPE) {
+        return "undefined";
+    }
     if (isNULL() && type_ != Variables::Type::STRING && type_ != Variables::Type::OBJECT &&
         type_ != Variables::Type::CLASS) {  // Allow toString on null strings/objects
         if (type_ == Variables::Type::NULL_TYPE || (!data_ && type_ != Variables::Type::STRING)) {
@@ -149,18 +152,20 @@ std::string Value::toString() const {
             return std::to_string(get<double>());
         case Variables::Type::BOOLEAN:
             return get<bool>() ? "true" : "false";
-        case Variables::Type::CLASS: {
-            // For CLASS type, return a more descriptive string
-            try {
-                const auto& objMap = get<ObjectMap>();
-                if (objMap.find("__class__") != objMap.end() && objMap.at("__class__").getType() == Variables::Type::STRING) {
-                    return "[Class " + objMap.at("__class__").get<std::string>() + "]";
+        case Variables::Type::CLASS:
+            {
+                // For CLASS type, return a more descriptive string
+                try {
+                    const auto & objMap = get<ObjectMap>();
+                    if (objMap.find("__class__") != objMap.end() &&
+                        objMap.at("__class__").getType() == Variables::Type::STRING) {
+                        return "[Class " + objMap.at("__class__").get<std::string>() + "]";
+                    }
+                    return "[Class Object]";
+                } catch (const std::exception & e) {
+                    return "[Invalid Class Object]";
                 }
-                return "[Class Object]";
-            } catch (const std::exception& e) {
-                return "[Invalid Class Object]";
             }
-        }
         // STRING is handled above
         // OBJECT, NULL_TYPE will fall to default or handled by isNULL checks
         default:
@@ -191,19 +196,20 @@ std::string ValuePtr::valueToString(const Value & value) {
             return std::to_string(value.get<double>());
         case Variables::Type::BOOLEAN:
             return value.get<bool>() ? "true" : "false";
-        case Variables::Type::CLASS: {
-            // For CLASS type, return a more descriptive string
-            try {
-                const auto& objMap = value.get<ObjectMap>();
-                if (objMap.find("__class__") != objMap.end() && 
-                    objMap.at("__class__").getType() == Variables::Type::STRING) {
-                    return "[Class " + objMap.at("__class__").get<std::string>() + "]";
+        case Variables::Type::CLASS:
+            {
+                // For CLASS type, return a more descriptive string
+                try {
+                    const auto & objMap = value.get<ObjectMap>();
+                    if (objMap.find("__class__") != objMap.end() &&
+                        objMap.at("__class__").getType() == Variables::Type::STRING) {
+                        return "[Class " + objMap.at("__class__").get<std::string>() + "]";
+                    }
+                    return "[Class Object]";
+                } catch (const std::exception & e) {
+                    return "[Invalid Class Object]";
                 }
-                return "[Class Object]";
-            } catch (const std::exception& e) {
-                return "[Invalid Class Object]";
             }
-        }
         default:
             return "null";
     }
@@ -306,7 +312,7 @@ ValuePtr ValuePtr::null(Symbols::Variables::Type type) {
         z->is_null = false;
     } else if (type == Variables::Type::CLASS) {
         z->set<ObjectMap>({});
-        z->type_ = Variables::Type::CLASS; // Override the type to CLASS
+        z->type_   = Variables::Type::CLASS;  // Override the type to CLASS
         z->is_null = false;
     }
     // For other types, it remains a "null" value of that type (is_null=true, data_=nullptr)
@@ -317,6 +323,13 @@ ValuePtr ValuePtr::null(Symbols::Variables::Type type) {
 
 ValuePtr ValuePtr::null() {
     return ValuePtr::null(Variables::Type::NULL_TYPE);
+}
+
+ValuePtr ValuePtr::undefined() {
+    auto v     = ValuePtr();
+    v->is_null = true;
+    v.setType(Symbols::Variables::Type::UNDEFINED_TYPE);
+    return v;
 }
 
 // Operators
@@ -377,18 +390,18 @@ ValuePtr & ValuePtr::operator[](const std::string & key) {
 ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
     // Use the new constructor that takes a bool to indicate it's a class
     auto _class_instance_vp = Symbols::ValuePtr(v, true);
-    
-    ObjectMap& props = _class_instance_vp->get<ObjectMap>();
+
+    ObjectMap & props = _class_instance_vp->get<ObjectMap>();
 
     // Ensure all properties are initialized
     if (props.find("__class__") != props.end()) {
-        std::string className = props["__class__"]->get<std::string>();
-        auto& registry = Symbols::ClassRegistry::instance();
+        std::string className       = props["__class__"]->get<std::string>();
+        auto *      symbolContainer = Symbols::SymbolContainer::instance();
 
         // Initialize any missing properties with default values
-        if (registry.hasClass(className)) {
-            const auto& classInfo = registry.getClassContainer().getClassInfo(className);
-            for (const auto& propInfo : classInfo.properties) {
+        if (symbolContainer->hasClass(className)) {
+            const auto & classInfo = symbolContainer->getClassInfo(className);
+            for (const auto & propInfo : classInfo.properties) {
                 std::string instancePropName = propInfo.name;
                 // Ensure property name has $ prefix for instance properties
                 if (!instancePropName.empty() && instancePropName[0] != '$') {
@@ -424,8 +437,6 @@ ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
             }
         }
     }
-
-
 
     return _class_instance_vp;
 }
@@ -544,9 +555,9 @@ ValuePtr ValuePtr::asClass(const ValuePtr & obj) {
     if (obj->getType() != Variables::Type::OBJECT) {
         throw std::runtime_error("Cannot convert non-object to class");
     }
-    
-    ValuePtr result = obj.clone(); // Clone the object
-    result->type_ = Variables::Type::CLASS; // Set type to CLASS
+
+    ValuePtr result = obj.clone();             // Clone the object
+    result->type_   = Variables::Type::CLASS;  // Set type to CLASS
     return result;
 }
 

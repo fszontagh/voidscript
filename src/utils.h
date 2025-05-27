@@ -42,14 +42,56 @@ inline size_t file_size(const std::string & path) {
     return info.st_size;
 }
 
+inline std::string get_parent_directory(const std::string & path) {
+    size_t slash_pos = path.find_last_of("/\\");
+    if (slash_pos == std::string::npos) {
+        return "";
+    }
+    return path.substr(0, slash_pos);
+}
+
 // std::filesystem::create_directories
 inline bool create_directories(const std::string & path) {
-    // Egyszerűsített változat, nem rekurzív
-    struct stat st;
-    if (stat(path.c_str(), &st) != 0) {
-        return mkdir(path.c_str(), 0755) == 0;
+    if (path.empty()) {
+        return false;
     }
-    return S_ISDIR(st.st_mode);
+    
+    // Check if the directory already exists
+    if (exists(path) && is_directory(path)) {
+        return true;
+    }
+    
+    // Get parent directory
+    std::string parent = get_parent_directory(path);
+    
+    // If parent is not empty and doesn't exist, recursively create it
+    if (!parent.empty() && !exists(parent)) {
+        if (!create_directories(parent)) {
+            return false;
+        }
+    }
+    
+    // Create the directory
+    return mkdir(path.c_str(), 0755) == 0;
+}
+
+// Create a single directory (non-recursive)
+inline bool create_directory(const std::string & path) {
+    if (exists(path) && is_directory(path)) {
+        return true;
+    }
+    return mkdir(path.c_str(), 0755) == 0;
+}
+
+// Remove an empty directory
+inline bool remove_directory(const std::string & path) {
+    if (!exists(path)) {
+        return false;
+    }
+    if (!is_directory(path)) {
+        return false;
+    }
+    return rmdir(path.c_str()) == 0;
 }
 
 // std::filesystem::recursive_directory_iterator
@@ -75,14 +117,6 @@ inline void recursive_directory_iterator(const std::string & directory, Callback
     }
 
     closedir(dir);
-}
-
-inline std::string get_parent_directory(const std::string & path) {
-    size_t slash_pos = path.find_last_of("/\\");
-    if (slash_pos == std::string::npos) {
-        return "";
-    }
-    return path.substr(0, slash_pos);
 }
 
 }  // namespace utils

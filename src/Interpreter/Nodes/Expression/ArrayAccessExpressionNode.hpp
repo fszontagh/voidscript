@@ -42,11 +42,12 @@ class ArrayAccessExpressionNode : public ExpressionNode {
         } else if (idxVal == Symbols::Variables::Type::STRING) {
             key = idxVal.get<std::string>();
         } else {
-            throw Exception("Array index must be integer or string", filename_, line_, column_);
+            throw std::runtime_error("Array index must be integer or string");
         }
         auto it = map.find(key);
         if (it == map.end()) {
-            throw Exception("Index not found: " + key, filename_, line_, column_);
+            //throw std::runtime_error("Index not found: " + key);
+            return Symbols::ValuePtr::undefined();
         }
         return it->second;
     }

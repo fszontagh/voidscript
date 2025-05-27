@@ -5,8 +5,10 @@
 #include <string>
 #include <unordered_map>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Modules/BaseModule.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 
 namespace Modules {
 
@@ -15,15 +17,17 @@ namespace Modules {
  */
 class HeaderModule : public BaseModule {
   public:
-    void registerModule() override {
-        std::vector<FunctParameterInfo> params = {
-            { "key",   Symbols::Variables::Type::STRING, "HTTP header key"   },
-            { "value", Symbols::Variables::Type::STRING, "HTTP header value" }
+    HeaderModule() { setModuleName("Header"); }
+    
+    void registerFunctions() override {
+        std::vector<Symbols::FunctionParameterInfo> params = {
+            { "key",   Symbols::Variables::Type::STRING, "HTTP header key", false, false },
+            { "value", Symbols::Variables::Type::STRING, "HTTP header value", false, false }
         };
 
         REGISTER_FUNCTION("header", Symbols::Variables::Type::NULL_TYPE, params,
                           "FastCGI header management (header setting like PHP header())",
-                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 2 || args[0]->getType() != Symbols::Variables::Type::STRING ||
                                   args[1]->getType() != Symbols::Variables::Type::STRING) {
                                   throw Exception("header(key, value) requires two string arguments");

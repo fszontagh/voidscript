@@ -43,18 +43,29 @@ class CStyleForStatementNode : public StatementNode {
             using namespace Symbols;
             auto * symContainer = SymbolContainer::instance();
 
+            // Build loop scope name based on current runtime scope, not parse-time scope
+            std::string runtime_loop_scope = symContainer->currentScopeName() + 
+                                           SymbolContainer::SCOPE_SEPARATOR + "for_" +
+                                           std::to_string(line_) + "_" + std::to_string(column_);
+
             // Create and enter the loop scope only once
-            if (!symContainer->getScopeTable(loopScopeName_)) {
-                symContainer->create(loopScopeName_);
+            if (!symContainer->getScopeTable(runtime_loop_scope)) {
+                symContainer->create(runtime_loop_scope);
+                entered_scope = true;
+            } else {
+                symContainer->enter(runtime_loop_scope);
+                entered_scope = true;
             }
-            symContainer->enter(loopScopeName_);
-            entered_scope = true;
 
-            initStmt_->interpret(interpreter);
+            // Initialize the loop
+            if (initStmt_) {
+                initStmt_->interpret(interpreter);
+            }
 
-            // Loop condition and body (executed within loop scope)
+            // Loop condition and body
             while (true) {
-                auto condVal = condExpr_->evaluate(interpreter);
+                // Evaluate condition
+                Symbols::ValuePtr condVal = condExpr_->evaluate(interpreter);
                 if (condVal != Variables::Type::BOOLEAN) {
                     if (entered_scope) {
                         symContainer->enterPreviousScope();  // Exit scope before throwing
@@ -66,12 +77,14 @@ class CStyleForStatementNode : public StatementNode {
                     break;
                 }
 
+                // Execute body
                 for (const auto & stmt : body_) {
                     if (stmt) {
                         stmt->interpret(interpreter);
                     }
                 }
 
+                // Execute increment
                 if (incrStmt_) {
                     incrStmt_->interpret(interpreter);
                 }

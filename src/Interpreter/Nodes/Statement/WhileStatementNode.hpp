@@ -33,12 +33,19 @@ class WhileStatementNode : public StatementNode {
         try {
             auto* sc = Symbols::SymbolContainer::instance();
 
+            // Build loop scope name based on current runtime scope, not parse-time scope
+            std::string runtime_loop_scope = sc->currentScopeName() + 
+                                           Symbols::SymbolContainer::SCOPE_SEPARATOR + "while_" +
+                                           std::to_string(line_) + "_" + std::to_string(column_);
+
             // Create and enter the loop scope only once
-            if (!sc->getScopeTable(loopScopeName_)) {
-                sc->create(loopScopeName_);
+            if (!sc->getScopeTable(runtime_loop_scope)) {
+                sc->create(runtime_loop_scope);
+                entered_scope = true;
+            } else {
+                sc->enter(runtime_loop_scope);
+                entered_scope = true;
             }
-            sc->enter(loopScopeName_);
-            entered_scope = true;
 
             bool cond;
             while (true) {

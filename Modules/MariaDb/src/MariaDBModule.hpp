@@ -12,7 +12,7 @@ namespace Modules {
  */
 class MariaDBModule : public BaseModule {
   public:
-    void registerModule() override;
+    void registerFunctions() override;
     MariaDBModule() { this->setModuleName("MariaDB"); }
     ~MariaDBModule() override = default;
   private:

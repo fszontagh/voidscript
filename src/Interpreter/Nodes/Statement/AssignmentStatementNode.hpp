@@ -32,16 +32,21 @@ class AssignmentStatementNode : public StatementNode {
 
         // First try to get the variable (most common case)
         auto symbol = symContainer->getVariable(targetName_);
-        
+
         // If not found, try to get it as a constant (which will fail for assignment later)
         if (!symbol) {
             symbol = symContainer->getConstant(targetName_);
         }
 
         if (!symbol) {
-            throw Exception(
-                "Variable '" + targetName_ + "' not found starting from scope: " + symContainer->currentScopeName(),
-                filename_, line_, column_);
+            auto symbol = SymbolFactory::createConstant(targetName_, Symbols::ValuePtr::undefined(),
+                                                        symContainer->currentScopeName());
+            symContainer->addConstant(symbol);
+            std::cout << "[DEBUG] added undefined constant: " << targetName_ << "\n";
+
+            //throw Exception(
+            //    "Variable '" + targetName_ + "' not found starting from scope: " + symContainer->currentScopeName(),
+            //    filename_, line_, column_);
         }
 
         // Check if the found symbol is a constant
@@ -62,20 +67,27 @@ class AssignmentStatementNode : public StatementNode {
             Symbols::ValuePtr newValue = rhs_->evaluate(interpreter);
 
             // Traverse and modify the nested object structure IN PLACE.
-            Symbols::ValuePtr currentValPtr = objectValue; 
+            Symbols::ValuePtr currentValPtr = objectValue;
 
             for (size_t i = 0; i < propertyPath_.size(); ++i) {
-                const auto& key = propertyPath_[i];
+                const auto & key = propertyPath_[i];
 
-                if (currentValPtr.getType() != Variables::Type::OBJECT && currentValPtr.getType() != Variables::Type::CLASS) {
+                if (currentValPtr.getType() != Variables::Type::OBJECT &&
+                    currentValPtr.getType() != Variables::Type::CLASS) {
                     std::string traversed_path;
-                    for(size_t j = 0; j < i; ++j) traversed_path += propertyPath_[j] + "->";
-                    throw Exception("Attempting to access property '" + key + "' on non-object type at path '" + targetName_ + "->" + traversed_path.substr(0, traversed_path.length()-2) + "'. Current segment type: " + Symbols::Variables::TypeToString(currentValPtr.getType()), filename_, line_, column_);
+                    for (size_t j = 0; j < i; ++j) {
+                        traversed_path += propertyPath_[j] + "->";
+                    }
+                    throw Exception(
+                        "Attempting to access property '" + key + "' on non-object type at path '" + targetName_ +
+                            "->" + traversed_path.substr(0, traversed_path.length() - 2) +
+                            "'. Current segment type: " + Symbols::Variables::TypeToString(currentValPtr.getType()),
+                        filename_, line_, column_);
                 }
 
                 // Get a reference to the map within the current Value object.
                 // Value::get<ObjectMap>() returns ObjectMap&
-                Symbols::ObjectMap& map_ref = currentValPtr->get<Symbols::ObjectMap>();
+                Symbols::ObjectMap & map_ref = currentValPtr->get<Symbols::ObjectMap>();
 
                 if (i == propertyPath_.size() - 1) {
                     // This is the final property to assign.
@@ -83,12 +95,13 @@ class AssignmentStatementNode : public StatementNode {
 
                     // Optional Type Check:
                     if (map_ref.count(key)) {
-                        const Symbols::ValuePtr& existing_prop_val = map_ref.at(key);
+                        const Symbols::ValuePtr & existing_prop_val = map_ref.at(key);
                         if (newValueEvaluated.getType() != Symbols::Variables::Type::NULL_TYPE &&
                             existing_prop_val.getType() != Symbols::Variables::Type::NULL_TYPE &&
                             newValueEvaluated.getType() != existing_prop_val.getType()) {
                             throw Exception("Type mismatch for property '" + key + "': expected '" +
-                                                Symbols::Variables::TypeToString(existing_prop_val.getType()) + "' but got '" +
+                                                Symbols::Variables::TypeToString(existing_prop_val.getType()) +
+                                                "' but got '" +
                                                 Symbols::Variables::TypeToString(newValueEvaluated.getType()) + "'",
                                             filename_, line_, column_);
                         }
@@ -99,11 +112,15 @@ class AssignmentStatementNode : public StatementNode {
                     // Not the last property, so traverse deeper.
                     auto it = map_ref.find(key);
                     if (it == map_ref.end()) {
-                         std::string traversed_path;
-                         for(size_t j = 0; j <= i; ++j) traversed_path += propertyPath_[j] + (j < i ? "->" : "");
-                        throw Exception("Property '" + key + "' not found on object at path '" + targetName_ + "->" + traversed_path + "'", filename_, line_, column_);
+                        std::string traversed_path;
+                        for (size_t j = 0; j <= i; ++j) {
+                            traversed_path += propertyPath_[j] + (j < i ? "->" : "");
+                        }
+                        throw Exception("Property '" + key + "' not found on object at path '" + targetName_ + "->" +
+                                            traversed_path + "'",
+                                        filename_, line_, column_);
                     }
-                    currentValPtr = it->second; // Update currentValPtr to the next ValuePtr in the chain.
+                    currentValPtr = it->second;  // Update currentValPtr to the next ValuePtr in the chain.
                 }
             }
             // No need for symbol->setValue(objectValue) as modifications are direct.

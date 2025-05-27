@@ -139,13 +139,7 @@ add_library(voidscript
             src/Lexer/Operators.cpp
             src/Symbols/SymbolContainer.cpp
             src/Symbols/Value.cpp
-            src/Symbols/ClassContainer.cpp
-            src/Symbols/UnifiedClassContainer.cpp
-            src/Symbols/ClassFactory.cpp
-            src/Symbols/ClassRegistry.cpp
-            src/Symbols/ClassContainerAdapter.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
-            src/Modules/UnifiedModuleManager.cpp
             src/Interpreter/Interpreter.cpp
 )
 

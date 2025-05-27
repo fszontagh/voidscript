@@ -8,8 +8,9 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Interpreter/StatementNode.hpp"
-#include "Symbols/ClassRegistry.hpp"
+
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/SymbolFactory.hpp"
 
 namespace Interpreter {
 
@@ -19,15 +20,15 @@ namespace Interpreter {
 class ClassDefinitionStatementNode : public StatementNode {
     std::string                                   className_;
     std::string                                   classNs_;
-    std::vector<Symbols::UnifiedClassContainer::PropertyInfo> privateProperties_;
-    std::vector<Symbols::UnifiedClassContainer::PropertyInfo> publicProperties_;
+    std::vector<Symbols::PropertyInfo> privateProperties_;
+    std::vector<Symbols::PropertyInfo> publicProperties_;
     std::vector<std::string>                      methodNames_;
     std::string                                   constructorName_;  // Added
 
   public:
     ClassDefinitionStatementNode(const std::string & className, const std::string & classNs,
-                                 std::vector<Symbols::UnifiedClassContainer::PropertyInfo> privateProps,
-                                 std::vector<Symbols::UnifiedClassContainer::PropertyInfo> publicProps,
+                                 std::vector<Symbols::PropertyInfo> privateProps,
+                                 std::vector<Symbols::PropertyInfo> publicProps,
                                  std::vector<std::string>                      methods,
                                  const std::string &                           constructorName,  // Added
                                  const std::string & filename, int line, size_t column) :
@@ -40,35 +41,40 @@ class ClassDefinitionStatementNode : public StatementNode {
         constructorName_(constructorName) {}  // Added
 
     void interpret(Interpreter & interpreter) const override {
-        auto * sc       = Symbols::SymbolContainer::instance();
-        // Register class and its members in class registry
-        auto & classRegistry = Symbols::ClassRegistry::instance();
+        auto * sc = Symbols::SymbolContainer::instance();
         
-        // Register the class itself
-        classRegistry.registerClass(className_);
+        // Register the class itself (only if not already registered)
+        if (!sc->hasClass(className_)) {
+            sc->registerClass(className_);
+            
+            // Also create a class symbol in the scope table for findClassNamespace to find
+            auto classSymbol = Symbols::SymbolFactory::createClass(className_, classNs_);
+            sc->addClass(classSymbol);
+        }
         
         // Register private and public properties (privacy not enforced yet)
         for (const auto & prop : privateProperties_) {
-            classRegistry.getClassContainer().addProperty(className_, prop.name, prop.type, true, prop.defaultValueExpr);
+            sc->addProperty(className_, prop.name, prop.type, true, prop.defaultValueExpr);
         }
         for (const auto & prop : publicProperties_) {
-            classRegistry.getClassContainer().addProperty(className_, prop.name, prop.type, false, prop.defaultValueExpr);
+            sc->addProperty(className_, prop.name, prop.type, false, prop.defaultValueExpr);
         }
         
-        // Register methods
+        // Register methods (only if not already registered)
         // Reverse the methodNames_ to fix the order issue
         std::vector<std::string> reversedMethods = methodNames_;
         std::reverse(reversedMethods.begin(), reversedMethods.end());
         
         for (const auto & method : reversedMethods) {
-            classRegistry.getClassContainer().addMethod(className_, method);
+            if (!sc->hasMethod(className_, method)) {
+                sc->addMethod(className_, method);
+            }
         }
         
         // Register constructor if it exists
         if (!constructorName_.empty()) {
-            // The constructor (e.g. "test1::construct") should already be in methodNames_
-            // if the parser correctly added it. Constructor handling is done via normal method registration
-            // since UnifiedClassContainer doesn't have a separate setConstructor method
+            // The constructor is already registered as a method above
+            // We might want to set it as the constructor specifically in the future
         }
         
         // After registering methods in class registry, also register function symbols

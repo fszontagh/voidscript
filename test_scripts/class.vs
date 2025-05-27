@@ -4,7 +4,7 @@ class test1 {
     // private methods and variables can not be accessible outside from the class
     private:
     string $name = "No Name"; // pre defined variables allowed
-    int $age;
+    int $age = 17;
     // const variables allowed too
     const string $test = "This is a test";
     // private method only inner usage
@@ -24,7 +24,7 @@ class test1 {
 
     // other public methods
     function getAge() int {
-        return 21;
+        return this->$age;
     }
 
     function getName() string {
@@ -39,9 +39,16 @@ class test1 {
         this->$name = $new_name;
     }
 
+    function setAge(int $newAge) null {
+        this->$age = $newAge;
+    }
+
     function incrementAge(int $incremental) int {
         this->$age += $incremental; // Modify the age
         return this->$age; // Return the *new* age
+    }
+    function incrementAge2() {
+        this->$age = this->$age + 1;
     }
 }
 
@@ -49,11 +56,12 @@ class test1 {
 function getInt() int {
     return 10;
 }
-test1 $testclass = new test1("John Doe", 25);
+test1 $testclass = new test1("John Doe", 11);
+
 
 printnl("Name: ", $testclass->getName());
 printnl("Age: ", $testclass->getAge());
 printnl("Is Adult: ", $testclass->isAdult());
-printnl("Incrementing age by 5...");
-$testclass->incrementAge(5);
+$testclass->incrementAge2();
+//$testclass->incrementAge(5);
 printnl("New Age: ", $testclass->getAge());

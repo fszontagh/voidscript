@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unistd.h>  // for readlink
 
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
@@ -17,6 +18,13 @@
 #include "Modules/BuiltIn/StringModule.hpp"
 #include "Modules/BuiltIn/VariableHelpersModule.hpp"
 #include "options.h"
+#include "utils.h"
+#ifndef _WIN32
+#include <dlfcn.h>
+#else
+#include <windows.h>
+#endif
+#include <filesystem>
 #ifdef FCGI
 #    include "Modules/BuiltIn/HeaderModule.hpp"
 #endif
@@ -59,6 +67,80 @@ class VoidScript {
         return content;
     }
 
+    // Load dynamic plugins from a directory
+    void loadPlugins(const std::string & directory) {
+        if (!utils::exists(directory) || !utils::is_directory(directory)) {
+            return;
+        }
+        
+        for (const auto & entry : std::filesystem::recursive_directory_iterator(directory)) {
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+            
+#ifndef _WIN32
+            if (entry.path().extension() != ".so") {
+                continue;
+            }
+#else
+            if (entry.path().extension() != ".dll") {
+                continue;
+            }
+#endif
+            
+            loadPlugin(entry.path().string());
+        }
+    }
+    
+    // Load a single plugin library
+    void loadPlugin(const std::string & path) {
+        void * handle;
+        
+#ifndef _WIN32
+        handle = dlopen(path.c_str(), RTLD_NOW);
+        if (!handle) {
+            std::cerr << "Warning: Failed to load plugin " << path << ": " << dlerror() << std::endl;
+            return;
+        }
+
+        using PluginInitFunc = void (*)();
+        dlerror();  // Clear any existing errors
+        PluginInitFunc init = reinterpret_cast<PluginInitFunc>(dlsym(handle, "plugin_init"));
+        const char * dlsym_error = dlerror();
+        if (dlsym_error) {
+            std::cerr << "Warning: Plugin missing 'plugin_init' symbol: " << path << ": " << dlsym_error << std::endl;
+            dlclose(handle);
+            return;
+        }
+        
+        // Call the plugin initialization function with error handling
+        try {
+            init();
+        } catch (const std::exception & e) {
+            std::cerr << "Warning: Plugin initialization failed for " << path << ": " << e.what() << std::endl;
+        }
+#else
+        handle = LoadLibraryA(path.c_str());
+        if (!handle) {
+            std::cerr << "Warning: Failed to load plugin: " << path << std::endl;
+            return;
+        }
+
+        using PluginInitFunc = void (*)();
+        PluginInitFunc init = reinterpret_cast<PluginInitFunc>(GetProcAddress((HMODULE) handle, "plugin_init"));
+        if (!init) {
+            std::cerr << "Warning: Plugin missing 'plugin_init' symbol: " << path << std::endl;
+            FreeLibrary((HMODULE) handle);
+            return;
+        }
+        
+        // Call the plugin initialization function
+        init();
+#endif
+        // Note: We're not storing the handle for cleanup since modules register globally
+        // In a production system, you might want to track loaded plugins for cleanup
+    }
+
   public:
     /**
      * @param file               initial script file
@@ -83,24 +165,76 @@ class VoidScript {
         Symbols::SymbolContainer::initialize(file);
 
         // Register built-in modules (print, etc.)
+        auto symbolContainer = Symbols::SymbolContainer::instance();
+        
         // print functions
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::PrintModule>());
+        auto printModule = std::make_unique<Modules::PrintModule>();
+        printModule->setModuleName("Print");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(printModule)));
+        
         // variable helpers (typeof)
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::VariableHelpersModule>());
+        auto varHelpersModule = std::make_unique<Modules::VariableHelpersModule>();
+        varHelpersModule->setModuleName("VariableHelpers");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(varHelpersModule)));
+        
         // string helper functions
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::StringModule>());
+        auto stringModule = std::make_unique<Modules::StringModule>();
+        stringModule->setModuleName("String");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(stringModule)));
+        
         // array helper functions (sizeof)
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ArrayModule>());
+        auto arrayModule = std::make_unique<Modules::ArrayModule>();
+        arrayModule->setModuleName("Array");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(arrayModule)));
+        
         // file I/O builtin
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::FileModule>());
+        auto fileModule = std::make_unique<Modules::FileModule>();
+        fileModule->setModuleName("File");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(fileModule)));
+        
         // JSON encode/decode builtin
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::JsonModule>());
+        auto jsonModule = std::make_unique<Modules::JsonModule>();
+        jsonModule->setModuleName("Json");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(jsonModule)));
+        
+        // module helper functions (module_list, module_info, etc.)
+        auto moduleHelperModule = std::make_unique<Modules::ModuleHelperModule>();
+        moduleHelperModule->setModuleName("ModuleHelper");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(moduleHelperModule)));
+        
 #ifdef FCGI
         // FastCGI header() function module
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::HeaderModule>());
+        auto headerModule = std::make_unique<Modules::HeaderModule>();
+        headerModule->setModuleName("Header");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(headerModule)));
 #endif
-        // Module helper builtin (list, exists, info for plugin modules)
-        Modules::UnifiedModuleManager::instance().addModule(std::make_unique<Modules::ModuleHelperModule>());
+
+        // Load dynamic plugins from modules directory
+        // Try installed location first, then fall back to development location
+        std::string modulesPath = MODULES_FOLDER;
+        if (!utils::exists(modulesPath) || !utils::is_directory(modulesPath)) {
+            // Fall back to development location relative to binary
+            // Get the current executable path and assume modules are in the same directory
+            char exePath[1024];
+            ssize_t count = readlink("/proc/self/exe", exePath, sizeof(exePath));
+            if (count != -1) {
+                exePath[count] = '\0';
+                std::string binPath(exePath);
+                size_t lastSlash = binPath.find_last_of("/\\");
+                std::string binDir = (lastSlash != std::string::npos) ? binPath.substr(0, lastSlash) : ".";
+                modulesPath = binDir + "/Modules";
+            } else {
+                // Fallback if readlink fails - assume we're in build directory
+                modulesPath = "./Modules";
+            }
+        }
+        
+        if (utils::exists(modulesPath) && utils::is_directory(modulesPath)) {
+            loadPlugins(modulesPath);
+        } else {
+            std::cout << "Warning: modules directory not found: " << modulesPath << std::endl;
+        }
+
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
@@ -108,12 +242,8 @@ class VoidScript {
 
     int run() {
         try {
-            // Load plugin modules from 'modules' directory (case-insensitive)
-            Modules::UnifiedModuleManager::instance().loadPlugins("Modules");
-            Modules::UnifiedModuleManager::instance().loadPlugins("build/Modules");
-            Modules::UnifiedModuleManager::instance().loadPlugins(MODULES_FOLDER);
-            // Register all built-in and plugin modules before execution
-            Modules::UnifiedModuleManager::instance().registerAll();
+            // Plugin loading is now handled directly by the modules themselves
+            // Each module registers its functions with SymbolContainer
             while (!files.empty()) {
                 std::string       file         = files.back();
                 const std::string file_content = readFile(file);

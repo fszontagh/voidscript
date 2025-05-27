@@ -3,11 +3,11 @@
 
 #include <fmt/args.h>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 
 // Register module functions
-void Modules::FormatModule::registerModule() {
-    std::vector<FunctParameterInfo> param_list = {
+void Modules::FormatModule::registerFunctions() {
+    std::vector<Symbols::FunctionParameterInfo> param_list = {
         { "format", Symbols::Variables::Type::STRING, "The string to format" },
         { "interpolate...", Symbols::Variables::Type::STRING, "Parameters to replace '{}' placeoholders", true, true },
     };

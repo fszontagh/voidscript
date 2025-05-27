@@ -2,12 +2,14 @@
 #include <memory>
 #include <iostream>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "XmlModule.hpp"
 
 extern "C" void plugin_init() {
-    // Register XmlModule
+    // Create and register XmlModule using the new pattern
     auto module = std::make_unique<Modules::XmlModule>();
     module->setModuleName("Xml2");
-    Modules::UnifiedModuleManager::instance().addModule(std::move(module));
+    
+    // Register and store the module in one call
+    Symbols::SymbolContainer::instance()->registerModule(Modules::make_base_module_ptr(std::move(module)));
 }

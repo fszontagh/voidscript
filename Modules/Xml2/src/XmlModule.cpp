@@ -3,17 +3,17 @@
 #include <cstring>
 #include <iostream>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 #include "Symbols/Value.hpp"
 
-void Modules::XmlModule::registerModule() {
-    // Register classes using UnifiedModuleManager macros
+void Modules::XmlModule::registerFunctions() {
+    // Register classes using registration macros
     REGISTER_CLASS(this->className);
     REGISTER_CLASS("XmlNode");
     REGISTER_CLASS("XmlAttr");
 
     // Register methods for Xml2 class
-    std::vector<Modules::FunctParameterInfo> params = {
+    std::vector<Symbols::FunctionParameterInfo> params = {
         { "filename", Symbols::Variables::Type::STRING, "The path to the XML file to read" }
     };
 
@@ -113,15 +113,15 @@ Symbols::ValuePtr Modules::XmlModule::readMemory(FunctionArguments & args) {
     }
 
     // Use the new property management system
-    auto & manager = UnifiedModuleManager::instance();
-    manager.setObjectProperty(this->className, "__xml2_handler_id__", handler);
-    manager.setObjectProperty(this->className, "__class__", this->className);
-    manager.setObjectProperty(this->className, "__type__", this->className);
+    auto symbolContainer = Symbols::SymbolContainer::instance();
+    symbolContainer->setObjectProperty(this->className, "__xml2_handler_id__", handler);
+    symbolContainer->setObjectProperty(this->className, "__class__", this->className);
+    symbolContainer->setObjectProperty(this->className, "__type__", this->className);
 
     // Copy properties to the object map for backward compatibility
-    objMap["__xml2_handler_id__"] = manager.getObjectProperty(this->className, "__xml2_handler_id__");
-    objMap["__class__"]           = manager.getObjectProperty(this->className, "__class__");
-    objMap["__type__"]            = manager.getObjectProperty(this->className, "__type__");
+    objMap["__xml2_handler_id__"] = symbolContainer->getObjectProperty(this->className, "__xml2_handler_id__");
+    objMap["__class__"]           = symbolContainer->getObjectProperty(this->className, "__class__");
+    objMap["__type__"]            = symbolContainer->getObjectProperty(this->className, "__type__");
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -135,12 +135,13 @@ Symbols::ValuePtr Modules::XmlModule::GetRootElement(const FunctionArguments & a
         throw std::runtime_error("Xml2::getRootElement: invalid object type");
     }
 
-    auto & manager = UnifiedModuleManager::instance();
-    if (!manager.hasObjectProperty(this->className, "__xml2_handler_id__")) {
+    auto symbolContainer = Symbols::SymbolContainer::instance();
+    auto handlerProperty = symbolContainer->getObjectProperty(this->className, "__xml2_handler_id__");
+    if (!handlerProperty) {
         throw std::runtime_error("Xml2::getRootElement: invalid object");
     }
 
-    int handlerId = manager.getObjectProperty(this->className, "__xml2_handler_id__");
+    int handlerId = handlerProperty;
     if (handlerId == -1) {
         throw std::runtime_error("Xml2::getRootElement: invalid object");
     }
@@ -164,12 +165,12 @@ Symbols::ValuePtr Modules::XmlModule::GetRootElement(const FunctionArguments & a
     Symbols::ObjectMap nodeObjMap;
 
     // Use the new property management system for the XmlNode class
-    manager.setObjectProperty("XmlNode", "__xml_node_handler_id__", nodeHandle);
-    manager.setObjectProperty("XmlNode", "__class__", "XmlNode");
+    symbolContainer->setObjectProperty("XmlNode", "__xml_node_handler_id__", nodeHandle);
+    symbolContainer->setObjectProperty("XmlNode", "__class__", "XmlNode");
 
     // Copy properties to the object map for backward compatibility
-    nodeObjMap["__xml_node_handler_id__"] = manager.getObjectProperty("XmlNode", "__xml_node_handler_id__");
-    nodeObjMap["__class__"]               = manager.getObjectProperty("XmlNode", "__class__");
+    nodeObjMap["__xml_node_handler_id__"] = symbolContainer->getObjectProperty("XmlNode", "__xml_node_handler_id__");
+    nodeObjMap["__class__"]               = symbolContainer->getObjectProperty("XmlNode", "__class__");
 
     return Symbols::ValuePtr::makeClassInstance(nodeObjMap);
 }

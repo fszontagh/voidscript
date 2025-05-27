@@ -3,10 +3,11 @@
 #define MODULES_PRINTMODULE_HPP
 
 #include <iostream>
+#include <cstdlib>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 
 namespace Modules {
 
@@ -17,14 +18,15 @@ class PrintModule : public BaseModule {
   public:
     PrintModule() { setModuleName("Print"); }
 
-    void registerModule() override {
-        std::vector<FunctParameterInfo> params = {
+    void registerFunctions() override {
+        std::vector<Symbols::FunctionParameterInfo> params = {
             { "msg", Symbols::Variables::Type::STRING, "The error message to throw" }
         };
 
         REGISTER_FUNCTION("throw_error", Symbols::Variables::Type::NULL_TYPE, params,
                           "Throw a runtime error and display error message, abort the script",
                           &PrintModule::ThrowError);
+        
         params = {
             { "msgs...", Symbols::Variables::Type::STRING, "The error message to display", false, true },
         };
@@ -36,10 +38,16 @@ class PrintModule : public BaseModule {
         };
 
         REGISTER_FUNCTION("printnl", Symbols::Variables::Type::NULL_TYPE, params,
-                          "Output any to the standard output ending wint new line", &PrintModule::PrintNL);
+                          "Output any to the standard output ending with new line", &PrintModule::PrintNL);
 
         REGISTER_FUNCTION("print", Symbols::Variables::Type::NULL_TYPE, params, "Output any to the standard output",
                           &PrintModule::Print);
+
+        params = {
+            { "exit_code", Symbols::Variables::Type::INTEGER, "The exit code to return to the operating system" }
+        };
+        REGISTER_FUNCTION("exit", Symbols::Variables::Type::NULL_TYPE, params,
+                          "Exit the program with the specified exit code", &PrintModule::Exit);
     }
 
     static Symbols::ValuePtr ThrowError(const FunctionArguments & args) {
@@ -72,6 +80,15 @@ class PrintModule : public BaseModule {
             std::cout << v.toString();
         }
         return Symbols::ValuePtr::null();
+    }
+
+    static Symbols::ValuePtr Exit(const FunctionArguments & args) {
+        if (args.size() != 1 || args[0] != Symbols::Variables::Type::INTEGER) {
+            throw Exception("exit requires exactly one integer argument");
+        }
+        int exit_code = args[0];
+        std::exit(exit_code);
+        return Symbols::ValuePtr::null();  // This line will never be reached
     }
 };
 

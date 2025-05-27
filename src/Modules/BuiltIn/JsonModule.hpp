@@ -8,9 +8,10 @@
 #include <variant>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 
 namespace Modules {
 
@@ -23,13 +24,13 @@ class JsonModule : public BaseModule {
   public:
     JsonModule() { setModuleName("Json"); }
 
-    void registerModule() override {
-        std::vector<FunctParameterInfo> params = {
-            { "object", Symbols::Variables::Type::OBJECT, "The object / array to serialize" },
+    void registerFunctions() override {
+        std::vector<Symbols::FunctionParameterInfo> params = {
+            { "object", Symbols::Variables::Type::OBJECT, "The object / array to serialize", false, false },
         };
 
         REGISTER_FUNCTION("json_encode", Symbols::Variables::Type::STRING, params, "Serialize a value to JSON string",
-                          [](const FunctionArguments & args) -> Symbols::ValuePtr {
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1) {
                                   throw std::runtime_error("json_encode expects 1 argument");
                               }
@@ -157,13 +158,13 @@ class JsonModule : public BaseModule {
                           });
 
         params = {
-            { "object", Symbols::Variables::Type::STRING, "The string to parse into object" },
+            { "object", Symbols::Variables::Type::STRING, "The string to parse into object", false, false },
         };
         REGISTER_FUNCTION("json_decode", Symbols::Variables::Type::OBJECT, params, "Parse JSON string into object",
                           &Modules::JsonModule::JsonDecode);
     }
 
-    static Symbols::ValuePtr JsonDecode(const FunctionArguments & args) {
+    static Symbols::ValuePtr JsonDecode(const Symbols::FunctionArguments & args) {
         if (args.size() != 1) {
             throw std::runtime_error("json_decode expects 1 argument");
         }

@@ -71,8 +71,8 @@ class Value {
     std::string              toString() const;
 
     std::string getDebugStateString() const {
-        std::string type_str = Symbols::Variables::TypeToString(this->type_);
-        std::string null_str = this->is_null ? "true" : "false";
+        std::string type_str       = Symbols::Variables::TypeToString(this->type_);
+        std::string null_str       = this->is_null ? "true" : "false";
         std::string data_valid_str = this->data_ ? "true" : "false";
         return "type='" + type_str + "', is_null='" + null_str + "', data_ptr_valid='" + data_valid_str + "'";
     }
@@ -87,7 +87,9 @@ class Value {
         }
         if (!data_) {  // Check if data pointer is null
             std::string type_str = Symbols::Variables::TypeToString(this->type_);
-            std::string err_msg = "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str + "', is_null='" + (this->is_null ? "true" : "false") + "'.";
+            std::string err_msg =
+                "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str +
+                "', is_null='" + (this->is_null ? "true" : "false") + "'.";
             throw std::runtime_error(err_msg);
         }
         return *std::static_pointer_cast<T>(data_);
@@ -102,7 +104,9 @@ class Value {
         }
         if (!data_) {  // Check if data pointer is null
             std::string type_str = Symbols::Variables::TypeToString(this->type_);
-            std::string err_msg = "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str + "', is_null='" + (this->is_null ? "true" : "false") + "'.";
+            std::string err_msg =
+                "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str +
+                "', is_null='" + (this->is_null ? "true" : "false") + "'.";
             throw std::runtime_error(err_msg);
         }
         return *std::static_pointer_cast<T>(data_);
@@ -158,8 +162,8 @@ class ValuePtr {
     ValuePtr(const ObjectMap & v) : ptr_(std::make_shared<Value>()) { ptr_->set(v); }
 
     // Constructor for class types
-    ValuePtr(const ObjectMap & v, bool isClass) : ptr_(std::make_shared<Value>()) { 
-        ptr_->set(v); 
+    ValuePtr(const ObjectMap & v, bool isClass) : ptr_(std::make_shared<Value>()) {
+        ptr_->set(v);
         if (isClass) {
             ptr_->type_ = Variables::Type::CLASS;
         }
@@ -187,13 +191,14 @@ class ValuePtr {
     // Static methods - Declarations only
     static ValuePtr null(Symbols::Variables::Type type);
     static ValuePtr null();
+    static ValuePtr undefined();
     static ValuePtr makeClassInstance(const ObjectMap & v);
     static ValuePtr fromString(const std::string & str);
     static ValuePtr fromStringToInt(const std::string & str);
     static ValuePtr fromStringToDouble(const std::string & str);
     static ValuePtr fromStringToFloat(const std::string & str);
     static ValuePtr fromStringToBool(const std::string & str);
-    
+
     // Convert an object to a class type
     static ValuePtr asClass(const ValuePtr & obj);
 
@@ -246,7 +251,7 @@ class ValuePtr {
         if (ptr_->isNULL()) {
             throw std::runtime_error("Cannot convert NULL value");
         }
-        
+
         if constexpr (std::is_same_v<T, bool>) {
             // For boolean conversion, handle numeric types and comparison results
             switch (ptr_->getType()) {
@@ -266,16 +271,16 @@ class ValuePtr {
                     try {
                         // Try to get as bool first
                         return ptr_->get<bool>();
-                    } catch (const std::runtime_error&) {
+                    } catch (const std::runtime_error &) {
                         // If not a direct bool, assume non-empty object is true
                         return !ptr_->get<ObjectMap>().empty();
                     }
                 default:
-                    throw std::runtime_error("Bad cast, cannot convert type " + 
-                        std::to_string(static_cast<int>(ptr_->getType())) + " to bool");
+                    throw std::runtime_error("Bad cast, cannot convert type " +
+                                             std::to_string(static_cast<int>(ptr_->getType())) + " to bool");
             }
         }
-        
+
         return ptr_->get<T>();
     }
 
@@ -287,7 +292,7 @@ class ValuePtr {
         if (ptr_->isNULL()) {
             throw std::runtime_error("Cannot convert NULL value");
         }
-        
+
         switch (ptr_->getType()) {
             case Variables::Type::BOOLEAN:
                 return ptr_->get<bool>();
@@ -303,7 +308,7 @@ class ValuePtr {
             case Variables::Type::CLASS:
                 try {
                     return ptr_->get<bool>();
-                } catch (const std::runtime_error&) {
+                } catch (const std::runtime_error &) {
                     return !ptr_->get<ObjectMap>().empty();
                 }
             default:

@@ -7,9 +7,10 @@
 #include <vector>
 
 #include "Modules/BaseModule.hpp"
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 
 namespace Modules {
 
@@ -22,16 +23,16 @@ class ArrayModule : public BaseModule {
   public:
     ArrayModule() { setModuleName("Array"); }
 
-    void registerModule() override {
-        std::vector<FunctParameterInfo> params = {
-            { "array", Symbols::Variables::Type::OBJECT, "The array/object to get the size of" }
+    void registerFunctions() override {
+        std::vector<Symbols::FunctionParameterInfo> params = {
+            { "array", Symbols::Variables::Type::OBJECT, "The array/object to get the size of", false, false }
         };
 
         REGISTER_FUNCTION("sizeof", Symbols::Variables::Type::INTEGER, params, "Get the size of an array or object",
                           Modules::ArrayModule::SizeOf);
     }
 
-    static Symbols::ValuePtr SizeOf(FunctionArguments & args) {
+    static Symbols::ValuePtr SizeOf(Symbols::FunctionArguments & args) {
         if (args.size() != 1) {
             throw std::runtime_error("sizeof expects exactly one argument");
         }
@@ -61,7 +62,7 @@ class ArrayModule : public BaseModule {
                     return 1;
                 }
             default:
-                throw std::runtime_error("sizeof unsupported type");
+                throw std::runtime_error("sizeof unsupported type: "+Symbols::Variables::TypeToString(val));
         }
     }  // SizeOf
 };

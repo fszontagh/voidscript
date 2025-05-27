@@ -82,19 +82,21 @@ public:
             class_scope_names.push_back(filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + className);
             
             // Look up method in potential class scopes
-            std::shared_ptr<Symbols::Symbol> sym_method;
+            // Check if method exists in class using the same approach as MethodCallExpressionNode
+            if (!sc->hasMethod(className, methodName_)) {
+                throw Exception("Method '" + methodName_ + "' not found in class " + className, filename_, line_, column_);
+            }
+            
+            // Get the method symbol using findMethod
+            std::shared_ptr<Symbols::Symbol> sym_method = sc->findMethod(className, methodName_);
             std::string resolved_class_scope;
             
-            for (const auto& class_scope_name : class_scope_names) {
-                auto class_scope_table = sc->getScopeTable(class_scope_name);
-                if (class_scope_table) {
-                    sym_method = class_scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, methodName_);
-                    if (sym_method && (sym_method->getKind() == Symbols::Kind::Function || 
-                                     sym_method->getKind() == Symbols::Kind::Method)) {
-                        resolved_class_scope = class_scope_name;
-                        break;
-                    }
-                }
+            if (sym_method) {
+                // Found via proper method lookup, resolve the class scope
+                resolved_class_scope = sc->findClassNamespace(className);
+            } else {
+                // This shouldn't happen if hasMethod returned true, but fallback anyway
+                throw Exception("Method '" + methodName_ + "' not found in class " + className, filename_, line_, column_);
             }
             
             if (!sym_method) {

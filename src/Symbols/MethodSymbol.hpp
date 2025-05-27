@@ -18,7 +18,7 @@ private:
 
 public:
     MethodSymbol(const std::string & name, const std::string & context, const std::string & className,
-                 const FunctionParameterInfo & parameters,
+                 const std::vector<FunctionParameterInfo> & parameters,
                  const std::string &      plainbody  = "",
                  Symbols::Variables::Type returnType = Symbols::Variables::Type::NULL_TYPE) :
         FunctionSymbol(name, context, parameters, plainbody, returnType),

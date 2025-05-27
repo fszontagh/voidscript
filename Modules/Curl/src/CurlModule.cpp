@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "Modules/UnifiedModuleManager.hpp"
+#include "Symbols/RegistrationMacros.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/VariableTypes.hpp"
 
@@ -192,8 +192,8 @@ std::string CurlClient::delete_(const std::string & url, Symbols::ValuePtr optio
 }
 
 // CurlModule implementation
-void CurlModule::registerModule() {
-    std::vector<FunctParameterInfo> param_list = {
+void CurlModule::registerFunctions() {
+    std::vector<Symbols::FunctionParameterInfo> param_list = {
         { "url", Symbols::Variables::Type::STRING, "The URL to send the request to" },
         { "options", Symbols::Variables::Type::OBJECT, "Additional options for the request", true }
     };
@@ -224,7 +224,7 @@ Symbols::ValuePtr CurlModule::curlGet(FunctionArguments & args) {
     const std::string url     = args[0];
     Symbols::ValuePtr options = Symbols::ValuePtr::null();
 
-    if (args.size() == 3) {
+    if (args.size() == 2) {
         options = args[1];
     }
     return Symbols::ValuePtr(client.get(url, options));

@@ -17,6 +17,7 @@
 #include "Parser/ParsedExpression.hpp"
 #include "Symbols/ParameterContainer.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 namespace Interpreter {
 
@@ -24,7 +25,7 @@ class OperationsFactory {
   public:
     OperationsFactory() {}
 
-    static void defineFunction(const std::string & functionName, const Symbols::FunctionParameterInfo & params,
+    static void defineFunction(const std::string & functionName, const std::vector<Symbols::FunctionParameterInfo> & params,
                                const Symbols::Variables::Type & returnType, const std::string & ns,
                                const std::string & fileName, int line, size_t column) {
         std::unique_ptr<DeclareFunctionStatementNode> stmt = std::make_unique<DeclareFunctionStatementNode>(
@@ -183,7 +184,7 @@ class OperationsFactory {
      * @param line Line number
      * @param column Column number
      */
-    static void defineMethod(const std::string & methodName, const Symbols::FunctionParameterInfo & params,
+    static void defineMethod(const std::string & methodName, const std::vector<Symbols::FunctionParameterInfo> & params,
                            const std::string & className,
                            const Symbols::Variables::Type & returnType, const std::string & ns,
                            const std::string & fileName, int line, size_t column) {

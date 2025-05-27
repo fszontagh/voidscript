@@ -8,6 +8,7 @@
 #include "Interpreter/StatementNode.hpp"
 // Include for unified runtime Exception
 #include "Interpreter/ExpressionNode.hpp"
+#include "Interpreter/Nodes/Expression/IdentifierExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
@@ -48,25 +49,36 @@ class ForStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         bool entered_scope = false;
         try {
-            auto iterableVal = iterableExpr_->evaluate(interpreter);
+            auto *symContainer = Symbols::SymbolContainer::instance();
+            
+            // Evaluate the iterable expression
+            Symbols::ValuePtr iterableVal = iterableExpr_->evaluate(interpreter);
+            
             if (iterableVal != Symbols::Variables::Type::OBJECT) {
-                throw Exception("For-in loop applied to non-object", filename_, line_, column_);
+                throw Exception("For-in loop applied to non-object: " + Symbols::Variables::TypeToString(iterableVal),
+                                filename_, line_, column_);
             }
-            const Symbols::ObjectMap & objMap       = iterableVal;
-            auto *                     symContainer = Symbols::SymbolContainer::instance();
+            const Symbols::ObjectMap & objMap = iterableVal;
+
+            // Build loop scope name based on current runtime scope, not parse-time scope
+            std::string runtime_loop_scope = symContainer->currentScopeName() + 
+                                            Symbols::SymbolContainer::SCOPE_SEPARATOR + "for_" +
+                                            std::to_string(line_) + "_" + std::to_string(column_);
 
             // Create and enter the loop scope only once
-            if (!symContainer->getScopeTable(loopScopeName_)) {
-                symContainer->create(loopScopeName_);
+            if (!symContainer->getScopeTable(runtime_loop_scope)) {
+                symContainer->create(runtime_loop_scope);
+                entered_scope = true;
+            } else {
+                symContainer->enter(runtime_loop_scope);
+                entered_scope = true;
             }
-            symContainer->enter(loopScopeName_);
-            entered_scope = true;
 
             // Create the key and value variables once before the loop
             auto keySym = Symbols::SymbolFactory::createVariable(
-                keyName_, Symbols::ValuePtr::null(Symbols::Variables::Type::STRING), loopScopeName_);
+                keyName_, Symbols::ValuePtr::null(Symbols::Variables::Type::STRING), runtime_loop_scope);
             auto valSym = Symbols::SymbolFactory::createVariable(
-                valueName_, Symbols::ValuePtr::null(Symbols::Variables::Type::OBJECT), loopScopeName_);
+                valueName_, Symbols::ValuePtr::null(Symbols::Variables::Type::OBJECT), runtime_loop_scope);
             symContainer->add(keySym);
             symContainer->add(valSym);
 

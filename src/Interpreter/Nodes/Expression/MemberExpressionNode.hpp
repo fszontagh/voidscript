@@ -7,7 +7,7 @@
 
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
-#include "Symbols/ClassRegistry.hpp"
+#include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {
@@ -34,8 +34,7 @@ class MemberExpressionNode : public ExpressionNode {
                             column_);
         }
 
-        Symbols::ObjectMap& map = objVal->get<Symbols::ObjectMap>();
-
+        const auto & map = objVal->get<Symbols::ObjectMap>();
 
         // Try both the property name as-is and with '$' prefix for class properties
         std::string propertyNameWithPrefix = propertyName_[0] == '$' ? propertyName_ : "$" + propertyName_;
@@ -43,28 +42,28 @@ class MemberExpressionNode : public ExpressionNode {
 
         // Handle property lookup in class instances
         if (objVal->getType() == Symbols::Variables::Type::CLASS) {
-            auto classIt = map.find("__class__");
+            auto classIt = map.find("$class_name");
             if (classIt != map.end() && classIt->second->getType() == Symbols::Variables::Type::STRING) {
                 std::string className = classIt->second->get<std::string>();
-                auto &      classRegistry = Symbols::ClassRegistry::instance();
+                auto *      symbolContainer = Symbols::SymbolContainer::instance();
                 
-                if (classRegistry.hasClass(className)) {
+                if (symbolContainer->hasClass(className)) {
                     // First check if we need to try the propertyName with $ prefix
-                    if (!classRegistry.getClassContainer().hasProperty(className, propertyName_) && 
-                        classRegistry.getClassContainer().hasProperty(className, propertyNameWithPrefix)) {
+                    if (!symbolContainer->hasProperty(className, propertyName_) && 
+                        symbolContainer->hasProperty(className, propertyNameWithPrefix)) {
                         propertyNameToUse = propertyNameWithPrefix;
                     }
                     
                     // First try to find it as a method in the class
-                    if (classRegistry.getClassContainer().hasMethod(className, propertyName_)) {
+                    if (symbolContainer->hasMethod(className, propertyName_)) {
                         // Just return the method name without qualification
                         // The method call expression will handle the full resolution
                         return Symbols::ValuePtr(propertyName_);
                     }
                     
                     // If not a method, check if it's a valid property (with or without the $ prefix)
-                    bool hasPropertyWithoutPrefix = classRegistry.getClassContainer().hasProperty(className, propertyName_);
-                    bool hasPropertyWithPrefix = classRegistry.getClassContainer().hasProperty(className, propertyNameWithPrefix);
+                    bool hasPropertyWithoutPrefix = symbolContainer->hasProperty(className, propertyName_);
+                    bool hasPropertyWithPrefix = symbolContainer->hasProperty(className, propertyNameWithPrefix);
                     
                     if (!hasPropertyWithoutPrefix && !hasPropertyWithPrefix) {
                         throw Exception("Neither method nor property '" + propertyName_ + "' found in class '" + className + "'",
