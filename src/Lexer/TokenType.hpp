@@ -17,6 +17,7 @@ enum class Type : std::uint8_t {
     OPERATOR_ASSIGNMENT,  //Eg.+=, -=, *=, /=
     OPERATOR_INCREMENT,   //Eg.++, --
     OPERATOR_ARITHMETIC,  //Eg.+, -, *, /
+    OPERATOR_NAMESPACE_RESOLUTION, // ADDED FOR ::
     PUNCTUATION,          //Eg.(, ), {, }, ;, ,
     COMMENT,              // Just skip it
     END_OF_FILE,          // End of the file / script
@@ -72,6 +73,8 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "OPERATOR_INCREMENT";
         case Lexer::Tokens::Type::OPERATOR_ARITHMETIC:
             return "OPERATOR_ARITHMETIC";
+        case Lexer::Tokens::Type::OPERATOR_NAMESPACE_RESOLUTION: // ADDED
+            return "OPERATOR_NAMESPACE_RESOLUTION";             // ADDED
         case Lexer::Tokens::Type::PUNCTUATION:
             return "PUNCTUATION";
         case Lexer::Tokens::Type::COMMENT:
