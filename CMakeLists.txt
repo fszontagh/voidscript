@@ -139,12 +139,9 @@ add_library(voidscript
             src/Lexer/Operators.cpp
             src/Symbols/SymbolContainer.cpp
             src/Symbols/Value.cpp
-            src/Symbols/EnumSymbol.cpp # Added
+            src/Symbols/EnumSymbol.cpp 
             src/Modules/BuiltIn/ModuleHelperModule.cpp
             src/Interpreter/Interpreter.cpp
-            src/Interpreter/Nodes/Statement/EnumDeclarationNode.cpp # Added
-            src/Interpreter/Nodes/Statement/SwitchStatementNode.cpp # Added
-            src/Interpreter/Nodes/Statement/BreakNode.cpp # Added
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")

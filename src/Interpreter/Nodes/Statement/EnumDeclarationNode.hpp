@@ -8,10 +8,10 @@
 #include <memory> // For std::unique_ptr, though not directly used for members here, good practice
 
 #include "../../StatementNode.hpp" // Base class
-#include "../../../Interpreter/Interpreter.hpp" // Forward declaration for Interpreter usually handled by including this
+#include "../../../Interpreter/Interpreter.hpp" // For Interpreter class, Exception, SymbolContainer
+#include "Symbols/EnumSymbol.hpp" // Corrected path
 
-// Forward declare Interpreter to avoid circular dependency if Interpreter.hpp includes this node
-// class Interpreter::Interpreter; // This is not standard, better to include Interpreter.hpp
+// Forward declare Interpreter is no longer needed due to direct include of Interpreter.hpp
 
 namespace Interpreter::Nodes::Statement {
 
@@ -30,10 +30,29 @@ public:
         enumName(std::move(name)),
         enumerators(std::move(enums)) {}
 
-    void Accept(class Interpreter::Interpreter& interpreter) const;
+    void Accept(::Interpreter::Interpreter& interpreter) const { // Removed 'class' from param, added ::
+        this->interpret(interpreter);
+    }
 
     // interpret() is pure virtual in StatementNode.
-    void interpret(::Interpreter::Interpreter& interpreter) const override;
+    void interpret(::Interpreter::Interpreter& interpreter) const override {
+        // 'interpreter' parameter is available for context if needed.
+        std::string context_str = this->filename_ + ":" + std::to_string(this->line_) + ":" + std::to_string(this->column_);
+        try {
+            // Ensure Symbols::EnumSymbol and Symbols::SymbolContainer are accessible.
+            // Interpreter.hpp (already included) brings SymbolContainer.hpp.
+            // EnumSymbol.hpp is added above.
+            auto enumSymbol = std::make_shared<::Symbols::EnumSymbol>(
+                this->enumName,
+                this->enumerators,
+                context_str 
+            );
+            ::Symbols::SymbolContainer::instance()->add(enumSymbol);
+        } catch (const std::runtime_error& e) {
+            // Interpreter::Exception should be accessible from Interpreter.hpp.
+            throw ::Interpreter::Exception(e.what(), this->filename_, this->line_, this->column_);
+        }
+    }
 
     // It's good practice to have a toString for debugging, though not strictly required by the task
     std::string toString() const override {

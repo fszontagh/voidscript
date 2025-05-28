@@ -1,22 +1,17 @@
 #include "BreakNode.hpp"
-#include "../../../Interpreter/Interpreter.hpp" // For Interpreter class and its Visit method
+// Method definitions are now inline in BreakNode.hpp.
+// Includes like Interpreter.hpp and BreakException.hpp are now primarily needed in the header.
+// Retaining some includes here in case other parts of the build system might have (incorrectly)
+// relied on this .cpp file providing them transitively. For a pure header-only approach,
+// this .cpp file would ideally be almost empty or just #include "BreakNode.hpp".
 
-#include "Interpreter/BreakException.hpp" // For ::Interpreter::BreakException
+#include "../../../Interpreter/Interpreter.hpp" // Retained for now
+#include "Interpreter/BreakException.hpp" // Retained for now
+
 
 namespace Interpreter::Nodes::Statement {
 
-void BreakNode::Accept(class Interpreter::Interpreter& interpreter) const {
-    this->interpret(interpreter);
-}
-
-std::string BreakNode::toString() const {
-    return "BreakNode()";
-}
-
-void BreakNode::interpret(class Interpreter::Interpreter& interpreter) const {
-    // The 'interpreter' parameter is not used by this specific node's logic.
-    // The original debug log that used node.filename_ etc. and interpreter.debug_ is removed.
-    throw ::Interpreter::BreakException(); 
-}
+// Definitions for BreakNode::Accept, BreakNode::interpret, and BreakNode::toString
+// are now inline in BreakNode.hpp.
 
 } // namespace Interpreter::Nodes::Statement

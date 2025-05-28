@@ -1,38 +1,15 @@
-#include "EnumDeclarationNode.hpp"
-#include "../../../Interpreter/Interpreter.hpp" // For Interpreter class and its Visit method
-#include "Symbols/EnumSymbol.hpp" // Corrected path
+#include "EnumDeclarationNode.hpp" 
+// Other includes like Interpreter.hpp and EnumSymbol.hpp are now only needed in the header.
+// However, keeping Interpreter.hpp might be necessary if other cpp files include this .cpp file expecting it to provide that.
+// For a true header-only approach, this .cpp file would ideally be empty or just contain the #include "EnumDeclarationNode.hpp".
+// For now, just removing the method bodies.
+#include "../../../Interpreter/Interpreter.hpp" // Retain for now, might be part of a precompiled header or expected by other includes.
+#include "Symbols/EnumSymbol.hpp" // Retain for now.
 
 namespace Interpreter::Nodes::Statement {
 
-void EnumDeclarationNode::Accept(class Interpreter::Interpreter& interpreter) const {
-    // Body left empty as per refactoring instructions.
-}
-
-void EnumDeclarationNode::interpret(::Interpreter::Interpreter& interpreter) const {
-    // 'interpreter' parameter is available for context if needed by SymbolContainer or future extensions.
-    // Members like 'this->filename_', 'this->enumName' are accessed directly.
-
-    // std::string current_scope_name = Symbols::SymbolContainer::instance()->currentScopeName(); 
-    // current_scope_name is not used in the original logic after removing debug log, so commenting out.
-
-    std::string context_str = this->filename_ + ":" + std::to_string(this->line_) + ":" + std::to_string(this->column_);
-
-    try {
-        auto enumSymbol = std::make_shared<Symbols::EnumSymbol>(
-            this->enumName,
-            this->enumerators,
-            context_str 
-        );
-        Symbols::SymbolContainer::instance()->add(enumSymbol);
-
-        // Original debug logging that depended on a private member of Interpreter ('interpreter.debug_')
-        // has been removed. If logging is needed here, it would require a different mechanism.
-
-    } catch (const std::runtime_error& e) {
-        // Interpreter::Exception should be accessible via the include of "Interpreter.hpp".
-        // Use 'this->filename_', 'this->line_', 'this->column_' for error context.
-        throw ::Interpreter::Exception(e.what(), this->filename_, this->line_, this->column_);
-    }
-}
+// Method definitions are now inline in EnumDeclarationNode.hpp
+// Accept() is defined in the header.
+// interpret() is defined in the header.
 
 } // namespace Interpreter::Nodes::Statement

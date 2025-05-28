@@ -6,9 +6,9 @@
 
 #include "../../StatementNode.hpp" // Base class
 #include "../../../Interpreter/Interpreter.hpp" // For Interpreter class (for Accept method)
+#include "../../../Interpreter/BreakException.hpp" // Added for BreakException
 
-// Forward declare Interpreter to avoid circular dependency if Interpreter.hpp includes this node
-// class Interpreter::Interpreter; // Usually handled by including Interpreter.hpp
+// Forward declare Interpreter is no longer needed due to direct include of Interpreter.hpp
 
 namespace Interpreter::Nodes::Statement {
 
@@ -21,13 +21,20 @@ public:
     ) : ::Interpreter::StatementNode(file_name, file_line, line_column) {}
 
     // The Accept method is the equivalent of 'interpret' for the visitor pattern
-    void Accept(::Interpreter::Interpreter& interpreter) const;
+    void Accept(::Interpreter::Interpreter& interpreter) const {
+        this->interpret(interpreter);
+    }
 
     // Implementation for the pure virtual toString() method
-    std::string toString() const override;
+    std::string toString() const override {
+        return "BreakNode()";
+    }
 
     // interpret() is pure virtual in StatementNode.
-    void interpret(::Interpreter::Interpreter& interpreter) const override;
+    void interpret(::Interpreter::Interpreter& interpreter) const override {
+        // The 'interpreter' parameter is not used by this specific node's logic.
+        throw ::Interpreter::BreakException(); 
+    }
 };
 
 } // namespace Interpreter::Nodes::Statement
