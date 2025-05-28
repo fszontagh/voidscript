@@ -70,6 +70,7 @@ const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::
     { Lexer::Tokens::Type::KEYWORD_NULL,    Symbols::Variables::Type::NULL_TYPE },
     { Lexer::Tokens::Type::KEYWORD_BOOLEAN, Symbols::Variables::Type::BOOLEAN   },
     { Lexer::Tokens::Type::KEYWORD_OBJECT,  Symbols::Variables::Type::OBJECT    },
+    { Lexer::Tokens::Type::KEYWORD_ENUM,    Symbols::Variables::Type::INTEGER   } // Added for enum type
 };
 
 // Parse a top-level constant variable definition: const <type> $name = expr;
@@ -1162,9 +1163,38 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 expect_unary = true;
             }
         }
+        // Namespace resolution operator '::'
+        else if (token.type == Lexer::Tokens::Type::OPERATOR_NAMESPACE_RESOLUTION) { // Handle '::'
+            std::string op = token.value; // Should be "::"
 
+            // Shunting-yard logic for binary operator
+            while (!operator_stack.empty()) {
+                const std::string& top = operator_stack.top();
+                // Stop processing stack if we hit '(' or an operator with lower precedence
+                // (or equal precedence for right-associative, but '::' is left-associative)
+                if (top == "(" || 
+                    (!Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) >= Lexer::getPrecedence(top)) ||
+                    (Lexer::isLeftAssociative(op) && Lexer::getPrecedence(op) > Lexer::getPrecedence(top))) {
+                    break;
+                }
+                operator_stack.pop();
+                // Apply 'top' operator
+                if (output_queue.size() < 2) { // Binary ops need two operands
+                    Parser::reportError("Missing operands for binary operator '" + top + "' when processing '::'", token);
+                }
+                auto rhs = std::move(output_queue.back());
+                output_queue.pop_back();
+                auto lhs = std::move(output_queue.back());
+                output_queue.pop_back();
+                output_queue.push_back(Lexer::applyOperator(top, std::move(rhs), std::move(lhs)));
+            }
+            operator_stack.push(op); // Push "::" onto the operator stack
+            consumeToken();          // Consume the "::" token
+            expect_unary = true;     // After "::", we expect an identifier (like a member name)
+            atStart = false;         // No longer at the start of a sub-expression
+        }
         // Grouping parentheses closing
-        if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == ")") {
+        else if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.lexeme == ")") {
             // Only handle grouping parentheses if a matching "(" exists on the operator stack
             std::stack<std::string> temp_stack = operator_stack;
             bool                    has_paren  = false;
@@ -2130,6 +2160,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
     }
 
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";"); // Expect semicolon after switch block
 
     return std::make_unique<Interpreter::Nodes::Statement::SwitchStatementNode>(
         current_filename_, // Use Parser's current_filename_

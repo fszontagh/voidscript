@@ -10,9 +10,9 @@ enum Signal {
     GREEN   // 2
 };
 
-let currentSignal = Signal::YELLOW;
-print("Testing Signal: YELLOW (currentSignal value: ", currentSignal, ")");
-switch (currentSignal) {
+enum $currentSignal = Signal::YELLOW; // MODIFIED
+print("Testing Signal: YELLOW (currentSignal value: ", $currentSignal, ")"); // MODIFIED
+switch ($currentSignal) { // MODIFIED
     case Signal::RED:
         print("Stop!");
         break;
@@ -25,14 +25,14 @@ switch (currentSignal) {
     default:
         print("Unknown signal.");
         break;
-}
+}; // MODIFIED: Added semicolon
 print(""); // Newline
 
 // 2. Switch with Fall-through
 print("--- Test 2: Switch with Fall-through ---");
-currentSignal = Signal::RED;
-print("Testing Signal: RED (with fall-through to YELLOW, currentSignal value: ", currentSignal, ")");
-switch (currentSignal) {
+$currentSignal = Signal::RED; // MODIFIED
+print("Testing Signal: RED (with fall-through to YELLOW, currentSignal value: ", $currentSignal, ")"); // MODIFIED
+switch ($currentSignal) { // MODIFIED
     case Signal::RED:
         print("Stop!"); // Expected
     case Signal::YELLOW: // Fall-through
@@ -43,7 +43,7 @@ switch (currentSignal) {
         break;
     default:
         print("Unknown signal.");
-}
+}; // MODIFIED: Added semicolon
 print(""); // Newline
 
 // 3. Switch with default case
@@ -60,7 +60,7 @@ switch (someValue) {
     default:
         print("Value is something else: ", someValue); // Expected
         break;
-}
+}; // MODIFIED: Added semicolon
 print(""); // Newline
 
 // 4. Switch with no matching case and no default
@@ -73,7 +73,7 @@ switch (1) { // Use a literal directly
     case 20:
         print("Value is 20");
         break;
-}
+}; // MODIFIED: Added semicolon
 // Expected: No output from this switch block itself
 print("After switch with no matching case and no default.");
 print(""); // Newline
@@ -87,7 +87,7 @@ switch (num) {
     case 2: print("Two"); break; // Expected
     case 3: print("Three"); break;
     default: print("Other"); break;
-}
+}; // MODIFIED: Added semicolon
 print(""); // Newline
 
 // 6. Switch with expression in case
@@ -102,7 +102,7 @@ switch (testVal) {
     default:
         print("Default for A+B test");
         break;
-}
+}; // MODIFIED: Added semicolon
 print(""); // Newline
 
 // 7. Switch with expression in switch argument
@@ -115,7 +115,7 @@ switch (Vals::A * Vals::C) {
     default:
         print("Default for A*C test");
         break;
-}
+}; // MODIFIED: Added semicolon
 print(""); // Newline
 
 // 8. Test error: Switch on non-integer
@@ -130,7 +130,7 @@ switch ("hello") {
     default:
         print("Default for string switch");
         break;
-}
+}; // MODIFIED: Added semicolon
 
 print("");
 print("Switch Tests Completed (or an error occurred as expected).");

@@ -24,6 +24,9 @@ bool isUnaryOperator(const std::string & op);
 
 
 inline int getPrecedence(const std::string & op) {
+    if (op == "::") { // ADD THIS CASE
+        return 5; 
+    }
     if (op == "->") {
         return 5;  // Member access has highest precedence
     }
