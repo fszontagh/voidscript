@@ -195,6 +195,9 @@ class Parser {
     // Helper to parse this->$property access as a special case
     ParsedExpressionPtr parseThisPropertyAccess();
 
+    // Helper to parse object literal expressions
+    ParsedExpressionPtr parseObjectLiteralExpression();
+
 };  // class Parser
 
 }  // namespace Parser

@@ -1,5 +1,7 @@
 #include "Parser/Parser.hpp"
 
+#include <iostream> // ADDED FOR DEBUG LOGGING
+#include <iostream> // ADDED FOR DEBUG LOGGING
 #include <fstream>
 #include <sstream>
 #include <stack>
@@ -1446,6 +1448,65 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
     return std::move(output_queue.back());
 }
 
+// New private method to parse object literal expressions
+ParsedExpressionPtr Parser::parseObjectLiteralExpression() {
+    auto objectToken = currentToken(); // Token for '{' location, consumeToken will be called by the caller if it's an object literal
+    consumeToken(); // Consume '{'
+    std::vector<std::pair<std::string, ParsedExpressionPtr>> members;
+
+    // Parse members until '}'
+    if (!(currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}")) {
+        while (true) {
+            // Optional type tag before key
+            Symbols::Variables::Type memberType = Symbols::Variables::Type::UNDEFINED_TYPE;
+            // Note: The original code for parsing optional type tag before key was:
+            // if (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) {
+            //     memberType = parseType();
+            // }
+            // This part is omitted as per simplified instruction, assuming keys don't have explicit types for now,
+            // or that `parseType()` would be complex to integrate here without full context.
+            // If type parsing for keys is needed, it should be re-added here carefully.
+
+            // Key must be an identifier or variable identifier
+            if (currentToken().type != Lexer::Tokens::Type::IDENTIFIER &&
+                currentToken().type != Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+                reportError("Expected identifier for object key");
+            }
+            std::string key = currentToken().value;
+            if (!key.empty() && key[0] == '$') { // Strip '$' if present
+                key = key.substr(1);
+            }
+            consumeToken(); // Consumes key
+            
+            expect(Lexer::Tokens::Type::PUNCTUATION, ":"); // Expect ':' delimiter
+            
+            // Parse value expression
+            // The original logic for `expectType` based on `memberType` is simplified here.
+            // If `memberType` logic were re-added above, `expectType` should use it.
+            auto valueExpr  = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE); 
+            members.emplace_back(key, std::move(valueExpr));
+
+            if (match(Lexer::Tokens::Type::PUNCTUATION, ",")) {
+                // If there's a comma, check for immediate '}' for trailing comma case
+                if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "}") {
+                    break; // Trailing comma, then end of object
+                }
+                continue; // Next member
+            }
+            break; // No comma, end of members for this loop or expect '}'
+        }
+    }
+    expect(Lexer::Tokens::Type::PUNCTUATION, "}"); // Expect closing '}'
+    
+    // Use location from the opening brace token
+    return ParsedExpression::makeObject(
+        std::move(members), 
+        this->current_filename_, 
+        objectToken.line_number, 
+        objectToken.column_number
+    );
+}
+
 void Parser::parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::string_view input_string,
                          const std::string & filename) {
     ::Parser::Parser::Exception::current_filename_ = filename;
@@ -1620,7 +1681,14 @@ Lexer::Tokens::Token Parser::consumeToken() {
     if (isAtEnd()) {
         throw std::runtime_error("Cannot consume token at end of stream.");
     }
-    return tokens_[current_token_index_++];
+    if (isAtEnd()) {
+        std::cout << "[DEBUG PARSER] consumeToken | ATTEMPT TO CONSUME AT END" << std::endl;
+        throw std::runtime_error("Cannot consume token at end of stream.");
+    }
+    const auto& token_to_consume = tokens_[current_token_index_];
+    std::cout << "[DEBUG PARSER] consumeToken | Consuming: " << token_to_consume.dump() << std::endl;
+    current_token_index_++;
+    return token_to_consume; 
 }
 
 const Lexer::Tokens::Token & Parser::peekToken(size_t offset) const {
@@ -1643,6 +1711,11 @@ const Lexer::Tokens::Token & Parser::currentToken() const {
         }
         throw std::runtime_error("Unexpected end of token stream reached.");
     }
+    if (isAtEnd()) {
+        // std::cout << "[DEBUG PARSER] consumeToken | ATTEMPT TO CONSUME AT END" << std::endl;
+        throw std::runtime_error("Cannot consume token at end of stream.");
+    }
+    std::cout << "[DEBUG PARSER] consumeToken | Consuming: " << tokens_[current_token_index_].dump() << std::endl;
     return tokens_[current_token_index_];
 }
 
