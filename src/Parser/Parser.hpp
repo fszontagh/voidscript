@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <stack>
 
 #include "BaseException.hpp"
 #include "Interpreter/StatementNode.hpp"
