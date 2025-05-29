@@ -814,25 +814,36 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             std::string className = nameTok.value;
 
             // Parse constructor arguments using the helper
-            std::vector<ParsedExpressionPtr> constructor_args = parseExpressionList(
+            std::vector<ParsedExpressionPtr> constructor_arguments = parseExpressionList(
                 Lexer::Tokens::Type::PUNCTUATION, "(",
                 Lexer::Tokens::Type::PUNCTUATION, ")",
                 Symbols::Variables::Type::NULL_TYPE
             );
 
-            // Create an expression representing the object allocation and initialization.
-            // ParsedExpression::makeNew now receives the actual constructor arguments.
-            // The interpreter component that evaluates the corresponding NewExpressionNode
-            // will be responsible for using these arguments to find and call the 'construct' method.
-            auto new_expression = ParsedExpression::makeNew(
+            // Create an expression representing the object allocation.
+            auto new_object_allocation_expr = ParsedExpression::makeNew(
                 className,
-                std::move(constructor_args), // Pass the actual constructor arguments
+                {}, // Pass empty vector for args to makeNew
                 this->current_filename_,
                 nameTok.line_number,
                 nameTok.column_number
             );
 
-            output_queue.push_back(new_expression); // Push the 'new' expression itself.
+            // Create an expression representing the call to the "construct" method.
+            // Pass `constructor_arguments` by copy to ensure its contents are preserved
+            // if `makeMethodCall` were to take by value and move, or if there were other uses.
+            // Since std::vector of std::shared_ptr is being passed, this will be a shallow copy
+            // of the vector (new vector, but points to same ParsedExpression objects), which is standard.
+            auto constructor_call_expr = ParsedExpression::makeMethodCall(
+                new_object_allocation_expr,   // The object being constructed
+                "construct",                  // The conventional constructor method name
+                constructor_arguments,        // Pass by copy
+                this->current_filename_,
+                nameTok.line_number,          // Use location of 'new ClassName'
+                nameTok.column_number
+            );
+
+            output_queue.push_back(constructor_call_expr); // This is the single result
 
             expect_unary = false;
             atStart = false;
