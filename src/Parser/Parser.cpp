@@ -809,37 +809,44 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         auto token = currentToken();
         // Handle 'new' keyword for object instantiation: new ClassName(arg1, arg2, ...)
         if (token.type == Lexer::Tokens::Type::KEYWORD_NEW) {
-            // Consume 'new'
-            auto newTok = consumeToken();
-            // Next should be class name identifier
-            if (currentToken().type != Lexer::Tokens::Type::IDENTIFIER) {
-                reportError("Expected class name after 'new'");
-            }
-            auto        nameTok   = consumeToken();
+            auto newTok = consumeToken(); // Consume 'new'
+            auto nameTok = expect(Lexer::Tokens::Type::IDENTIFIER); // ClassName token
             std::string className = nameTok.value;
-            // Parse constructor arguments using parseExpressionList
-            std::vector<ParsedExpressionPtr> args = parseExpressionList(
+
+            // Parse constructor arguments using the helper
+            std::vector<ParsedExpressionPtr> constructor_args = parseExpressionList(
                 Lexer::Tokens::Type::PUNCTUATION, "(",
                 Lexer::Tokens::Type::PUNCTUATION, ")",
                 Symbols::Variables::Type::NULL_TYPE
             );
-            // auto closingParenToken = tokens_[current_token_index_ -1]; // Not strictly needed as expect() in parseExpressionList handles it
 
-            // copy the args
-            const auto argsc = args;
+            // Create an expression representing the object allocation.
+            // Pass an empty vector for arguments to makeNew, assuming constructor_args are solely for the 'construct' method call.
+            // If ParsedExpression::makeNew requires the arguments for other purposes (e.g. type inference, though unlikely here),
+            // a copy of constructor_args would be passed instead of {}.
+            auto new_object_allocation_expr = ParsedExpression::makeNew(
+                className,
+                {}, // Assuming constructor arguments are handled by the construct method call
+                this->current_filename_,
+                nameTok.line_number,
+                nameTok.column_number
+            );
 
-            auto newStatement = ParsedExpression::makeNew(className, std::move(args), this->current_filename_,
-                                                          nameTok.line_number, nameTok.column_number);
+            // Create an expression representing the call to the "construct" method on the new object.
+            auto constructor_call_expr = ParsedExpression::makeMethodCall(
+                new_object_allocation_expr, // The object being constructed
+                "construct",                // The conventional constructor method name
+                std::move(constructor_args),// Arguments for the constructor
+                this->current_filename_,
+                nameTok.line_number,        // Use location of 'new ClassName'
+                nameTok.column_number
+            );
 
-            auto constructorStatement = ParsedExpression::makeMethodCall(
-                newStatement, "construct", argsc, this->current_filename_, nameTok.line_number, nameTok.column_number);
-
-            // output_queue.push_back(constructorStatement); // constructorStatement is handled during ExpressionNode conversion
-            output_queue.push_back(newStatement);
+            output_queue.push_back(constructor_call_expr); // This is the single result of "new ClassName(...)"
 
             expect_unary = false;
-            atStart      = false;
-            continue;
+            atStart = false;
+            continue; // Continue the while loop of parseParsedExpression
         }
         // Array literal (at start) or dynamic indexing (postfix)
         if (token.type == Lexer::Tokens::Type::PUNCTUATION && token.value == "[") {
