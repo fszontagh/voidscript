@@ -198,6 +198,34 @@ class Parser {
     // Helper to parse object literal expressions
     ParsedExpressionPtr parseObjectLiteralExpression();
 
+    std::vector<ParsedExpressionPtr> parseExpressionList(
+        Lexer::Tokens::Type openTokenType,
+        const std::string& openTokenValue,
+        Lexer::Tokens::Type closeTokenType,
+        const std::string& closeTokenValue,
+        Symbols::Variables::Type expressionElementType = Symbols::Variables::Type::NULL_TYPE
+    );
+
+    void applyStackOperator(
+        std::stack<std::string>& opStack,
+        std::vector<ParsedExpressionPtr>& outputQueue
+    );
+
+    void applyHigherPrecedenceOperators(
+        const std::string& currentFullOp,
+        std::stack<std::string>& opStack,
+        std::vector<ParsedExpressionPtr>& outputQueue
+    );
+
+    // Helper for parsing function/method parameter lists
+    std::vector<Symbols::FunctionParameterInfo> parseParameterList();
+    // Helper for parsing optional function/method return types
+    Symbols::Variables::Type parseOptionalReturnType();
+    // Helper for parsing class property definitions
+    Symbols::PropertyInfo parsePropertyInfo(bool isConstProperty);
+    // Helper for parsing a block of statements in a new scope
+    void parseBlockInNewScope(size_t opening_brace_idx, const std::string& scope_suffix_name);
+
 };  // class Parser
 
 }  // namespace Parser
