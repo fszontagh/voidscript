@@ -820,29 +820,19 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 Symbols::Variables::Type::NULL_TYPE
             );
 
-            // Create an expression representing the object allocation.
-            // Pass an empty vector for arguments to makeNew, assuming constructor_args are solely for the 'construct' method call.
-            // If ParsedExpression::makeNew requires the arguments for other purposes (e.g. type inference, though unlikely here),
-            // a copy of constructor_args would be passed instead of {}.
-            auto new_object_allocation_expr = ParsedExpression::makeNew(
+            // Create an expression representing the object allocation and initialization.
+            // ParsedExpression::makeNew now receives the actual constructor arguments.
+            // The interpreter component that evaluates the corresponding NewExpressionNode
+            // will be responsible for using these arguments to find and call the 'construct' method.
+            auto new_expression = ParsedExpression::makeNew(
                 className,
-                {}, // Assuming constructor arguments are handled by the construct method call
+                std::move(constructor_args), // Pass the actual constructor arguments
                 this->current_filename_,
                 nameTok.line_number,
                 nameTok.column_number
             );
 
-            // Create an expression representing the call to the "construct" method on the new object.
-            auto constructor_call_expr = ParsedExpression::makeMethodCall(
-                new_object_allocation_expr, // The object being constructed
-                "construct",                // The conventional constructor method name
-                std::move(constructor_args),// Arguments for the constructor
-                this->current_filename_,
-                nameTok.line_number,        // Use location of 'new ClassName'
-                nameTok.column_number
-            );
-
-            output_queue.push_back(constructor_call_expr); // This is the single result of "new ClassName(...)"
+            output_queue.push_back(new_expression); // Push the 'new' expression itself.
 
             expect_unary = false;
             atStart = false;
