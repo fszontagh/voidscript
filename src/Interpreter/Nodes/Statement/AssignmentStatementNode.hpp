@@ -1,6 +1,8 @@
 #ifndef INTERPRETER_ASSIGNMENT_STATEMENT_NODE_HPP
 #define INTERPRETER_ASSIGNMENT_STATEMENT_NODE_HPP
 
+#include <iostream> // For std::cerr
+#include <string>   // For std::string
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
@@ -29,6 +31,13 @@ class AssignmentStatementNode : public StatementNode {
     void interpret(Interpreter & interpreter) const override {
         using namespace Symbols;
         auto * symContainer = SymbolContainer::instance();
+
+        // +++ Add New Logging +++
+        std::string full_target_path = targetName_;
+        for(const auto& p : propertyPath_) full_target_path += "->" + p;
+        std::cerr << "[DEBUG ASSIGN] Interpreting assignment for: '" << full_target_path << "'"
+                  << " (File: " << filename_ << ":" << line_ << ")" << std::endl;
+        // +++ End New Logging +++
 
         // First try to get the variable (most common case)
         auto symbol = symContainer->getVariable(targetName_);
@@ -63,8 +72,16 @@ class AssignmentStatementNode : public StatementNode {
                                 line_, column_);
             }
 
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG ASSIGN]   Object base '" << targetName_ << "' is: " << objectValue->toString() << std::endl;
+            // +++ End New Logging +++
+
             // Evaluate RHS first
-            Symbols::ValuePtr newValue = rhs_->evaluate(interpreter);
+            // Symbols::ValuePtr newValue = rhs_->evaluate(interpreter); // Evaluate only once before loop
+            Symbols::ValuePtr newValueRhs = rhs_->evaluate(interpreter);
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG ASSIGN]   RHS evaluated to: " << newValueRhs->toString() << std::endl;
+            // +++ End New Logging +++
 
             // Traverse and modify the nested object structure IN PLACE.
             Symbols::ValuePtr currentValPtr = objectValue;
@@ -91,23 +108,35 @@ class AssignmentStatementNode : public StatementNode {
 
                 if (i == propertyPath_.size() - 1) {
                     // This is the final property to assign.
-                    Symbols::ValuePtr newValueEvaluated = rhs_->evaluate(interpreter);
+                    // Symbols::ValuePtr newValueEvaluated = rhs_->evaluate(interpreter); // Already evaluated as newValueRhs
 
                     // Optional Type Check:
                     if (map_ref.count(key)) {
                         const Symbols::ValuePtr & existing_prop_val = map_ref.at(key);
-                        if (newValueEvaluated.getType() != Symbols::Variables::Type::NULL_TYPE &&
+                        if (newValueRhs.getType() != Symbols::Variables::Type::NULL_TYPE && // Use newValueRhs
                             existing_prop_val.getType() != Symbols::Variables::Type::NULL_TYPE &&
-                            newValueEvaluated.getType() != existing_prop_val.getType()) {
+                            newValueRhs.getType() != existing_prop_val.getType()) { // Use newValueRhs
                             throw Exception("Type mismatch for property '" + key + "': expected '" +
                                                 Symbols::Variables::TypeToString(existing_prop_val.getType()) +
                                                 "' but got '" +
-                                                Symbols::Variables::TypeToString(newValueEvaluated.getType()) + "'",
+                                                Symbols::Variables::TypeToString(newValueRhs.getType()) + "'", // Use newValueRhs
                                             filename_, line_, column_);
                         }
                     }
                     // Only reference assignment, do not clone ValuePtr
-                    map_ref[key] = newValueEvaluated;
+                    // map_ref[key] = newValueEvaluated;
+                    map_ref[key] = newValueRhs; // Use the already evaluated newValueRhs
+                    // +++ Add New Logging +++
+                    std::cerr << "[DEBUG ASSIGN]   Assigned to property '" << key << "'. New value in map: "
+                              << map_ref[key]->toString() << std::endl;
+                    if (targetName_ == "this") {
+                        // Ensure 'this' object and key exist before trying to access for verification
+                        if (interpreter.getThisObject() && !interpreter.getThisObject()->isNULL() && map_ref.count(key)) {
+                             std::cerr << "[DEBUG ASSIGN]   Verification: interpreter.getThisObject()->getProperty('" << key << "') is now "
+                                       << interpreter.getThisObject()->get<ObjectMap>().at(key)->toString() << std::endl;
+                        }
+                    }
+                    // +++ End New Logging +++
                 } else {
                     // Not the last property, so traverse deeper.
                     auto it = map_ref.find(key);
@@ -127,19 +156,26 @@ class AssignmentStatementNode : public StatementNode {
 
         } else {
             // Simple variable assignment (targetName_ is the variable itself)
-            auto newValue     = rhs_->evaluate(interpreter);
+            Symbols::ValuePtr newValue = rhs_->evaluate(interpreter);
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG ASSIGN]   RHS for variable '" << targetName_ << "' evaluated to: " << newValue->toString() << std::endl;
+            // +++ End New Logging +++
             auto currentValue = symbol->getValue();  // Get current value for type checking
 
             // Type check (allow assigning NULL to anything, otherwise types must match)
             if (newValue != Variables::Type::NULL_TYPE && currentValue != Variables::Type::NULL_TYPE &&
-                newValue != currentValue) {
+                newValue.getType() != currentValue.getType()) { // Corrected type comparison
                 throw Exception("Type mismatch assigning to variable '" + targetName_ + "': expected '" +
-                                    Symbols::Variables::TypeToString(currentValue) + "' but got '" +
-                                    Symbols::Variables::TypeToString(newValue) + "'",
+                                    Symbols::Variables::TypeToString(currentValue.getType()) + "' but got '" +
+                                    Symbols::Variables::TypeToString(newValue.getType()) + "'",
                                 filename_, line_, column_);
             }
             // Only reference assignment, do not clone ValuePtr
             symbol->setValue(newValue);
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG ASSIGN]   Assigned to variable '" << targetName_ << "'. New value: "
+                      << symbol->getValue()->toString() << std::endl;
+            // +++ End New Logging +++
         }
     }
 

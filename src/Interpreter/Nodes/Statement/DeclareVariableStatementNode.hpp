@@ -3,6 +3,7 @@
 
 #include <iostream> // Required for std::cerr
 #include <memory>
+#include <sstream>  // Required for std::stringstream
 #include <string>
 #include <utility>
 
@@ -35,14 +36,42 @@ class DeclareVariableStatementNode : public StatementNode {
         isConst_(isConst) {}
 
     void interpret(Interpreter & interpreter) const override {
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG DECLARE_VAR] Declaring variable: '" << variableName_ << "'"
+                  << " in scope: '" << ns << "'" // ns is the intended scope for declaration
+                  << " (File: " << filename_ << ":" << line_ << ")" << std::endl;
+        // +++ End New Logging +++
         try {
-            // Only reference, do not copy ValuePtr
-            auto value = expression_->evaluate(interpreter);
+            Symbols::ValuePtr initValue;
+            if (expression_) { // Changed from initializerExpr_ to expression_
+                initValue = expression_->evaluate(interpreter);
+                // +++ Add New Logging +++
+                std::stringstream ss_init_val;
+                ss_init_val << initValue.ptr_.get();
+                std::cerr << "[DEBUG DECLARE_VAR]   RHS (expression_) evaluated to: "
+                          << initValue->toString() << ", Value@: " << ss_init_val.str() << std::endl;
+                if (initValue->getType() == Symbols::Variables::Type::CLASS || initValue->getType() == Symbols::Variables::Type::OBJECT) {
+                     for(const auto& pair : initValue->get<Symbols::ObjectMap>()){
+                        std::cerr << "[DEBUG DECLARE_VAR]     RHS Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+                    }
+                }
+                // +++ End New Logging +++
+            } else {
+                // Default initialize based on type_ if no initializer
+                initValue = Symbols::ValuePtr::null(variableType_); // Changed from type_ to variableType_
+                // +++ Add New Logging +++
+                std::cerr << "[DEBUG DECLARE_VAR]   No RHS initializer. Defaulting to: " << initValue->toString() << std::endl;
+                // +++ End New Logging +++
+            }
+
+            auto value = initValue; // Use initValue for further processing
 
             auto * sc = Symbols::SymbolContainer::instance();
 
             // Use the CURRENT scope from SymbolContainer for definitions and checks
-            std::string current_runtime_scope_name = sc->currentScopeName();
+            // For variable declaration, ns member should be the target scope.
+            // currentScopeName() might be different if this node is part of a function body being parsed by an inner parser.
+            std::string current_runtime_scope_name = ns; // Use the ns member
             auto        targetTable                = sc->getScopeTable(current_runtime_scope_name);
 
             if (!targetTable) {
@@ -130,6 +159,23 @@ class DeclareVariableStatementNode : public StatementNode {
                                                                           current_runtime_scope_name, variableType_);
                 sc->addVariable(symbol_to_define);
             }
+
+            // +++ Add New Logging +++
+            auto newSymbol = sc->getVariable(variableName_, current_runtime_scope_name); // Use current_runtime_scope_name
+            if (newSymbol && newSymbol->getValue()) {
+                std::stringstream ss_new_sym_val;
+                ss_new_sym_val << newSymbol->getValue().ptr_.get();
+                std::cerr << "[DEBUG DECLARE_VAR]   Variable '" << variableName_ << "' added to symbol table. Stored Value: "
+                          << newSymbol->getValue()->toString() << ", Value@: " << ss_new_sym_val.str() << std::endl;
+                if (newSymbol->getValue()->getType() == Symbols::Variables::Type::CLASS || newSymbol->getValue()->getType() == Symbols::Variables::Type::OBJECT) {
+                     for(const auto& pair : newSymbol->getValue()->get<Symbols::ObjectMap>()){
+                        std::cerr << "[DEBUG DECLARE_VAR]     Stored Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+                    }
+                }
+            } else {
+                std::cerr << "[DEBUG DECLARE_VAR]   Variable '" << variableName_ << "' NOT FOUND or has NULL value after adding to symbol table in scope '" << current_runtime_scope_name << "'." << std::endl;
+            }
+            // +++ End New Logging +++
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

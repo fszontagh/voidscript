@@ -3,6 +3,7 @@
 
 #include <iostream>  // Required for std::cerr
 #include <memory>
+#include <sstream> // Required for std::stringstream
 #include <string>
 #include <vector>
 
@@ -244,8 +245,11 @@ class NewExpressionNode : public ExpressionNode {
                         }
 
                         // Get the operations associated with this constructor from the operations container
-                        std::string constructorFullName = fqClassName + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
-                        const auto & operations = Operations::Container::instance()->getAll(constructorFullName);
+                        std::string constructorScopeForOps = this->filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + this->className_;
+                        std::string opsKey = constructorScopeForOps + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
+                        std::cerr << "[DEBUG NEWNODE] Attempting to get operations for constructor: " << opsKey << std::endl;
+                        const auto & operations = Operations::Container::instance()->getAll(opsKey);
+                        std::cerr << "[DEBUG NEWNODE] Retrieved " << operations.size() << " operations for " << opsKey << std::endl;
 
                         // SET THIS OBJECT
                         interpreter.setThisObject(newObject);
@@ -255,7 +259,7 @@ class NewExpressionNode : public ExpressionNode {
                                 interpreter.runOperation(*op);
                             }
                         } catch (const ReturnException &) {
-                            // Constructor return value is ignored. 
+                            // Constructor return value is ignored.
                             // 'this' will be cleared by the clearThisObject() call that follows.
                         }
                         // Always clear 'this' after attempting constructor execution.
@@ -297,9 +301,11 @@ class NewExpressionNode : public ExpressionNode {
                         }
 
                         // Get and execute constructor operations
-                        std::string constructorFullName = fqClassName + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
-                        
-                        const auto & operations = Operations::Container::instance()->getAll(constructorFullName);
+                        std::string constructorScopeForOps = this->filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + this->className_;
+                        std::string opsKey = constructorScopeForOps + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
+                        std::cerr << "[DEBUG NEWNODE] Attempting to get operations for constructor: " << opsKey << std::endl;
+                        const auto & operations = Operations::Container::instance()->getAll(opsKey);
+                        std::cerr << "[DEBUG NEWNODE] Retrieved " << operations.size() << " operations for " << opsKey << std::endl;
 
                         // SET THIS OBJECT
                         interpreter.setThisObject(newObject);
@@ -309,7 +315,7 @@ class NewExpressionNode : public ExpressionNode {
                                 interpreter.runOperation(*op);
                             }
                         } catch (const ReturnException &) {
-                            // Constructor return value is ignored. 
+                            // Constructor return value is ignored.
                             // 'this' will be cleared by the clearThisObject() call that follows.
                         }
                         // Always clear 'this' after attempting constructor execution.
@@ -336,6 +342,17 @@ class NewExpressionNode : public ExpressionNode {
         }
         
         // Return the object even if no module class info
+        // +++ Add New Logging +++
+        std::stringstream ss_new_obj;
+        ss_new_obj << newObject.ptr_.get();
+        std::cerr << "[DEBUG NEWNODE_RETURN] Returning from NewExpressionNode::evaluate. Object: "
+                  << newObject->toString() << ", Value@: " << ss_new_obj.str() << std::endl;
+        if (newObject->getType() == Symbols::Variables::Type::CLASS || newObject->getType() == Symbols::Variables::Type::OBJECT) {
+            for(const auto& pair : newObject->get<Symbols::ObjectMap>()){
+                std::cerr << "[DEBUG NEWNODE_RETURN]   Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+            }
+        }
+        // +++ End New Logging +++
         return newObject;
     }
 

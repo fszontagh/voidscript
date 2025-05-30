@@ -32,6 +32,17 @@ class IdentifierExpressionNode : public ExpressionNode {
 
         auto * sc = Symbols::SymbolContainer::instance();
 
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG IDENTIFIER] Evaluating identifier: '" << name_ << "'"
+                  << " (File: " << eval_filename << ":" << eval_line << ")" << std::endl;
+        if (interpreter_instance.getThisObject() && !interpreter_instance.getThisObject()->isNULL()) {
+            std::cerr << "[DEBUG IDENTIFIER]   Interpreter 'thisObject' is SET to: "
+                      << interpreter_instance.getThisObject()->toString() << std::endl;
+        } else {
+            std::cerr << "[DEBUG IDENTIFIER]   Interpreter 'thisObject' is NOT SET or is NULL." << std::endl;
+        }
+        // +++ End New Logging +++
+
         // Check for scope resolution operator "::"
         size_t scope_res_pos = name_.find("::");
         if (scope_res_pos != std::string::npos) {
@@ -88,20 +99,32 @@ class IdentifierExpressionNode : public ExpressionNode {
             throw Exception("Keyword 'this' not found or not valid in current context.", eval_filename, eval_line, eval_column);
         }
 
-        auto symbol = sc->getVariable(name_);
-        if (!symbol) symbol = sc->getConstant(name_);
-        // Functions/Methods are not typically evaluated as simple identifiers to get a value directly,
-        // but rather through CallExpressionNode. If plain function name can be a value (e.g. first-class functions),
-        // this logic might need adjustment. For now, assume they don't resolve to a direct value here.
-        // if (!symbol) symbol = sc->getFunction(name_); 
-        // if (!symbol) symbol = sc->getMethod(name_); 
-
-        if (symbol) {
-            return symbol->getValue();
+        // Logic for other identifiers
+        Symbols::SymbolPtr symbol_from_scope; // Use SymbolPtr
+        symbol_from_scope = sc->getVariable(name_);
+        if (symbol_from_scope) {
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as VARIABLE in scope. Value: "
+                      << symbol_from_scope->getValue()->toString() << std::endl;
+            // +++ End New Logging +++
+            return symbol_from_scope->getValue();
         }
         
+        symbol_from_scope = sc->getConstant(name_); // Re-assign to the same variable
+        if (symbol_from_scope) {
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as CONSTANT in scope. Value: "
+                      << symbol_from_scope->getValue()->toString() << std::endl;
+            // +++ End New Logging +++
+            return symbol_from_scope->getValue();
+        }
+
+        // +++ Add New Logging for failure +++
+        std::cerr << "[DEBUG IDENTIFIER]   Identifier '" << name_ << "' NOT FOUND as variable or constant in current scope." << std::endl;
+        // +++ End New Logging +++
+
         throw Exception("Identifier '" + name_ + "' not found.", eval_filename, eval_line, eval_column);
-        return nullptr; // Should be unreachable, but satisfies compiler warning.
+        return nullptr;
     }
 
     std::string toString() const override { return name_; }

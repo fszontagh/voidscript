@@ -783,11 +783,13 @@ void Parser::parseBlockInNewScope(size_t opening_brace_idx, const std::string& s
     // Enter new namespace for the function body
     const std::string new_scope_name = Symbols::SymbolContainer::instance()->currentScopeName() +
                                        Symbols::SymbolContainer::SCOPE_SEPARATOR + scope_suffix_name;
+    std::cerr << "[DEBUG PARSER] parseBlockInNewScope: new_scope_name = " << new_scope_name << std::endl;
     Symbols::SymbolContainer::instance()->create(new_scope_name);
     
     // Parse function body in its own parser instance
     Parser innerParser;
     innerParser.parseScript(filtered_tokens, input_string, this->current_filename_);
+    std::cerr << "[DEBUG PARSER] parseBlockInNewScope: innerParser.parseScript completed for scope: " << new_scope_name << std::endl;
         
     // Exit the function scope, restoring to the parent scope (e.g., class scope or global scope)
     Symbols::SymbolContainer::instance()->enterPreviousScope();
