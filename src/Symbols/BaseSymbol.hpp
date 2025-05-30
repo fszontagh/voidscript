@@ -2,6 +2,7 @@
 #ifndef BASE_SYMBOL_HPP
 #define BASE_SYMBOL_HPP
 
+#include <iostream> // For std::cerr, std::endl
 #include <string>
 #include <utility>
 
@@ -35,11 +36,37 @@ class Symbol {
 
     Symbols::Kind getKind() const { return kind_; }
 
-    virtual const ValuePtr & getValue() const { return value_; }
+    virtual const ValuePtr & getValue() const {
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG SYMBOL_GET_VALUE] Symbol: '" << name_ << "' (Context: " << context_ << ", Kind: " << static_cast<int>(kind_) << ")"
+                  << ", getValue() called. Returning Value: " << value_.toString();
+        // Directly log the is_null flag from the Value object, if ptr_ is valid
+        if (value_.operator->()) { // Check if internal shared_ptr is not C++ null
+            std::cerr << " (Value::is_null actual flag: " << (value_->is_null ? "true" : "false") << ")";
+        } else {
+            std::cerr << " (ValuePtr's internal shared_ptr is C++ nullptr!)";
+        }
+        std::cerr << std::endl;
+        // +++ End New Logging +++
+        return value_;
+    }
 
     //virtual const Value & getValue() const { return value_; }
 
-    virtual void setValue(const ValuePtr & value) { value_ = value; }
+    virtual void setValue(const ValuePtr & value) {
+        // +++ Add New Logging for setValue +++
+        std::cerr << "[DEBUG SYMBOL_SET_VALUE] Symbol: '" << name_ << "' (Context: " << context_ << ", Kind: " << static_cast<int>(kind_) << ")"
+                  << ", setValue() called. New Value: " << value.toString();
+        // Directly log the is_null flag from the Value object, if ptr_ is valid
+        if (value.operator->()) { // Check if internal shared_ptr is not C++ null
+             std::cerr << " (New Value's Value::is_null actual flag: " << (value->is_null ? "true" : "false") << ")";
+        } else {
+            std::cerr << " (New ValuePtr's internal shared_ptr is C++ nullptr!)";
+        }
+        std::cerr << std::endl;
+        // +++ End New Logging for setValue +++
+        value_ = value;
+    }
 
     // Dump symbol details (default: type and value)
     virtual std::string dump() const {

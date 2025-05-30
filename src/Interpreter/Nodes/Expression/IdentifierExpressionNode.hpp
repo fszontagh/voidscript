@@ -104,19 +104,27 @@ class IdentifierExpressionNode : public ExpressionNode {
         symbol_from_scope = sc->getVariable(name_);
         if (symbol_from_scope) {
             // +++ Add New Logging +++
-            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as VARIABLE in scope. Value: "
+            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as VARIABLE in scope. Value from getValue(): "
                       << symbol_from_scope->getValue()->toString() << std::endl;
             // +++ End New Logging +++
-            return symbol_from_scope->getValue();
+            const auto& val_to_return = symbol_from_scope->getValue();
+            std::cerr << "[DEBUG IDENTIFIER]     Returning ValuePtr for VARIABLE '" << name_ << "': is script-NULL? "
+                      << (val_to_return->isNULL() ? "yes" : "no")
+                      << ". toString(): " << val_to_return.toString() << std::endl;
+            return val_to_return;
         }
         
         symbol_from_scope = sc->getConstant(name_); // Re-assign to the same variable
         if (symbol_from_scope) {
             // +++ Add New Logging +++
-            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as CONSTANT in scope. Value: "
+            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as CONSTANT in scope. Value from getValue(): "
                       << symbol_from_scope->getValue()->toString() << std::endl;
             // +++ End New Logging +++
-            return symbol_from_scope->getValue();
+            const auto& val_to_return = symbol_from_scope->getValue();
+            std::cerr << "[DEBUG IDENTIFIER]     Returning ValuePtr for CONSTANT '" << name_ << "': is script-NULL? "
+                      << (val_to_return->isNULL() ? "yes" : "no")
+                      << ". toString(): " << val_to_return.toString() << std::endl;
+            return val_to_return;
         }
 
         // +++ Add New Logging for failure +++

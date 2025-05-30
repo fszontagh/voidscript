@@ -2,8 +2,10 @@
 #ifndef INTERPRETER_MEMBER_EXPRESSION_NODE_HPP
 #define INTERPRETER_MEMBER_EXPRESSION_NODE_HPP
 
+#include <iostream> // Required for std::cerr, std::endl
 #include <memory>
 #include <string>
+// #include <sstream> // Not strictly needed if only using toString()
 
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
@@ -25,7 +27,24 @@ class MemberExpressionNode : public ExpressionNode {
 
     Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string /*filename*/, int /*line*/,
                                size_t /*col */) const override {
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG MEMBER_EXPR] Evaluating member access: " << objectExpr_->toString() << "->" << propertyName_
+                  << " (File: " << filename_ << ":" << line_ << ")" << std::endl;
+        // +++ End New Logging +++
+
         auto objVal = objectExpr_->evaluate(interpreter, filename_, line_, column_);
+
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG MEMBER_EXPR]   LHS object evaluated to: " << objVal->toString();
+        if (objVal->getType() == Symbols::Variables::Type::CLASS || objVal->getType() == Symbols::Variables::Type::OBJECT) {
+            std::cerr << " Properties: " << std::endl;
+            for(const auto& pair : objVal->get<Symbols::ObjectMap>()){
+                std::cerr << "[DEBUG MEMBER_EXPR]     LHS Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+            }
+        } else {
+            std::cerr << std::endl;
+        }
+        // +++ End New Logging +++
 
         // Allow member access on plain objects and class instances
         if (objVal->getType() != Symbols::Variables::Type::OBJECT &&
@@ -35,71 +54,91 @@ class MemberExpressionNode : public ExpressionNode {
         }
 
         const auto & map = objVal->get<Symbols::ObjectMap>();
+        std::string keyToLookup = propertyName_; // Default to the exact name
 
-        // Try both the property name as-is and with '$' prefix for class properties
-        std::string propertyNameWithPrefix = propertyName_[0] == '$' ? propertyName_ : "$" + propertyName_;
-        std::string propertyNameToUse = propertyName_;
-
-        // Handle property lookup in class instances
         if (objVal->getType() == Symbols::Variables::Type::CLASS) {
-            auto classIt = map.find("$class_name");
-            if (classIt != map.end() && classIt->second->getType() == Symbols::Variables::Type::STRING) {
-                std::string className = classIt->second->get<std::string>();
-                auto *      symbolContainer = Symbols::SymbolContainer::instance();
-                
-                if (symbolContainer->hasClass(className)) {
-                    // First check if we need to try the propertyName with $ prefix
-                    if (!symbolContainer->hasProperty(className, propertyName_) && 
-                        symbolContainer->hasProperty(className, propertyNameWithPrefix)) {
-                        propertyNameToUse = propertyNameWithPrefix;
+            auto classMetaIt = map.find("$class_name");
+            if (classMetaIt != map.end() && classMetaIt->second->getType() == Symbols::Variables::Type::STRING) {
+                std::string className = classMetaIt->second->get<std::string>();
+                auto* sc = Symbols::SymbolContainer::instance();
+
+                if (sc->hasClass(className)) {
+                    // 1. Check for method first
+                    if (sc->hasMethod(className, propertyName_)) {
+                        std::cerr << "[DEBUG MEMBER_EXPR]   Property '" << propertyName_ << "' identified as a METHOD of class '" << className << "'" << std::endl;
+                        return Symbols::ValuePtr(propertyName_); // Return method name string
                     }
-                    
-                    // First try to find it as a method in the class
-                    if (symbolContainer->hasMethod(className, propertyName_)) {
-                        // Just return the method name without qualification
-                        // The method call expression will handle the full resolution
-                        return Symbols::ValuePtr(propertyName_);
+
+                    // 2. Determine key for map lookup: prefer direct name if in map, else try $-prefixed if registered and in map.
+                    auto direct_it = map.find(propertyName_);
+                    if (direct_it != map.end()) {
+                        keyToLookup = propertyName_;
+                        std::cerr << "[DEBUG MEMBER_EXPR]   Using direct key '" << keyToLookup << "' (found in instance map)." << std::endl;
+                    } else if (propertyName_[0] != '$') {
+                        std::string prefixedName = "$" + propertyName_;
+                        auto prefixed_it = map.find(prefixedName);
+                        if (prefixed_it != map.end()) {
+                            // Ensure this $-prefixed name is actually a registered property for the class
+                            if (sc->hasProperty(className, prefixedName)) {
+                                keyToLookup = prefixedName;
+                                std::cerr << "[DEBUG MEMBER_EXPR]   Using prefixed key '" << keyToLookup << "' (original not in map, prefixed is in map and registered)." << std::endl;
+                            } else {
+                                 std::cerr << "[DEBUG MEMBER_EXPR]   Original key '" << propertyName_ << "' not in map. Prefixed key '" << prefixedName << "' in map but not registered. Using original for final attempt." << std::endl;
+                                // keyToLookup remains propertyName_
+                            }
+                        } else {
+                             std::cerr << "[DEBUG MEMBER_EXPR]   Neither direct key '" << propertyName_ << "' nor prefixed key '" << prefixedName << "' found in instance map." << std::endl;
+                             // keyToLookup remains propertyName_, check if it's a registered property for a better error
+                             if (!sc->hasProperty(className, propertyName_) && !sc->hasProperty(className, prefixedName)) {
+                                throw Exception("Neither method nor property '" + propertyName_ + "' (or '$" + propertyName_ + "') is defined in class '" + className + "'", filename_, line_, column_);
+                             }
+                        }
+                    } else { // propertyName_ already starts with '$'
+                        // If $propertyName is not in map, check if it's a registered property for error message
+                        if (!sc->hasProperty(className, keyToLookup)) { // keyToLookup is propertyName_ here
+                             throw Exception("Property '" + keyToLookup + "' is not defined in class '" + className + "'", filename_, line_, column_);
+                        }
+                         std::cerr << "[DEBUG MEMBER_EXPR]   Key '" << keyToLookup << "' (starts with $) not found in instance map, but is a registered property." << std::endl;
                     }
-                    
-                    // If not a method, check if it's a valid property (with or without the $ prefix)
-                    bool hasPropertyWithoutPrefix = symbolContainer->hasProperty(className, propertyName_);
-                    bool hasPropertyWithPrefix = symbolContainer->hasProperty(className, propertyNameWithPrefix);
-                    
-                    if (!hasPropertyWithoutPrefix && !hasPropertyWithPrefix) {
-                        throw Exception("Neither method nor property '" + propertyName_ + "' found in class '" + className + "'",
-                                      filename_, line_, column_);
-                    }
-                } else {
-                    // Class not found in registry
                 }
-            } else {
-                // __class__ metadata not found or not a string
             }
         }
 
-        // First try with the property name as-is
-        auto it = map.find(propertyNameToUse);
-        
-        // If not found, try with the alternate name (with or without $ prefix)
-        if (it == map.end()) {
-            std::string altPropertyName = (propertyNameToUse == propertyName_) ? propertyNameWithPrefix : propertyName_;
-            it = map.find(altPropertyName);
-        }
+        // Final lookup in map using the determined keyToLookup
+        auto it = map.find(keyToLookup);
         
         if (it == map.end()) {
-            throw Exception("Property '" + propertyName_ + "' not found in object", filename_, line_, column_);
+            // If it's a class and we haven't found it, but it was registered (e.g. $prop that wasn't initialized)
+            if (objVal->getType() == Symbols::Variables::Type::CLASS) {
+                 auto classMetaIt = map.find("$class_name");
+                 if (classMetaIt != map.end() && classMetaIt->second->getType() == Symbols::Variables::Type::STRING) {
+                    std::string className = classMetaIt->second->get<std::string>();
+                    auto* sc = Symbols::SymbolContainer::instance();
+                    if (sc->hasClass(className) && (sc->hasProperty(className, propertyName_) || (propertyName_[0] != '$' && sc->hasProperty(className, "$" + propertyName_)))) {
+                         throw Exception("Property '" + propertyName_ + "' is defined by class '" + className + "' but not initialized or found in this instance.", filename_, line_, column_);
+                    }
+                 }
+            }
+            throw Exception("Property '" + keyToLookup + "' (resolved from '" + propertyName_ + "') not found in object", filename_, line_, column_);
         }
         
         // Check for null property value
         if (!it->second) {
-            throw Exception("Property '" + propertyName_ + "' points to a null value pointer", filename_, line_, column_);
+            throw Exception("Property '" + keyToLookup + "' points to a null value pointer", filename_, line_, column_);
         }
         
         if (it->second->isNULL()) {
-            throw Exception("Property '" + propertyName_ + "' is null in MemberExpressionNode", filename_, line_, column_);
+            throw Exception("Property '" + keyToLookup + "' is null in MemberExpressionNode", filename_, line_, column_);
         }
         
         // Return a reference to the actual property value, not a clone
+        // +++ Add New Logging (already existed, but context of keyToLookup is important) +++
+        std::cerr << "[DEBUG MEMBER_EXPR]   Accessing property using key: '" << keyToLookup
+                  << "' (original: '" << propertyName_ << "')" << std::endl;
+        if (it != map.end()) { // This check is redundant due to the throw above, but harmless
+            std::cerr << "[DEBUG MEMBER_EXPR]   Property '" << keyToLookup << "' found. Value: " << it->second->toString() << std::endl;
+        }
+        // +++ End New Logging +++
         return it->second;
     }
 

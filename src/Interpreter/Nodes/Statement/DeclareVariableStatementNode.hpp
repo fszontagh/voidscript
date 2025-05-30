@@ -46,10 +46,10 @@ class DeclareVariableStatementNode : public StatementNode {
             if (expression_) { // Changed from initializerExpr_ to expression_
                 initValue = expression_->evaluate(interpreter);
                 // +++ Add New Logging +++
-                std::stringstream ss_init_val;
-                ss_init_val << initValue.ptr_.get();
+                // std::stringstream ss_init_val; // Removed direct pointer access
+                // ss_init_val << initValue.ptr_.get(); // Removed direct pointer access
                 std::cerr << "[DEBUG DECLARE_VAR]   RHS (expression_) evaluated to: "
-                          << initValue->toString() << ", Value@: " << ss_init_val.str() << std::endl;
+                          << initValue->toString() /* << ", Value@: " << ss_init_val.str() */ << std::endl; // Removed pointer address logging
                 if (initValue->getType() == Symbols::Variables::Type::CLASS || initValue->getType() == Symbols::Variables::Type::OBJECT) {
                      for(const auto& pair : initValue->get<Symbols::ObjectMap>()){
                         std::cerr << "[DEBUG DECLARE_VAR]     RHS Property: " << pair.first << " = " << pair.second->toString() << std::endl;
@@ -147,26 +147,36 @@ class DeclareVariableStatementNode : public StatementNode {
                                 filename_, line_, column_);
             }
 
+            // +++ Add New Logging before createVariable +++
+            std::cerr << "[DEBUG DECLARE_VAR]   Value being passed to SymbolFactory for '" << variableName_ << "': "
+                      << value->toString() << std::endl;
+            if (value->getType() == Symbols::Variables::Type::CLASS || value->getType() == Symbols::Variables::Type::OBJECT) {
+                 for(const auto& pair_v : value->get<Symbols::ObjectMap>()){
+                    std::cerr << "[DEBUG DECLARE_VAR]     Factory Input Property: " << pair_v.first << " = " << pair_v.second->toString() << std::endl;
+                }
+            }
+            // +++ End New Logging before createVariable +++
+
             // Create a constant or variable symbol
             // The symbol's own context should be this current_runtime_scope_name
             std::shared_ptr<Symbols::Symbol> symbol_to_define;
             if (isConst_) {
                 symbol_to_define =
                     Symbols::SymbolFactory::createConstant(variableName_, value, current_runtime_scope_name);
-                sc->addConstant(symbol_to_define);
+                sc->addConstant(symbol_to_define, current_runtime_scope_name); // Explicit scope
             } else {
                 symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value,
                                                                           current_runtime_scope_name, variableType_);
-                sc->addVariable(symbol_to_define);
+                sc->addVariable(symbol_to_define, current_runtime_scope_name); // Explicit scope
             }
 
             // +++ Add New Logging +++
-            auto newSymbol = sc->getVariable(variableName_, current_runtime_scope_name); // Use current_runtime_scope_name
+            auto newSymbol = sc->getVariable(current_runtime_scope_name, variableName_); // Corrected argument order
             if (newSymbol && newSymbol->getValue()) {
-                std::stringstream ss_new_sym_val;
-                ss_new_sym_val << newSymbol->getValue().ptr_.get();
+                // std::stringstream ss_new_sym_val; // Removed direct pointer access
+                // ss_new_sym_val << newSymbol->getValue().ptr_.get(); // Removed direct pointer access
                 std::cerr << "[DEBUG DECLARE_VAR]   Variable '" << variableName_ << "' added to symbol table. Stored Value: "
-                          << newSymbol->getValue()->toString() << ", Value@: " << ss_new_sym_val.str() << std::endl;
+                          << newSymbol->getValue()->toString() /* << ", Value@: " << ss_new_sym_val.str() */ << std::endl; // Removed pointer address logging
                 if (newSymbol->getValue()->getType() == Symbols::Variables::Type::CLASS || newSymbol->getValue()->getType() == Symbols::Variables::Type::OBJECT) {
                      for(const auto& pair : newSymbol->getValue()->get<Symbols::ObjectMap>()){
                         std::cerr << "[DEBUG DECLARE_VAR]     Stored Property: " << pair.first << " = " << pair.second->toString() << std::endl;

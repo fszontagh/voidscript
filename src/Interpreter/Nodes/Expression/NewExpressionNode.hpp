@@ -343,15 +343,16 @@ class NewExpressionNode : public ExpressionNode {
         
         // Return the object even if no module class info
         // +++ Add New Logging +++
-        std::stringstream ss_new_obj;
-        ss_new_obj << newObject.ptr_.get();
+        // std::stringstream ss_new_obj; // Removed direct pointer access
+        // ss_new_obj << newObject.ptr_.get(); // Removed direct pointer access
         std::cerr << "[DEBUG NEWNODE_RETURN] Returning from NewExpressionNode::evaluate. Object: "
-                  << newObject->toString() << ", Value@: " << ss_new_obj.str() << std::endl;
+                  << newObject->toString() /* << ", Value@: " << ss_new_obj.str() */ << std::endl; // Removed pointer address logging
         if (newObject->getType() == Symbols::Variables::Type::CLASS || newObject->getType() == Symbols::Variables::Type::OBJECT) {
             for(const auto& pair : newObject->get<Symbols::ObjectMap>()){
                 std::cerr << "[DEBUG NEWNODE_RETURN]   Property: " << pair.first << " = " << pair.second->toString() << std::endl;
             }
         }
+        std::cerr << std::flush; // Force flush before returning
         // +++ End New Logging +++
         return newObject;
     }

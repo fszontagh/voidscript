@@ -37,7 +37,9 @@ class Value {
     Symbols::Variables::Type type_ = Variables::Type::NULL_TYPE;
     std::shared_ptr<void>    data_;
     std::type_index          type_id_ = typeid(void);
+  public: // Temporarily public for debugging
     bool                     is_null  = false;
+  private: // Back to private
 
     // Private methods - Declarations only
     void setNULL();

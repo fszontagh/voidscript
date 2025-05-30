@@ -2,7 +2,9 @@
 #ifndef SYMBOL_FACTORY_HPP
 #define SYMBOL_FACTORY_HPP
 
+#include <iostream> // For std::cerr
 #include <memory>
+#include <sstream>  // For std::stringstream
 #include <string>
 
 #include "ClassSymbol.hpp"
@@ -18,6 +20,16 @@ class SymbolFactory {
     static std::shared_ptr<Symbol> createVariable(
         const std::string & name, const Symbols::ValuePtr & value, const std::string & context,
         Symbols::Variables::Type type = Symbols::Variables::Type::UNDEFINED_TYPE) {
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG SYMBOL_FACTORY] createVariable called. Name: '" << name << "', Context: '" << context
+                  << "', Type: " << Symbols::Variables::TypeToString(type)
+                  << ", Value: " << value->toString() << std::endl;
+        if (value->getType() == Symbols::Variables::Type::CLASS || value->getType() == Symbols::Variables::Type::OBJECT) {
+            for(const auto& pair : value->get<Symbols::ObjectMap>()){
+                std::cerr << "[DEBUG SYMBOL_FACTORY]   Initial Value Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+            }
+        }
+        // +++ End New Logging +++
         return std::make_shared<VariableSymbol>(
             name, value, context,
             type == Symbols::Variables::Type::UNDEFINED_TYPE ? value->getType() : type);

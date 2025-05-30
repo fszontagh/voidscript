@@ -3,8 +3,9 @@
 
 #include <atomic>  // Required for std::atomic
 #include <functional>
-#include <iostream>
+#include <iostream> // For std::cerr, std::endl
 #include <memory>
+#include <sstream>  // For std::stringstream
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
@@ -166,6 +167,7 @@ class SymbolContainer {
      * @param name Name of the new scope.
      */
     void create(const std::string & name) {
+        std::cerr << "[DEBUG SYMBOL_CONTAINER] Creating new scope and entering: " << name << std::endl;
         scopes_[name] = std::make_shared<SymbolTable>(SCOPE_SEPARATOR);
         scopeStack_.push_back(name);
     }
@@ -338,8 +340,16 @@ class SymbolContainer {
         if (variable->getKind() != Symbols::Kind::Variable) {
             throw std::runtime_error("Symbol must be a variable to use addVariable");
         }
+        const std::string current_scope = currentScopeName();
+        std::cerr << "[DEBUG SYMBOL_CONTAINER] addVariable (to current scope) Name: '" << variable->name()
+                  << "', Scope: '" << current_scope << "', Value: " << variable->getValue()->toString() << std::endl;
+        if (variable->getValue()->getType() == Symbols::Variables::Type::CLASS || variable->getValue()->getType() == Symbols::Variables::Type::OBJECT) {
+            for(const auto& pair : variable->getValue()->get<Symbols::ObjectMap>()){
+                std::cerr << "[DEBUG SYMBOL_CONTAINER]   Value Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+            }
+        }
         const std::string ns = DEFAULT_VARIABLES_SCOPE;
-        scopes_[currentScopeName()]->define(ns, variable);
+        scopes_[current_scope]->define(ns, variable);
         return ns;
     }
 
@@ -353,9 +363,17 @@ class SymbolContainer {
         if (variable->getKind() != Symbols::Kind::Variable) {
             throw std::runtime_error("Symbol must be a variable to use addVariable");
         }
+        std::cerr << "[DEBUG SYMBOL_CONTAINER] addVariable (to specific scope) Name: '" << variable->name()
+                  << "', Scope: '" << scopeName << "', Value: " << variable->getValue()->toString() << std::endl;
+        if (variable->getValue()->getType() == Symbols::Variables::Type::CLASS || variable->getValue()->getType() == Symbols::Variables::Type::OBJECT) {
+            for(const auto& pair : variable->getValue()->get<Symbols::ObjectMap>()){
+                std::cerr << "[DEBUG SYMBOL_CONTAINER]   Value Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+            }
+        }
 
         auto it = scopes_.find(scopeName);
         if (it == scopes_.end()) {
+            std::cerr << "[DEBUG SYMBOL_CONTAINER] addVariable - ERROR: Scope '" << scopeName << "' not found." << std::endl;
             throw std::runtime_error("Cannot define variable in non-existent scope: " + scopeName);
         }
 
@@ -656,13 +674,27 @@ class SymbolContainer {
      * @return Shared pointer to the found variable, or nullptr if not found
      */
     SymbolPtr getVariable(const std::string & scopeName, const std::string & name) const {
+        std::cerr << "[DEBUG SYMBOL_CONTAINER] getVariable (specific scope) called. Scope: '" << scopeName
+                  << "', Name: '" << name << "'" << std::endl;
         auto it = scopes_.find(scopeName);
         if (it == scopes_.end()) {
+            std::cerr << "[DEBUG SYMBOL_CONTAINER]   Scope '" << scopeName << "' not found in scopes_ map." << std::endl;
             return nullptr;
         }
+        std::cerr << "[DEBUG SYMBOL_CONTAINER]   Found scope table for '" << scopeName
+                  << "'. Calling SymbolTable::get with ns='" << DEFAULT_VARIABLES_SCOPE << "', name='" << name << "'" << std::endl;
         auto variable = it->second->get(DEFAULT_VARIABLES_SCOPE, name);
-        if (variable && variable->getKind() == Kind::Variable) {
-            return variable;
+        if (variable) {
+            std::cerr << "[DEBUG SYMBOL_CONTAINER]   SymbolTable::get returned a symbol. Value: " << variable->getValue()->toString() << std::endl;
+            // Kind check will be logged by the if/else block
+            if (variable->getKind() == Kind::Variable) {
+                std::cerr << "[DEBUG SYMBOL_CONTAINER]     Symbol is Kind::Variable. Returning symbol." << std::endl;
+                return variable;
+            } else {
+                std::cerr << "[DEBUG SYMBOL_CONTAINER]     Symbol is NOT Kind::Variable (Kind: " << static_cast<int>(variable->getKind()) << "). Returning nullptr." << std::endl;
+            }
+        } else {
+            std::cerr << "[DEBUG SYMBOL_CONTAINER]   SymbolTable::get returned nullptr." << std::endl;
         }
         return nullptr;
     }
@@ -732,10 +764,13 @@ class SymbolContainer {
 
     /** @brief Get the SymbolTable for a specific scope name, if it exists. */
     std::shared_ptr<SymbolTable> getScopeTable(const std::string & scopeName) const {
+        std::cerr << "[DEBUG SYMBOL_CONTAINER] Getting scope table for: '" << scopeName << "'";
         auto it = scopes_.find(scopeName);
         if (it != scopes_.end()) {
+            std::cerr << " - Found." << std::endl;
             return it->second;  // Return the shared_ptr to the table
         }
+        std::cerr << " - NOT Found." << std::endl;
         return nullptr;         // Scope not found
     }
 

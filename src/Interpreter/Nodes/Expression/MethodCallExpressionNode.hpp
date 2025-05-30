@@ -52,13 +52,33 @@ class MethodCallExpressionNode : public ExpressionNode {
     }
 
     Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string filename, int line, size_t col) const override {
+        std::cerr << "[DEBUG METHOD_CALL_ENTRY] Entered evaluate for method: " << methodName_ << " on object " << objectExpr_->toString() << std::endl; // VERY FIRST LINE
         const std::string f = filename_.empty() && !filename.empty() ? filename : filename_;
         int l = line_ == 0 && line != 0 ? line : line_;
         size_t c = column_ == 0 && col > 0 ? col : column_;
 
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG METHOD_CALL] Attempting to call method '" << methodName_ << "' on object " << objectExpr_->toString()
+                  << " (File: " << f << ":" << l << ")" << std::endl;
+        // +++ End New Logging +++
+
         try {
             // Evaluate target object (produces a copy)
             auto objVal = objectExpr_->evaluate(interpreter, f, l, c);
+            // +++ Add New Logging (IMMEDIATE CHECK) +++
+            std::cerr << "[DEBUG METHOD_CALL]   objVal acquired in evaluate. Checking isNULL directly." << std::endl;
+            if (objVal->isNULL()) { // Call isNULL on Value via ValuePtr's operator->
+                std::cerr << "[DEBUG METHOD_CALL]   objVal IS script-level NULL immediately after evaluate for method " << methodName_ << "!" << std::endl;
+                 // Optionally throw a more specific error here if this state is unexpected
+                 // throw std::runtime_error("objVal is script-level NULL in MethodCallExpressionNode for " + methodName_);
+            } else {
+                // std::cerr << "[DEBUG METHOD_CALL]   objVal is NOT script-level NULL for method " << methodName_ << ". Type: " << Symbols::Variables::TypeToString(objVal->getType()) << std::endl;
+                std::cerr << "[DEBUG METHOD_CALL]   objVal is NOT script-level NULL for method " << methodName_ << ". Type obtained (log simplified)." << std::endl;
+            }
+            // +++ End New Logging (IMMEDIATE CHECK) +++
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG METHOD_CALL]   Evaluated object to: " << objVal->toString() << std::endl;
+            // +++ End New Logging +++
             
             // Vector to hold evaluated arguments
             std::vector<Symbols::ValuePtr> evaluatedArgs;
@@ -68,6 +88,12 @@ class MethodCallExpressionNode : public ExpressionNode {
             for (const auto& arg : args_) {
                 evaluatedArgs.push_back(arg->evaluate(interpreter));
             }
+            // +++ Add New Logging +++
+            std::cerr << "[DEBUG METHOD_CALL]   Evaluated " << evaluatedArgs.size() << " arguments." << std::endl;
+            for (size_t i = 0; i < evaluatedArgs.size(); ++i) {
+                std::cerr << "[DEBUG METHOD_CALL]     Arg " << i << ": " << evaluatedArgs[i]->toString() << std::endl;
+            }
+            // +++ End New Logging +++
             
             // Object type check and handling
             if (objVal->getType() == Symbols::Variables::Type::CLASS) {
@@ -98,6 +124,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 }
                 
                 // Set up method context
+                std::cerr << "[DEBUG METHOD_CALL]   Setting 'thisObject' in interpreter to: " << objVal->toString() << std::endl;
                 interpreter.setThisObject(objVal);
                 
                 // Execute method
@@ -160,7 +187,9 @@ class MethodCallExpressionNode : public ExpressionNode {
                         
                         // Execute method body
                         bool returnCaught = false;
+                        std::cerr << "[DEBUG METHOD_CALL]   Attempting to get operations for method scope: " << methodNs << std::endl;
                         auto methodOps = Operations::Container::instance()->getAll(methodNs);
+                        std::cerr << "[DEBUG METHOD_CALL]   Retrieved " << methodOps.size() << " operations for method " << methodName_ << std::endl;
                         
                         for (const auto& op : methodOps) {
                             try {
@@ -168,6 +197,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                             } catch (const ReturnException& re) {
                                 // Allow return values to propagate
                                 returnValue = re.value();
+                                std::cerr << "[DEBUG METHOD_CALL]   ReturnException caught in method. Value: " << returnValue->toString() << std::endl;
                                 returnCaught = true;
                                 break;
                             }
@@ -192,16 +222,19 @@ class MethodCallExpressionNode : public ExpressionNode {
                 }
                 
                 // Clean up
-                interpreter.clearThisObject();                
+                std::cerr << "[DEBUG METHOD_CALL]   Clearing 'thisObject' in interpreter." << std::endl;
+                interpreter.clearThisObject();
+                std::cerr << "[DEBUG METHOD_CALL]   Method '" << methodName_ << "' returning value: " << returnValue->toString() << std::endl;
                 return returnValue;
             }
             
             throw std::runtime_error("Object is not a class instance");
             
         } catch (const ReturnException & re) {
+            std::cerr << "[DEBUG METHOD_CALL]   ReturnException caught directly in evaluate. Value: " << re.value()->toString() << std::endl;
             return re.value();
         } catch (const std::exception& e) {
-            std::cerr << "Exception in method call: " << e.what() << std::endl;
+            std::cerr << "[DEBUG METHOD_CALL] Exception in method call evaluate: " << e.what() << std::endl;
             throw;
         }
     }
