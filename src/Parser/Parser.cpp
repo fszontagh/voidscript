@@ -820,30 +820,16 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 Symbols::Variables::Type::NULL_TYPE
             );
 
-            // Create an expression representing the object allocation.
+            // Create an expression representing the object allocation, now with arguments.
             auto new_object_allocation_expr = ParsedExpression::makeNew(
                 className,
-                {}, // Pass empty vector for args to makeNew
+                constructor_arguments, // Pass the parsed constructor_arguments directly
                 this->current_filename_,
                 nameTok.line_number,
                 nameTok.column_number
             );
 
-            // Create an expression representing the call to the "construct" method.
-            // Pass `constructor_arguments` by copy to ensure its contents are preserved
-            // if `makeMethodCall` were to take by value and move, or if there were other uses.
-            // Since std::vector of std::shared_ptr is being passed, this will be a shallow copy
-            // of the vector (new vector, but points to same ParsedExpression objects), which is standard.
-            auto constructor_call_expr = ParsedExpression::makeMethodCall(
-                new_object_allocation_expr,   // The object being constructed
-                "construct",                  // The conventional constructor method name
-                constructor_arguments,        // Pass by copy
-                this->current_filename_,
-                nameTok.line_number,          // Use location of 'new ClassName'
-                nameTok.column_number
-            );
-
-            output_queue.push_back(constructor_call_expr); // This is the single result
+            output_queue.push_back(new_object_allocation_expr); // Push the NewExpression directly
 
             expect_unary = false;
             atStart = false;
@@ -2129,7 +2115,7 @@ Symbols::PropertyInfo Parser::parsePropertyInfo(bool isConstProperty) {
     } else {
         reportError("Expected property name in class definition", currentToken());
     }
-    std::string propName = Parser::parseIdentifierName(idTok);
+    std::string propName = idTok.value;
     
     ParsedExpressionPtr defaultValue = nullptr;
     if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {

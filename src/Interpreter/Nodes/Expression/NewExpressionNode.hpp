@@ -247,10 +247,19 @@ class NewExpressionNode : public ExpressionNode {
                         std::string constructorFullName = fqClassName + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
                         const auto & operations = Operations::Container::instance()->getAll(constructorFullName);
 
-                        // Execute each operation
-                        for (const auto & op : operations) {
-                            interpreter.runOperation(*op);
+                        // SET THIS OBJECT
+                        interpreter.setThisObject(newObject);
+                        try {
+                            // Execute each operation
+                            for (const auto & op : operations) {
+                                interpreter.runOperation(*op);
+                            }
+                        } catch (const ReturnException &) {
+                            // Constructor return value is ignored. 
+                            // 'this' will be cleared by the clearThisObject() call that follows.
                         }
+                        // Always clear 'this' after attempting constructor execution.
+                        interpreter.clearThisObject();
 
                     } catch (const ReturnException & re) {
                         // Constructor return value is ignored
@@ -292,10 +301,19 @@ class NewExpressionNode : public ExpressionNode {
                         
                         const auto & operations = Operations::Container::instance()->getAll(constructorFullName);
 
-                        // Execute each operation
-                        for (const auto & op : operations) {
-                            interpreter.runOperation(*op);
+                        // SET THIS OBJECT
+                        interpreter.setThisObject(newObject);
+                        try {
+                            // Execute each operation
+                            for (const auto & op : operations) {
+                                interpreter.runOperation(*op);
+                            }
+                        } catch (const ReturnException &) {
+                            // Constructor return value is ignored. 
+                            // 'this' will be cleared by the clearThisObject() call that follows.
                         }
+                        // Always clear 'this' after attempting constructor execution.
+                        interpreter.clearThisObject();
 
                     } catch (const ReturnException & re) {
                         // Constructor return value is ignored
