@@ -102,13 +102,21 @@ class MethodCallExpressionNode : public ExpressionNode {
                 const Symbols::ObjectMap& classObj = objVal->get<Symbols::ObjectMap>();
                 
                 // Look for the class name
-                auto className = classObj.find("$class_name");
-                if (className == classObj.end() || className->second->getType() != Symbols::Variables::Type::STRING) {
+                auto classNameIt = classObj.find("$class_name"); // Renamed for clarity
+                if (classNameIt == classObj.end()) {
                     throw std::runtime_error("Object missing $class_name property");
+                }
+                Symbols::ValuePtr classNameVal = classNameIt->second;
+                std::cerr << "[DEBUG METHOD_CALL]   $class_name ValuePtr. toString(): " << classNameVal->toString()
+                          << ". isNULL(): " << (classNameVal.operator->() ? (classNameVal->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                          << ". Type: " << Symbols::Variables::TypeToString(classNameVal->getType()) << std::endl;
+
+                if (classNameVal->getType() != Symbols::Variables::Type::STRING) { // Check type *after* logging
+                    throw std::runtime_error("Object's $class_name property is not a string. Actual type: " + Symbols::Variables::TypeToString(classNameVal->getType()));
                 }
                 
                 // Get the class name
-                std::string cn = className->second->get<std::string>();
+                std::string cn = classNameVal->get<std::string>();
                 
                 // Get class info from SymbolContainer
                 auto* symbolContainer = Symbols::SymbolContainer::instance();
@@ -224,13 +232,23 @@ class MethodCallExpressionNode : public ExpressionNode {
                 // Clean up
                 std::cerr << "[DEBUG METHOD_CALL]   Clearing 'thisObject' in interpreter." << std::endl;
                 interpreter.clearThisObject();
-                std::cerr << "[DEBUG METHOD_CALL]   Method '" << methodName_ << "' returning value: " << returnValue->toString() << std::endl;
+                // +++ Add final check for returnValue before logging and returning +++
+                std::cerr << "[DEBUG METHOD_CALL]   Method '" << methodName_ << "' about to return. returnValue->isNULL() is: "
+                          << (returnValue.operator->() ? (returnValue->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                          << ". toString(): " << returnValue.toString() << std::endl;
+                // +++ End final check +++
+                std::cerr << "[DEBUG METHOD_CALL]   Method '" << methodName_ << "' returning value: " << returnValue.toString() << std::endl;
                 return returnValue;
             }
             
             throw std::runtime_error("Object is not a class instance");
             
         } catch (const ReturnException & re) {
+            // +++ Add final check for re.value() before logging and returning +++
+            std::cerr << "[DEBUG METHOD_CALL]   ReturnException caught directly. re.value()->isNULL() is: "
+                      << (re.value().operator->() ? (re.value()->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                      << ". toString(): " << re.value().toString() << std::endl;
+            // +++ End final check +++
             std::cerr << "[DEBUG METHOD_CALL]   ReturnException caught directly in evaluate. Value: " << re.value()->toString() << std::endl;
             return re.value();
         } catch (const std::exception& e) {

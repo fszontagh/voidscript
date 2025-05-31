@@ -1,7 +1,10 @@
+#include <iostream> // For std::cerr, std::endl
 #include <memory>
+#include <sstream>  // For std::stringstream
 #include <string>
 
 #include "Interpreter/ExpressionNode.hpp"
+#include "Symbols/Value.hpp" // Required for ValuePtr and TypeToString
 
 namespace Interpreter {
 class BinaryExpressionNode : public ExpressionNode {
@@ -17,8 +20,22 @@ class BinaryExpressionNode : public ExpressionNode {
 
     Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string filename, int line,
                                size_t column) const override {
+        // +++ Add New Logging +++
+        std::cerr << "[DEBUG BINARY_EXPR] Evaluating binary expression: " << lhs_->toString() << " " << op_ << " " << rhs_->toString()
+                  << " (File: " << (this->filename.empty() ? filename : this->filename) << ":" << (this->line == 0 ? line : this->line) << ")" << std::endl;
+        // +++ End New Logging +++
+
         auto leftVal  = lhs_->evaluate(interpreter, filename, line, column);
         auto rightVal = rhs_->evaluate(interpreter, filename, line, column);
+
+        // +++ Add New Logging for operand values +++
+        std::cerr << "[DEBUG BINARY_EXPR]   LHS evaluated to: " << leftVal->toString()
+                  << ", isNULL: " << (leftVal.operator->() ? (leftVal->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                  << ", Type: " << Symbols::Variables::TypeToString(leftVal->getType()) << std::endl;
+        std::cerr << "[DEBUG BINARY_EXPR]   RHS evaluated to: " << rightVal->toString()
+                  << ", isNULL: " << (rightVal.operator->() ? (rightVal->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                  << ", Type: " << Symbols::Variables::TypeToString(rightVal->getType()) << std::endl;
+        // +++ End New Logging for operand values +++
 
         // Handle NULL values in comparisons
         if (leftVal->isNULL() || rightVal->isNULL()) {

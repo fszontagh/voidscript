@@ -104,27 +104,44 @@ class IdentifierExpressionNode : public ExpressionNode {
         symbol_from_scope = sc->getVariable(name_);
         if (symbol_from_scope) {
             // +++ Add New Logging +++
-            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as VARIABLE in scope. Value from getValue(): "
-                      << symbol_from_scope->getValue()->toString() << std::endl;
-            // +++ End New Logging +++
-            const auto& val_to_return = symbol_from_scope->getValue();
-            std::cerr << "[DEBUG IDENTIFIER]     Returning ValuePtr for VARIABLE '" << name_ << "': is script-NULL? "
-                      << (val_to_return->isNULL() ? "yes" : "no")
-                      << ". toString(): " << val_to_return.toString() << std::endl;
-            return val_to_return;
+            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as VARIABLE in scope. Accessing its value..." << std::endl;
+            const auto& val_ref = symbol_from_scope->getValue(); // Triggers Symbol::getValue() log
+            std::cerr << "[DEBUG IDENTIFIER]   ValuePtr for VARIABLE '" << name_ << "' obtained from getValue(). Checking internal is_null flag..." << std::endl;
+            bool is_truly_script_null = false;
+            if (val_ref.operator->()) {
+                is_truly_script_null = val_ref.operator->()->is_null; // Direct access to temporarily public member
+                std::cerr << "[DEBUG IDENTIFIER]     Direct Value::is_null flag is: " << (is_truly_script_null ? "true" : "false") << std::endl;
+            } else {
+                std::cerr << "[DEBUG IDENTIFIER]     val_ref.operator->() is C++ NULL for variable '" << name_ << "'" << std::endl;
+                is_truly_script_null = true; // Treat C++ null as effectively script null for error cause
+            }
+            std::cerr << "[DEBUG IDENTIFIER]   Attempting toString() for VARIABLE '" << name_ << "': " << val_ref.toString() << std::endl;
+            std::cerr << "[DEBUG IDENTIFIER]   toString() succeeded for VARIABLE '" << name_ << "'." << std::endl;
+            if (is_truly_script_null) { // Corrected variable name
+                 std::cerr << "[DEBUG IDENTIFIER]   WARNING: Returning a SCRIPT-NULL ValuePtr for VARIABLE '" << name_ << "'" << std::endl;
+            }
+            return val_ref;
         }
         
         symbol_from_scope = sc->getConstant(name_); // Re-assign to the same variable
         if (symbol_from_scope) {
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as CONSTANT in scope. Value from getValue(): "
-                      << symbol_from_scope->getValue()->toString() << std::endl;
-            // +++ End New Logging +++
-            const auto& val_to_return = symbol_from_scope->getValue();
-            std::cerr << "[DEBUG IDENTIFIER]     Returning ValuePtr for CONSTANT '" << name_ << "': is script-NULL? "
-                      << (val_to_return->isNULL() ? "yes" : "no")
-                      << ". toString(): " << val_to_return.toString() << std::endl;
-            return val_to_return;
+            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as CONSTANT in scope. Accessing its value..." << std::endl;
+            const auto& val_ref = symbol_from_scope->getValue(); // Triggers Symbol::getValue() log
+            std::cerr << "[DEBUG IDENTIFIER]   ValuePtr for CONSTANT '" << name_ << "' obtained from getValue(). Checking internal is_null flag..." << std::endl;
+            bool is_truly_script_null = false;
+            if (val_ref.operator->()) {
+                is_truly_script_null = val_ref.operator->()->is_null; // Direct access to temporarily public member
+                std::cerr << "[DEBUG IDENTIFIER]     Direct Value::is_null flag is: " << (is_truly_script_null ? "true" : "false") << std::endl;
+            } else {
+                std::cerr << "[DEBUG IDENTIFIER]     val_ref.operator->() is C++ NULL for constant '" << name_ << "'" << std::endl;
+                is_truly_script_null = true; // Treat C++ null as effectively script null for error cause
+            }
+            std::cerr << "[DEBUG IDENTIFIER]   Attempting toString() for CONSTANT '" << name_ << "': " << val_ref.toString() << std::endl;
+            std::cerr << "[DEBUG IDENTIFIER]   toString() succeeded for CONSTANT '" << name_ << "'." << std::endl;
+            if (is_truly_script_null) { // Corrected variable name
+                 std::cerr << "[DEBUG IDENTIFIER]   WARNING: Returning a SCRIPT-NULL ValuePtr for CONSTANT '" << name_ << "'" << std::endl;
+            }
+            return val_ref;
         }
 
         // +++ Add New Logging for failure +++

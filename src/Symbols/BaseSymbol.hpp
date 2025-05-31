@@ -38,16 +38,17 @@ class Symbol {
 
     virtual const ValuePtr & getValue() const {
         // +++ Add New Logging +++
-        std::cerr << "[DEBUG SYMBOL_GET_VALUE] Symbol: '" << name_ << "' (Context: " << context_ << ", Kind: " << static_cast<int>(kind_) << ")"
-                  << ", getValue() called. Returning Value: " << value_.toString();
-        // Directly log the is_null flag from the Value object, if ptr_ is valid
-        if (value_.operator->()) { // Check if internal shared_ptr is not C++ null
-            std::cerr << " (Value::is_null actual flag: " << (value_->is_null ? "true" : "false") << ")";
+        // +++ Refined Logging for getValue +++
+        std::cerr << "[DEBUG SYMBOL_GET_VALUE] Symbol: '" << name_ << "' (Context: " << context_
+                  << ", Kind: " << static_cast<int>(kind_) << ") - getValue() called." << std::endl;
+        if (!value_.operator->()) {
+            std::cerr << "[DEBUG SYMBOL_GET_VALUE]   INTERNAL ERROR: value_.ptr_ is C++ nullptr for symbol '" << name_ << "'!" << std::endl;
         } else {
-            std::cerr << " (ValuePtr's internal shared_ptr is C++ nullptr!)";
+            std::cerr << "[DEBUG SYMBOL_GET_VALUE]   About to return value_.toString(): " << value_.toString()
+                      << ". Direct check of value_.ptr_->is_null: " << (value_->is_null ? "true" : "false")
+                      << ". value_->getType(): " << Symbols::Variables::TypeToString(value_->getType()) << std::endl;
         }
-        std::cerr << std::endl;
-        // +++ End New Logging +++
+        // +++ End Refined Logging +++
         return value_;
     }
 
@@ -57,8 +58,7 @@ class Symbol {
         // +++ Add New Logging for setValue +++
         std::cerr << "[DEBUG SYMBOL_SET_VALUE] Symbol: '" << name_ << "' (Context: " << context_ << ", Kind: " << static_cast<int>(kind_) << ")"
                   << ", setValue() called. New Value: " << value.toString();
-        // Directly log the is_null flag from the Value object, if ptr_ is valid
-        if (value.operator->()) { // Check if internal shared_ptr is not C++ null
+        if (value.operator->()) {
              std::cerr << " (New Value's Value::is_null actual flag: " << (value->is_null ? "true" : "false") << ")";
         } else {
             std::cerr << " (New ValuePtr's internal shared_ptr is C++ nullptr!)";

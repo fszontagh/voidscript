@@ -45,12 +45,11 @@ class DeclareVariableStatementNode : public StatementNode {
             Symbols::ValuePtr initValue;
             if (expression_) { // Changed from initializerExpr_ to expression_
                 initValue = expression_->evaluate(interpreter);
-                // +++ Add New Logging +++
-                // std::stringstream ss_init_val; // Removed direct pointer access
-                // ss_init_val << initValue.ptr_.get(); // Removed direct pointer access
-                std::cerr << "[DEBUG DECLARE_VAR]   RHS (expression_) evaluated to: "
-                          << initValue->toString() /* << ", Value@: " << ss_init_val.str() */ << std::endl; // Removed pointer address logging
-                if (initValue->getType() == Symbols::Variables::Type::CLASS || initValue->getType() == Symbols::Variables::Type::OBJECT) {
+                // +++ Add New Logging with isNULL check +++
+                std::cerr << "[DEBUG DECLARE_VAR]   RHS (expression_) evaluated. initValue.toString(): " << initValue->toString()
+                          << ". initValue->isNULL(): " << (initValue.operator->() ? (initValue->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                          << ". initValue->getType(): " << Symbols::Variables::TypeToString(initValue->getType()) << std::endl;
+                if (initValue.operator->() && (initValue->getType() == Symbols::Variables::Type::CLASS || initValue->getType() == Symbols::Variables::Type::OBJECT)) {
                      for(const auto& pair : initValue->get<Symbols::ObjectMap>()){
                         std::cerr << "[DEBUG DECLARE_VAR]     RHS Property: " << pair.first << " = " << pair.second->toString() << std::endl;
                     }

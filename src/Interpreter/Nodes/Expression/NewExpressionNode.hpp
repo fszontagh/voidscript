@@ -345,15 +345,22 @@ class NewExpressionNode : public ExpressionNode {
         // +++ Add New Logging +++
         // std::stringstream ss_new_obj; // Removed direct pointer access
         // ss_new_obj << newObject.ptr_.get(); // Removed direct pointer access
-        std::cerr << "[DEBUG NEWNODE_RETURN] Returning from NewExpressionNode::evaluate. Object: "
-                  << newObject->toString() /* << ", Value@: " << ss_new_obj.str() */ << std::endl; // Removed pointer address logging
-        if (newObject->getType() == Symbols::Variables::Type::CLASS || newObject->getType() == Symbols::Variables::Type::OBJECT) {
+        // +++ Consolidated Final Log for NewExpressionNode Return +++
+        std::cerr << "[DEBUG NEWNODE_EVAL_RETURN] Returning newObject. toString(): " << newObject->toString()
+                  << ". isNULL(): " << (newObject.operator->() ? (newObject->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                  << ". Type: " << Symbols::Variables::TypeToString(newObject->getType()) << std::endl;
+        if (newObject.operator->() && (newObject->getType() == Symbols::Variables::Type::CLASS || newObject->getType() == Symbols::Variables::Type::OBJECT)) {
+            bool hasProps = false;
             for(const auto& pair : newObject->get<Symbols::ObjectMap>()){
-                std::cerr << "[DEBUG NEWNODE_RETURN]   Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+                std::cerr << "[DEBUG NEWNODE_EVAL_RETURN]   Property: " << pair.first << " = " << pair.second->toString() << std::endl;
+                hasProps = true;
+            }
+            if (!hasProps) {
+                 std::cerr << "[DEBUG NEWNODE_EVAL_RETURN]   Object has no enumerable properties." << std::endl;
             }
         }
-        std::cerr << std::flush; // Force flush before returning
-        // +++ End New Logging +++
+        std::cerr << std::flush;
+        // +++ End Consolidated Final Log +++
         return newObject;
     }
 
