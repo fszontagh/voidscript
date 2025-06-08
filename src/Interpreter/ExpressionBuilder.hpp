@@ -29,7 +29,7 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
             return std::make_unique<Interpreter::LiteralExpressionNode>(expr->value);
 
         case Kind::Variable:
-            return std::make_unique<Interpreter::IdentifierExpressionNode>(expr->name);
+            return std::make_unique<Interpreter::IdentifierExpressionNode>(expr->name, expr->filename, expr->line, expr->column);
 
         case Kind::Binary:
             {
@@ -60,7 +60,7 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                         if (propName.size() > 3 && propName.substr(0, 2) == "${" && propName.back() == '}') {
                             return std::make_unique<Interpreter::DynamicMemberExpressionNode>(
                                 std::move(objectExpr),
-                                std::make_unique<Interpreter::IdentifierExpressionNode>(propName), expr->filename,
+                                std::make_unique<Interpreter::IdentifierExpressionNode>(propName, expr->filename, expr->line, expr->column), expr->filename,
                                 expr->line, expr->column);
                         }
                         return std::make_unique<Interpreter::MemberExpressionNode>(

@@ -1,9 +1,7 @@
 #ifndef INTERPRETER_NEW_EXPRESSION_NODE_HPP
 #define INTERPRETER_NEW_EXPRESSION_NODE_HPP
 
-#include <iostream>  // Required for std::cerr
 #include <memory>
-#include <sstream> // Required for std::stringstream
 #include <string>
 #include <vector>
 
@@ -247,9 +245,7 @@ class NewExpressionNode : public ExpressionNode {
                         // Get the operations associated with this constructor from the operations container
                         std::string constructorScopeForOps = this->filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + this->className_;
                         std::string opsKey = constructorScopeForOps + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
-                        std::cerr << "[DEBUG NEWNODE] Attempting to get operations for constructor: " << opsKey << std::endl;
                         const auto & operations = Operations::Container::instance()->getAll(opsKey);
-                        std::cerr << "[DEBUG NEWNODE] Retrieved " << operations.size() << " operations for " << opsKey << std::endl;
 
                         // SET THIS OBJECT
                         interpreter.setThisObject(newObject);
@@ -303,9 +299,7 @@ class NewExpressionNode : public ExpressionNode {
                         // Get and execute constructor operations
                         std::string constructorScopeForOps = this->filename_ + Symbols::SymbolContainer::SCOPE_SEPARATOR + this->className_;
                         std::string opsKey = constructorScopeForOps + Symbols::SymbolContainer::SCOPE_SEPARATOR + foundConstructor;
-                        std::cerr << "[DEBUG NEWNODE] Attempting to get operations for constructor: " << opsKey << std::endl;
                         const auto & operations = Operations::Container::instance()->getAll(opsKey);
-                        std::cerr << "[DEBUG NEWNODE] Retrieved " << operations.size() << " operations for " << opsKey << std::endl;
 
                         // SET THIS OBJECT
                         interpreter.setThisObject(newObject);
@@ -342,18 +336,6 @@ class NewExpressionNode : public ExpressionNode {
         }
         
         // Return the object even if no module class info
-        // +++ Add New Logging +++
-        // std::stringstream ss_new_obj; // Removed direct pointer access
-        // ss_new_obj << newObject.ptr_.get(); // Removed direct pointer access
-        std::cerr << "[DEBUG NEWNODE_RETURN] Returning from NewExpressionNode::evaluate. Object: "
-                  << newObject->toString() /* << ", Value@: " << ss_new_obj.str() */ << std::endl; // Removed pointer address logging
-        if (newObject->getType() == Symbols::Variables::Type::CLASS || newObject->getType() == Symbols::Variables::Type::OBJECT) {
-            for(const auto& pair : newObject->get<Symbols::ObjectMap>()){
-                std::cerr << "[DEBUG NEWNODE_RETURN]   Property: " << pair.first << " = " << pair.second->toString() << std::endl;
-            }
-        }
-        std::cerr << std::flush; // Force flush before returning
-        // +++ End New Logging +++
         return newObject;
     }
 

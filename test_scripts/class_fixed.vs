@@ -59,7 +59,9 @@ function getInt() int {
 test1 $testclass = new test1("John Doe", 11);
 test1 $testclass2 = new test1("Batman", 33);
 
-$testclass2->incrementAge2(5);
+// Fixed: Call incrementAge2() without parameters as it's defined
+$testclass2->incrementAge2();
 int $age = $testclass2->getAge();
 printnl("incremented age: ", $testclass2->getAge());
-printnl("incremented age: ", $testclass2->age);
+// Fixed: Access $age instead of age
+printnl("incremented age: ", $testclass2->$age);

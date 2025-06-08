@@ -248,10 +248,10 @@ class ValuePtr {
              std::is_same_v<T, ObjectMap> || std::is_same_v<T, bool> ||
              std::is_same_v<T, std::string>) operator T() const {
         if (!ptr_) {
-            throw std::runtime_error("Cannot convert null ValuePtr");
+            throw std::runtime_error("Cannot convert null ValuePtr (universal conversion operator)");
         }
         if (ptr_->isNULL()) {
-            throw std::runtime_error("Cannot convert NULL value");
+            throw std::runtime_error("Cannot convert NULL value (universal conversion operator)");
         }
 
         if constexpr (std::is_same_v<T, bool>) {
@@ -289,10 +289,10 @@ class ValuePtr {
     // Specialized boolean conversion operator
     operator bool() const {
         if (!ptr_) {
-            throw std::runtime_error("Cannot convert null ValuePtr");
+            throw std::runtime_error("Cannot convert null ValuePtr (bool operator)");
         }
         if (ptr_->isNULL()) {
-            throw std::runtime_error("Cannot convert NULL value");
+            throw std::runtime_error("Cannot convert NULL value (bool operator)");
         }
 
         switch (ptr_->getType()) {

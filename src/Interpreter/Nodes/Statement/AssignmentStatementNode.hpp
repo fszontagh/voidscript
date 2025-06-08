@@ -35,8 +35,6 @@ class AssignmentStatementNode : public StatementNode {
         // +++ Add New Logging +++
         std::string full_target_path = targetName_;
         for(const auto& p : propertyPath_) full_target_path += "->" + p;
-        std::cerr << "[DEBUG ASSIGN] Interpreting assignment for: '" << full_target_path << "'"
-                  << " (File: " << filename_ << ":" << line_ << ")" << std::endl;
         // +++ End New Logging +++
 
         // First try to get the variable (most common case)
@@ -51,7 +49,6 @@ class AssignmentStatementNode : public StatementNode {
             auto symbol = SymbolFactory::createConstant(targetName_, Symbols::ValuePtr::undefined(),
                                                         symContainer->currentScopeName());
             symContainer->addConstant(symbol);
-            std::cout << "[DEBUG] added undefined constant: " << targetName_ << "\n";
 
             //throw Exception(
             //    "Variable '" + targetName_ + "' not found starting from scope: " + symContainer->currentScopeName(),
@@ -72,16 +69,10 @@ class AssignmentStatementNode : public StatementNode {
                                 line_, column_);
             }
 
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG ASSIGN]   Object base '" << targetName_ << "' is: " << objectValue->toString() << std::endl;
-            // +++ End New Logging +++
 
             // Evaluate RHS first
             // Symbols::ValuePtr newValue = rhs_->evaluate(interpreter); // Evaluate only once before loop
             Symbols::ValuePtr newValueRhs = rhs_->evaluate(interpreter);
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG ASSIGN]   RHS evaluated to: " << newValueRhs->toString() << std::endl;
-            // +++ End New Logging +++
 
             // Traverse and modify the nested object structure IN PLACE.
             Symbols::ValuePtr currentValPtr = objectValue;
@@ -126,17 +117,12 @@ class AssignmentStatementNode : public StatementNode {
                     // Only reference assignment, do not clone ValuePtr
                     // map_ref[key] = newValueEvaluated;
                     map_ref[key] = newValueRhs; // Use the already evaluated newValueRhs
-                    // +++ Add New Logging +++
-                    std::cerr << "[DEBUG ASSIGN]   Assigned to property '" << key << "'. New value in map: "
-                              << map_ref[key]->toString() << std::endl;
                     if (targetName_ == "this") {
                         // Ensure 'this' object and key exist before trying to access for verification
-                        if (interpreter.getThisObject() && !interpreter.getThisObject()->isNULL() && map_ref.count(key)) {
-                             std::cerr << "[DEBUG ASSIGN]   Verification: interpreter.getThisObject()->getProperty('" << key << "') is now "
-                                       << interpreter.getThisObject()->get<ObjectMap>().at(key)->toString() << std::endl;
+                        const auto& thisObj = interpreter.getThisObject();
+                        if (thisObj->getType() != Symbols::Variables::Type::NULL_TYPE && !thisObj->isNULL() && map_ref.count(key)) {
                         }
                     }
-                    // +++ End New Logging +++
                 } else {
                     // Not the last property, so traverse deeper.
                     auto it = map_ref.find(key);
@@ -157,9 +143,6 @@ class AssignmentStatementNode : public StatementNode {
         } else {
             // Simple variable assignment (targetName_ is the variable itself)
             Symbols::ValuePtr newValue = rhs_->evaluate(interpreter);
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG ASSIGN]   RHS for variable '" << targetName_ << "' evaluated to: " << newValue->toString() << std::endl;
-            // +++ End New Logging +++
             auto currentValue = symbol->getValue();  // Get current value for type checking
 
             // Type check (allow assigning NULL to anything, otherwise types must match)
@@ -172,10 +155,6 @@ class AssignmentStatementNode : public StatementNode {
             }
             // Only reference assignment, do not clone ValuePtr
             symbol->setValue(newValue);
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG ASSIGN]   Assigned to variable '" << targetName_ << "'. New value: "
-                      << symbol->getValue()->toString() << std::endl;
-            // +++ End New Logging +++
         }
     }
 

@@ -20,15 +20,6 @@ class SymbolTable {
     void define(const std::string & ns, const SymbolPtr & symbol) {
         // ns is sub-ns like "variables"
         std::string flat_key = ns + key_separator + symbol->name();
-        // +++ Add New Logging +++
-        std::cerr << "[DEBUG SYMBOL_TABLE] define called. Flat Key: '" << flat_key
-                  << "', Value: " << symbol->getValue()->toString() << std::endl;
-        if (symbol->getValue()->getType() == Symbols::Variables::Type::CLASS || symbol->getValue()->getType() == Symbols::Variables::Type::OBJECT) {
-            for(const auto& pair : symbol->getValue()->get<Symbols::ObjectMap>()){
-                std::cerr << "[DEBUG SYMBOL_TABLE]   Value Property: " << pair.first << " = " << pair.second->toString() << std::endl;
-            }
-        }
-        // +++ End New Logging +++
         flat_symbols_[flat_key] = symbol;
     }
 
@@ -45,20 +36,10 @@ class SymbolTable {
     SymbolPtr get(const std::string & ns, const std::string & name) {
         // ns is sub-ns like "variables"
         std::string flat_key = ns + key_separator + name;
-        // +++ Add New Logging +++
-        std::cerr << "[DEBUG SYMBOL_TABLE] get called. Received ns: '" << ns << "', name: '" << name
-                  << "', Constructed Flat Key: '" << flat_key << "'" << std::endl;
-        // +++ End New Logging +++
         auto it = flat_symbols_.find(flat_key);
         if (it != flat_symbols_.end()) {
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG SYMBOL_TABLE]   Found symbol. Value: " << it->second->getValue()->toString() << std::endl;
-            // +++ End New Logging +++
             return it->second;
         }
-        // +++ Add New Logging +++
-        std::cerr << "[DEBUG SYMBOL_TABLE]   Symbol NOT FOUND with flat key: '" << flat_key << "'" << std::endl;
-        // +++ End New Logging +++
         return nullptr;
     }
 

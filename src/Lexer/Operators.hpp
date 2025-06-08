@@ -69,7 +69,7 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
 }
 
 [[nodiscard]] inline bool pushOperand(const Tokens::Token & token, const Symbols::Variables::Type & expected_var_type,
-                                      std::vector<Parser::ParsedExpressionPtr> & output_queue) {
+                                      std::vector<Parser::ParsedExpressionPtr> & output_queue, const std::string & filename = "") {
     // Literal operands: number, string, or keyword literals (e.g., true/false/null)
     if (token.type == Tokens::Type::NUMBER) {
         // Allow numeric literals in any numeric context, including comparisons
@@ -109,7 +109,8 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
         if (!name.empty() && name[0] == '$') {
             name = name.substr(1);
         }
-        output_queue.push_back(Parser::ParsedExpression::makeVariable(name));
+        // Use location information from the token
+        output_queue.push_back(Parser::ParsedExpression::makeVariable(name, filename, token.line_number, token.column_number));
         return true;
     }
     return false;

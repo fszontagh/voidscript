@@ -232,7 +232,7 @@ class VoidScript {
         if (utils::exists(modulesPath) && utils::is_directory(modulesPath)) {
             loadPlugins(modulesPath);
         } else {
-            std::cout << "Warning: modules directory not found: " << modulesPath << std::endl;
+            std::cerr << "Warning: modules directory not found: " << modulesPath << std::endl;
         }
 
         this->files.emplace(this->files.begin(), file);

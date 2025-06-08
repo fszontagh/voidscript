@@ -1,7 +1,6 @@
 #ifndef IDENTIFIER_EXPRESSION_NODE_HPP
 #define IDENTIFIER_EXPRESSION_NODE_HPP
 
-#include <iostream>  // Required for std::cerr
 #include <string>
 #include <vector> // For string splitting
 
@@ -20,6 +19,15 @@ class IdentifierExpressionNode : public ExpressionNode {
     explicit IdentifierExpressionNode(std::string name) : name_(std::move(name)) {
         // The base ExpressionNode members (filename, line, column) should be set by the parser
         // when this node is created.
+        
+    }
+
+    // Constructor with location information
+    IdentifierExpressionNode(std::string name, const std::string& filename, int line, size_t column) : name_(std::move(name)) {
+        this->filename = filename;
+        this->line = line;
+        this->column = column;
+        
     }
 
     Symbols::ValuePtr evaluate(Interpreter & interpreter_instance, std::string filename_param, int line_param,
@@ -32,16 +40,7 @@ class IdentifierExpressionNode : public ExpressionNode {
 
         auto * sc = Symbols::SymbolContainer::instance();
 
-        // +++ Add New Logging +++
-        std::cerr << "[DEBUG IDENTIFIER] Evaluating identifier: '" << name_ << "'"
-                  << " (File: " << eval_filename << ":" << eval_line << ")" << std::endl;
-        if (interpreter_instance.getThisObject() && !interpreter_instance.getThisObject()->isNULL()) {
-            std::cerr << "[DEBUG IDENTIFIER]   Interpreter 'thisObject' is SET to: "
-                      << interpreter_instance.getThisObject()->toString() << std::endl;
-        } else {
-            std::cerr << "[DEBUG IDENTIFIER]   Interpreter 'thisObject' is NOT SET or is NULL." << std::endl;
-        }
-        // +++ End New Logging +++
+        const auto& thisObj = interpreter_instance.getThisObject();
 
         // Check for scope resolution operator "::"
         size_t scope_res_pos = name_.find("::");
@@ -93,7 +92,7 @@ class IdentifierExpressionNode : public ExpressionNode {
             }
             // Fallback to interpreter's 'this' object if direct symbol not found (e.g. in method calls)
             const auto& interpreterThis = interpreter_instance.getThisObject();
-            if (interpreterThis && !interpreterThis->isNULL()) { // Check if interpreter's 'this' is valid
+            if (interpreterThis->getType() != Symbols::Variables::Type::NULL_TYPE && !interpreterThis->isNULL()) { // Check if interpreter's 'this' is valid
                  return interpreterThis;
             }
             throw Exception("Keyword 'this' not found or not valid in current context.", eval_filename, eval_line, eval_column);
@@ -102,34 +101,17 @@ class IdentifierExpressionNode : public ExpressionNode {
         // Logic for other identifiers
         Symbols::SymbolPtr symbol_from_scope; // Use SymbolPtr
         symbol_from_scope = sc->getVariable(name_);
+        
+        
         if (symbol_from_scope) {
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as VARIABLE in scope. Value from getValue(): "
-                      << symbol_from_scope->getValue()->toString() << std::endl;
-            // +++ End New Logging +++
-            const auto& val_to_return = symbol_from_scope->getValue();
-            std::cerr << "[DEBUG IDENTIFIER]     Returning ValuePtr for VARIABLE '" << name_ << "': is script-NULL? "
-                      << (val_to_return->isNULL() ? "yes" : "no")
-                      << ". toString(): " << val_to_return.toString() << std::endl;
-            return val_to_return;
+            return symbol_from_scope->getValue();
         }
         
         symbol_from_scope = sc->getConstant(name_); // Re-assign to the same variable
         if (symbol_from_scope) {
-            // +++ Add New Logging +++
-            std::cerr << "[DEBUG IDENTIFIER]   Found '" << name_ << "' as CONSTANT in scope. Value from getValue(): "
-                      << symbol_from_scope->getValue()->toString() << std::endl;
-            // +++ End New Logging +++
-            const auto& val_to_return = symbol_from_scope->getValue();
-            std::cerr << "[DEBUG IDENTIFIER]     Returning ValuePtr for CONSTANT '" << name_ << "': is script-NULL? "
-                      << (val_to_return->isNULL() ? "yes" : "no")
-                      << ". toString(): " << val_to_return.toString() << std::endl;
-            return val_to_return;
+            return symbol_from_scope->getValue();
         }
 
-        // +++ Add New Logging for failure +++
-        std::cerr << "[DEBUG IDENTIFIER]   Identifier '" << name_ << "' NOT FOUND as variable or constant in current scope." << std::endl;
-        // +++ End New Logging +++
 
         throw Exception("Identifier '" + name_ + "' not found.", eval_filename, eval_line, eval_column);
         return nullptr;

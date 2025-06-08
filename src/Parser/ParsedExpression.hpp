@@ -69,6 +69,17 @@ struct ParsedExpression {
         return expr;
     }
 
+    // Constructor for variable with location information
+    static ParsedExpressionPtr makeVariable(const std::string & name, const std::string & filename, int line, size_t column) {
+        auto expr      = std::make_shared<ParsedExpression>();
+        expr->kind     = Kind::Variable;
+        expr->name     = name;
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
+        return expr;
+    }
+
     // Constructor for binary operation
     static ParsedExpressionPtr makeBinary(std::string op, ParsedExpressionPtr left, ParsedExpressionPtr right,
                                           const std::string & filename, int line, size_t column) {
@@ -139,7 +150,7 @@ struct ParsedExpression {
         expr->filename = filename;
         expr->line = line;
         expr->column = column;
-        
+
         return expr;
     }
 
@@ -178,18 +189,18 @@ struct ParsedExpression {
                 {
                     // First try to get the variable
                     auto symbol = Symbols::SymbolContainer::instance()->getVariable(name);
-                    
+
                     // If not found as a variable, try as a constant
                     if (!symbol) {
                         symbol = Symbols::SymbolContainer::instance()->getConstant(name);
                     }
-                    
+
                     if (!symbol) {
                         throw std::runtime_error("Unknown variable or constant: " + name + " (searched from scope: " +
                                                  Symbols::SymbolContainer::instance()->currentScopeName() + ")" +
                                                  " File: " + filename + ":" + std::to_string(line));
                     }
-                    
+
                     return symbol->getValue().getType();
                 }
 
