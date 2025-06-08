@@ -76,13 +76,21 @@ class MethodCallExpressionNode : public ExpressionNode {
                 const Symbols::ObjectMap& classObj = objVal->get<Symbols::ObjectMap>();
                 
                 // Look for the class name
-                auto className = classObj.find("$class_name");
-                if (className == classObj.end() || className->second->getType() != Symbols::Variables::Type::STRING) {
+                auto classNameIt = classObj.find("$class_name"); // Renamed for clarity
+                if (classNameIt == classObj.end()) {
                     throw std::runtime_error("Object missing $class_name property");
+                }
+                Symbols::ValuePtr classNameVal = classNameIt->second;
+                std::cerr << "[DEBUG METHOD_CALL]   $class_name ValuePtr. toString(): " << classNameVal->toString()
+                          << ". isNULL(): " << (classNameVal.operator->() ? (classNameVal->isNULL() ? "true" : "false") : "CPP_NULLPTR")
+                          << ". Type: " << Symbols::Variables::TypeToString(classNameVal->getType()) << std::endl;
+
+                if (classNameVal->getType() != Symbols::Variables::Type::STRING) { // Check type *after* logging
+                    throw std::runtime_error("Object's $class_name property is not a string. Actual type: " + Symbols::Variables::TypeToString(classNameVal->getType()));
                 }
                 
                 // Get the class name
-                std::string cn = className->second->get<std::string>();
+                std::string cn = classNameVal->get<std::string>();
                 
                 // Get class info from SymbolContainer
                 auto* symbolContainer = Symbols::SymbolContainer::instance();
