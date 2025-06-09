@@ -3,7 +3,7 @@ class SimpleBoolean {
     private: int $value = 42;
     
     function isPositive() bool {
-        return this->$value > 0;
+        return $this->value > 0;
     }
 }
 

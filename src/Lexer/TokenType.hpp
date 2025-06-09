@@ -107,6 +107,8 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_PUBLIC";
         case Lexer::Tokens::Type::KEYWORD_NEW:
             return "KEYWORD_NEW";
+        case Lexer::Tokens::Type::KEYWORD_THIS:
+            return "KEYWORD_THIS";
         case Lexer::Tokens::Type::KEYWORD_WHILE:
             return "KEYWORD_WHILE";
         case Lexer::Tokens::Type::KEYWORD_IF:

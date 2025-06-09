@@ -7,53 +7,53 @@ class Calculator {
     
     // Constructor - note: avoid setting integers to 0 due to interpreter bug
     function construct() {
-        this->$value = 1;  // Start with 1, not 0 (workaround for bug)
-        this->$name = "Calculator";
-        this->$initialized = true;
+        $this->value = 1;  // Start with 1, not 0 (workaround for bug)
+        $this->name = "Calculator";
+        $this->initialized = true;
         printnl("Calculator initialized");
     }
     
     // Constructor with parameters
     function construct(string $name, int $initialValue) {
-        this->$name = $name;
-        this->$value = $initialValue == 0 ? 1 : $initialValue;  // Workaround
-        this->$initialized = true;
-        printnl("Calculator initialized with name: ", this->$name, " and value: ", this->$value);
+        $this->name = $name;
+        $this->value = $initialValue == 0 ? 1 : $initialValue;  // Workaround
+        $this->initialized = true;
+        printnl("Calculator initialized with name: ", $this->name, " and value: ", $this->value);
     }
     
     function getValue() int {
-        return this->$value;
+        return $this->value;
     }
     
     function setValue(int $newValue) null {
-        this->$value = $newValue == 0 ? 1 : $newValue;  // Workaround
+        $this->value = $newValue == 0 ? 1 : $newValue;  // Workaround
     }
     
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
     
     function add(int $num) int {
-        this->$value = this->$value + $num;
-        return this->$value;
+        $this->value = $this->value + $num;
+        return $this->value;
     }
     
     function subtract(int $num) int {
-        this->$value = this->$value - $num;
-        return this->$value;
+        $this->value = $this->value - $num;
+        return $this->value;
     }
     
     function multiply(int $num) int {
-        this->$value = this->$value * $num;
-        return this->$value;
+        $this->value = $this->value * $num;
+        return $this->value;
     }
     
     function isInitialized() bool {
-        return this->$initialized;
+        return $this->initialized;
     }
     
     function reset() null {
-        this->$value = 1;  // Reset to 1 instead of 0
+        $this->value = 1;  // Reset to 1 instead of 0
     }
 }
 

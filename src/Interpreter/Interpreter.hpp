@@ -45,6 +45,7 @@ class Interpreter {
     bool debug_ = false;
     static inline unsigned long long next_call_id_ = 0;
     Symbols::ValuePtr thisObject_;  // Current "this" object for method calls
+    std::string currentClassName_;  // Current class context for method execution
 
   public:
     /**
@@ -69,6 +70,34 @@ class Interpreter {
      * @return The current "this" object or empty ValuePtr if none is set
      */
     const Symbols::ValuePtr& getThisObject() const;
+
+    /**
+     * @brief Sets the current class context for method execution
+     * @param className The name of the class whose method is being executed
+     */
+    void setCurrentClass(const std::string& className);
+
+    /**
+     * @brief Clears the current class context
+     */
+    void clearCurrentClass();
+
+    /**
+     * @brief Gets the current class context
+     * @return The current class name or empty string if not in a class method
+     */
+    const std::string& getCurrentClass() const;
+
+    /**
+     * @brief Check if access to a private member should be allowed
+     * @param targetClassName The class that owns the member being accessed
+     * @param memberName The name of the member being accessed
+     * @param isProperty True if accessing a property, false if accessing a method
+     * @return True if access should be allowed, false otherwise
+     */
+    bool canAccessPrivateMember(const std::string& targetClassName,
+                               const std::string& memberName,
+                               bool isProperty) const;
 
     /**
      * @brief Execute a method on an object

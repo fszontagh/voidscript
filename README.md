@@ -3,7 +3,7 @@
 VoidScript is a lightweight, embeddable scripting language designed for simplicity, extensibility, and ease of integration. It provides both a command-line interpreter and a FastCGI-based template engine.
 
 ## Features
-- Simple, dynamically-typed C-like syntax
+- Simple, dynamically-typed C-like syntax with object-oriented features
 - Command-line interpreter (`voidscript`)
 - FastCGI runner (`voidscript-fcgi`) for web templates
 - Template parsing: embed `<?void ... ?>` tags inside HTML
@@ -15,7 +15,7 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
   - [JSON encode/decode](https://github.com/fszontagh/voidscript/blob/main/docs/JsonModule.md) (`json_encode()`, `json_decode()`)
   - [Variable helpers](https://github.com/fszontagh/voidscript/blob/main/docs/VariableHelpersModule.md) (`typeof()` etc.)
   - [Module helpers](https://github.com/fszontagh/voidscript/blob/main/docs/ModuleHelperModule.md) (`module_list()`, `module_exists()`, `module_info()`)
-  - HTTP header management (FastCGI only): `header()`
+- HTTP header management (FastCGI only): `header()`
 - Dynamic Plugin module support (e.g., [CurlModule](https://github.com/fszontagh/voidscript/tree/main/Modules/CurlModule) for HTTP requests)
 - Embeddable library (`libvoidscript`)
 - Zero runtime dependencies (except for the optional modules)
@@ -75,6 +75,77 @@ Configure Apache or Nginx as documented in `fastcgi/docs/README.md` to serve `.v
 </html>
 ```
 
+## Language Syntax
+
+### Classes and Object-Oriented Programming
+
+VoidScript supports classes with access control modifiers. **Important**: Class properties and methods must be accessed using `$this->` syntax within class methods.
+
+#### Basic Class Example
+```voidscript
+class Person {
+    private:
+    string $name = "Unknown";
+    int $age = 0;
+    
+    public:
+    // Constructor
+    function construct(string $name, int $age) {
+        $this->name = $name;  // Correct: Use $this->
+        $this->age = $age;
+    }
+    
+    // Getter methods
+    function getName() string {
+        return $this->name;   // Correct: Use $this->
+    }
+    
+    function getAge() int {
+        return $this->age;    // Correct: Use $this->
+    }
+    
+    // Method that modifies properties
+    function setAge(int $newAge) {
+        $this->age = $newAge; // Correct: Use $this->
+    }
+    
+    function isAdult() bool {
+        return $this->age >= 18; // Correct: Use $this->
+    }
+}
+
+// Usage
+Person $person = new Person("John Doe", 25);
+printnl("Name: ", $person->getName());
+printnl("Age: ", $person->getAge());
+printnl("Is adult: ", $person->isAdult());
+```
+
+#### Important Syntax Rules
+
+- **✅ Correct**: Always use `$this->property` and `$this->method()` within class methods
+- **❌ Incorrect**: Using bare `this->property` or `this->method()` will produce error messages
+- **Access Control**: Classes support `private:` and `public:` sections
+- **Constructor**: Optional `construct()` method for initialization
+
+#### Migration from Previous Versions
+
+If you have existing VoidScript code using bare `this->` syntax, update it to use `$this->`:
+
+**Before (Old Syntax):**
+```voidscript
+function getName() string {
+    return this->name;    // ❌ Will cause error
+}
+```
+
+**After (New Syntax):**
+```voidscript
+function getName() string {
+    return $this->name;   // ✅ Correct
+}
+```
+
 ## Embedding as a Library
 Include `libvoidscript` in your CMake project:
 ```cmake
@@ -89,7 +160,7 @@ target_link_libraries(your_app PRIVATE voidscript)
 4. Commit & push
 5. Open a Pull Request
 
-Please follow the [Coding Guidelines](CODEX.md) when contributing.
+Please follow established coding conventions when contributing.
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

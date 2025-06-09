@@ -3,7 +3,7 @@ printnl("--- Constructor Tests ---");
 class NoArgConstructor {
     string $message = "Default";
     // No explicit 'construct' method
-    function getMessage() string { return this->$message; }
+    function getMessage() string { return $this->message; }
 }
 NoArgConstructor $nac = new NoArgConstructor();
 printnl("NoArgConstructor message:", $nac->getMessage()); // Expected: Default
@@ -12,11 +12,11 @@ class ConstructorWithArgs {
     string $name;
     int $value;
     function construct(string $n, int $v) {
-        this->$name = $n;
-        this->$value = $v;
-        printnl("ConstructorWithArgs called:", this->$name, this->$value);
+        $this->name = $n;
+        $this->value = $v;
+        printnl("ConstructorWithArgs called:", $this->name, $this->value);
     }
-    function getData() string { return this->$name + ":" + this->$value; }
+    function getData() string { return $this->name + ":" + $this->value; }
 }
 ConstructorWithArgs $cwa = new ConstructorWithArgs("Test", 123);
 printnl("ConstructorWithArgs data:", $cwa->getData()); // Expected: Test:123
@@ -32,10 +32,10 @@ printnl("ConstructorWithArgs data:", $cwa->getData()); // Expected: Test:123
 class DefaultAndConstruct {
     string $status = "Initial";
     function construct(string $s) {
-        this->$status = $s;
-        printnl("DefaultAndConstruct status set to:", this->$status);
+        $this->status = $s;
+        printnl("DefaultAndConstruct status set to:", $this->status);
     }
-    function getStatus() string { return this->$status; }
+    function getStatus() string { return $this->status; }
 }
 DefaultAndConstruct $dac = new DefaultAndConstruct("Constructed");
 printnl("DefaultAndConstruct status:", $dac->getStatus()); // Expected: Constructed
@@ -47,19 +47,19 @@ class PropertyTester {
     string $name = "OriginalName";
 
     function increment() {
-        this->$counter = this->$counter + 1;
+        $this->counter = $this->counter + 1;
     }
-    function getCounter() int { return this->$counter; }
+    function getCounter() int { return $this->counter; }
 
     function setName(string $newName) {
-        printnl("setName: current name =", this->$name);
-        this->$name = $newName;
-        printnl("setName: new name =", this->$name);
+        printnl("setName: current name =", $this->name);
+        $this->name = $newName;
+        printnl("setName: new name =", $this->name);
     }
-    function getName() string { return this->$name; }
+    function getName() string { return $this->name; }
 
     function callAnotherMethod() {
-        this->setName("ChangedViaInternalCall");
+        $this->setName("ChangedViaInternalCall");
     }
 }
 
@@ -92,25 +92,25 @@ printnl(""); // Newline for separation
 printnl("--- Nested Objects and 'this' ---");
 class Inner {
     string $data = "InnerData";
-    function setData(string $d) { this->$data = $d; }
-    function getData() string { return this->$data; }
+    function setData(string $d) { $this->data = $d; }
+    function getData() string { return $this->data; }
 }
 class Outer {
     Inner $myInner; // Property to hold an Inner object
     string $outerName = "OuterName";
 
     function construct() {
-        this->$myInner = new Inner(); // Instantiate Inner object and assign to property
+        $this->myInner = new Inner(); // Instantiate Inner object and assign to property
         printnl("Outer construct: Inner object created.");
     }
     function setInnerData(string $val) {
-        this->$myInner->setData($val); // Call method on inner object property
+        $this->myInner->setData($val); // Call method on inner object property
     }
     function getInnerData() string {
-        return this->$myInner->getData();
+        return $this->myInner->getData();
     }
     function getMyInner() Inner { // Returning the object itself
-         return this->$myInner;
+         return $this->myInner;
     }
 }
 Outer $o = new Outer();

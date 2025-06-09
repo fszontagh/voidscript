@@ -1,4 +1,4 @@
-// Comprehensive test for this->$property syntax
+// Comprehensive test for $this->property syntax
 class Person {
     private: string $name;
     private: int $age;
@@ -6,58 +6,67 @@ class Person {
     
     // Constructor
     function construct(string $name, int $age) {
-        this->$name = $name;
-        this->$age = $age;
+        $this->name = $name;
+        $this->age = $age;
     }
     
     // Simple getter
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
     
     // Simple getter
     function getAge() int {
-        return this->$age;
+        return $this->age;
     }
     
     // Conditional getter
     function isStudent() bool {
-        return this->$isStudent;
+        return $this->isStudent;
     }
     
     // Setter with return
     function setName(string $newName) string {
-        this->$name = $newName;
-        return this->$name;
+        $this->name = $newName;
+        return $this->name;
     }
     
     // Setter with return
     function setAge(int $newAge) int {
-        this->$age = $newAge;
-        return this->$age;
+        $this->age = $newAge;
+        return $this->age;
     }
     
     // Toggle method that modifies property
     function toggleStudentStatus() bool {
-        this->$isStudent = !this->$isStudent;
-        return this->$isStudent;
+        if ($this->isStudent) {
+            $this->isStudent = false;
+        } else {
+            $this->isStudent = true;
+        }
+        return $this->isStudent;
     }
     
     // Method with property calculation
     function haveBirthday() int {
-        this->$age = this->$age + 1;
-        return this->$age;
+        $this->age = $this->age + 1;
+        return $this->age;
     }
     
     // Method with conditional based on property
     function isAdult() bool {
-        return this->$age >= 18;
+        return $this->age >= 18;
     }
     
     // Method with string interpolation using properties
     function getInfo() string {
-        string $status = this->$isStudent ? "is" : "is not";
-        return this->$name + " is " + this->$age + " years old and " + $status + " a student.";
+        string $status = "";
+        if ($this->isStudent) {
+            $status = "is";
+        } else {
+            $status = "is not";
+        }
+        return $this->name + " is " + $this->age + " years old and " + $status + " a student.";
     }
 }
 

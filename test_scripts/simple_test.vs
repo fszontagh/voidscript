@@ -1,9 +1,9 @@
-// Simplified test for this->$property access
+// Simplified test for $this->property access
 class TestClass {
     private: int $x = 10;
     
     function getX() int {
-        return this->$x;
+        return $this->x;
     }
 }
 

@@ -5,15 +5,15 @@ class Person {
     string $name = "Person";
 
     function constructor(int $age, string $name) {
-        this->$age = $age;
-        this->$name = $name;
+        $this->age = $age;
+        $this->name = $name;
     }
 
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
 
     function getAge() {
-        return this->$age;
+        return $this->age;
     }
 }

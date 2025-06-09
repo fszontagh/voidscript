@@ -9,46 +9,46 @@ class test1 {
     const string $test = "This is a test";
     // private method only inner usage
     function WhatIsTheAge() int {
-        return this->$age;
+        return $this->age;
     }
 
     public:
     // constructor method, the return type and value is always the class itself to make it callable, can not use 'return' keyword here
     // constructor is optional
     function construct(string $name, int $age) {
-        this->$name = $name;
-        this->$age = $age;
-        printnl("Constructor called with name: ", this->$name, " and age: ", this->$age);
+        $this->name = $name;
+        $this->age = $age;
+        printnl("Constructor called with name: ", $this->name, " and age: ", $this->age);
         // return here drops error
     }
 
     // other public methods
     function getAge() int {
-        return this->$age;
+        return $this->age;
     }
 
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
 
     function isAdult() bool {
-        return this->$age >= 18;
+        return $this->age >= 18;
     }
 
     function changeName(string $new_name) {
-        this->$name = $new_name;
+        $this->name = $new_name;
     }
 
     function setAge(int $newAge) null {
-        this->$age = $newAge;
+        $this->age = $newAge;
     }
 
     function incrementAge(int $incremental) int {
-        this->$age += $incremental; // Modify the age
-        return this->$age; // Return the *new* age
+        $this->age += $incremental; // Modify the age
+        return $this->age; // Return the *new* age
     }
     function incrementAge2() {
-        this->$age = this->$age + 1;
+        $this->age = $this->age + 1;
     }
 }
 
@@ -59,7 +59,7 @@ function getInt() int {
 test1 $testclass = new test1("John Doe", 11);
 test1 $testclass2 = new test1("Batman", 33);
 
-$testclass2->incrementAge2(5);
+$testclass2->incrementAge2();
 int $age = $testclass2->getAge();
 printnl("incremented age: ", $testclass2->getAge());
 printnl("incremented age: ", $testclass2->age);

@@ -21,7 +21,7 @@ class Foo {
         printnl("Increment: ", $this->a);
         $this->a = $this->a + 1;
         printnl("Incremented to: ", $this->a);
-        return this->a;
+        return $this->a;
     }
 
     function SetName(string $newName) null {

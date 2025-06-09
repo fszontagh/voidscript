@@ -49,34 +49,49 @@ class MemberExpressionNode : public ExpressionNode {
                 if (sc->hasClass(className)) {
                     // 1. Check for method first
                     if (sc->hasMethod(className, propertyName_)) {
+                        // Check access control for methods - block private method access from outside
+                        if (!interpreter.canAccessPrivateMember(className, propertyName_, false)) {
+                            throw Exception("Cannot access private method '" + propertyName_ + "' from outside class '" + className + "'", filename_, line_, column_);
+                        }
                         return Symbols::ValuePtr(propertyName_); // Return method name string
                     }
 
-                    // 2. Determine key for map lookup: prefer direct name if in map, else try $-prefixed if registered and in map.
-                    auto direct_it = map.find(propertyName_);
-                    if (direct_it != map.end()) {
-                        keyToLookup = propertyName_;
-                    } else if (propertyName_[0] != '$') {
-                        std::string prefixedName = "$" + propertyName_;
-                        auto prefixed_it = map.find(prefixedName);
-                        if (prefixed_it != map.end()) {
-                            // Ensure this $-prefixed name is actually a registered property for the class
-                            if (sc->hasProperty(className, prefixedName)) {
-                                keyToLookup = prefixedName;
-                            } else {
-                                // keyToLookup remains propertyName_
-                            }
+                    // 2. Check for properties - ALWAYS check access control before any map lookup
+                    std::string actualPropertyName;
+                    bool propertyFound = false;
+                    
+                    // Debug: Print what we're checking
+                    // std::cerr << "DEBUG: Checking property '" << propertyName_ << "' in class '" << className << "'" << std::endl;
+                    // std::cerr << "DEBUG: hasProperty('" << propertyName_ << "'): " << sc->hasProperty(className, propertyName_) << std::endl;
+                    // std::cerr << "DEBUG: hasProperty('$" << propertyName_ << "'): " << sc->hasProperty(className, "$" + propertyName_) << std::endl;
+                    
+                    // Check if property is registered (either direct name or $-prefixed)
+                    if (sc->hasProperty(className, propertyName_)) {
+                        actualPropertyName = propertyName_;
+                        propertyFound = true;
+                    } else if (propertyName_[0] != '$' && sc->hasProperty(className, "$" + propertyName_)) {
+                        actualPropertyName = "$" + propertyName_;
+                        propertyFound = true;
+                    }
+                    
+                    if (propertyFound) {
+                        // Property is registered, check access control FIRST
+                        if (!interpreter.canAccessPrivateMember(className, actualPropertyName, true)) {
+                            throw Exception("Cannot access private property '" + propertyName_ + "' from outside class '" + className + "'", filename_, line_, column_);
+                        }
+                        
+                        // Access is allowed, determine the key to lookup in the map
+                        if (map.find(propertyName_) != map.end()) {
+                            keyToLookup = propertyName_;
+                        } else if (propertyName_[0] != '$' && map.find("$" + propertyName_) != map.end()) {
+                            keyToLookup = "$" + propertyName_;
                         } else {
-                             // keyToLookup remains propertyName_, check if it's a registered property for a better error
-                             if (!sc->hasProperty(className, propertyName_) && !sc->hasProperty(className, prefixedName)) {
-                                throw Exception("Neither method nor property '" + propertyName_ + "' (or '$" + propertyName_ + "') is defined in class '" + className + "'", filename_, line_, column_);
-                             }
+                            // Property is registered and access is allowed, but not found in this instance
+                            throw Exception("Property '" + propertyName_ + "' is defined by class '" + className + "' but not initialized in this instance", filename_, line_, column_);
                         }
-                    } else { // propertyName_ already starts with '$'
-                        // If $propertyName is not in map, check if it's a registered property for error message
-                        if (!sc->hasProperty(className, keyToLookup)) { // keyToLookup is propertyName_ here
-                             throw Exception("Property '" + keyToLookup + "' is not defined in class '" + className + "'", filename_, line_, column_);
-                        }
+                    } else {
+                        // Property not registered in class
+                        throw Exception("Property '" + propertyName_ + "' is not defined in class '" + className + "'", filename_, line_, column_);
                     }
                 }
             }
@@ -92,8 +107,21 @@ class MemberExpressionNode : public ExpressionNode {
                  if (classMetaIt != map.end() && classMetaIt->second->getType() == Symbols::Variables::Type::STRING) {
                     std::string className = classMetaIt->second->get<std::string>();
                     auto* sc = Symbols::SymbolContainer::instance();
-                    if (sc->hasClass(className) && (sc->hasProperty(className, propertyName_) || (propertyName_[0] != '$' && sc->hasProperty(className, "$" + propertyName_)))) {
-                         throw Exception("Property '" + propertyName_ + "' is defined by class '" + className + "' but not initialized or found in this instance.", filename_, line_, column_);
+                    if (sc->hasClass(className)) {
+                        // Check if the property is registered in the class (either direct name or $-prefixed)
+                        if (sc->hasProperty(className, propertyName_)) {
+                            // Check access control first before saying it's not initialized
+                            if (!interpreter.canAccessPrivateMember(className, propertyName_, true)) {
+                                throw Exception("Cannot access private property '" + propertyName_ + "' from outside class '" + className + "'", filename_, line_, column_);
+                            }
+                            throw Exception("Property '" + propertyName_ + "' is defined by class '" + className + "' but not initialized or found in this instance.", filename_, line_, column_);
+                        } else if (propertyName_[0] != '$' && sc->hasProperty(className, "$" + propertyName_)) {
+                            // Check access control for $-prefixed property
+                            if (!interpreter.canAccessPrivateMember(className, "$" + propertyName_, true)) {
+                                throw Exception("Cannot access private property '" + propertyName_ + "' from outside class '" + className + "'", filename_, line_, column_);
+                            }
+                            throw Exception("Property '" + propertyName_ + "' is defined by class '" + className + "' but not initialized or found in this instance.", filename_, line_, column_);
+                        }
                     }
                  }
             }
@@ -110,6 +138,9 @@ class MemberExpressionNode : public ExpressionNode {
         }
         
         // Return a reference to the actual property value, not a clone
+        if (!it->second) {
+            throw Exception("CRITICAL: Property value is NULL pointer - this should never happen", filename_, line_, column_);
+        }
         return it->second;
     }
 

@@ -7,7 +7,7 @@ class SimpleCalculator {
     }
     
     function getNumber() int {
-        return this->$number;
+        return $this->number;
     }
 }
 

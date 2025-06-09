@@ -7,7 +7,7 @@ class SimpleTest {
     }
     
     function getTestInt() int {
-        return this->$testInt;
+        return $this->testInt;
     }
 }
 

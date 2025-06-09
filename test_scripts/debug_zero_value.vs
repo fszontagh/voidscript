@@ -2,12 +2,12 @@ class TestInteger {
     int $value = 0;
     
     getValueDirect() {
-        return this->$value;
+        return $this->value;
     }
     
     printDebugInfo() {
         try {
-            print("Value is: " + this->$value);
+            print("Value is: " + $this->value);
         } catch {
             print("Failed to access value");
         }
@@ -31,7 +31,7 @@ class TestIntegerNonZero {
     int $value = 42;
     
     printDebugInfo() {
-        print("Non-zero value is: " + this->$value);
+        print("Non-zero value is: " + $this->value);
     }
 }
 

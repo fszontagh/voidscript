@@ -3,11 +3,11 @@ class SimpleTest {
     private: int $value = 42;
     
     function getValue() int {
-        return this->$value;
+        return $this->value;
     }
     
     function isPositive() bool {
-        return this->$value > 0;
+        return $this->value > 0;
     }
 }
 

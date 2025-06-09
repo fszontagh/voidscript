@@ -7,27 +7,27 @@ class Person {
 
     // Getter for name
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
 
     // Getter for age
     function getAge() int {
-        return this->$age;
+        return $this->age;
     }
 
     // Setter for name
     function setName(string $newName) null {
-        this->$name = $newName;
+        $this->name = $newName;
     }
 
     // Setter for age
     function setAge(int $newAge) null {
-        this->$age = $newAge;
+        $this->age = $newAge;
     }
 
     // Check if person is adult
     function isAdult() bool {
-        return this->$age >= 18;
+        return $this->age >= 18;
     }
 }
 

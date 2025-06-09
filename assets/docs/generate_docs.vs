@@ -36,7 +36,26 @@ if (!file_exists($dynamic_dir)) {
 function printMethods(object $class) {
     printnl("      * Methods: ");
     for (string $method_name, object $method: $class) {
-        printnl("      ", $method_name);
+        printnl("        - ", $method_name, "()");
+    }
+}
+
+// Example class demonstrating correct $this-> syntax
+class DocumentationExample {
+    private:
+    string $exampleProperty = "demo";
+    
+    public:
+    function construct() {
+        printnl("Example: Using $this->exampleProperty = ", $this->exampleProperty);
+    }
+    
+    function getExampleProperty() string {
+        return $this->exampleProperty;  // Correct: $this-> syntax
+    }
+    
+    function setExampleProperty(string $value) {
+        $this->exampleProperty = $value;  // Correct: $this-> syntax
     }
 }
 

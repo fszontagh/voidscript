@@ -1,13 +1,13 @@
-// Basic test class for this->$property setter
+// Basic test class for $this->property setter
 class Setter {
     private: string $name = "Default";
     
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
     
     function setName(string $newName) {
-        this->$name = $newName;
+        $this->name = $newName;
     }
 }
 

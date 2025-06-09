@@ -1,14 +1,14 @@
-// Final test class for this->$property syntax
+// Final test class for this->property syntax
 class Final {
     private: string $name = "Default";
     
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
     
     function setName(string $newName) string {
-        this->$name = $newName;
-        return this->$name;  // Return the updated value
+        $this->name = $newName;
+        return $this->name;  // Return the updated value
     }
 }
 

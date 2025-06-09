@@ -371,10 +371,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                                                                       idTok.line_number, idTok.column_number);
     }
 
-    // Assignment statement: variable, object member, or 'this' member assignment
-    // Check for potential assignment targets (variable identifier or 'this' keyword)
-    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-        currentToken().type == Lexer::Tokens::Type::KEYWORD_THIS) {
+    // Assignment statement: variable, object member assignment
+    // Check for potential assignment targets (variable identifier)
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
         // Postfix increment/decrement ($var++ or $var--) needs special handling
         // as it's technically an assignment statement $var = $var + 1
         if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER &&
@@ -924,7 +923,7 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
                 currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
                 Lexer::Tokens::Token propToken = consumeToken();
-                std::string          propName  = propToken.value;
+                std::string          propName  = parseIdentifierName(propToken);  // Use helper to handle $ prefix removal
                 output_queue.push_back(ParsedExpression::makeVariable(propName, this->current_filename_, propToken.line_number, propToken.column_number));
                 expect_unary = false;
                 atStart      = false;
@@ -1062,17 +1061,20 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         } else if (token.type == Lexer::Tokens::Type::NUMBER || token.type == Lexer::Tokens::Type::STRING_LITERAL ||
                    token.type == Lexer::Tokens::Type::KEYWORD ||
                    token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-                   token.type == Lexer::Tokens::Type::IDENTIFIER || token.type == Lexer::Tokens::Type::KEYWORD_THIS) {
-            // Special case for 'this' keyword access
-            if (token.type == Lexer::Tokens::Type::KEYWORD_THIS) {
+                   token.type == Lexer::Tokens::Type::IDENTIFIER) {
+            // Special case for '$this' variable identifier access
+            if (token.type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER && token.value == "$this") {
                 if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "->") {
-                    // Use helper method to parse 'this->$property' access
+                    // Parse '$this->property' access (new syntax)
                     output_queue.push_back(parseThisPropertyAccess());
                 } else {
-                    // Simple 'this' reference in method context
+                    // Simple '$this' reference in method context - normalize to 'this'
                     output_queue.push_back(ParsedExpression::makeVariable("this", this->current_filename_, token.line_number, token.column_number));
                     consumeToken();
                 }
+            } else if (token.type == Lexer::Tokens::Type::KEYWORD && token.value == "this") {
+                // ERROR: Bare 'this' usage is not allowed in new VoidScript syntax
+                reportError("Bare 'this' keyword is not allowed. Use '$this' instead for class member access.", token);
             } else if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
                 // Regular identifier handling
                 output_queue.push_back(ParsedExpression::makeVariable(token.value, this->current_filename_, token.line_number, token.column_number));
@@ -1387,10 +1389,14 @@ const Lexer::Tokens::Token & Parser::currentToken() const {
     return tokens_[current_token_index_];
 }
 
-// Add this helper method to parse a 'this->$property' access as a special case
+// Add this helper method to parse a 'this->property' or '$this->property' access as a special case
 ParsedExpressionPtr Parser::parseThisPropertyAccess() {
-    // Consume 'this' token
+    // Consume '$this' token (only $this is allowed in new syntax)
     auto thisTok = consumeToken();
+    if (thisTok.value != "$this") {
+        reportError("Invalid 'this' access. Only '$this' syntax is allowed for class member access.", thisTok);
+    }
+    std::string thisVarName = "this"; // Always normalize $this to this internally
 
     // Expect '->' token
     expect(Lexer::Tokens::Type::PUNCTUATION, "->");
@@ -1401,16 +1407,17 @@ ParsedExpressionPtr Parser::parseThisPropertyAccess() {
         currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
         propTok = consumeToken();
     } else {
-        reportError("Expected property name after 'this->'");
+        reportError("Expected property name after '$this->'");
     }
 
     std::string propName = Parser::parseIdentifierName(propTok);
 
     // Create a variable expression for 'this'
-    auto thisExpr = ParsedExpression::makeVariable("this", this->current_filename_, thisTok.line_number, thisTok.column_number);
+    auto thisExpr = ParsedExpression::makeVariable(thisVarName, this->current_filename_, thisTok.line_number, thisTok.column_number);
 
-    // Create a member expression for the property access
-    auto memberExpr = ParsedExpression::makeMember(std::move(thisExpr), propName, this->current_filename_,
+    // Create a binary expression for property access using the "->" operator
+    auto propExpr = ParsedExpression::makeVariable(propName, this->current_filename_, propTok.line_number, propTok.column_number);
+    auto memberExpr = ParsedExpression::makeBinary("->", std::move(thisExpr), std::move(propExpr), this->current_filename_,
                                                    thisTok.line_number, thisTok.column_number);
 
     return memberExpr;
@@ -1422,18 +1429,22 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
     std::string          baseName;
     bool                 isThisAssignment = false;
 
-    // Determine base: 'this' keyword or variable identifier
-    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_THIS) {
-        baseToken        = consumeToken();  // Consume 'this'
-        baseName         = "this";
-        isThisAssignment = true;
-    } else if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+    // Determine base: '$this' variable, or other variable identifier
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
         baseToken = consumeToken();  // Consume variable identifier
         baseName  = parseIdentifierName(baseToken);
+        if (baseName == "$this") {
+            baseName = "this";  // Normalize $this to this
+            isThisAssignment = true;
+        }
+    } else if (currentToken().type == Lexer::Tokens::Type::KEYWORD && currentToken().value == "this") {
+        // ERROR: Bare 'this' is not allowed in assignment
+        reportError("Bare 'this' keyword is not allowed in assignment. Use '$this' instead for class member access.", currentToken());
+        return nullptr;
     } else {
         // This case should ideally not be reached if called correctly after checks
         // But it's useful as a safety check
-        reportError("Expected variable name or 'this' at start of assignment", currentToken());
+        reportError("Expected variable name or '$this' at start of assignment", currentToken());
         return nullptr;  // Unreachable
     }
 
@@ -1638,10 +1649,9 @@ void Parser::parseTopLevelStatement() {
             Symbols::SymbolContainer::instance()->currentScopeName(),
             Operations::Operation{ Operations::Type::Assignment, "", std::move(stmt) });
     }
-    // Assignment statement ($var = ..., $var->prop = ..., this->prop = ...)
-    // Also handles postfix increment $var++ and this keywords
-    else if (token_type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-             token_type == Lexer::Tokens::Type::KEYWORD_THIS) {
+    // Assignment statement ($var = ..., $var->prop = ...)
+    // Also handles postfix increment $var++
+    else if (token_type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
         bool is_postfix = (token_type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER &&
                            peekToken().type == Lexer::Tokens::Type::OPERATOR_INCREMENT);
 
@@ -1696,10 +1706,14 @@ void Parser::parseTopLevelStatement() {
                         Symbols::SymbolContainer::instance()->currentScopeName(),
                         Operations::Operation{ Operations::Type::Expression, "", std::move(stmtNode) });
                 } else {
-                    reportError("Invalid statement starting with variable or 'this'", currentTok);
+                    reportError("Invalid statement starting with variable or '$this'", currentTok);
                 }
             }
         }
+    }
+    // Handle bare 'this' keyword at top level (should be an error)
+    else if (token_type == Lexer::Tokens::Type::KEYWORD_THIS) {
+        reportError("Bare 'this' keyword is not allowed. Use '$this' instead for class member access.", currentTok);
     }
     // Function call (identifier followed directly by '(')
     else if (token_type == Lexer::Tokens::Type::IDENTIFIER && peekToken().type == Lexer::Tokens::Type::PUNCTUATION &&

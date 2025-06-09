@@ -84,9 +84,9 @@ class IdentifierExpressionNode : public ExpressionNode {
             return Symbols::ValuePtr::null(Symbols::Variables::Type::NULL_TYPE);
         }
         
-        if (name_ == "this") {
-            // 'this' logic might need to use interpreter_instance if 'this' is managed by Interpreter state
-            auto thisSymbol = sc->getVariable("this"); // Or interpreter_instance.getThisObject();
+        if (name_ == "this" || name_ == "$this") {
+            // 'this' or '$this' logic - use interpreter's current 'this' object
+            auto thisSymbol = sc->getVariable(name_); // Try to find it as a regular variable first
             if (thisSymbol) { // Assuming getVariable returns a symbol that has a value
                 return thisSymbol->getValue();
             }
@@ -95,7 +95,7 @@ class IdentifierExpressionNode : public ExpressionNode {
             if (interpreterThis->getType() != Symbols::Variables::Type::NULL_TYPE && !interpreterThis->isNULL()) { // Check if interpreter's 'this' is valid
                  return interpreterThis;
             }
-            throw Exception("Keyword 'this' not found or not valid in current context.", eval_filename, eval_line, eval_column);
+            throw Exception("Keyword '" + name_ + "' not found or not valid in current context.", eval_filename, eval_line, eval_column);
         }
 
         // Logic for other identifiers

@@ -1,4 +1,4 @@
-// Best practice for this->$property comparison
+// Best practice for $this->property comparison
 class BestPractice {
     private: int $value = 20;
     private: int $min = 10;
@@ -6,19 +6,19 @@ class BestPractice {
     
     // Store property in local variable for comparisons
     function isInRange() bool {
-        int $val = this->$value;
-        int $minVal = this->$min;
-        int $maxVal = this->$max;
+        int $val = $this->value;
+        int $minVal = $this->min;
+        int $maxVal = $this->max;
         
         return $val >= $minVal && $val <= $maxVal;
     }
     
     // Update a property using other properties
     function incrementValue(int $amount) int {
-        int $current = this->$value;
+        int $current = $this->value;
         int $newValue = $current + $amount;
-        this->$value = $newValue;
-        return this->$value;
+        $this->value = $newValue;
+        return $this->value;
     }
 }
 

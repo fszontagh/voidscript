@@ -7,26 +7,26 @@ class TestThisAccess {
     
     // Constructor - explicitly sets properties
     function construct(string $name_arg, int $value_arg) {
-        this->$name = $name_arg;
-        this->$value = $value_arg;
-        printnl("Constructor called - Name set to: ", this->$name, ", Value set to: ", this->$value);
+        $this->name = $name_arg;
+        $this->value = $value_arg;
+        printnl("Constructor called - Name set to: ", $this->name, ", Value set to: ", $this->value);
     }
     
     // Simple method that uses this
     function display() {
         printnl("TestThisAccess object:");
-        printnl("  - Name: '", this->$name, "'");
-        printnl("  - Value: ", this->$value);
+        printnl("  - Name: '", $this->name, "'");
+        printnl("  - Value: ", $this->value);
     }
     
     // Method that returns a property
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
     
     // Method that modifies a property
     function setValue(int $new_value) {
-        this->$value = $new_value;
+        $this->value = $new_value;
     }
 }
 

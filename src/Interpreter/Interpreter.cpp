@@ -27,6 +27,68 @@ const Symbols::ValuePtr & Interpreter::getThisObject() const {
     return thisObject_;
 }
 
+void Interpreter::setCurrentClass(const std::string& className) {
+    currentClassName_ = className;
+}
+
+void Interpreter::clearCurrentClass() {
+    currentClassName_.clear();
+}
+
+const std::string& Interpreter::getCurrentClass() const {
+    return currentClassName_;
+}
+
+bool Interpreter::canAccessPrivateMember(const std::string& targetClassName,
+                                        const std::string& memberName,
+                                        bool isProperty) const {
+    auto* sc = Symbols::SymbolContainer::instance();
+    
+    try {
+        // Check if the class exists first
+        if (!sc->hasClass(targetClassName)) {
+            // If class doesn't exist, treat as public access (shouldn't happen in normal cases)
+            return true;
+        }
+        
+        // Check if the member is private
+        bool isPrivate = isProperty ?
+            sc->isPropertyPrivate(targetClassName, memberName) :
+            sc->isMethodPrivate(targetClassName, memberName);
+        
+        // If it's not private, access is always allowed
+        if (!isPrivate) {
+            return true;
+        }
+        
+        // If it's private, access is only allowed if we're currently executing within the same class
+        // or if we're accessing via $this within the class
+        if (!currentClassName_.empty() && currentClassName_ == targetClassName) {
+            return true;
+        }
+        
+        // Also check if we have a thisObject and it belongs to the target class
+        if (thisObject_ && thisObject_->getType() == Symbols::Variables::Type::CLASS) {
+            const auto& objMap = thisObject_->get<Symbols::ObjectMap>();
+            auto classMetaIt = objMap.find("$class_name");
+            if (classMetaIt != objMap.end() &&
+                classMetaIt->second->getType() == Symbols::Variables::Type::STRING) {
+                std::string thisClassName = classMetaIt->second->get<std::string>();
+                if (thisClassName == targetClassName) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+        
+    } catch (const std::exception& e) {
+        // If there's any exception during access checking, default to denying access
+        // This prevents crashes and ensures security by defaulting to restrictive access
+        return false;
+    }
+}
+
 void Interpreter::run() {
     // Determine namespace to execute
     const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
@@ -36,9 +98,6 @@ void Interpreter::run() {
 }
 
 void Interpreter::runOperation(const Operations::Operation & op) {
-    if (debug_) {
-        std::cerr << "[Debug][Interpreter] Operation: " << op.toString() << "\n";
-    }
 
     if (!op.statement && op.type != Operations::Type::Error) {
         throw Exception("Invalid operation: missing statement", "-", 0, 0);
@@ -98,6 +157,57 @@ void Interpreter::runOperation(const Operations::Operation & op) {
 
 unsigned long long Interpreter::get_unique_call_id() {
     return next_call_id_++;
+}
+
+Symbols::ValuePtr Interpreter::executeMethod(const Symbols::ValuePtr& objectValue,
+                                           const std::string& methodName,
+                                           const std::vector<Symbols::ValuePtr>& args) {
+    // Get the class name from the object
+    if (objectValue->getType() != Symbols::Variables::Type::CLASS) {
+        throw Exception("Cannot execute method on non-class object", "-", 0, 0);
+    }
+    
+    const auto& objMap = objectValue->get<Symbols::ObjectMap>();
+    auto classMetaIt = objMap.find("$class_name");
+    if (classMetaIt == objMap.end() || classMetaIt->second->getType() != Symbols::Variables::Type::STRING) {
+        throw Exception("Object missing class metadata", "-", 0, 0);
+    }
+    
+    std::string className = classMetaIt->second->get<std::string>();
+    auto* sc = Symbols::SymbolContainer::instance();
+    
+    if (!sc->hasMethod(className, methodName)) {
+        throw Exception("Method '" + methodName + "' not found in class '" + className + "'", "-", 0, 0);
+    }
+    
+    // Check access control
+    if (!canAccessPrivateMember(className, methodName, false)) {
+        throw Exception("Cannot access private method '" + methodName + "' of class '" + className + "'", "-", 0, 0);
+    }
+    
+    // Set the execution context
+    std::string previousClass = currentClassName_;
+    Symbols::ValuePtr previousThis = thisObject_;
+    
+    setCurrentClass(className);
+    setThisObject(objectValue);
+    
+    try {
+        // Execute the method using the symbol container's method call mechanism
+        const std::vector<Symbols::ValuePtr>& constArgs = args;
+        Symbols::ValuePtr result = sc->callMethod(className, methodName, constArgs);
+        
+        // Restore previous context
+        currentClassName_ = previousClass;
+        thisObject_ = previousThis;
+        
+        return result;
+    } catch (...) {
+        // Restore previous context on exception
+        currentClassName_ = previousClass;
+        thisObject_ = previousThis;
+        throw;
+    }
 }
 
 // Visitor method implementations

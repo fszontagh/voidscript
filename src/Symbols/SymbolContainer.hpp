@@ -985,6 +985,62 @@ class SymbolContainer {
     }
 
     /**
+     * @brief Check if a property is private
+     * @param className Name of the class to check
+     * @param propertyName Name of the property to check
+     * @return True if the property is private, false if public or not found
+     */
+    bool isPropertyPrivate(const std::string & className, const std::string & propertyName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
+        // Check in this class
+        for (const auto & prop : classInfo.properties) {
+            if (prop.name == propertyName) {
+                return prop.isPrivate;
+            }
+        }
+
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return isPropertyPrivate(classInfo.parentClass, propertyName);
+        }
+
+        return false; // Property not found, treat as non-private
+    }
+
+    /**
+     * @brief Check if a method is private
+     * @param className Name of the class to check
+     * @param methodName Name of the method to check
+     * @return True if the method is private, false if public or not found
+     */
+    bool isMethodPrivate(const std::string & className, const std::string & methodName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
+        // Check in this class
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                return method.isPrivate;
+            }
+        }
+
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return isMethodPrivate(classInfo.parentClass, methodName);
+        }
+
+        return false; // Method not found, treat as non-private
+    }
+
+    /**
      * @brief Get a list of all registered class names
      * @return Vector of registered class names
      */

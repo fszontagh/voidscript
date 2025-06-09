@@ -4,7 +4,7 @@ class test1 {
 
     function getAge() int {
         printnl("getAge() - SCRIPT METHOD CALLED");
-        return this->$age;
+        return $this->age;
     }
 }
 

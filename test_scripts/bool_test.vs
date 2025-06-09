@@ -23,8 +23,8 @@ class BoolTest {
     private: int $value = 42;
     
     function isPositive() bool {
-        printnl("Inside isPositive(), value is: ", this->$value);
-        bool $result = this->$value > 0;
+        printnl("Inside isPositive(), value is: ", $this->value);
+        bool $result = $this->value > 0;
         printnl("Comparison result: ", $result);
         return $result;
     }

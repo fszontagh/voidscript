@@ -1,26 +1,26 @@
-// Simple test for this->$property with comparisons
+// Simple test for $this->property with comparisons
 class AgeChecker {
     private: int $age = 20;
     
     function setAge(int $newAge) null {
-        this->$age = $newAge;
+        $this->age = $newAge;
     }
     
     function getAge() int {
-        return this->$age;
+        return $this->age;
     }
     
     function isAdult() bool {
         // Test comparison with property
-        return this->$age >= 18;
+        return $this->age >= 18;
     }
     
     function getCategory() string {
-        if (this->$age < 13) {
+        if ($this->age < 13) {
             return "Child";
-        } else if (this->$age < 18) {
+        } else if ($this->age < 18) {
             return "Teen";
-        } else if (this->$age < 65) {
+        } else if ($this->age < 65) {
             return "Adult";
         } else {
             return "Senior";

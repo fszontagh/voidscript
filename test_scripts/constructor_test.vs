@@ -6,23 +6,23 @@ class Person {
 
     // Proper constructor with parameters
     function construct(string $name, int $age) {
-        this->$name = $name;
-        this->$age = $age;
-        print("Person created with name: " + this->$name + " and age: " + this->$age + "\n");
+        $this->name = $name;
+        $this->age = $age;
+        print("Person created with name: " + $this->name + " and age: " + $this->age + "\n");
     }
     
     // Simple info method
     function getInfo() {
-        return "Name: " + this->$name + ", Age: " + this->$age;
+        return "Name: " + $this->name + ", Age: " + $this->age;
     }
 
     // Setter methods
     function setName(string $new_name) {
-        this->$name = $new_name;
+        $this->name = $new_name;
     }
 
     function setAge(int $new_age) {
-        this->$age = $new_age;
+        $this->age = $new_age;
     }
 }
 

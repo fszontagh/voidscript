@@ -8,25 +8,25 @@ class MethodTest {
     
     // Constructor
     function construct(string $name_arg, int $value_arg) {
-        this->$name = $name_arg;
-        this->$value = $value_arg;
+        $this->name = $name_arg;
+        $this->value = $value_arg;
         printnl("Constructor called with name: ", $name_arg, " and value: ", $value_arg);
     }
     
     // Regular method
     function display() {
-        printnl("MethodTest object - Name: ", this->$name, ", Value: ", this->$value);
+        printnl("MethodTest object - Name: ", $this->name, ", Value: ", $this->value);
     }
     
     // Method with return type
     function getName() string {
         printnl("getName method called");
-        return this->$name;
+        return $this->name;
     }
     
     // Method with parameters
     function setValue(int $new_value) {
-        this->$value = $new_value;
+        $this->value = $new_value;
         printnl("Value updated to: ", $new_value);
     }
 }

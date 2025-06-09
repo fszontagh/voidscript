@@ -59,3 +59,32 @@ Open any VoidScript file:
 vim example.vs
 ```
 You should see filetype set to `voidscript`, with proper syntax highlighting and indentation.
+
+## VoidScript Syntax Notes
+
+When writing VoidScript code in Vim, remember the important syntax requirements:
+
+### Class Property and Method Access
+- **Always use `$this->` within class methods** to access properties and methods
+- **Do not use bare `this->`** - it will cause errors
+
+Example of correct syntax:
+```voidscript
+class MyClass {
+    private:
+    string $name = "default";
+    
+    public:
+    function getName() string {
+        return $this->name;        // ✅ Correct
+    }
+    
+    function setName(string $value) {
+        $this->name = $value;      // ✅ Correct
+    }
+}
+```
+
+For complete syntax documentation, see:
+- [Complete Syntax Guide](../docs/SYNTAX.md)
+- [Quick Reference](../docs/QUICK_REFERENCE.md)

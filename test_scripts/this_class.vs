@@ -1,4 +1,4 @@
-// This is a minimal class example using the this->$variable syntax
+// This is a minimal class example using the $this->variable syntax
 class Test {
     private: 
     string $name;
@@ -7,18 +7,18 @@ class Test {
     public:
     // Constructor
     function construct(string $name, int $value) {
-        this->$name = $name;
-        this->$value = $value;
+        $this->name = $name;
+        $this->value = $value;
     }
 
     // Simple method
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
 
     // Method with parameters
     function addToValue(int $amount) int {
-        return this->$value + $amount;
+        return $this->value + $amount;
     }
 }
 

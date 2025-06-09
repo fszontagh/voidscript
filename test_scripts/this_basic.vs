@@ -1,14 +1,14 @@
-// Very basic test class for this->$property syntax
+// Very basic test class for $this->property syntax
 class Basic {
     private: string $name = "Default";
     private: int $value = 10;
     
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
     
     function getValue() int {
-        return this->$value;
+        return $this->value;
     }
 }
 

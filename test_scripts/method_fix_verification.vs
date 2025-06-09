@@ -6,30 +6,30 @@ class Calculator {
     
     // Constructor to initialize values properly
     function construct() {
-        this->$value = 42;
-        this->$name = "Default Calculator";
+        $this->value = 42;
+        $this->name = "Default Calculator";
         printnl("Constructor: Setting value to 42 and name to Default Calculator");
     }
     
     // Getter method
     function getValue() int {
-        return this->$value;
+        return $this->value;
     }
     
     // Setter method  
     function setValue(int $newValue) null {
-        this->$value = $newValue;
+        $this->value = $newValue;
     }
     
     // Method with string return
     function getName() string {
-        return this->$name;
+        return $this->name;
     }
     
     // Method with calculations
     function add(int $num) int {
-        this->$value = this->$value + $num;
-        return this->$value;
+        $this->value = $this->value + $num;
+        return $this->value;
     }
 }
 

@@ -81,9 +81,6 @@ class MethodCallExpressionNode : public ExpressionNode {
                     throw std::runtime_error("Object missing $class_name property");
                 }
                 Symbols::ValuePtr classNameVal = classNameIt->second;
-                std::cerr << "[DEBUG METHOD_CALL]   $class_name ValuePtr. toString(): " << classNameVal->toString()
-                          << ". isNULL(): " << (classNameVal.operator->() ? (classNameVal->isNULL() ? "true" : "false") : "CPP_NULLPTR")
-                          << ". Type: " << Symbols::Variables::TypeToString(classNameVal->getType()) << std::endl;
 
                 if (classNameVal->getType() != Symbols::Variables::Type::STRING) { // Check type *after* logging
                     throw std::runtime_error("Object's $class_name property is not a string. Actual type: " + Symbols::Variables::TypeToString(classNameVal->getType()));
