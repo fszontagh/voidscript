@@ -122,6 +122,10 @@ class CallStatementNode : public StatementNode {
                " " + "filename='" + filename_ + "', " + "line=" + std::to_string(line_) + ", " +
                "column=" + std::to_string(column_) + "}";
     };
+    
+    // Public access methods for compilation
+    const std::string& getFunctionName() const { return functionName_; }
+    const std::vector<std::unique_ptr<ExpressionNode>>& getArguments() const { return args_; }
 };
 
 }  // namespace Interpreter

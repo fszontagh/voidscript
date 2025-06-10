@@ -8,6 +8,7 @@
 #include "Interpreter/Operation.hpp"
 #include "Interpreter/OperationContainer.hpp"
 #include "Nodes/Expression/LiteralExpressionNode.hpp"
+#include "Nodes/Statement/AssignmentStatementNode.hpp"
 #include "Nodes/Statement/CallStatementNode.hpp"
 #include "Nodes/Statement/DeclareFunctionStatementNode.hpp"
 #include "Nodes/Statement/DeclareVariableStatementNode.hpp"
@@ -83,6 +84,29 @@ class OperationsFactory {
             varName, ns, type, std::move(expr), filename, line, column, /* isConst */ true);
         Operations::Container::instance()->add(
             ns, Operations::Operation{ Operations::Type::Declaration, varName, std::move(stmt) });
+    }
+
+    /**
+     * @brief Record an assignment operation for existing variables.
+     * @param varName Name of the variable being assigned to.
+     * @param pexpr Parsed expression for the right-hand side value.
+     * @param ns Current namespace scope for operations.
+     * @param fileName Source filename.
+     * @param line Line number of assignment.
+     * @param column Column number of assignment.
+     */
+    static void assignVariable(const std::string & varName, const Parser::ParsedExpressionPtr & pexpr,
+                              const std::string & ns, const std::string & fileName, int line, size_t column) {
+        // Build expression for assignment value
+        std::unique_ptr<ExpressionNode> expr = buildExpressionFromParsed(pexpr);
+        
+        // Create assignment statement node (empty property path for simple variable assignment)
+        std::vector<std::string> emptyPropertyPath;
+        auto stmt = std::make_unique<AssignmentStatementNode>(
+            varName, std::move(emptyPropertyPath), std::move(expr), fileName, line, column);
+        
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::Assignment, varName, std::move(stmt) });
     }
 
     /**

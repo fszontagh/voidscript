@@ -15,6 +15,7 @@ set(NEED_CLI ON)
 set(NEED_EMBEDDED OFF)
 
 option(BUILD_CLI, "Build example commandline interpreter" ${NEED_CLI})
+option(BUILD_COMPILER "Build VoidScript compiler" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
 option(BUILD_TESTS "Build the test cases" OFF)
@@ -139,9 +140,13 @@ add_library(voidscript
             src/Lexer/Operators.cpp
             src/Symbols/SymbolContainer.cpp
             src/Symbols/Value.cpp
-            src/Symbols/EnumSymbol.cpp 
+            src/Symbols/EnumSymbol.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
             src/Interpreter/Interpreter.cpp
+            src/Compiler/VoidScriptCompiler.cpp
+            src/Compiler/CompilerBackend.cpp
+            src/Compiler/CodeGenerator.cpp
+            src/Compiler/RuntimeLibrary.cpp
 )
 
 install(TARGETS voidscript DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT "lib")
@@ -183,6 +188,21 @@ if (NEED_CLI)
     set(CPACK_RPM_BIN_PACKAGE_REQUIRES "libvoidscript = ${CMAKE_PROJECT_VERSION}")
 endif()
 
+# COMPILER TARGET
+if (BUILD_COMPILER)
+    add_subdirectory(compiler)
+    
+    set(CPACK_DEBIAN_COMPILER_FILE_NAME "${CMAKE_PROJECT_NAME}-compiler_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
+    set(CPACK_DEBIAN_COMPILER_PACKAGE_NAME "${CMAKE_PROJECT_NAME}-compiler")
+    set(CPACK_DEBIAN_COMPILER_PACKAGE_SECTION "devel")
+    set(CPACK_DEBIAN_COMPILER_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
+    
+    set(CPACK_RPM_COMPILER_FILE_NAME "${CMAKE_PROJECT_NAME}-compiler_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.rpm")
+    set(CPACK_RPM_COMPILER_PACKAGE_NAME "${CMAKE_PROJECT_NAME}-compiler")
+    set(CPACK_RPM_COMPILER_PACKAGE_GROUP "Development/Tools")
+    set(CPACK_RPM_COMPILER_PACKAGE_REQUIRES "libvoidscript = ${CMAKE_PROJECT_VERSION}")
+    set(CPACK_COMPONENT_COMPILER_DESCRIPTION "VoidScript - native code compiler")
+endif()
 
 if (BUILD_FASTCGI)
     add_subdirectory(fastcgi)
@@ -239,6 +259,7 @@ message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")
 message(STATUS "APP_VERSION:           ${CMAKE_PROJECT_VERSION}\n")
 message(STATUS "BUILD_EMBEDDED:        ${BUILD_EMBEDDED}")
 message(STATUS "BUILD_CLI:             ${NEED_CLI}")
+message(STATUS "BUILD_COMPILER:        ${BUILD_COMPILER}")
 message(STATUS "BUILD_FASTCGI:         ${BUILD_FASTCGI}")
 message(STATUS "BUILD_SHARED_LIBS:     ${BUILD_SHARED_LIBS}")
 message(STATUS "BUILD_TESTS:           ${BUILD_TESTS}\n")
@@ -304,6 +325,11 @@ if (BUILD_TESTS)
 
       # Add more tests here if needed...
 
+  endif()
+  
+  # Add compiler tests if compiler is enabled
+  if(BUILD_COMPILER)
+      add_subdirectory(tests/compiler)
   endif()
 endif()
 

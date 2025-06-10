@@ -58,6 +58,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "boolean",  Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
     { "bool",     Lexer::Tokens::Type::KEYWORD_BOOLEAN              },
     { "object",   Lexer::Tokens::Type::KEYWORD_OBJECT               },
+    { "auto",     Lexer::Tokens::Type::KEYWORD_AUTO                 },
     { "include",  Lexer::Tokens::Type::KEYWORD_INCLUDE              },
     // ... other keywords ...
 };
@@ -70,6 +71,7 @@ const std::unordered_map<Lexer::Tokens::Type, Symbols::Variables::Type> Parser::
     { Lexer::Tokens::Type::KEYWORD_NULL,    Symbols::Variables::Type::NULL_TYPE },
     { Lexer::Tokens::Type::KEYWORD_BOOLEAN, Symbols::Variables::Type::BOOLEAN   },
     { Lexer::Tokens::Type::KEYWORD_OBJECT,  Symbols::Variables::Type::OBJECT    },
+    { Lexer::Tokens::Type::KEYWORD_AUTO,    Symbols::Variables::Type::AUTO_TYPE },
     { Lexer::Tokens::Type::KEYWORD_ENUM,    Symbols::Variables::Type::INTEGER   } // Added for enum type
 };
 
@@ -117,8 +119,15 @@ void Parser::parseVariableDefinition() {
     expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
 
     auto expr = parseParsedExpression(var_type);
+    
+    // Generate both Declaration and Assignment operations for variable declarations with initializers
     Interpreter::OperationsFactory::defineVariableWithExpression(var_name, var_type, expr, ns, current_filename_,
                                                                  id_token.line_number, id_token.column_number);
+    
+    // Also generate an Assignment operation to actually assign the value
+    Interpreter::OperationsFactory::assignVariable(var_name, expr, ns, current_filename_,
+                                                   id_token.line_number, id_token.column_number);
+    
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
 
@@ -396,14 +405,35 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
                                                                           idTok.line_number, idTok.column_number);
         }
         // If not postfix increment, check for standard assignment
-        // Check if it's a standard assignment ($var = ..., $obj->prop = ...)
+        // Check if it's a standard assignment ($var = ..., $obj->prop = ..., $var[index] = ...)
         size_t lookahead_idx = current_token_index_ + 1;  // Move past the initial var/this token
-        // Skip -> identifier sequences
-        while (lookahead_idx + 1 < tokens_.size() && tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
-               tokens_[lookahead_idx].value == "->" &&
-               (tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::IDENTIFIER ||
-                tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER)) {
-            lookahead_idx += 2;
+        
+        // Skip -> identifier sequences and [index] sequences
+        while (lookahead_idx < tokens_.size()) {
+            if (lookahead_idx + 1 < tokens_.size() &&
+                tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
+                tokens_[lookahead_idx].value == "->" &&
+                (tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::IDENTIFIER ||
+                 tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER)) {
+                lookahead_idx += 2; // Skip -> and identifier
+            } else if (tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
+                       tokens_[lookahead_idx].value == "[") {
+                // Skip array indexing: [expression]
+                lookahead_idx++; // Skip '['
+                int bracket_depth = 1;
+                while (lookahead_idx < tokens_.size() && bracket_depth > 0) {
+                    if (tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION) {
+                        if (tokens_[lookahead_idx].value == "[") {
+                            bracket_depth++;
+                        } else if (tokens_[lookahead_idx].value == "]") {
+                            bracket_depth--;
+                        }
+                    }
+                    lookahead_idx++;
+                }
+            } else {
+                break; // No more -> or [ sequences
+            }
         }
 
         bool is_assignment =
@@ -453,16 +483,20 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         size_t lookahead_offset = 1; // Start after the type keyword
 
         // Check for optional array syntax: type[]
-        if (peekToken(lookahead_offset).type == Lexer::Tokens::Type::PUNCTUATION &&
+        if (lookahead_offset < tokens_.size() &&
+            peekToken(lookahead_offset).type == Lexer::Tokens::Type::PUNCTUATION &&
             peekToken(lookahead_offset).value == "[" &&
+            lookahead_offset + 1 < tokens_.size() &&
             peekToken(lookahead_offset + 1).type == Lexer::Tokens::Type::PUNCTUATION &&
             peekToken(lookahead_offset + 1).value == "]") {
             lookahead_offset += 2; // Skip past []
         }
 
         // Check if we have: variable_identifier = ...
-        if ((peekToken(lookahead_offset).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+        if (lookahead_offset < tokens_.size() &&
+            (peekToken(lookahead_offset).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
              peekToken(lookahead_offset).type == Lexer::Tokens::Type::IDENTIFIER) &&
+            lookahead_offset + 1 < tokens_.size() &&
             peekToken(lookahead_offset + 1).type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
             // Parse as variable definition using the new node-returning function
             return parseVariableDefinitionNode();
@@ -1190,8 +1224,8 @@ Symbols::Variables::Type Parser::parseType() {
         Symbols::Variables::Type baseType = it->second;
         consumeToken(); // Consume the type keyword
         // Array type syntax: baseType[] -> treat as OBJECT/array map
-        if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
-            peekToken(1).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(1).value == "]") {
+        if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+            peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "]") {
                 consumeToken(); // '['
                 consumeToken(); // ']'
             return Symbols::Variables::Type::OBJECT;
@@ -1209,8 +1243,8 @@ Symbols::Variables::Type Parser::parseType() {
             parsed_class_names_.count(Symbols::SymbolContainer::instance()->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + typeName) ) {
             consumeToken(); // Consume class name
              // Check for array type syntax: ClassName[]
-            if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
-                peekToken(1).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(1).value == "]") {
+            if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+                peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "]") {
                     consumeToken(); // '['
                     consumeToken(); // ']'
                 return Symbols::Variables::Type::OBJECT;
@@ -1225,8 +1259,8 @@ Symbols::Variables::Type Parser::parseType() {
         if (symbolContainer->hasClass(typeName)) {
             consumeToken(); // Consume class name
              // Check for array type syntax: ClassName[]
-            if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
-                peekToken(1).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(1).value == "]") {
+            if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+                peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "]") {
                     consumeToken(); // '['
                     consumeToken(); // ']'
                 return Symbols::Variables::Type::OBJECT;
@@ -1240,12 +1274,12 @@ Symbols::Variables::Type Parser::parseType() {
         if (symbolContainer->hasClass(fqTypeName)) {
             consumeToken(); // Consume class name
              // Check for array type syntax: ClassName[]
-            if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
-                peekToken(1).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(1).value == "]") {
-                    consumeToken(); // '['
-                    consumeToken(); // ']'
-                return Symbols::Variables::Type::OBJECT;
-            }
+           if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+               peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "]") {
+                   consumeToken(); // '['
+                   consumeToken(); // ']'
+               return Symbols::Variables::Type::OBJECT;
+           }
             return Symbols::Variables::Type::CLASS;
         }
 
@@ -1448,21 +1482,34 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
         return nullptr;  // Unreachable
     }
 
-    // Parse potential property path (-> prop1 -> prop2 ...)
+    // Parse potential property path (-> prop1 -> prop2 ...) and array indexing ([index])
     std::vector<std::string> propertyPath;
+    std::vector<std::unique_ptr<Interpreter::ExpressionNode>> indexExpressions;
     int                      lastPropLine = baseToken.line_number;  // Start with base location
     int                      lastPropCol  = baseToken.column_number;
-    while (match(Lexer::Tokens::Type::PUNCTUATION, "->")) {
-        Lexer::Tokens::Token propTok;
-        if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
-            currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
-            propTok      = consumeToken();
-            lastPropLine = propTok.line_number;                    // Update location to the latest property token
-            lastPropCol  = propTok.column_number;
-            propertyPath.push_back(parseIdentifierName(propTok));  // Use helper
+    
+    while (true) {
+        if (match(Lexer::Tokens::Type::PUNCTUATION, "->")) {
+            // Property access
+            Lexer::Tokens::Token propTok;
+            if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER ||
+                currentToken().type == Lexer::Tokens::Type::IDENTIFIER) {
+                propTok      = consumeToken();
+                lastPropLine = propTok.line_number;                    // Update location to the latest property token
+                lastPropCol  = propTok.column_number;
+                propertyPath.push_back(parseIdentifierName(propTok));  // Use helper
+            } else {
+                reportError("Expected property name after '->'", currentToken());
+                return nullptr;  // Unreachable
+            }
+        } else if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[") {
+            // Array indexing
+            consumeToken(); // consume '['
+            auto indexExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+            expect(Lexer::Tokens::Type::PUNCTUATION, "]");
+            indexExpressions.push_back(buildExpressionFromParsed(indexExpr));
         } else {
-            reportError("Expected property name after '->'", currentToken());
-            return nullptr;  // Unreachable
+            break; // No more -> or [ sequences
         }
     }
 
@@ -1498,6 +1545,15 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
                 std::move(lhsNode), prop, this->current_filename_, lastPropLine, lastPropCol);
         }
 
+        // Apply array indexing to LHS node if necessary
+        // For compound assignment, we need to duplicate the index expressions
+        // Since we can't easily clone expressions, we'll need to re-parse them or handle this differently
+        // For now, let's handle simple cases without compound assignment on array elements
+        if (!indexExpressions.empty()) {
+            reportError("Compound assignment operators (+=, -=, etc.) on array elements are not yet supported. Use simple assignment (=) instead.", opTok);
+            return nullptr;
+        }
+
         // Extract the binary operator part (e.g., "+=" -> "+")
         std::string binOp = opTok.value.substr(0, opTok.value.size() - 1);
 
@@ -1507,9 +1563,46 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
 
     // Create the final assignment statement node
     // Use the location of the base variable/this token for the statement itself
-    return std::make_unique<Interpreter::AssignmentStatementNode>(baseName, std::move(propertyPath), std::move(rhsNode),
-                                                                  this->current_filename_, baseToken.line_number,
-                                                                  baseToken.column_number);
+    
+    // If we have array indexing, we need to handle it differently
+    if (!indexExpressions.empty()) {
+        // For array element assignment, we need to create a different type of assignment
+        // For now, let's create a binary expression node for array access and assign to that
+        std::unique_ptr<Interpreter::ExpressionNode> lhsNode;
+        if (isThisAssignment) {
+            lhsNode = std::make_unique<Interpreter::IdentifierExpressionNode>("this", this->current_filename_, baseToken.line_number, baseToken.column_number);
+        } else {
+            lhsNode = std::make_unique<Interpreter::IdentifierExpressionNode>(baseName, this->current_filename_, baseToken.line_number, baseToken.column_number);
+        }
+
+        // Apply property path to LHS node if necessary
+        for (const auto & prop : propertyPath) {
+            lhsNode = std::make_unique<Interpreter::MemberExpressionNode>(
+                std::move(lhsNode), prop, this->current_filename_, lastPropLine, lastPropCol);
+        }
+
+        // Apply array indexing - for now, only support single-level indexing
+        if (indexExpressions.size() == 1) {
+            lhsNode = std::make_unique<Interpreter::BinaryExpressionNode>(
+                std::move(lhsNode), "[]", std::move(indexExpressions[0]));
+        } else {
+            reportError("Multi-dimensional array assignment not yet supported", baseToken);
+            return nullptr;
+        }
+
+        // Create an expression statement that performs the assignment
+        // We'll use a special assignment expression for array elements
+        auto assignmentExpr = std::make_unique<Interpreter::BinaryExpressionNode>(
+            std::move(lhsNode), "=", std::move(rhsNode));
+        
+        return std::make_unique<Interpreter::ExpressionStatementNode>(
+            std::move(assignmentExpr), this->current_filename_, baseToken.line_number, baseToken.column_number);
+    } else {
+        // Regular variable or property assignment
+        return std::make_unique<Interpreter::AssignmentStatementNode>(baseName, std::move(propertyPath), std::move(rhsNode),
+                                                                      this->current_filename_, baseToken.line_number,
+                                                                      baseToken.column_number);
+    }
 }
 
 std::unique_ptr<Interpreter::StatementNode> Parser::parseReturnStatementNode() {
@@ -1616,17 +1709,34 @@ void Parser::parseTopLevelStatement() {
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
     }
-    // Variable definition with a type keyword or a class name
-    else if ((Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
+    // Variable definition with a type keyword or a class name (with optional array syntax)
+    else if (Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
               (token_type == Lexer::Tokens::Type::IDENTIFIER &&
                (Symbols::SymbolContainer::instance()->hasClass(token_val) ||
                 // Try with namespace prefix as well
                 Symbols::SymbolContainer::instance()->hasClass(
                     Symbols::SymbolContainer::instance()->currentScopeName() +
-                    Symbols::SymbolContainer::SCOPE_SEPARATOR + token_val)))) &&
-             peekToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
-        // Always treat as variable definition statement at top level
-        parseVariableDefinition();
+                    Symbols::SymbolContainer::SCOPE_SEPARATOR + token_val)))) {
+        
+        // Check for array syntax and variable identifier
+        size_t lookahead_offset = 1; // Start after the type keyword
+
+        // Check for optional array syntax: type[]
+        if (lookahead_offset < tokens_.size() &&
+            peekToken(lookahead_offset).type == Lexer::Tokens::Type::PUNCTUATION &&
+            peekToken(lookahead_offset).value == "[" &&
+            lookahead_offset + 1 < tokens_.size() &&
+            peekToken(lookahead_offset + 1).type == Lexer::Tokens::Type::PUNCTUATION &&
+            peekToken(lookahead_offset + 1).value == "]") {
+            lookahead_offset += 2; // Skip past []
+        }
+
+        // Check if we have: variable_identifier = ...
+        if (lookahead_offset < tokens_.size() &&
+            peekToken(lookahead_offset).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+            // Always treat as variable definition statement at top level
+            parseVariableDefinition();
+        }
     }
     // Prefix increment/decrement statement (++$var; or --$var;)
     else if (token_type == Lexer::Tokens::Type::OPERATOR_INCREMENT &&
@@ -1677,15 +1787,35 @@ void Parser::parseTopLevelStatement() {
                 Symbols::SymbolContainer::instance()->currentScopeName(),
                 Operations::Operation{ Operations::Type::Assignment, "", std::move(stmt) });
         } else {
-            // Check if it's a standard assignment ($var = ..., $obj->prop = ...)
+            // Check if it's a standard assignment ($var = ..., $obj->prop = ..., $var[index] = ...)
             size_t lookahead_idx = current_token_index_ + 1;  // Move past the initial var/this token
-            // Skip -> identifier sequences
-            while (lookahead_idx + 1 < tokens_.size() &&
-                   tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
-                   tokens_[lookahead_idx].value == "->" &&
-                   (tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::IDENTIFIER ||
-                    tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER)) {
-                lookahead_idx += 2;
+            
+            // Skip -> identifier sequences and [index] sequences
+            while (lookahead_idx < tokens_.size()) {
+                if (lookahead_idx + 1 < tokens_.size() &&
+                    tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
+                    tokens_[lookahead_idx].value == "->" &&
+                    (tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::IDENTIFIER ||
+                     tokens_[lookahead_idx + 1].type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER)) {
+                    lookahead_idx += 2; // Skip -> and identifier
+                } else if (tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION &&
+                           tokens_[lookahead_idx].value == "[") {
+                    // Skip array indexing: [expression]
+                    lookahead_idx++; // Skip '['
+                    int bracket_depth = 1;
+                    while (lookahead_idx < tokens_.size() && bracket_depth > 0) {
+                        if (tokens_[lookahead_idx].type == Lexer::Tokens::Type::PUNCTUATION) {
+                            if (tokens_[lookahead_idx].value == "[") {
+                                bracket_depth++;
+                            } else if (tokens_[lookahead_idx].value == "]") {
+                                bracket_depth--;
+                            }
+                        }
+                        lookahead_idx++;
+                    }
+                } else {
+                    break; // No more -> or [ sequences
+                }
             }
 
             bool is_assignment = (lookahead_idx < tokens_.size() &&
@@ -2083,8 +2213,8 @@ Symbols::Variables::Type Parser::parseOptionalReturnType() {
          Symbols::Variables::Type baseType = it->second;
          consumeToken(); // Consume the type keyword
          // Check for array type syntax: baseType[]
-         if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
-             peekToken(1).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(1).value == "]") {
+         if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+             peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "]") {
              consumeToken(); // '['
              consumeToken(); // ']'
              return Symbols::Variables::Type::OBJECT; // Array types are objects
@@ -2103,8 +2233,8 @@ Symbols::Variables::Type Parser::parseOptionalReturnType() {
             symbolContainer->hasClass(typeName) || symbolContainer->hasClass(fqTypeName)) {
             consumeToken(); // Consume class name identifier
             // Array syntax for class return type? e.g. function foo(): MyClass[]
-            if (peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "[" &&
-                 peekToken(1).type == Lexer::Tokens::Type::PUNCTUATION && peekToken(1).value == "]") {
+            if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+                peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "]") {
                  consumeToken(); // '['
                  consumeToken(); // ']'
                  return Symbols::Variables::Type::OBJECT; // Array of class instances

@@ -1,0 +1,13 @@
+x is greater than 5
+While loop:
+  i = 0
+  i = 1
+  i = 2
+For loop:
+  j = 0
+  j = 1
+  j = 2
+Nested control flow:
+  0 is even
+  1 is odd
+  2 is even

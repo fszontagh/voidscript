@@ -330,4 +330,5 @@ Lexer::Lexer::Lexer() {
     keywords["case"]    = Tokens::Type::KEYWORD_CASE;
     keywords["default"] = Tokens::Type::KEYWORD_DEFAULT;
     keywords["break"]   = Tokens::Type::KEYWORD_BREAK;
+    keywords["auto"]    = Tokens::Type::KEYWORD_AUTO;
 }

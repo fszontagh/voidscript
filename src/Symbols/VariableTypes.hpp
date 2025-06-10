@@ -9,7 +9,7 @@
 
 namespace Symbols::Variables {
 
-enum class Type : std::uint8_t { INTEGER, DOUBLE, FLOAT, STRING, BOOLEAN, OBJECT, CLASS, NULL_TYPE, UNDEFINED_TYPE };
+enum class Type : std::uint8_t { INTEGER, DOUBLE, FLOAT, STRING, BOOLEAN, OBJECT, CLASS, NULL_TYPE, UNDEFINED_TYPE, AUTO_TYPE };
 
 const std::unordered_map<std::string, Type> StringToTypeMap = {
     { "int",       Type::INTEGER        },
@@ -21,7 +21,7 @@ const std::unordered_map<std::string, Type> StringToTypeMap = {
     { "null",      Type::NULL_TYPE      },
     { "object",    Type::OBJECT         },
     { "class",     Type::CLASS          },
-
+    { "auto",      Type::AUTO_TYPE      },
     { "undefined", Type::UNDEFINED_TYPE },
 };
 const std::unordered_map<Type, std::string> StypeToStringMap = {
@@ -33,6 +33,7 @@ const std::unordered_map<Type, std::string> StypeToStringMap = {
     { Type::OBJECT,         "object"     },
     { Type::CLASS,          "class"      },
     { Type::NULL_TYPE,      "null"       },
+    { Type::AUTO_TYPE,      "auto"       },
     { Type::UNDEFINED_TYPE, "undefined"  },
 };
 

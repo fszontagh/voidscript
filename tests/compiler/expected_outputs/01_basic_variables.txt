@@ -1,0 +1,8 @@
+Integer: 10
+String: Hello
+Boolean: true
+Float: 3.14
+Updated integer: 20
+Updated string: World
+Updated boolean: false
+Updated float: 2.71

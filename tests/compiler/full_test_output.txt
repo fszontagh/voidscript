@@ -1,0 +1,47 @@
+[0;34m[INFO][0m Setting up compiler tests...
+[0;34m[INFO][0m Compiler: /home/fszontagh/soniscript/build/compiler/voidscript-compiler
+[0;34m[INFO][0m Test scripts: /home/fszontagh/soniscript/tests/compiler/test_scripts
+[0;34m[INFO][0m Expected outputs: /home/fszontagh/soniscript/tests/compiler/expected_outputs
+[0;34m[INFO][0m Temp directory: /home/fszontagh/soniscript/tests/compiler/temp
+
+[0;34m[INFO][0m Running VoidScript compiler tests...
+
+=== Basic Functionality Tests ===
+[0;34m[INFO][0m Testing: 01_basic_variables
+[0;32m[PASS][0m Output matches expected for 01_basic_variables
+
+[0;34m[INFO][0m Testing: 02_basic_functions
+[0;32m[PASS][0m Output matches expected for 02_basic_functions
+
+[0;34m[INFO][0m Testing: 03_control_flow
+[0;32m[PASS][0m Output matches expected for 03_control_flow
+
+[0;34m[INFO][0m Testing: 04_arrays
+[0;31m[FAIL][0m Output mismatch for 04_arrays
+Expected vs Actual:
+--- /home/fszontagh/soniscript/tests/compiler/expected_outputs/04_arrays.txt	2025-06-09 08:19:04.646603604 +0200
++++ /home/fszontagh/soniscript/tests/compiler/temp/04_arrays_output.txt	2025-06-10 00:53:32.383892080 +0200
+@@ -1,16 +1,8 @@
+ Numbers array:
+-  1
+-  2
+-  3
+-  4
+-  5
+ Fruits array:
+-  apple
+-  banana
+-  cherry
+-First number: 1
+-Second fruit: banana
+-Modified first number: 10
+-Modified third fruit: grape
+-Numbers array has 5 elements
+-Fruits array has 3 elements
+\ Nincs új sor a fájl végén
++First number: [expression: numbers[0]]
++Second fruit: [expression: fruits[1]]
++Modified first number: [expression: numbers[0]]
++Modified third fruit: [expression: fruits[2]]
++Numbers array has [expression: CallExpressionNode{ function='count', args=1 }] elements
++Fruits array has [expression: CallExpressionNode{ function='count', args=1 }] elements

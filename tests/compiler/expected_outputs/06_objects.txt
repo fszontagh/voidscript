@@ -1,0 +1,10 @@
+Person name: John
+Person age: 30
+Person active: true
+Updated name: Jane
+Updated age: 25
+Updated active: false
+Object properties:
+  name: Jane
+  age: 25
+  active: false
