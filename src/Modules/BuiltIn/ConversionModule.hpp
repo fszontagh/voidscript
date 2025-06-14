@@ -22,13 +22,13 @@ class ConversionModule : public BaseModule {
     ConversionModule() { setModuleName("Conversion"); }
 
     void registerFunctions() override {
-        // string_to_number - Convert string to number (double)
+        // string_to_number - Convert string to number (auto-detects type)
         std::vector<Symbols::FunctionParameterInfo> param_list = {
             { "string", Symbols::Variables::Type::STRING, "The string to convert to a number", false, false }
         };
 
         REGISTER_FUNCTION("string_to_number", Symbols::Variables::Type::DOUBLE, param_list,
-                          "Convert a string to a number (double). Supports both integer and floating-point formats.",
+                          "Convert a string to a number. Auto-detects whether the input is an integer, float, or double and returns the appropriate type.",
                           [this](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
                               if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
                                   throw Exception(name() + "::string_to_number expects one string argument");
@@ -51,23 +51,84 @@ class ConversionModule : public BaseModule {
                               }
                               
                               try {
+                                  // Check if the string contains a decimal point or scientific notation
+                                  bool hasDecimalPoint = trimmed.find('.') != std::string::npos;
+                                  bool hasExponent = trimmed.find('e') != std::string::npos || trimmed.find('E') != std::string::npos;
+                                  bool hasFloatSuffix = (trimmed.back() == 'f' || trimmed.back() == 'F');
+                                  
+                                  // If it has float suffix, remove it for parsing
+                                  std::string parseStr = trimmed;
+                                  if (hasFloatSuffix) {
+                                      parseStr = trimmed.substr(0, trimmed.length() - 1);
+                                      hasDecimalPoint = parseStr.find('.') != std::string::npos;
+                                      hasExponent = parseStr.find('e') != std::string::npos || parseStr.find('E') != std::string::npos;
+                                  }
+                                  
+                                  // If no decimal point, no exponent, and no float suffix, try to parse as integer first
+                                  if (!hasDecimalPoint && !hasExponent && !hasFloatSuffix) {
+                                      try {
+                                          size_t pos;
+                                          long long intResult = std::stoll(parseStr, &pos);
+                                          
+                                          // Check if the entire string was consumed
+                                          if (pos == parseStr.length()) {
+                                              // Check if the value fits in int range
+                                              if (intResult >= std::numeric_limits<int>::min() &&
+                                                  intResult <= std::numeric_limits<int>::max()) {
+                                                  return static_cast<int>(intResult);
+                                              }
+                                              // If too large for int, fall through to double
+                                          }
+                                      } catch (const std::out_of_range &) {
+                                          // Number too large for long long, fall through to double
+                                      } catch (const std::invalid_argument &) {
+                                          // Not a valid integer, fall through to floating point parsing
+                                      }
+                                  }
+                                  
+                                  // Parse as floating point
                                   size_t pos;
-                                  double result = std::stod(trimmed, &pos);
+                                  double doubleResult = std::stod(parseStr, &pos);
                                   
                                   // Check if the entire string was consumed
-                                  if (pos != trimmed.length()) {
+                                  if (pos != parseStr.length()) {
                                       throw Exception(name() + "::string_to_number invalid number format: '" + str + "'");
                                   }
                                   
                                   // Check for infinity and NaN
-                                  if (std::isinf(result)) {
+                                  if (std::isinf(doubleResult)) {
                                       throw Exception(name() + "::string_to_number result is infinity: '" + str + "'");
                                   }
-                                  if (std::isnan(result)) {
+                                  if (std::isnan(doubleResult)) {
                                       throw Exception(name() + "::string_to_number result is not a number: '" + str + "'");
                                   }
                                   
-                                  return result;
+                                  // Determine if we should return float or double
+                                  if (hasFloatSuffix) {
+                                      // Explicit float suffix
+                                      if (doubleResult >= -std::numeric_limits<float>::max() &&
+                                          doubleResult <= std::numeric_limits<float>::max()) {
+                                          return static_cast<float>(doubleResult);
+                                      } else {
+                                          throw Exception(name() + "::string_to_number float value out of range: '" + str + "'");
+                                      }
+                                  } else if (hasDecimalPoint || hasExponent) {
+                                      // For floating point values, prefer double for better precision
+                                      // unless it can be exactly represented as float
+                                      float floatResult = static_cast<float>(doubleResult);
+                                      if (static_cast<double>(floatResult) == doubleResult &&
+                                          doubleResult >= -std::numeric_limits<float>::max() &&
+                                          doubleResult <= std::numeric_limits<float>::max() &&
+                                          (doubleResult == 0.0 || std::abs(doubleResult) >= 1e-7)) { // Avoid very small precision issues
+                                          return floatResult;
+                                      } else {
+                                          return doubleResult;
+                                      }
+                                  }
+                                  
+                                  // Fallback to double
+                                  return doubleResult;
+                                  
                               } catch (const std::invalid_argument &) {
                                   throw Exception(name() + "::string_to_number invalid number format: '" + str + "'");
                               } catch (const std::out_of_range &) {
