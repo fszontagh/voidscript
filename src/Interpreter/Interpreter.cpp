@@ -162,6 +162,7 @@ unsigned long long Interpreter::get_unique_call_id() {
 Symbols::ValuePtr Interpreter::executeMethod(const Symbols::ValuePtr& objectValue,
                                            const std::string& methodName,
                                            const std::vector<Symbols::ValuePtr>& args) {
+    
     // Get the class name from the object
     if (objectValue->getType() != Symbols::Variables::Type::CLASS) {
         throw Exception("Cannot execute method on non-class object", "-", 0, 0);
@@ -174,9 +175,12 @@ Symbols::ValuePtr Interpreter::executeMethod(const Symbols::ValuePtr& objectValu
     }
     
     std::string className = classMetaIt->second->get<std::string>();
+    
     auto* sc = Symbols::SymbolContainer::instance();
     
-    if (!sc->hasMethod(className, methodName)) {
+    bool hasMethod = sc->hasMethod(className, methodName);
+    
+    if (!hasMethod) {
         throw Exception("Method '" + methodName + "' not found in class '" + className + "'", "-", 0, 0);
     }
     

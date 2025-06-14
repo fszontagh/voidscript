@@ -90,7 +90,7 @@ class DeclareVariableStatementNode : public StatementNode {
             // For class types, we need to handle the comparison differently
             if (variableType_ == Symbols::Variables::Type::CLASS) {
                 // The value should be either CLASS type or OBJECT type (from new ClassName())
-                if (value.getType() != Symbols::Variables::Type::CLASS && 
+                if (value.getType() != Symbols::Variables::Type::CLASS &&
                     value.getType() != Symbols::Variables::Type::OBJECT &&
                     value.getType() != Symbols::Variables::Type::NULL_TYPE) {
                     std::string expected = Symbols::Variables::TypeToString(variableType_);
@@ -104,7 +104,6 @@ class DeclareVariableStatementNode : public StatementNode {
                 if (value.getType() == Symbols::Variables::Type::OBJECT) {
                     auto& objMap = value.get<Symbols::ObjectMap>();
                     
-                    
                     // Check for various class name fields
                     auto it = objMap.find("__class__");
                     if (it == objMap.end()) {
@@ -113,10 +112,14 @@ class DeclareVariableStatementNode : public StatementNode {
                     
                     if (it != objMap.end() && it->second->getType() == Symbols::Variables::Type::STRING) {
                         // This is actually a class instance, but we need to create a new ValuePtr using makeClassInstance
-                        
                         // Create a properly typed class instance
                         value = Symbols::ValuePtr::makeClassInstance(objMap);
                     }
+                } else if (value.getType() == Symbols::Variables::Type::NULL_TYPE) {
+                    // For CLASS variables initialized with NULL, create a simple null value
+                    // DO NOT call ValuePtr::null(CLASS) or makeClassInstance as it can cause infinite loops
+                    // Just manually set the type to CLASS on the existing null value
+                    value.setType(Symbols::Variables::Type::CLASS);
                 }
             } else if (value.getType() != variableType_) {
                 std::string expected = Symbols::Variables::TypeToString(variableType_);

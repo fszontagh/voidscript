@@ -20,7 +20,9 @@ class ImagickModule : public BaseModule {
 
   private:
     std::unordered_map<int, Magick::Image> images_;
+    static std::unordered_map<std::string, int> object_to_handle_map_; // Map object identity to image handle
     unsigned int                           next_image_id = 0;
+    Symbols::ValuePtr                      construct(FunctionArguments & args);
     Symbols::ValuePtr                      read(FunctionArguments & args);
     Symbols::ValuePtr                      crop(FunctionArguments & args);
     Symbols::ValuePtr                      resize(FunctionArguments & args);

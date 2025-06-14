@@ -311,6 +311,8 @@ ValuePtr ValuePtr::null(Symbols::Variables::Type type) {
         z->set<ObjectMap>({});
         z->is_null = false;
     } else if (type == Variables::Type::CLASS) {
+        // CRITICAL FIX: Do not call makeClassInstance here as it could cause infinite recursion
+        // when called from within makeClassInstance for property initialization
         z->set<ObjectMap>({});
         z->type_   = Variables::Type::CLASS;  // Override the type to CLASS
         z->is_null = false;
@@ -395,8 +397,8 @@ ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
 
     // Ensure all properties are initialized
     if (props.find("__class__") != props.end()) {
-        std::string className       = props["__class__"]->get<std::string>();
-        auto *      symbolContainer = Symbols::SymbolContainer::instance();
+        std::string className = props["__class__"]->get<std::string>();
+        auto * symbolContainer = Symbols::SymbolContainer::instance();
 
         // Initialize any missing properties with default values
         if (symbolContainer->hasClass(className)) {
@@ -410,6 +412,8 @@ ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
                 // Only set if property doesn't exist yet
                 if (props.find(instancePropName) == props.end()) {
                     // Create default value for the property
+                    // IMPORTANT: For CLASS type properties, do NOT call makeClassInstance recursively
+                    // to prevent infinite loops. Just create a null CLASS value instead.
                     switch (propInfo.type) {
                         case Variables::Type::INTEGER:
                             props[instancePropName] = ValuePtr(0);
@@ -429,8 +433,20 @@ ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
                         case Variables::Type::OBJECT:
                             props[instancePropName] = ValuePtr(ObjectMap());
                             break;
+                        case Variables::Type::CLASS:
+                            // CRITICAL FIX: Do not call makeClassInstance or ValuePtr::null(CLASS)
+                            // as it can cause infinite recursion. Create a simple null value.
+                            props[instancePropName] = ValuePtr(); // Default null value
+                            props[instancePropName].setType(Variables::Type::CLASS);
+                            break;
                         default:
-                            props[instancePropName] = ValuePtr::null(propInfo.type);
+                            // For other types, use null but avoid CLASS type which could recurse
+                            if (propInfo.type != Variables::Type::CLASS) {
+                                props[instancePropName] = ValuePtr::null(propInfo.type);
+                            } else {
+                                props[instancePropName] = ValuePtr(); // Safe null value
+                                props[instancePropName].setType(Variables::Type::CLASS);
+                            }
                             break;
                     }
                 }

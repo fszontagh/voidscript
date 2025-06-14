@@ -43,7 +43,8 @@ for (int $i = $len - 1; $i >= 0; $i--) {
     string $char = string_substr($image, $i, 1);
     if ($char == ".") {
         $dotPos = $i;
-        break;
+        // Continue searching for compatibility - avoid break statement
+        $i = -1; // This will exit the loop
     }
 }
 

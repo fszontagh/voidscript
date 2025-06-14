@@ -5,12 +5,20 @@
 #include "Symbols/RegistrationMacros.hpp"
 #include "Symbols/Value.hpp"
 
+// Define the static member
+std::unordered_map<std::string, int> Modules::ImagickModule::object_to_handle_map_;
+
 void Modules::ImagickModule::registerFunctions() {
     std::vector<Symbols::FunctionParameterInfo> params = {
         { "filename", Symbols::Variables::Type::STRING, "The image file to manipulate" },
     };
 
     REGISTER_CLASS(this->name());
+
+    // Register constructor
+    REGISTER_METHOD(
+        this->name(), "__construct", {}, [this](const FunctionArguments & args) { return this->construct(args); },
+        Symbols::Variables::Type::CLASS, "Constructor for Imagick class");
 
     REGISTER_METHOD(
         this->name(), "read", params, [this](const FunctionArguments & args) { return this->read(args); },
@@ -83,6 +91,22 @@ void Modules::ImagickModule::registerFunctions() {
     //    Symbols::Variables::Type::NULL_TYPE, "Composite image");
 }
 
+Symbols::ValuePtr Modules::ImagickModule::construct(FunctionArguments & args) {
+    if (args.size() != 1) {
+        throw std::runtime_error("Imagick::__construct expects no parameters, got: " + std::to_string(args.size() - 1));
+    }
+
+    if (args[0] != Symbols::Variables::Type::CLASS && args[0] != Symbols::Variables::Type::OBJECT) {
+        throw std::runtime_error("Imagick::__construct must be called on Imagick instance");
+    }
+
+    Symbols::ObjectMap objMap = args[0];
+    
+    // Initialize the object properly - no image loaded yet, so no __image_id__
+    // The object is already created with $class_name, just return it as-is
+    return Symbols::ValuePtr::makeClassInstance(objMap);
+}
+
 Symbols::ValuePtr Modules::ImagickModule::read(FunctionArguments & args) {
     if (args.size() != 2) {
         throw std::runtime_error("Imagick::read expects (filename), got: " + std::to_string(args.size() - 1));
@@ -92,19 +116,44 @@ Symbols::ValuePtr Modules::ImagickModule::read(FunctionArguments & args) {
         throw std::runtime_error("Imagick::read must be called on Imagick instance");
     }
 
-    Symbols::ObjectMap objMap = args[0];
-
     std::string filename = args[1];
 
     if (!std::filesystem::exists(filename)) {
         throw std::invalid_argument("File does not exists: " + filename);
     }
+    
     Magick::Image image;
-    image.read(filename);
-    int handle             = next_image_id++;
-    images_[handle]        = image;
-    objMap["__image_id__"] = Symbols::ValuePtr(handle);
-    return Symbols::ValuePtr::makeClassInstance(objMap);
+    try {
+        image.read(filename);
+        
+        // Validate the image is properly loaded
+        size_t width = image.columns();
+        size_t height = image.rows();
+        
+        if (width == 0 || height == 0) {
+            throw std::runtime_error("Image loaded but has invalid dimensions (" +
+                                    std::to_string(width) + "x" + std::to_string(height) + ")");
+        }
+        
+        // Additional validation: check if image is valid
+        if (!image.isValid()) {
+            throw std::runtime_error("Image loaded but is marked as invalid by ImageMagick");
+        }
+        
+        int handle = next_image_id++;
+        images_[handle] = image;
+        
+        // NEW APPROACH: Use object's toString as unique identifier
+        std::string objectId = args[0].toString();
+        object_to_handle_map_[objectId] = handle;
+        
+        // Still return the original object, but now we track state externally
+        return args[0];
+    } catch (const Magick::Exception& e) {
+        throw std::runtime_error("Failed to read image '" + filename + "': " + e.what());
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to read image '" + filename + "': " + e.what());
+    }
 }
 
 Symbols::ValuePtr Modules::ImagickModule::crop(Symbols::FunctionArguments & args) {
@@ -141,21 +190,23 @@ Symbols::ValuePtr Modules::ImagickModule::crop(Symbols::FunctionArguments & args
 Symbols::ValuePtr Modules::ImagickModule::resize(Symbols::FunctionArguments & args) {
     if (args.size() < 2) {
         throw std::invalid_argument(
-            "Imagick::crop missing argument: (string $sizes | int $width, int $height, int $xOffset = 0, int $yOffset "
+            "Imagick::resize missing argument: (string $sizes | int $width, int $height, int $xOffset = 0, int $yOffset "
             "= 0)");
     }
     const auto & objVal = args[0];
     if (objVal != Symbols::Variables::Type::CLASS && objVal != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::resize must be called on Imagick instance");
     }
-    Symbols::ObjectMap objMap   = objVal;
-    int                handle   = 0;
-    auto               itHandle = objMap.find("__image_id__");
-    if (itHandle == objMap.end() || itHandle->second != Symbols::Variables::Type::INTEGER) {
-        throw std::runtime_error("Imagick::resoze: no valid image");
+    
+    // NEW APPROACH: Look up handle by object identity
+    std::string objectId = args[0].toString();
+    
+    auto handleIt = object_to_handle_map_.find(objectId);
+    if (handleIt == object_to_handle_map_.end()) {
+        throw std::runtime_error("Imagick::resize: no valid image");
     }
 
-    handle     = itHandle->second;
+    int handle = handleIt->second;
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::resize: image not found");
@@ -192,14 +243,16 @@ Symbols::ValuePtr Modules::ImagickModule::write(Symbols::FunctionArguments & arg
     if (objVal != Symbols::Variables::Type::CLASS && objVal != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::write must be called on Imagick instance");
     }
-    Symbols::ObjectMap objMap   = objVal;
-    int                handle   = 0;
-    auto               itHandle = objMap.find("__image_id__");
-    if (itHandle == objMap.end() || itHandle->second != Symbols::Variables::Type::INTEGER) {
+    
+    // NEW APPROACH: Look up handle by object identity
+    std::string objectId = args[0].toString();
+    
+    auto handleIt = object_to_handle_map_.find(objectId);
+    if (handleIt == object_to_handle_map_.end()) {
         throw std::runtime_error("Imagick::write: no valid image");
     }
 
-    handle     = itHandle->second;
+    int handle = handleIt->second;
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
         throw std::runtime_error("Imagick::write: image not found");
@@ -342,17 +395,20 @@ Symbols::ValuePtr Modules::ImagickModule::getWidth(Symbols::FunctionArguments & 
     if (objVal != Symbols::Variables::Type::CLASS && objVal != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::getWidth must be called on Imagick instance");
     }
-    Symbols::ObjectMap objMap   = objVal;
-    int                handle   = 0;
-    auto               itHandle = objMap.find("__image_id__");
-    if (itHandle == objMap.end() || itHandle->second != Symbols::Variables::Type::INTEGER) {
-        throw std::runtime_error("Imagick::getWidth: no valid image");
+    
+    // NEW APPROACH: Look up handle by object identity
+    std::string objectId = args[0].toString();
+    
+    auto handleIt = object_to_handle_map_.find(objectId);
+    if (handleIt == object_to_handle_map_.end()) {
+        throw std::runtime_error("Imagick::getWidth: no valid image - object was not properly initialized by read()");
     }
-
-    handle     = itHandle->second;
+    
+    int handle = handleIt->second;
+    
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
-        throw std::runtime_error("Imagick::getWidth: image not found");
+        throw std::runtime_error("Imagick::getWidth: image not found - handle " + std::to_string(handle) + " is invalid");
     }
 
     return Symbols::ValuePtr(static_cast<int>(imgIt->second.columns()));
@@ -366,17 +422,19 @@ Symbols::ValuePtr Modules::ImagickModule::getHeight(Symbols::FunctionArguments &
     if (objVal != Symbols::Variables::Type::CLASS && objVal != Symbols::Variables::Type::OBJECT) {
         throw std::runtime_error("Imagick::getHeight must be called on Imagick instance");
     }
-    Symbols::ObjectMap objMap   = objVal;
-    int                handle   = 0;
-    auto               itHandle = objMap.find("__image_id__");
-    if (itHandle == objMap.end() || itHandle->second != Symbols::Variables::Type::INTEGER) {
-        throw std::runtime_error("Imagick::getHeight: no valid image");
+    
+    // NEW APPROACH: Look up handle by object identity
+    std::string objectId = args[0].toString();
+    
+    auto handleIt = object_to_handle_map_.find(objectId);
+    if (handleIt == object_to_handle_map_.end()) {
+        throw std::runtime_error("Imagick::getHeight: no valid image - object was not properly initialized by read()");
     }
-
-    handle     = itHandle->second;
+    
+    int handle = handleIt->second;
     auto imgIt = images_.find(handle);
     if (imgIt == images_.end()) {
-        throw std::runtime_error("Imagick::getHeight: image not found");
+        throw std::runtime_error("Imagick::getHeight: image not found - handle " + std::to_string(handle) + " is invalid");
     }
 
     return Symbols::ValuePtr(static_cast<int>(imgIt->second.rows()));

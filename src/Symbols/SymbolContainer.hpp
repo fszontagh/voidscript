@@ -7,11 +7,16 @@
 #include <memory>
 #include <sstream>  // For std::stringstream
 #include <stdexcept>
+#include <thread>   // For thread_local
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "Symbols/BaseSymbol.hpp"
 #include "Symbols/FunctionParameterInfo.hpp"
+#include "Symbols/FunctionSymbol.hpp"
 #include "Symbols/Value.hpp"
+#include "Symbols/VariableSymbol.hpp"
 #include "Symbols/VariableTypes.hpp"
 #include "SymbolTable.hpp"
 
@@ -536,7 +541,31 @@ class SymbolContainer {
      * @return Shared pointer to the found method symbol, or nullptr if not found
      */
     SymbolPtr findMethod(const std::string & className, const std::string & methodName) {
-        // First find the class's scope
+        // First check the class registry (where native methods are stored)
+        if (hasClass(className)) {
+            const ClassInfo & classInfo = getClassInfo(className);
+            
+            for (const auto & method : classInfo.methods) {
+                if (method.name == methodName) {
+                    // For native methods, we need to indicate that the method exists but the actual call
+                    // will go through callMethod() which handles native methods directly.
+                    // Since MethodCallExpressionNode only checks if the return is nullptr or not,
+                    // we need to return a non-null pointer. Let's return a pointer to a static value.
+                    static SymbolPtr dummySymbol = nullptr;
+                    if (!dummySymbol) {
+                        dummySymbol = std::make_shared<Symbols::VariableSymbol>(
+                            "dummy",
+                            Symbols::ValuePtr::null(),
+                            "",
+                            Variables::Type::NULL_TYPE
+                        );
+                    }
+                    return dummySymbol;
+                }
+            }
+        }
+        
+        // If not found in class registry, try scope-based lookup (for script-defined methods)
         std::string classScope = findClassNamespace(className);
         if (classScope.empty()) {
             return nullptr;  // Class not found
@@ -552,7 +581,27 @@ class SymbolContainer {
         }
 
         // Look for the method in the methods namespace within the class-specific scope
-        return scopeTable->get(METHOD_SCOPE, methodName);
+        auto result = scopeTable->get(METHOD_SCOPE, methodName);
+        return result;
+    }
+
+    /**
+     * @brief Get method parameters for a native method
+     * @param className The name of the class
+     * @param methodName The name of the method
+     * @return Vector of parameter info for the method, empty if not found
+     */
+    std::vector<Symbols::FunctionParameterInfo> getNativeMethodParameters(const std::string & className, const std::string & methodName) {
+        if (hasClass(className)) {
+            const ClassInfo & classInfo = getClassInfo(className);
+            
+            for (const auto & method : classInfo.methods) {
+                if (method.name == methodName) {
+                    return method.parameters;
+                }
+            }
+        }
+        return {}; // Return empty vector if not found
     }
 
     /**
@@ -795,7 +844,31 @@ class SymbolContainer {
      * @param className Name of the class to check
      * @return True if the class is registered, false otherwise
      */
-    bool hasClass(const std::string & className) const { return classes_.find(className) != classes_.end(); }
+    bool hasClass(const std::string & className) const {
+        // Thread-local infinite loop protection
+        static thread_local int recursionDepth = 0;
+        static thread_local std::unordered_set<std::string> visitedClasses;
+        
+        // Prevent infinite recursion
+        if (recursionDepth > 10) {
+            return false;  // Break the infinite loop
+        }
+        
+        // Prevent circular class lookups
+        if (visitedClasses.find(className) != visitedClasses.end()) {
+            return false;  // Already checking this class, prevent infinite loop
+        }
+        
+        recursionDepth++;
+        visitedClasses.insert(className);
+        
+        bool result = classes_.find(className) != classes_.end();
+        
+        visitedClasses.erase(className);
+        recursionDepth--;
+        
+        return result;
+    }
 
     /**
      * @brief Get information about a registered class
@@ -963,6 +1036,31 @@ class SymbolContainer {
      * @return True if the method exists, false otherwise
      */
     bool hasMethod(const std::string & className, const std::string & methodName) const {
+        std::unordered_set<std::string> visited;
+        bool result = hasMethodInternal(className, methodName, visited, 0);
+        return result;
+    }
+
+private:
+    /**
+     * @brief Internal recursive method with cycle detection
+     */
+    bool hasMethodInternal(const std::string & className, const std::string & methodName,
+                          std::unordered_set<std::string>& visited, int depth) const {
+        const int MAX_RECURSION_DEPTH = 10;
+        
+        // Check for infinite recursion
+        if (depth > MAX_RECURSION_DEPTH) {
+            return false;
+        }
+        
+        // Check for circular inheritance
+        if (visited.find(className) != visited.end()) {
+            return false;
+        }
+        
+        visited.insert(className);
+        
         if (!hasClass(className)) {
             return false;
         }
@@ -978,11 +1076,13 @@ class SymbolContainer {
 
         // Check in parent class if exists
         if (!classInfo.parentClass.empty()) {
-            return hasMethod(classInfo.parentClass, methodName);
+            return hasMethodInternal(classInfo.parentClass, methodName, visited, depth + 1);
         }
 
         return false;
     }
+
+public:
 
     /**
      * @brief Check if a property is private

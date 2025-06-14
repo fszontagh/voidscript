@@ -52,9 +52,28 @@ class MethodCallExpressionNode : public ExpressionNode {
     }
 
     Symbols::ValuePtr evaluate(Interpreter & interpreter, std::string filename, int line, size_t col) const override {
+        static thread_local int callDepth = 0;
+        static thread_local std::vector<std::string> callStack;
+        
         const std::string f = filename_.empty() && !filename.empty() ? filename : filename_;
         int l = line_ == 0 && line != 0 ? line : line_;
         size_t c = column_ == 0 && col > 0 ? col : column_;
+
+        const int MAX_CALL_DEPTH = 100;
+        callDepth++;
+        
+        
+        if (callDepth > MAX_CALL_DEPTH) {
+            std::cerr << "[ERROR] MethodCallExpressionNode::evaluate: Maximum call depth exceeded! Possible infinite recursion in method calls." << std::endl;
+            std::cerr << "[ERROR] Call stack:" << std::endl;
+            for (size_t i = 0; i < callStack.size(); ++i) {
+                std::cerr << "[ERROR]   " << i << ": " << callStack[i] << std::endl;
+            }
+            callDepth--;
+            throw std::runtime_error("Infinite loop detected in method calls");
+        }
+        
+        callStack.push_back(methodName_);
 
         try {
             // Evaluate target object (produces a copy)
@@ -66,7 +85,7 @@ class MethodCallExpressionNode : public ExpressionNode {
             
             // Evaluate all arguments first so we have access to them all
             for (const auto& arg : args_) {
-                evaluatedArgs.push_back(arg->evaluate(interpreter));
+                evaluatedArgs.push_back(arg->evaluate(interpreter, f, l, c));
             }
             
             // Object type check and handling
@@ -92,13 +111,17 @@ class MethodCallExpressionNode : public ExpressionNode {
                 // Get class info from SymbolContainer
                 auto* symbolContainer = Symbols::SymbolContainer::instance();
                 
+                
                 // Check if class exists in SymbolContainer
                 if (!symbolContainer->hasClass(cn)) {
                     throw std::runtime_error("Class " + cn + " not found");
                 }
                 
+                
                 // Check if method exists in class
-                if (!symbolContainer->hasMethod(cn, methodName_)) {
+                bool hasMethodResult = symbolContainer->hasMethod(cn, methodName_);
+                
+                if (!hasMethodResult) {
                     throw std::runtime_error("Method '" + methodName_ + "' not found in class " + cn);
                 }
                 
@@ -123,39 +146,78 @@ class MethodCallExpressionNode : public ExpressionNode {
                 auto* sc = Symbols::SymbolContainer::instance();
                 
                 // Get method information to validate parameters before any call
-                std::shared_ptr<Symbols::Symbol> method_sym = sc->findMethod(cn, methodName_);
-                if (method_sym) {
-                    std::shared_ptr<Symbols::FunctionSymbol> funcSymbol;
-                    if (method_sym->getKind() == Symbols::Kind::Method) {
-                        funcSymbol = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(method_sym);
-                    } else {
-                        funcSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(method_sym);
+                // First check if it's a native method
+                std::vector<Symbols::FunctionParameterInfo> nativeParams = sc->getNativeMethodParameters(cn, methodName_);
+                if (!nativeParams.empty()) {
+                    // This is a native method, validate using ClassInfo parameters
+                    if (evaluatedArgs.size() != nativeParams.size()) {
+                        throw ::Interpreter::Exception("Method '" + methodName_ + "' expects " +
+                                                      std::to_string(nativeParams.size()) + " parameters but " +
+                                                      std::to_string(evaluatedArgs.size()) + " provided",
+                                                      f, l, c);
                     }
-                    
-                    if (funcSymbol) {
-                        const auto& parameters = funcSymbol->parameters();
-                        // Validate parameter count
-                        if (evaluatedArgs.size() != parameters.size()) {
-                            throw ::Interpreter::Exception("Method '" + methodName_ + "' expects " +
-                                                          std::to_string(parameters.size()) + " parameters but " +
-                                                          std::to_string(evaluatedArgs.size()) + " provided",
-                                                          f, l, c);
+                } else {
+                    // This might be a script method, check using Symbol
+                    std::shared_ptr<Symbols::Symbol> method_sym = sc->findMethod(cn, methodName_);
+                    if (method_sym) {
+                        std::shared_ptr<Symbols::FunctionSymbol> funcSymbol;
+                        if (method_sym->getKind() == Symbols::Kind::Method) {
+                            funcSymbol = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(method_sym);
+                        } else if (method_sym->getKind() == Symbols::Kind::Function) {
+                            funcSymbol = std::static_pointer_cast<Symbols::FunctionSymbol>(method_sym);
+                        }
+                        
+                        if (funcSymbol) {
+                            const auto& parameters = funcSymbol->parameters();
+                            // Validate parameter count
+                            if (evaluatedArgs.size() != parameters.size()) {
+                                throw ::Interpreter::Exception("Method '" + methodName_ + "' expects " +
+                                                              std::to_string(parameters.size()) + " parameters but " +
+                                                              std::to_string(evaluatedArgs.size()) + " provided",
+                                                              f, l, c);
+                            }
+                        }
+                    }
+                }
+                
+                // Check if this is a native method first
+                bool isNativeMethod = false;
+                if (hasMethodResult) {
+                    // Check if the class has this method registered as a native method
+                    const Symbols::ClassInfo& classInfo = sc->getClassInfo(cn);
+                    for (const auto& method : classInfo.methods) {
+                        if (method.name == methodName_ && method.nativeImplementation) {
+                            isNativeMethod = true;
+                            break;
                         }
                     }
                 }
                 
                 // Try native method first
                 try {
-                    returnValue = sc->callMethod(cn, methodName_, evaluatedArgs);
+                    // For native methods, we need to pass the object as the first argument
+                    std::vector<Symbols::ValuePtr> nativeArgs;
+                    nativeArgs.reserve(evaluatedArgs.size() + 1);
+                    nativeArgs.push_back(objVal);  // Add the object as first argument
+                    nativeArgs.insert(nativeArgs.end(), evaluatedArgs.begin(), evaluatedArgs.end());  // Add the method arguments
+                    
+                    returnValue = sc->callMethod(cn, methodName_, nativeArgs);
                     interpreter.clearThisObject();
                     return returnValue;
                 } catch (const std::exception& e) {
-                    // If native method call fails, try script method execution
                     
+                    // If this is a native method that failed, re-throw the original error instead of falling back to script lookup
+                    if (isNativeMethod) {
+                        interpreter.clearThisObject();
+                        throw;
+                    }
+                    
+                    // If native method call fails, try script method execution
                     std::string classNamespace = sc->findClassNamespace(cn);
                     
                     // Get method information using findMethod which searches scope tables
                     std::shared_ptr<Symbols::Symbol> sym_method = sc->findMethod(cn, methodName_);
+                    
                     
                     if (!sym_method) {
                         throw std::runtime_error("Method '" + methodName_ + "' not found in class " + cn);
@@ -166,8 +228,11 @@ class MethodCallExpressionNode : public ExpressionNode {
                     
                     if (sym_method->getKind() == Symbols::Kind::Method) {
                         funcSym = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(sym_method);
-                    } else {
+                    } else if (sym_method->getKind() == Symbols::Kind::Function) {
                         funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(sym_method);
+                    } else {
+                        // This shouldn't happen for script methods, but if it does, throw an error
+                        throw std::runtime_error("Found symbol for method '" + methodName_ + "' but it's not a function or method symbol");
                     }
                     
                     const auto& params = funcSym->parameters();
@@ -232,14 +297,20 @@ class MethodCallExpressionNode : public ExpressionNode {
                 
                 // Clean up
                 interpreter.clearThisObject();
+                callStack.pop_back();
+                callDepth--;
                 return returnValue;
             }
             
             throw std::runtime_error("Object is not a class instance");
             
         } catch (const ReturnException & re) {
+            callStack.pop_back();
+            callDepth--;
             return re.value();
         } catch (const std::exception& e) {
+            callStack.pop_back();
+            callDepth--;
             throw;
         }
     }
