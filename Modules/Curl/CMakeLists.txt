@@ -5,7 +5,7 @@ include(module.cmake)
 project(
     modules-${MODULE_NAME}
     VERSION 0.0.1
-    DESCRIPTION "${MODULE_DESCRIPTION}"
+    DESCRIPTION "Network transfer library"
     LANGUAGES CXX
     HOMEPAGE_URL "https://github.com/fszontagh/voidshell"
 )

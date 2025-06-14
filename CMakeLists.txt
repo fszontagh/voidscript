@@ -229,8 +229,8 @@ macro(add_dynamic_module MODULE_NAME)
     option(${opt_name} "Enable ${UPPER_MODULE_NAME} module" ON)
 
     if(${opt_name})
-        message(STATUS "Adding module:     ${MODULE_NAME}  ${MODULE_DESCRIPTION}")
         include(Modules/${MODULE_NAME}/module.cmake OPTIONAL)
+        message(STATUS "Adding module:     ${MODULE_NAME}  ${MODULE_DESCRIPTION}")
         set_property(GLOBAL PROPERTY MODULE_DESCRIPTION_${UPPER_MODULE_NAME} "${MODULE_DESCRIPTION}")
 
         add_subdirectory(Modules/${MODULE_NAME})
