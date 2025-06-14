@@ -11,6 +11,7 @@
 #include "Interpreter/Interpreter.hpp"
 #include "Lexer/Lexer.hpp"
 #include "Modules/BuiltIn/ArrayModule.hpp"
+#include "Modules/BuiltIn/ConversionModule.hpp"
 #include "Modules/BuiltIn/FileModule.hpp"
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
@@ -47,10 +48,17 @@ class VoidScript {
     bool                            suppressTagsOutside_ = false;
     // Script parameters passed after the script filename
     std::vector<std::string>        scriptArgs_;
+    // Direct script content for command mode (-c option)
+    std::string                     directScriptContent_;
+    bool                            hasDirectContent_ = false;
     std::shared_ptr<Lexer::Lexer>   lexer  = nullptr;
     std::shared_ptr<Parser::Parser> parser = nullptr;
 
-    static std::string readFile(const std::string & file) {
+    std::string readFile(const std::string & file) {
+        // If we have direct script content (command mode), return it
+        if (hasDirectContent_) {
+            return directScriptContent_;
+        }
         // Read from stdin if '-' is specified
         if (file == "-") {
             return std::string(std::istreambuf_iterator<char>(std::cin), std::istreambuf_iterator<char>());
@@ -182,6 +190,11 @@ class VoidScript {
         stringModule->setModuleName("String");
         symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(stringModule)));
         
+        // conversion functions (string_to_number, number_to_string)
+        auto conversionModule = std::make_unique<Modules::ConversionModule>();
+        conversionModule->setModuleName("Conversion");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(conversionModule)));
+        
         // array helper functions (sizeof)
         auto arrayModule = std::make_unique<Modules::ArrayModule>();
         arrayModule->setModuleName("Array");
@@ -238,6 +251,15 @@ class VoidScript {
         this->files.emplace(this->files.begin(), file);
 
         lexer->setKeyWords(Parser::Parser::keywords);
+    }
+
+    /**
+     * Set script content directly (for command mode -c option)
+     * @param content The script content to execute
+     */
+    void setScriptContent(const std::string & content) {
+        directScriptContent_ = content;
+        hasDirectContent_ = true;
     }
 
     int run() {

@@ -16,6 +16,7 @@ const std::unordered_map<std::string, std::string> params = {
     { "--enable-tags",           "Only parse tokens between PARSER_OPEN_TAG and PARSER_CLOSE_TAG when enabled"                 },
     { "--suppress-tags-outside",
      "Suppress text outside PARSER_OPEN_TAG/PARSER_CLOSE_TAG when tag filtering is enabled"                                    },
+    { "-c, --command",           "Execute script string instead of reading from file"                                          },
 };
 
 int main(int argc, char * argv[]) {
@@ -24,7 +25,8 @@ int main(int argc, char * argv[]) {
         usage.append(" [" + key + "]");
     }
     // [file] is optional; if omitted, script is read from stdin
-    usage.append(" [file]");
+    // Or use -c "script" to execute script string directly
+    usage.append(" [file | -c \"script\"]");
     // Parse arguments: allow --help, --version, --debug[=component], --gendocs, and a single file
     bool debugLexer       = false;
     bool debugParser      = false;
@@ -32,6 +34,8 @@ int main(int argc, char * argv[]) {
     bool debugSymbolTable = false;
 
     std::string              file;
+    std::string              scriptContent;      // For -c option
+    bool                     isCommandMode       = false;  // Flag to indicate -c usage
     bool                     enableTags          = false;
     bool                     suppressTagsOutside = false;
     // Collect script parameters (arguments after script filename)
@@ -79,6 +83,16 @@ int main(int argc, char * argv[]) {
             enableTags = true;
         } else if (a == "--suppress-tags-outside") {
             suppressTagsOutside = true;
+        } else if (a == "-c" || a == "--command") {
+            // Next argument should be the script content
+            if (i + 1 >= argc) {
+                std::cerr << "Error: Option '" << a << "' requires a script argument\n";
+                std::cerr << usage << "\n";
+                return 1;
+            }
+            scriptContent = argv[++i];
+            isCommandMode = true;
+            file = "<command-line>";  // Virtual filename for command mode
         } else if (a == "-") {
             // Read script from stdin
             file = a;
@@ -86,15 +100,15 @@ int main(int argc, char * argv[]) {
             std::cerr << "Error: Unknown option '" << a << "'\n";
             std::cerr << usage << "\n";
             return 1;
-        } else if (file.empty()) {
-            // First non-option argument is the script file
+        } else if (file.empty() && !isCommandMode) {
+            // First non-option argument is the script file (only if not in command mode)
             file = a;
         } else {
             // Remaining non-option arguments are script parameters
             scriptArgs.emplace_back(a);
         }
     }
-    if (file.empty()) {
+    if (file.empty() && !isCommandMode) {
         // No input file specified: read script from stdin
         file = "-";
     }
@@ -104,9 +118,12 @@ int main(int argc, char * argv[]) {
         return 1;
     }
 
-    // Determine if reading from a file or stdin
+    // Determine if reading from a file, stdin, or executing command
     std::string filename;
-    if (file == "-") {
+    if (isCommandMode) {
+        // Command mode: use virtual filename
+        filename = file;
+    } else if (file == "-") {
         // Read script from standard input
         filename = file;
     } else {
@@ -119,5 +136,11 @@ int main(int argc, char * argv[]) {
 
     VoidScript voidscript(filename, debugLexer, debugParser, debugInterp, debugSymbolTable, enableTags,
                           suppressTagsOutside, scriptArgs);
+    
+    // If in command mode, set the script content directly
+    if (isCommandMode) {
+        voidscript.setScriptContent(scriptContent);
+    }
+    
     return voidscript.run();
 }
