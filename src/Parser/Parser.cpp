@@ -40,6 +40,11 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "function", Lexer::Tokens::Type::KEYWORD_FUNCTION_DECLARATION },
     // Older keywords:
     { "const",    Lexer::Tokens::Type::KEYWORD_CONST                },
+    // Control flow keywords
+    { "break",    Lexer::Tokens::Type::KEYWORD_BREAK                },
+    { "switch",   Lexer::Tokens::Type::KEYWORD_SWITCH               },
+    { "case",     Lexer::Tokens::Type::KEYWORD_CASE                 },
+    { "default",  Lexer::Tokens::Type::KEYWORD_DEFAULT              },
     // Class support keywords
     { "class",    Lexer::Tokens::Type::KEYWORD_CLASS                },
     { "private",  Lexer::Tokens::Type::KEYWORD_PRIVATE              },
@@ -49,6 +54,8 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "true",     Lexer::Tokens::Type::KEYWORD                      },
     { "false",    Lexer::Tokens::Type::KEYWORD                      },
     { "include",  Lexer::Tokens::Type::KEYWORD_INCLUDE              },
+    // Enum support
+    { "enum",     Lexer::Tokens::Type::KEYWORD_ENUM                 },
     // variable types
     { "null",     Lexer::Tokens::Type::KEYWORD_NULL                 },
     { "int",      Lexer::Tokens::Type::KEYWORD_INT                  },

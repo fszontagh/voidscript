@@ -7,6 +7,7 @@
 
 #include "Interpreter/StatementNode.hpp"
 // Include for unified runtime Exception
+#include "Interpreter/BreakException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Nodes/Expression/IdentifierExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
@@ -88,8 +89,13 @@ class ForStatementNode : public StatementNode {
                 keySym->setValue(keyVal);
                 valSym->setValue(entry.second);
 
-                for (const auto & stmt : body_) {
-                    stmt->interpret(interpreter);
+                try {
+                    for (const auto & stmt : body_) {
+                        stmt->interpret(interpreter);
+                    }
+                } catch (const BreakException &) {
+                    // Break out of the for-in loop
+                    break;
                 }
             }
         } catch (const Exception &) {

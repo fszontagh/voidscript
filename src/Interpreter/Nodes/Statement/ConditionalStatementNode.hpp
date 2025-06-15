@@ -7,6 +7,7 @@
 
 #include "Interpreter/StatementNode.hpp"
 // Include for unified runtime Exception
+#include "Interpreter/BreakException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 
@@ -47,6 +48,9 @@ class ConditionalStatementNode : public StatementNode {
                     stmt->interpret(interpreter);
                 }
             }
+        } catch (const BreakException &) {
+            // Re-throw BreakException so loop nodes can catch it
+            throw;
         } catch (const Exception &) {
             throw;
         } catch (const std::exception & e) {

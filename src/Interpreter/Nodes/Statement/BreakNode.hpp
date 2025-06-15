@@ -33,7 +33,7 @@ public:
     // interpret() is pure virtual in StatementNode.
     void interpret(::Interpreter::Interpreter& interpreter) const override {
         // The 'interpreter' parameter is not used by this specific node's logic.
-        throw ::Interpreter::BreakException(); 
+        throw BreakException();
     }
 };
 

@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "Interpreter/BreakException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
@@ -59,8 +60,13 @@ class WhileStatementNode : public StatementNode {
                     break;
                 }
 
-                for (const auto & stmt : body_) {
-                    stmt->interpret(interpreter);
+                try {
+                    for (const auto & stmt : body_) {
+                        stmt->interpret(interpreter);
+                    }
+                } catch (const BreakException &) {
+                    // Break out of the while loop
+                    break;
                 }
             }
         } catch (const Exception &) {

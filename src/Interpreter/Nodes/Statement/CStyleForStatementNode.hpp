@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "Interpreter/BreakException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
@@ -91,10 +92,15 @@ class CStyleForStatementNode : public StatementNode {
                 }
 
                 // Execute body (in loop scope)
-                for (const auto & stmt : body_) {
-                    if (stmt) {
-                        stmt->interpret(interpreter);
+                try {
+                    for (const auto & stmt : body_) {
+                        if (stmt) {
+                            stmt->interpret(interpreter);
+                        }
                     }
+                } catch (const BreakException &) {
+                    // Break out of the C-style for loop
+                    break;
                 }
 
                 // Execute increment (in loop scope)
