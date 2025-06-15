@@ -17,7 +17,7 @@ struct ParsedExpression;
 using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
 
 struct ParsedExpression {
-    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object, Member, Unknown };
+    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object, Member, EnumAccess, Unknown };
 
     static std::string kindToString(ParsedExpression::Kind kind) {
         const std::unordered_map<Kind, std::string> kindstringmap = {
@@ -30,6 +30,7 @@ struct ParsedExpression {
             { Kind::New,        "New"        },
             { Kind::Object,     "Object"     },
             { Kind::Member,     "Member"     },
+            { Kind::EnumAccess, "EnumAccess" },
             { Kind::Unknown,    "Unknown"    }
         };
 
@@ -179,6 +180,19 @@ struct ParsedExpression {
         return expr;
     }
 
+    // Constructor for enum access: EnumName.VALUE
+    static ParsedExpressionPtr makeEnumAccess(const std::string & enumName, const std::string & valueName,
+                                             const std::string & filename, int line, size_t column) {
+        auto expr      = std::make_shared<ParsedExpression>();
+        expr->kind     = Kind::EnumAccess;
+        expr->name     = enumName;
+        expr->op       = valueName; // Store the value name in op field
+        expr->filename = filename;
+        expr->line     = line;
+        expr->column   = column;
+        return expr;
+    }
+
     Symbols::Variables::Type getType() const {
         switch (kind) {
             case Kind::Literal:
@@ -244,6 +258,10 @@ struct ParsedExpression {
                 }
             case Kind::Object:
                 return Symbols::Variables::Type::OBJECT;
+
+            case Kind::EnumAccess:
+                // Enum values should have ENUM type for type checking
+                return Symbols::Variables::Type::ENUM;
 
             default:
                 throw std::runtime_error("Unknown expression kind");
@@ -318,6 +336,8 @@ struct ParsedExpression {
                 }
             case Kind::Member:
                 return objectMembers[0].second->toString() + "->" + objectMembers[0].first;
+            case Kind::EnumAccess:
+                return name + "." + op; // name is enum name, op is value name
             default:
                 return "Unknown expression kind";
         }

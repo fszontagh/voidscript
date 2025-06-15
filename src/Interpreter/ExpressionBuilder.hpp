@@ -9,6 +9,7 @@
 #include "Nodes/Expression/BinaryExpressionNode.hpp"
 #include "Nodes/Expression/CallExpressionNode.hpp"
 #include "Nodes/Expression/DynamicMemberExpressionNode.hpp"
+#include "Nodes/Expression/EnumAccessExpressionNode.hpp"
 #include "Nodes/Expression/IdentifierExpressionNode.hpp"
 #include "Nodes/Expression/LiteralExpressionNode.hpp"
 #include "Nodes/Expression/MemberExpressionNode.hpp"
@@ -17,6 +18,7 @@
 #include "Nodes/Expression/ObjectExpressionNode.hpp"
 #include "Nodes/Expression/UnaryExpressionNode.hpp"
 #include "Parser/ParsedExpression.hpp"
+#include "Symbols/EnumSymbol.hpp"
 
 namespace Parser {
 
@@ -139,6 +141,15 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                 return std::make_unique<Interpreter::MemberExpressionNode>(std::move(objectExpr), propName,
                                                                            expr->filename, expr->line, expr->column);
             }
+
+        case Kind::EnumAccess:
+            {
+                // Handle enum value access: EnumName.VALUE
+                // expr->name contains the enum name, expr->op contains the value name
+                return std::make_unique<Interpreter::EnumAccessExpressionNode>(
+                    expr->name, expr->op, expr->filename, expr->line, expr->column);
+            }
+
         default:
             {
                 throw std::runtime_error("Unknown ParsedExpression kind: " +
@@ -241,6 +252,29 @@ inline void typecheckParsedExpression(const ParsedExpressionPtr & expr) {
                         throw std::runtime_error("Operand must be boolean for unary operator '!'");
                     }
                 }
+                break;
+            }
+
+        case Kind::EnumAccess:
+            {
+                // Type check enum access: EnumName.VALUE
+                auto* symbolContainer = Symbols::SymbolContainer::instance();
+                auto enumSymbol = symbolContainer->getEnum(expr->name);
+                
+                if (!enumSymbol) {
+                    throw std::runtime_error("Enum '" + expr->name + "' not found");
+                }
+                
+                // Cast to EnumSymbol and check if the value exists
+                auto enumSymbolCast = std::dynamic_pointer_cast<Symbols::EnumSymbol>(enumSymbol);
+                if (!enumSymbolCast) {
+                    throw std::runtime_error("Symbol '" + expr->name + "' is not an enum");
+                }
+                
+                if (!enumSymbolCast->HasEnumerator(expr->op)) {
+                    throw std::runtime_error("Enum value '" + expr->op + "' not found in enum '" + expr->name + "'");
+                }
+                
                 break;
             }
 

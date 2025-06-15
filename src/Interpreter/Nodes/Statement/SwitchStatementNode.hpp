@@ -66,9 +66,9 @@ public:
         
         if (!switch_value || switch_value->isNULL() || switch_value->getType() != ::Symbols::Variables::Type::INTEGER) { // Qualified Type
             const auto& expr_node = *this->switchExpression;
-            throw ::Interpreter::Exception("Switch expression must evaluate to a non-null integer type.", 
-                                         expr_node.filename.empty() ? this->filename_ : expr_node.filename, 
-                                         expr_node.line == 0 ? this->line_ : expr_node.line, 
+            throw ::Interpreter::Exception("Switch expression must evaluate to a non-null integer type (enum values are also supported).",
+                                         expr_node.filename.empty() ? this->filename_ : expr_node.filename,
+                                         expr_node.line == 0 ? this->line_ : expr_node.line,
                                          expr_node.column == 0 ? this->column_ : expr_node.column);
         }
 
@@ -90,9 +90,9 @@ public:
                 );
                 
                 if (!case_expr_value || case_expr_value->isNULL() || case_expr_value->getType() != ::Symbols::Variables::Type::INTEGER) { // Qualified Type
-                     throw ::Interpreter::Exception("Case expression must evaluate to a non-null integer type.", 
-                                         case_expr_node_ref.filename.empty() ? this->filename_ : case_expr_node_ref.filename, 
-                                         case_expr_node_ref.line == 0 ? this->line_ : case_expr_node_ref.line, 
+                     throw ::Interpreter::Exception("Case expression must evaluate to a non-null integer type (enum values are also supported).",
+                                         case_expr_node_ref.filename.empty() ? this->filename_ : case_expr_node_ref.filename,
+                                         case_expr_node_ref.line == 0 ? this->line_ : case_expr_node_ref.line,
                                          case_expr_node_ref.column == 0 ? this->column_ : case_expr_node_ref.column);
                 }
                 

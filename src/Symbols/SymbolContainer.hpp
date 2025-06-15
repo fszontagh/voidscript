@@ -256,6 +256,8 @@ class SymbolContainer {
                 return addClass(symbol);
             case Symbols::Kind::Constant:
                 return addConstant(symbol);
+            case Symbols::Kind::ENUM:
+                return addEnum(symbol);
             default:
                 // Fall back to generic handling
                 const std::string ns = getNamespaceForSymbol(symbol);
@@ -439,6 +441,42 @@ class SymbolContainer {
 
         const std::string ns = DEFAULT_VARIABLES_SCOPE;
         it->second->define(ns, classSymbol);
+        return ns;
+    }
+
+    /**
+     * @brief Add an enum to the current scope
+     * @param enumSymbol The enum symbol to add
+     * @return Namespace under which the enum was defined
+     */
+    std::string addEnum(const SymbolPtr & enumSymbol) {
+        if (enumSymbol->getKind() != Symbols::Kind::ENUM) {
+            throw std::runtime_error("Symbol must be an enum to use addEnum");
+        }
+        // Enums are stored in the variables namespace like classes
+        const std::string ns = DEFAULT_VARIABLES_SCOPE;
+        scopes_[currentScopeName()]->define(ns, enumSymbol);
+        return ns;
+    }
+
+    /**
+     * @brief Add an enum to a specific scope
+     * @param enumSymbol The enum symbol to add
+     * @param scopeName The name of the scope to define the enum in
+     * @return Namespace under which the enum was defined
+     */
+    std::string addEnum(const SymbolPtr & enumSymbol, const std::string & scopeName) {
+        if (enumSymbol->getKind() != Symbols::Kind::ENUM) {
+            throw std::runtime_error("Symbol must be an enum to use addEnum");
+        }
+
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            throw std::runtime_error("Cannot define enum in non-existent scope: " + scopeName);
+        }
+
+        const std::string ns = DEFAULT_VARIABLES_SCOPE;
+        it->second->define(ns, enumSymbol);
         return ns;
     }
 
@@ -754,6 +792,44 @@ class SymbolContainer {
         auto constant = it->second->get(DEFAULT_CONSTANTS_SCOPE, name);
         if (constant && constant->getKind() == Kind::Constant) {
             return constant;
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get an enum from the current scope or parent scopes
+     * @param name The name of the enum to retrieve
+     * @return Shared pointer to the found enum, or nullptr if not found
+     */
+    SymbolPtr getEnum(const std::string & name) const {
+        // Search scopes in innermost-to-outermost order
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const std::string & scopeName = *it;
+            auto                tableIt   = scopes_.find(scopeName);
+            if (tableIt != scopes_.end()) {
+                auto enumSymbol = tableIt->second->get(DEFAULT_VARIABLES_SCOPE, name);
+                if (enumSymbol && enumSymbol->getKind() == Kind::ENUM) {
+                    return enumSymbol;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get an enum from a specific scope
+     * @param scopeName The name of the scope to look in
+     * @param name The name of the enum to retrieve
+     * @return Shared pointer to the found enum, or nullptr if not found
+     */
+    SymbolPtr getEnum(const std::string & scopeName, const std::string & name) const {
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            return nullptr;
+        }
+        auto enumSymbol = it->second->get(DEFAULT_VARIABLES_SCOPE, name);
+        if (enumSymbol && enumSymbol->getKind() == Kind::ENUM) {
+            return enumSymbol;
         }
         return nullptr;
     }
@@ -1517,6 +1593,8 @@ public:
                 return DEFAULT_FUNCTIONS_SCOPE;
             case Symbols::Kind::Constant:
                 return DEFAULT_CONSTANTS_SCOPE;
+            case Symbols::Kind::ENUM:
+                return DEFAULT_VARIABLES_SCOPE;
             default:
                 return DEFAULT_OTHERS_SCOPE;
         }
@@ -1544,6 +1622,9 @@ public:
                 break;
             case Symbols::Kind::Constant:
                 addConstant(symbol, scopeName);
+                break;
+            case Symbols::Kind::ENUM:
+                addEnum(symbol, scopeName);
                 break;
             default:
                 // Fall back to generic handling

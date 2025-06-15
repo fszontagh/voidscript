@@ -121,6 +121,19 @@ class DeclareVariableStatementNode : public StatementNode {
                     // Just manually set the type to CLASS on the existing null value
                     value.setType(Symbols::Variables::Type::CLASS);
                 }
+            } else if (variableType_ == Symbols::Variables::Type::ENUM) {
+                // For enum types, allow integer values to be assigned (since enum values are integers)
+                if (value.getType() != Symbols::Variables::Type::ENUM &&
+                    value.getType() != Symbols::Variables::Type::INTEGER &&
+                    value.getType() != Symbols::Variables::Type::NULL_TYPE) {
+                    std::string expected = Symbols::Variables::TypeToString(variableType_);
+                    std::string actual = Symbols::Variables::TypeToString(value.getType());
+                    throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
+                                        "' but got '" + actual + "' in scope '" + ns + "'",
+                                    filename_, line_, column_);
+                }
+                // Don't try to convert types - just allow the assignment as-is
+                // Enum variables can store integer values since enums are internally integers
             } else if (value.getType() != variableType_) {
                 std::string expected = Symbols::Variables::TypeToString(variableType_);
                 std::string actual = Symbols::Variables::TypeToString(value.getType());

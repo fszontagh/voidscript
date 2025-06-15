@@ -69,6 +69,7 @@ class Parser {
     size_t                            current_token_index_;
     std::string                       current_filename_;
     std::set<std::string>             parsed_class_names_;  // Track class names encountered during parsing
+    std::set<std::string>             parsed_enum_names_;   // Track enum names encountered during parsing
 
     // Validation functions
     void validateTokenStream();

@@ -8,7 +8,7 @@ const std::vector<std::string> OPERATOR_ASSIGNMENT = { "=", "+=", "-=", "*=", "/
 const std::vector<std::string> OPERATOR_LOGICAL    = { "&&", "||" };
 
 const std::vector<std::string> OPERATOR_ARITHMETIC = { "+", "-", "*", "/", "%", "!" };
-const std::vector<std::string> PUNCTUATION         = { "(", ")", "{", "}", "[", "]", ",", ";", ":", "->" };
+const std::vector<std::string> PUNCTUATION         = { "(", ")", "{", "}", "[", "]", ",", ";", ":", "->", "." };
 
 bool isUnaryOperator(const std::string & op) {
     return op == "+" || op == "-" || op == "!";

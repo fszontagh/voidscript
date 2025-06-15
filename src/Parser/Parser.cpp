@@ -123,17 +123,26 @@ void Parser::parseVariableDefinition() {
     // Corrected: ns should be the pure scope name, not combined with sub-namespace here.
     const auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
 
-    expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");
-
-    auto expr = parseParsedExpression(var_type);
-    
-    // Generate both Declaration and Assignment operations for variable declarations with initializers
-    Interpreter::OperationsFactory::defineVariableWithExpression(var_name, var_type, expr, ns, current_filename_,
-                                                                 id_token.line_number, id_token.column_number);
-    
-    // Also generate an Assignment operation to actually assign the value
-    Interpreter::OperationsFactory::assignVariable(var_name, expr, ns, current_filename_,
-                                                   id_token.line_number, id_token.column_number);
+    // Check if there's an assignment or just a declaration
+    if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
+        // Variable with initialization
+        auto expr = parseParsedExpression(var_type);
+        
+        // Generate both Declaration and Assignment operations for variable declarations with initializers
+        Interpreter::OperationsFactory::defineVariableWithExpression(var_name, var_type, expr, ns, current_filename_,
+                                                                     id_token.line_number, id_token.column_number);
+        
+        // Also generate an Assignment operation to actually assign the value
+        Interpreter::OperationsFactory::assignVariable(var_name, expr, ns, current_filename_,
+                                                       id_token.line_number, id_token.column_number);
+    } else {
+        // Variable declaration without initialization
+        std::unique_ptr<Interpreter::DeclareVariableStatementNode> stmt =
+            std::make_unique<Interpreter::DeclareVariableStatementNode>(var_name, ns, var_type, nullptr, current_filename_,
+                                                                        id_token.line_number, id_token.column_number);
+        Operations::Container::instance()->add(
+            ns, Operations::Operation{ Operations::Type::Declaration, var_name, std::move(stmt) });
+    }
     
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
@@ -474,9 +483,10 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         return parseSwitchStatement();
     }
     // <<< ADD VARIABLE DEFINITION CHECK HERE >>>
-    // Check if current token is a known type keyword OR a registered class identifier
+    // Check if current token is a known type keyword OR a registered class/enum identifier
     bool       is_type_keyword   = (Parser::variable_types.find(currentTokenType) != Parser::variable_types.end());
     bool       is_class_name     = false;
+    bool       is_enum_name      = false;
 
     if (currentTokenType == Lexer::Tokens::Type::IDENTIFIER &&
         peekTokenType == Lexer::Tokens::Type::VARIABLE_IDENTIFIER &&
@@ -485,8 +495,19 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
         is_class_name = true;
     }
 
+    // Check for enum names
+    if (currentTokenType == Lexer::Tokens::Type::IDENTIFIER) {
+        const std::string typeName = currentToken().value;
+        if (parsed_enum_names_.count(typeName) ||
+            parsed_enum_names_.count(
+                Symbols::SymbolContainer::instance()->currentScopeName() +
+                Symbols::SymbolContainer::SCOPE_SEPARATOR + typeName)) {
+            is_enum_name = true;
+        }
+    }
+
     // Handle variable declarations with optional array syntax
-    if (is_type_keyword || is_class_name) {
+    if (is_type_keyword || is_class_name || is_enum_name) {
         size_t lookahead_offset = 1; // Start after the type keyword
 
         // Check for optional array syntax: type[]
@@ -1117,9 +1138,34 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
                 // ERROR: Bare 'this' usage is not allowed in new VoidScript syntax
                 reportError("Bare 'this' keyword is not allowed. Use '$this' instead for class member access.", token);
             } else if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
-                // Regular identifier handling
-                output_queue.push_back(ParsedExpression::makeVariable(token.value, this->current_filename_, token.line_number, token.column_number));
-                consumeToken();
+                // Check for enum dot notation: EnumName.VALUE
+                if (!isAtEnd() && peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == ".") {
+                    // Look ahead to see if there's another identifier after the dot
+                    if (current_token_index_ + 2 < tokens_.size() &&
+                        tokens_[current_token_index_ + 2].type == Lexer::Tokens::Type::IDENTIFIER) {
+                        
+                        std::string enumName = token.value;
+                        auto enumToken = token; // Save the enum token for location info
+                        consumeToken(); // consume enum name
+                        consumeToken(); // consume '.'
+                        auto valueToken = expect(Lexer::Tokens::Type::IDENTIFIER);
+                        std::string valueName = valueToken.value;
+                        
+                        // Create enum access expression
+                        output_queue.push_back(ParsedExpression::makeEnumAccess(enumName, valueName,
+                                                                               this->current_filename_,
+                                                                               enumToken.line_number,
+                                                                               enumToken.column_number));
+                    } else {
+                        // Regular identifier handling
+                        output_queue.push_back(ParsedExpression::makeVariable(token.value, this->current_filename_, token.line_number, token.column_number));
+                        consumeToken();
+                    }
+                } else {
+                    // Regular identifier handling
+                    output_queue.push_back(ParsedExpression::makeVariable(token.value, this->current_filename_, token.line_number, token.column_number));
+                    consumeToken();
+                }
             } else {
                 if (Lexer::pushOperand(token, expected_var_type, output_queue, this->current_filename_) == false) {
                     Parser::reportError("Invalid type", token, "literal or variable");
@@ -1239,12 +1285,27 @@ Symbols::Variables::Type Parser::parseType() {
         }
         return baseType;
     }
-    // User-defined class types: if identifier names a registered class, return CLASS; otherwise OBJECT
+    // User-defined class and enum types: if identifier names a registered class/enum, return appropriate type
     if (token.type == Lexer::Tokens::Type::IDENTIFIER) {
-        // Capture the identifier value as potential class name
+        // Capture the identifier value as potential class/enum name
         const std::string typeName = token.value;
 
-        // First check if this was a class name we parsed during this session
+        // First check if this was an enum name we parsed during this session
+        if (parsed_enum_names_.count(typeName) ||
+            (Symbols::SymbolContainer::instance()->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + typeName).length() > 0 && // Ensure not empty
+            parsed_enum_names_.count(Symbols::SymbolContainer::instance()->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + typeName) ) {
+            consumeToken(); // Consume enum name
+             // Check for array type syntax: EnumName[]
+            if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+                peekToken().type == Lexer::Tokens::Type::PUNCTUATION && peekToken().value == "]") {
+                    consumeToken(); // '['
+                    consumeToken(); // ']'
+                return Symbols::Variables::Type::OBJECT;
+            }
+            return Symbols::Variables::Type::ENUM;
+        }
+
+        // Then check if this was a class name we parsed during this session
         if (parsed_class_names_.count(typeName) ||
             (Symbols::SymbolContainer::instance()->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + typeName).length() > 0 && // Ensure not empty
             parsed_class_names_.count(Symbols::SymbolContainer::instance()->currentScopeName() + Symbols::SymbolContainer::SCOPE_SEPARATOR + typeName) ) {
@@ -1716,12 +1777,17 @@ void Parser::parseTopLevelStatement() {
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
     }
-    // Variable definition with a type keyword or a class name (with optional array syntax)
+    // Variable definition with a type keyword, class name, or enum name (with optional array syntax)
     else if (Parser::variable_types.find(token_type) != Parser::variable_types.end() ||
               (token_type == Lexer::Tokens::Type::IDENTIFIER &&
                (Symbols::SymbolContainer::instance()->hasClass(token_val) ||
                 // Try with namespace prefix as well
                 Symbols::SymbolContainer::instance()->hasClass(
+                    Symbols::SymbolContainer::instance()->currentScopeName() +
+                    Symbols::SymbolContainer::SCOPE_SEPARATOR + token_val) ||
+                // Check for enum names
+                parsed_enum_names_.count(token_val) ||
+                parsed_enum_names_.count(
                     Symbols::SymbolContainer::instance()->currentScopeName() +
                     Symbols::SymbolContainer::SCOPE_SEPARATOR + token_val)))) {
         
@@ -1889,6 +1955,14 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseEnumDeclaration() {
     auto enumKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_ENUM);
     auto enumNameToken = expect(Lexer::Tokens::Type::IDENTIFIER);
     std::string enumName = enumNameToken.value;
+
+    // Register this enum name for parseType to recognize it as ENUM type
+    parsed_enum_names_.insert(enumName);
+    
+    // Also register with current namespace prefix
+    const std::string fileNs = Symbols::SymbolContainer::instance()->currentScopeName();
+    const std::string fqEnumName = fileNs.empty() ? enumName : fileNs + Symbols::SymbolContainer::SCOPE_SEPARATOR + enumName;
+    parsed_enum_names_.insert(fqEnumName);
 
     expect(Lexer::Tokens::Type::PUNCTUATION, "{");
 
@@ -2078,11 +2152,15 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseVariableDefinitionNode(
     std::string var_name = Parser::Parser::parseIdentifierName(id_token);             // Add this->
     const auto  ns       = Symbols::SymbolContainer::instance()->currentScopeName();  // Use current scope
 
-    this->expect(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=");                      // Add this->
-
-    auto expr         = this->parseParsedExpression(var_type);                        // Add this->
-    // Build expression node FIRST
-    auto initExprNode = buildExpressionFromParsed(expr);  // No 'this->' needed for static/global helper
+    std::unique_ptr<Interpreter::ExpressionNode> initExprNode = nullptr;
+    
+    // Check if there's an assignment or just a declaration
+    if (this->match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
+        // Variable with initialization
+        auto expr = this->parseParsedExpression(var_type);
+        // Build expression node
+        initExprNode = buildExpressionFromParsed(expr);
+    }
 
     // Consume the semicolon
     this->expect(Lexer::Tokens::Type::PUNCTUATION, ";");  // Add this->
