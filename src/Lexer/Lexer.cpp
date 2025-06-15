@@ -111,7 +111,13 @@ Lexer::Tokens::Token Lexer::Lexer::createToken(Tokens::Type type, size_t start, 
     token.column_number = col();
     if (start <= end && end <= input().length()) {
         token.lexeme = std::string_view(input()).substr(start, end - start);
-        token.value  = value.empty() ? std::string(token.lexeme) : value;
+        // For string literals, always use the provided value (even if empty)
+        // For other tokens, fall back to lexeme if no value provided
+        if (type == Tokens::Type::STRING_LITERAL) {
+            token.value = value;
+        } else {
+            token.value = value.empty() ? std::string(token.lexeme) : value;
+        }
     }
     return token;
 }
