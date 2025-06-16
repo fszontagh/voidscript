@@ -24,12 +24,7 @@ class VariableExpressionNode : public ExpressionNode {
         auto* sc = Symbols::SymbolContainer::instance();
         auto symbol = sc->getVariable(variableName_);
         
-        // DEBUG: Print lookup information
-        std::cerr << "VariableExpressionNode: looking up variable '" << variableName_
-                  << "' in current scope '" << sc->currentScopeName() << "'" << std::endl;
-        
         if (!symbol) {
-            std::cerr << "VariableExpressionNode: variable '" << variableName_ << "' not found!" << std::endl;
             throw std::runtime_error("Undefined variable name: " + variableName_);
         }
         return symbol->getValue();

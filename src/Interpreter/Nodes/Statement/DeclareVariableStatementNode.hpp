@@ -52,10 +52,6 @@ class DeclareVariableStatementNode : public StatementNode {
             // not the parse-time scope stored in ns member variable
             std::string target_scope_name = sc->currentScopeName();
             auto        targetTable       = sc->getScopeTable(target_scope_name);
-            
-            // DEBUG: Print scope information
-            std::cerr << "DeclareVariableStatementNode: declaring variable '" << variableName_
-                      << "' in scope '" << target_scope_name << "' (parse-time ns was: '" << ns << "')" << std::endl;
 
             if (!targetTable) {
                 // This should ideally not happen if parser/caller creates scopes correctly

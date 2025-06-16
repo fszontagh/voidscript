@@ -60,11 +60,6 @@ class MemberExpressionNode : public ExpressionNode {
                     std::string actualPropertyName;
                     bool propertyFound = false;
                     
-                    // Debug: Print what we're checking
-                    // std::cerr << "DEBUG: Checking property '" << propertyName_ << "' in class '" << className << "'" << std::endl;
-                    // std::cerr << "DEBUG: hasProperty('" << propertyName_ << "'): " << sc->hasProperty(className, propertyName_) << std::endl;
-                    // std::cerr << "DEBUG: hasProperty('$" << propertyName_ << "'): " << sc->hasProperty(className, "$" + propertyName_) << std::endl;
-                    
                     // Check if property is registered (either direct name or $-prefixed)
                     if (sc->hasProperty(className, propertyName_)) {
                         actualPropertyName = propertyName_;

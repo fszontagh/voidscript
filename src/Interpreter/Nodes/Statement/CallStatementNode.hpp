@@ -93,12 +93,6 @@ class CallStatementNode : public StatementNode {
             std::string unique_call_scope_name = canonical_fn_scope_name + Symbols::SymbolContainer::CALL_SCOPE +
                                                  std::to_string(Interpreter::get_unique_call_id());
 
-            // DEBUG: Print scope information
-            std::cerr << "CallStatementNode: function '" << functionName_ << "'" << std::endl;
-            std::cerr << "  funcSym->context(): '" << funcSym->context() << "'" << std::endl;
-            std::cerr << "  canonical_fn_scope_name: '" << canonical_fn_scope_name << "'" << std::endl;
-            std::cerr << "  unique_call_scope_name: '" << unique_call_scope_name << "'" << std::endl;
-
             sc->create(unique_call_scope_name);  // Creates and enters the new unique scope
 
             // Bind parameters in the unique call scope
@@ -112,7 +106,6 @@ class CallStatementNode : public StatementNode {
 
             // Operations are associated with the canonical function name
             auto ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
-            std::cerr << "  Found " << ops.size() << " operations for scope '" << canonical_fn_scope_name << "'" << std::endl;
             for (const auto & op : ops) {
                 interpreter.runOperation(*op);  // These operations will use the current unique_call_scope_name
             }

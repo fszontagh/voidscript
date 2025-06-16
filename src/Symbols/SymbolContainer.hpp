@@ -1,6 +1,7 @@
 #ifndef SYMBOL_CONTAINER_HPP
 #define SYMBOL_CONTAINER_HPP
 
+#include <algorithm> // For std::find
 #include <atomic>  // Required for std::atomic
 #include <functional>
 #include <iostream> // For std::cerr, std::endl
@@ -133,9 +134,7 @@ class SymbolContainer {
             throw std::invalid_argument("Initial scope name for SymbolContainer cannot be empty.");
         }
         if (is_initialized_for_singleton_) {
-            // Log re-initialization, but allow it for now. Could be an error in stricter scenarios.
-            std::cerr << "Warning: SymbolContainer already initialized. Re-initializing with scope: "
-                      << initial_scope_name << '\n';
+            // Allow re-initialization for now. Could be an error in stricter scenarios.
         }
         initial_scope_name_for_singleton_ = initial_scope_name;
         is_initialized_for_singleton_     = true;
@@ -199,11 +198,49 @@ class SymbolContainer {
     }
 
     /**
+     * @brief Validate and cleanup scope stack integrity after corruption is detected
+     * @param expectedScope The scope that should have been at the top of the stack
+     */
+    void validateAndCleanupScopeStack(const std::string & expectedScope) {
+        // Find the expected scope in the stack
+        auto it = std::find(scopeStack_.rbegin(), scopeStack_.rend(), expectedScope);
+        if (it != scopeStack_.rend()) {
+            // Found the scope, remove everything above it (including itself)
+            auto forward_it = it.base() - 1; // Convert reverse iterator to forward iterator
+            scopeStack_.erase(forward_it, scopeStack_.end());
+        } else {
+            // In severe corruption, just remove the top scope
+            if (!scopeStack_.empty()) {
+                scopeStack_.pop_back();
+            }
+        }
+    }
+
+    /**
+     * @brief Enhanced enterPreviousScope with validation
+     */
+    bool enterPreviousScopeWithValidation(const std::string & expectedCurrentScope = "") {
+        if (scopeStack_.size() <= 1) {
+            return false;
+        }
+        
+        if (!expectedCurrentScope.empty() && currentScopeName() != expectedCurrentScope) {
+            return false;
+        }
+        
+        scopeStack_.pop_back();
+        return true;
+    }
+
+    /**
      * @brief Get the name of the current scope.
      * @return Current scope name.
      */
     [[nodiscard]] std::string currentScopeName() const {
-        return scopeStack_.empty() ? std::string() : scopeStack_.back();
+        if (scopeStack_.empty()) {
+            return std::string();
+        }
+        return scopeStack_.back();
     }
 
     std::vector<std::string> getScopeNames() const {

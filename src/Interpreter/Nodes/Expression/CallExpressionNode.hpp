@@ -126,7 +126,14 @@ class CallExpressionNode : public ExpressionNode {
                     break;
                 }
             }
-            sc->enterPreviousScope();  // Exit unique_call_scope_name
+            // Exit unique_call_scope_name with validation
+            std::string current_scope_before_exit = sc->currentScopeName();
+            if (current_scope_before_exit == unique_call_scope_name) {
+                sc->enterPreviousScope();
+            } else {
+                // Scope stack corruption detected - attempt to recover
+                sc->validateAndCleanupScopeStack(unique_call_scope_name);
+            }
             if (returnValue != retType) {
                 throw std::runtime_error("Function " + functionName_ + " expected return type is " +
                                          Symbols::Variables::TypeToString(retType) + " got " +
