@@ -52,7 +52,8 @@ class ForStatementNode : public StatementNode {
         try {
             auto *symContainer = Symbols::SymbolContainer::instance();
             
-            // Evaluate the iterable expression
+            // IMPORTANT: Evaluate the iterable expression FIRST, before creating any new scopes
+            // This ensures that function parameters (like $class) can be found in the current scope
             Symbols::ValuePtr iterableVal = iterableExpr_->evaluate(interpreter);
             
             if (iterableVal != Symbols::Variables::Type::OBJECT) {
@@ -62,11 +63,13 @@ class ForStatementNode : public StatementNode {
             const Symbols::ObjectMap & objMap = iterableVal;
 
             // Build loop scope name based on current runtime scope, not parse-time scope
-            std::string runtime_loop_scope = symContainer->currentScopeName() + 
+            std::string runtime_loop_scope = symContainer->currentScopeName() +
                                             Symbols::SymbolContainer::SCOPE_SEPARATOR + "for_" +
                                             std::to_string(line_) + "_" + std::to_string(column_);
 
-            // Create and enter the loop scope only once
+            // Create and enter the loop scope
+            // The scope creation automatically maintains the scope stack hierarchy,
+            // which preserves access to parent scopes (including function call scopes with parameters)
             if (!symContainer->getScopeTable(runtime_loop_scope)) {
                 symContainer->create(runtime_loop_scope);
                 entered_scope = true;

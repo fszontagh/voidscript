@@ -47,15 +47,19 @@ class DeclareVariableStatementNode : public StatementNode {
 
             auto * sc = Symbols::SymbolContainer::instance();
 
-            // Use the CURRENT scope from SymbolContainer for definitions and checks
-            // For variable declaration, ns member should be the target scope.
-            // currentScopeName() might be different if this node is part of a function body being parsed by an inner parser.
-            std::string current_runtime_scope_name = sc->currentScopeName(); // Use actual runtime scope to detect loops
-            auto        targetTable                = sc->getScopeTable(ns); // But still declare in original scope
+            // ALWAYS use the current runtime scope for variable declarations
+            // This ensures that variables declared inside functions go to the function's runtime scope,
+            // not the parse-time scope stored in ns member variable
+            std::string target_scope_name = sc->currentScopeName();
+            auto        targetTable       = sc->getScopeTable(target_scope_name);
+            
+            // DEBUG: Print scope information
+            std::cerr << "DeclareVariableStatementNode: declaring variable '" << variableName_
+                      << "' in scope '" << target_scope_name << "' (parse-time ns was: '" << ns << "')" << std::endl;
 
             if (!targetTable) {
                 // This should ideally not happen if parser/caller creates scopes correctly
-                throw Exception("Target scope '" + ns +
+                throw Exception("Target scope '" + target_scope_name +
                                     "' for variable declaration does not exist",
                                 filename_, line_, column_);
             }
@@ -64,14 +68,14 @@ class DeclareVariableStatementNode : public StatementNode {
             auto existing_var = targetTable->get(Symbols::SymbolContainer::DEFAULT_VARIABLES_SCOPE, variableName_);
             if (existing_var) {
                 // If we're in a loop scope (current runtime scope name contains "for_" or "while_"), allow redeclaration
-                if (current_runtime_scope_name.find("for_") != std::string::npos ||
-                    current_runtime_scope_name.find("while_") != std::string::npos) {
+                if (target_scope_name.find("for_") != std::string::npos ||
+                    target_scope_name.find("while_") != std::string::npos) {
                     // Update the existing variable's value
                     existing_var->setValue(value);
                     return;
                 }
                 throw Exception(
-                    "Variable '" + variableName_ + "' already declared in scope '" + ns + "'",
+                    "Variable '" + variableName_ + "' already declared in scope '" + target_scope_name + "'",
                     filename_, line_, column_);
             }
 
@@ -79,7 +83,7 @@ class DeclareVariableStatementNode : public StatementNode {
                 targetTable->get(Symbols::SymbolContainer::DEFAULT_CONSTANTS_SCOPE, variableName_);
             if (existing_const_check) {
                 throw Exception(
-                    "Cannot redefine constant '" + variableName_ + "' in scope '" + ns + "'",
+                    "Cannot redefine constant '" + variableName_ + "' in scope '" + target_scope_name + "'",
                     filename_, line_, column_);
             }
 
@@ -96,7 +100,7 @@ class DeclareVariableStatementNode : public StatementNode {
                     std::string expected = Symbols::Variables::TypeToString(variableType_);
                     std::string actual = Symbols::Variables::TypeToString(value.getType());
                     throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
-                                        "' but got '" + actual + "' in scope '" + ns + "'",
+                                        "' but got '" + actual + "' in scope '" + target_scope_name + "'",
                                     filename_, line_, column_);
                 }
                 
@@ -129,7 +133,7 @@ class DeclareVariableStatementNode : public StatementNode {
                     std::string expected = Symbols::Variables::TypeToString(variableType_);
                     std::string actual = Symbols::Variables::TypeToString(value.getType());
                     throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
-                                        "' but got '" + actual + "' in scope '" + ns + "'",
+                                        "' but got '" + actual + "' in scope '" + target_scope_name + "'",
                                     filename_, line_, column_);
                 }
                 // Don't try to convert types - just allow the assignment as-is
@@ -138,7 +142,7 @@ class DeclareVariableStatementNode : public StatementNode {
                 std::string expected = Symbols::Variables::TypeToString(variableType_);
                 std::string actual = Symbols::Variables::TypeToString(value.getType());
                 throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
-                                    "' but got '" + actual + "' in scope '" + ns + "'",
+                                    "' but got '" + actual + "' in scope '" + target_scope_name + "'",
                                 filename_, line_, column_);
             }
 
@@ -148,12 +152,12 @@ class DeclareVariableStatementNode : public StatementNode {
             std::shared_ptr<Symbols::Symbol> symbol_to_define;
             if (isConst_) {
                 symbol_to_define =
-                    Symbols::SymbolFactory::createConstant(variableName_, value, ns);
-                sc->addConstant(symbol_to_define, ns); // Explicit scope
+                    Symbols::SymbolFactory::createConstant(variableName_, value, target_scope_name);
+                sc->addConstant(symbol_to_define, target_scope_name); // Use current scope
             } else {
                 symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value,
-                                                                          ns, variableType_);
-                sc->addVariable(symbol_to_define, ns); // Explicit scope
+                                                                          target_scope_name, variableType_);
+                sc->addVariable(symbol_to_define, target_scope_name); // Use current scope
             }
 
         } catch (const Exception &) {

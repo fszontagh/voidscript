@@ -20,10 +20,18 @@ class VariableExpressionNode : public ExpressionNode {
         ns(std::move(ns)) {}
 
     Symbols::ValuePtr evaluate(Interpreter & /*interpreter*/, std::string /*filename*/ = "", int /*line*/ = 0, size_t /*column*/ = 0) const override {
-        if (!Symbols::SymbolContainer::instance()->exists(variableName_)) {
+        // Use getVariable which already handles scope traversal from innermost to outermost
+        auto* sc = Symbols::SymbolContainer::instance();
+        auto symbol = sc->getVariable(variableName_);
+        
+        // DEBUG: Print lookup information
+        std::cerr << "VariableExpressionNode: looking up variable '" << variableName_
+                  << "' in current scope '" << sc->currentScopeName() << "'" << std::endl;
+        
+        if (!symbol) {
+            std::cerr << "VariableExpressionNode: variable '" << variableName_ << "' not found!" << std::endl;
             throw std::runtime_error("Undefined variable name: " + variableName_);
         }
-        auto symbol = Symbols::SymbolContainer::instance()->get(ns, variableName_);
         return symbol->getValue();
     }
 

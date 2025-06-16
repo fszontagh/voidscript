@@ -35,7 +35,7 @@ class WhileStatementNode : public StatementNode {
             auto* sc = Symbols::SymbolContainer::instance();
 
             // Build loop scope name based on current runtime scope, not parse-time scope
-            std::string runtime_loop_scope = sc->currentScopeName() + 
+            std::string runtime_loop_scope = sc->currentScopeName() +
                                            Symbols::SymbolContainer::SCOPE_SEPARATOR + "while_" +
                                            std::to_string(line_) + "_" + std::to_string(column_);
 

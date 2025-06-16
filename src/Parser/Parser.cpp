@@ -328,9 +328,6 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
         keyType, keyName, valName, std::move(iterableExprNode), std::move(body), currentScope,  // <-- Pass loopScope
         this->current_filename_, forToken.line_number, forToken.column_number);
 
-    // Exit the loop scope (for subsequent parsing)
-    Symbols::SymbolContainer::instance()->enterPreviousScope();
-
     return forNode;
 }
 
