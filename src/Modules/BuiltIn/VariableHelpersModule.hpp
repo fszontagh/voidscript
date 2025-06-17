@@ -23,7 +23,7 @@ namespace Modules {
  */
 class VariableHelpersModule : public BaseModule {
   private:
-    static std::string var_dump_recursive(const Symbols::ValuePtr & value, int indent_level, int max_depth = 5) {
+    static std::string var_dump_recursive(const Symbols::ValuePtr & value, int indent_level, int max_depth = 20) {
         // Prevent infinite recursion
         if (indent_level > max_depth) {
             return std::string(indent_level * 2, ' ') + "...[max depth reached]\n";

@@ -1,155 +1,117 @@
-#!/usr/bin/env voidscript
-printnl("=== VoidScript Documentation Generator ===");
-
-string $docs_dir = "generated_docs";
 
 if (!isset($argv[1])) {
-    error("Usage: ", $argv[0], " target_dir");
+    error("Usage: ", $argv[0], " target_directory");
     exit(1);
 }
 
-$docs_dir = $argv[1];
+string $target_directory = $argv[1];
 
-printnl("Generating documentation in directory: ", $docs_dir);
-
-// Create main documentation directory
-if (!file_exists($docs_dir)) {
-    printnl("Creating documentation directory: ", $docs_dir);
-    mkdir($docs_dir, true);
+if (file_exists($target_directory)) {
+    mkdir($target_directory);
 }
 
-// Create subdirectories for builtin and dynamic modules
-string $builtin_dir = $docs_dir + "/builtin_modules";
-string $dynamic_dir = $docs_dir + "/dynamic_modules";
+function formatFunctions(string[] $functions) string {
+    string $doc_output = "##### Functions  \n";
+    for (string $function : $functions) {
+        $doc_output+= "######  " + $function + " \n";
+        object $finfo  = get_function_details($function);
+        //print(var_dump($finfo));
+        $doc_output+= $finfo["description"] + "\n";
 
-if (!file_exists($builtin_dir)) {
-    mkdir($builtin_dir, true);
-}
+        $doc_output+= format("```void\n{}(", $function);
+        for (object $param : $finfo["parameters"]) {
+            $doc_output+="\$"+$param["name"] + ",";
+        }
+        $doc_output = string_substr($doc_output,0, string_length($doc_output)-1);
+        $doc_output+=")";
+        $doc_output+= format(" -> {} \n```\n",$finfo["return_type"]);
 
-if (!file_exists($dynamic_dir)) {
-    mkdir($dynamic_dir, true);
-    printnl("Documentation directories created.");
-}
+        if (sizeof($finfo["parameters"])>0) {
+            $doc_output+="\n**Parameters:**  \n";
 
-// Function to generate markdown content for a module
-function generateModuleMarkdown(string $module_name, object $info) string {
-    string $content = "# " + $module_name + "\n\n";
-    
-    // Add classes section
-    if (!is_null($info["classes"]) && typeof($info["classes"]) == "object") {
-        $content = $content + "## Classes\n\n";
-        // Note: This may still have iteration issues, but we'll handle what we can
-        for (string $class_name, object $class : $info["classes"]) {
-            $content = $content + "### " + $class_name + "\n\n";
-            
-            // Add methods if available
-            if (!is_null($class["methods"]) && typeof($class["methods"]) == "object") {
-                $content = $content + "**Methods:**\n";
-                for (string $method_name, object $method : $class["methods"]) {
-                    string $params = "";
-                    if (!is_null($method["parameters"])) {
-                        $params = $method["parameters"];
-                    }
-                    string $return_type = "";
-                    if (!is_null($method["return_type"])) {
-                        $return_type = ": " + $method["return_type"];
-                    }
-                    $content = $content + "- `" + $method_name + "(" + $params + ")" + $return_type + "`\n";
+            for (object $param : $finfo["parameters"]) {
+                $doc_output+="- `\$"+$param["name"]+"`";
+                if ($param["optional"] == true)  {
+                    $doc_output+= " *optional* ";
                 }
-                $content = $content + "\n";
+                $doc_output+= " `" + $param["type"] + "` \n";
+                $doc_output+=" *" + $param["description"] + "*  \n";
             }
         }
+
+        $doc_output+= format("\n**Return type:** `{}`\n", $finfo["return_type"]);
     }
-    
-    // Add functions section
-    if (!is_null($info["functions"]) && typeof($info["functions"]) == "object") {
-        $content = $content + "## Functions\n\n";
-        for (string $function_name, object $function : $info["functions"]) {
-            string $params = "";
-            if (!is_null($function["parameters"])) {
-                $params = $function["parameters"];
+    return $doc_output;
+}
+
+function formatClasses(string[] $classes) string {
+    string $doc_output = "### Classes  \n";
+    for (string $class : $classes) {
+        $doc_output+="#### "+$class+"  \n";
+        //print(var_dump(get_class_details($class)));
+        object $class_details = get_class_details($class);
+        $doc_output+= "##### Methods  \n";
+
+        for (string $method : $class_details["methods"]) {
+            object $method_detail = get_method_details($class, $method);
+            
+            
+            $doc_output+= "######  " + $method_detail["qualified_name"] + " \n";
+            $doc_output+= $method_detail["description"]+"  \n";
+            $doc_output+= "```void\n";
+
+            $doc_output+= format("{}->{}(", $method_detail["class"], $method_detail["name"]);
+            if (sizeof($method_detail["parameters"])>0) {
+                for (object $param : $method_detail["parameters"]){
+                    $doc_output+=format("{} ",$param["type"]);
+                    $doc_output+="\$"+$param["name"] + ",";
+                }
+                $doc_output = string_substr($doc_output, 0, string_length($doc_output) - 1);
             }
-            string $return_type = "";
-            if (!is_null($function["return_type"])) {
-                $return_type = ": " + $function["return_type"];
+            $doc_output+= ")";
+            //print(var_dump($method_detail));
+            $doc_output+=" -> " + $method_detail["return_type"]+" ";
+            $doc_output+="\n```\n";
+
+            if (sizeof($method_detail["parameters"])>0) {
+                $doc_output+="\n**Parameters:**  \n";
+
+                for (object $param : $method_detail["parameters"]) {
+                    $doc_output+="- `\$"+$param["name"]+"`";
+                    if ($param["optional"] == true)  {
+                        $doc_output+= " *optional* ";
+                    }
+                    $doc_output+= " `" + $param["type"] + "` \n";
+                    $doc_output+=" *" + $param["description"] + "*  \n";
+                }
             }
-            $content = $content + "- `" + $function_name + "(" + $params + ")" + $return_type + "`\n";
+            $doc_output+= format("\n**Return type:** `{}`\n", $method_detail["return_type"]);
         }
-        $content = $content + "\n";
+
     }
-    
-    // Add constants section
-    if (!is_null($info["constants"]) && typeof($info["constants"]) == "object") {
-        $content = $content + "## Constants\n\n";
-        for (string $const_name, string $const_value : $info["constants"]) {
-            $content = $content + "- `" + $const_name + ": " + $const_value + "`\n";
-        }
-        $content = $content + "\n";
-    }
-    
-    return $content;
+
+    return $doc_output;
 }
 
-// Function to determine if a module is built-in or dynamic
-function isBuiltinModule(string $module_name) bool {
-    // List of known built-in modules (without "Module" suffix)
-    string[] $builtin_modules = ["Array", "String", "File", "Json", "Print", "Conversion", "VariableHelpers", "ModuleHelper"];
-    
-    for (int $i = 0; $i < sizeof($builtin_modules); $i++) {
-        if ($module_name == $builtin_modules[$i]) {
-            return true;
-        }
+string[] $modules = list_modules();
+
+for (string $module : $modules) {
+    string $md_filename = $target_directory + "/" + $module + ".md";
+    string $doc_output = format("# {} module\n", $module);
+
+    string[] $functions = list_module_functions($module);
+
+    if (sizeof($functions)>0) {
+        $doc_output+=formatFunctions($functions);
     }
-    return false;
+
+    string[] $classes = list_module_classes($module);
+    if (sizeof($classes)>0) {
+        $doc_output+=formatClasses($classes);
+    }
+
+    file_put_contents($md_filename, $doc_output, true);
+    printnl("Module docs written into: ", $md_filename);
+
 }
 
-// Function to write documentation file
-function writeDocumentationFile(string $file_path, string $content) {
-    file_put_contents($file_path, $content, true);
-    printnl("  Generated: ", $file_path);
-}
-
-printnl("Analyzing modules...");
-
-// Hardcoded list of known module names to work around module_list() iteration bug
-string[] $builtin_modules = ["Array", "String", "File", "Json", "Print", "Conversion", "VariableHelpers", "ModuleHelper"];
-string[] $dynamic_modules = ["Curl", "Format", "Imagick", "MariaDb", "Xml2"];
-
-// Combine all known modules (VoidScript doesn't support array append syntax)
-string[] $all_modules = ["Array", "String", "File", "Json", "Print", "Conversion", "VariableHelpers", "ModuleHelper", "Curl", "Format", "Imagick", "MariaDb", "Xml2"];
-
-// Generate documentation for each known module (using index-based loop to avoid for-each bug)
-string $module_name = "";
-for (int $i = 0; $i < sizeof($all_modules); $i++) {
-    $module_name = $all_modules[$i];
-    printnl("Processing module: ", $module_name);
-    
-    // Get module info with basic error handling
-    object $info = module_info($module_name);
-    
-    if (is_null($info)) {
-        printnl("  Warning: No information available for module: ", $module_name);
-        continue;
-    }
-    
-    // Generate markdown content
-    string $markdown_content = generateModuleMarkdown($module_name, $info);
-    
-    // Determine target directory based on module type
-    string $target_dir = "";
-    if (isBuiltinModule($module_name)) {
-        $target_dir = $builtin_dir;
-    } else {
-        $target_dir = $dynamic_dir;
-    }
-    string $file_path = $target_dir + "/" + $module_name + ".md";
-    
-    // Write the documentation file
-    writeDocumentationFile($file_path, $markdown_content);
-}
-
-printnl("\n=== Documentation Generation Complete ===");
-printnl("Documentation files generated in: ", $docs_dir);
-printnl("- Built-in modules: ", $builtin_dir);
-printnl("- Dynamic modules: ", $dynamic_dir);
-printnl("\nTo view the documentation, check the generated .md files in each directory.");

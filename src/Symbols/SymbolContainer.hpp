@@ -110,6 +110,9 @@ class SymbolContainer {
     // Function registry
     std::unordered_map<std::string, CallbackFunction> functions_;
     std::unordered_map<std::string, FunctionDoc>      functionDocs_;
+    
+    // Function-to-module mapping
+    std::unordered_map<std::string, Modules::BaseModule*> functionModules_;
 
     // Module storage by name
     std::unordered_map<std::string, Modules::BaseModulePtr> modules_;
@@ -1448,8 +1451,14 @@ public:
      * @param returnType Return type of the function
      */
     void registerFunction(const std::string & name, CallbackFunction callback,
-                          const Variables::Type & returnType = Variables::Type::NULL_TYPE) {
+                          const Variables::Type & returnType = Variables::Type::NULL_TYPE,
+                          Modules::BaseModule * module = nullptr) {
         functions_[name] = callback;
+        
+        // Store function-to-module mapping
+        if (module) {
+            functionModules_[name] = module;
+        }
 
         // Create documentation if it doesn't exist
         if (functionDocs_.find(name) == functionDocs_.end()) {
@@ -1527,6 +1536,31 @@ public:
         std::vector<std::string> names;
         for (const auto & [name, func] : functions_) {
             names.push_back(name);
+        }
+        return names;
+    }
+
+    /**
+     * @brief Get the module that registered a specific function
+     * @param functionName Name of the function
+     * @return Pointer to the module that registered the function, or nullptr if not found or no module associated
+     */
+    Modules::BaseModule * getFunctionModule(const std::string & functionName) const {
+        auto it = functionModules_.find(functionName);
+        return (it != functionModules_.end()) ? it->second : nullptr;
+    }
+
+    /**
+     * @brief Get all function names registered by a specific module
+     * @param module Pointer to the module
+     * @return Vector of function names registered by the module
+     */
+    std::vector<std::string> getFunctionNamesByModule(Modules::BaseModule * module) const {
+        std::vector<std::string> names;
+        for (const auto & [functionName, functionModule] : functionModules_) {
+            if (functionModule == module) {
+                names.push_back(functionName);
+            }
         }
         return names;
     }
