@@ -1,4 +1,3 @@
-// filepath: /home/fszontagh/soniscript/src/Interpreter/Nodes/Expression/MemberExpressionNode.hpp
 #ifndef INTERPRETER_MEMBER_EXPRESSION_NODE_HPP
 #define INTERPRETER_MEMBER_EXPRESSION_NODE_HPP
 

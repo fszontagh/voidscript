@@ -50,12 +50,9 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: soniscript-${{ matrix.os }}-${{ github.sha }}
+        name: voidscript-${{ matrix.os }}-${{ github.sha }}
         path: |
           build/*.deb
-          build/cli/soniscript*
-          build/compiler/soniscript-compiler*
-          build/fastcgi/soniscript-fcgi*
         retention-days: 30
         if-no-files-found: warn
 
@@ -119,6 +116,6 @@ jobs:
     - name: Upload release artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: soniscript-release-${{ steps.get_tag.outputs.tag }}
+        name: voidscript-release-${{ steps.get_tag.outputs.tag }}
         path: build/*.deb
         retention-days: 90

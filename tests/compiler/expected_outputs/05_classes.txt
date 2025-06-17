@@ -1,4 +1,0 @@
-Initial value: 10
-After adding 5: 15
-After multiplying by 2: 30
-Final value: 30

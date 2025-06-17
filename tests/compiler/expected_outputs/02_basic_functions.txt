@@ -1,4 +1,0 @@
-Hello, VoidScript!
-Sum: 8
-Product: 28
-Nested result: 9
