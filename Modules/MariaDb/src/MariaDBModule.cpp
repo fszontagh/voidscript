@@ -20,10 +20,10 @@ void MariaDBModule::registerFunctions() {
     REGISTER_CLASS(this->name());
 
     std::vector<Symbols::FunctionParameterInfo> params = {
-        { "host", Symbols::Variables::Type::STRING, "Database host to connect",  false },
-        { "user", Symbols::Variables::Type::STRING, "Username to authnenticate", false },
-        { "pass", Symbols::Variables::Type::STRING, "Password to authenticate",  false },
-        { "db",   Symbols::Variables::Type::STRING, "Database name",             false },
+        { "host", Symbols::Variables::Type::STRING, "Database host to connect", false },
+        { "user", Symbols::Variables::Type::STRING, "Username to authenticate", false },
+        { "pass", Symbols::Variables::Type::STRING, "Password to authenticate", false },
+        { "db",   Symbols::Variables::Type::STRING, "Database name",            false },
     };
 
     REGISTER_METHOD(
@@ -104,7 +104,7 @@ Symbols::ValuePtr MariaDBModule::query(FunctionArguments & args) {
 
     // Get connection handle using the new property management system
     auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto connIdProperty = symbolContainer->getObjectProperty(this->name(), "__conn_id__");
+    auto connIdProperty  = symbolContainer->getObjectProperty(this->name(), "__conn_id__");
     if (!connIdProperty) {
         throw std::runtime_error("MariaDB query: no valid connection");
     }
@@ -162,7 +162,7 @@ Symbols::ValuePtr MariaDBModule::close(FunctionArguments & args) {
 
     // Use the new property management system
     auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto connIdProperty = symbolContainer->getObjectProperty(this->name(), "__conn_id__");
+    auto connIdProperty  = symbolContainer->getObjectProperty(this->name(), "__conn_id__");
     if (connIdProperty) {
         int  handle = connIdProperty;
         auto connIt = connMap.find(handle);

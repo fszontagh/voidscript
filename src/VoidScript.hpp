@@ -12,6 +12,7 @@
 #include "Lexer/Lexer.hpp"
 #include "Modules/BuiltIn/ArrayModule.hpp"
 #include "Modules/BuiltIn/ConversionModule.hpp"
+#include "Modules/BuiltIn/DateTimeModule.hpp"
 #include "Modules/BuiltIn/FileModule.hpp"
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
@@ -209,6 +210,11 @@ class VoidScript {
         auto jsonModule = std::make_unique<Modules::JsonModule>();
         jsonModule->setModuleName("Json");
         symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(jsonModule)));
+        
+        // date/time functions
+        auto dateTimeModule = std::make_unique<Modules::DateTimeModule>();
+        dateTimeModule->setModuleName("DateTime");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(dateTimeModule)));
         
         // module helper functions (module_list, module_info, etc.)
         auto moduleHelperModule = std::make_unique<Modules::ModuleHelperModule>();
