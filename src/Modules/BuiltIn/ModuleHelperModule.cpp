@@ -64,9 +64,9 @@ void ModuleHelperModule::registerFunctions() {
     params = {
         { "class_name", Symbols::Variables::Type::STRING, "Name of the class", false, false }
     };
-    REGISTER_FUNCTION("get_class_info", Symbols::Variables::Type::OBJECT, params,
-                      "Get basic information about a class",
-                      ModuleHelperModule::GetClassInfo);
+    REGISTER_FUNCTION("get_class_details", Symbols::Variables::Type::OBJECT, params,
+                      "Get detailed information about a class",
+                      ModuleHelperModule::GetClassDetails);
 
     // Get method basic info
     params = {
@@ -84,6 +84,14 @@ void ModuleHelperModule::registerFunctions() {
     REGISTER_FUNCTION("get_module_summary", Symbols::Variables::Type::OBJECT, params,
                       "Get summary information about a module",
                       ModuleHelperModule::GetModuleSummary);
+
+    // Get module description
+    params = {
+        { "module_name", Symbols::Variables::Type::STRING, "Name of the module", false, false }
+    };
+    REGISTER_FUNCTION("get_module_description", Symbols::Variables::Type::STRING, params,
+                      "Get the description of a module",
+                      ModuleHelperModule::GetModuleDescription);
 
     // ===== 3. DETAILED INFO FUNCTIONS =====
     
@@ -224,7 +232,7 @@ Symbols::ObjectMap ModuleHelperModule::buildMethodDocumentation(const std::strin
     Symbols::ObjectMap docInfo;
     std::string qualifiedMethodName = className + Symbols::SymbolContainer::SCOPE_SEPARATOR + methodName;
     
-    // Try to get method documentation
+    // Try to get method documentation from the class registry (where native methods are stored)
     if (sc->hasClass(className) && sc->hasMethod(className, methodName)) {
         try {
             auto returnType = sc->getMethodReturnType(className, methodName);
@@ -236,7 +244,15 @@ Symbols::ObjectMap ModuleHelperModule::buildMethodDocumentation(const std::strin
             docInfo["return_type"] = Symbols::Variables::TypeToString(returnType);
             docInfo["is_private"] = sc->isMethodPrivate(className, methodName);
             docInfo["parameters"] = createParameterArray(parameters);
-            docInfo["description"] = "";  // Methods typically don't have separate descriptions
+            
+            // Retrieve method documentation from the class registry's method info
+            const auto & classInfo = sc->getClassInfo(className);
+            for (const auto & method : classInfo.methods) {
+                if (method.name == methodName) {
+                    docInfo["description"] = method.documentation.description;
+                    break;
+                }
+            }
             
         } catch (...) {
             // Method not found or error accessing method info
@@ -430,6 +446,7 @@ Symbols::ValuePtr ModuleHelperModule::GetModuleSummary(const FunctionArguments &
     
     Symbols::ObjectMap info;
     info["name"] = moduleName;
+    info["description"] = sc->getModuleDescription(moduleName);
     info["function_count"] = static_cast<int>(functionNames.size());
     info["class_count"] = static_cast<int>(classNames.size());
     info["is_built_in"] = true;  // All modules in our system are considered built-in
@@ -539,6 +556,7 @@ Symbols::ValuePtr ModuleHelperModule::GetModuleDetails(const FunctionArguments &
     
     Symbols::ObjectMap details;
     details["name"] = moduleName;
+    details["description"] = sc->getModuleDescription(moduleName);
     details["is_built_in"] = true;  // All modules in our system are considered built-in
     details["functions"] = createStringArray(functionNames);
     details["classes"] = createStringArray(classNames);
@@ -593,6 +611,22 @@ Symbols::ValuePtr ModuleHelperModule::MethodExists(const FunctionArguments & arg
     auto * sc = Symbols::SymbolContainer::instance();
     
     return Symbols::ValuePtr(sc->hasClass(className) && sc->hasMethod(className, methodName));
+}
+
+Symbols::ValuePtr ModuleHelperModule::GetModuleDescription(const FunctionArguments & args) {
+    if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
+        throw std::runtime_error("get_module_description expects exactly one string argument");
+    }
+    
+    std::string moduleName = args[0]->toString();
+    auto * sc = Symbols::SymbolContainer::instance();
+    
+    if (!sc->hasModule(moduleName)) {
+        throw std::runtime_error("Module not found: " + moduleName);
+    }
+    
+    std::string description = sc->getModuleDescription(moduleName);
+    return Symbols::ValuePtr(description);
 }
 
 }  // namespace Modules

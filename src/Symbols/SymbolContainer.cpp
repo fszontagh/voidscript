@@ -26,6 +26,12 @@ namespace Symbols {
             throw std::invalid_argument("Module name cannot be empty");
         }
         
+        // Store module description if available
+        std::string moduleDescription = module->description();
+        if (!moduleDescription.empty()) {
+            moduleDescriptions_[moduleName] = moduleDescription;
+        }
+        
         modules_[moduleName] = std::move(module);
     }
 

@@ -117,6 +117,9 @@ class SymbolContainer {
     // Module storage by name
     std::unordered_map<std::string, Modules::BaseModulePtr> modules_;
 
+    // Module descriptions storage
+    std::unordered_map<std::string, std::string> moduleDescriptions_;
+
     // Current module being registered (for macro support)
     Modules::BaseModule * currentModule_ = nullptr;
 
@@ -1089,7 +1092,8 @@ class SymbolContainer {
     void addNativeMethod(const std::string & className, const std::string & methodName,
                          std::function<ValuePtr(const std::vector<ValuePtr> &)> implementation,
                          Variables::Type                                        returnType = Variables::Type::NULL_TYPE,
-                         const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false) {
+                         const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false,
+                         const std::string & description = "") {
         ClassInfo & classInfo = getClassInfo(className);
 
         // Check if method already exists
@@ -1112,6 +1116,7 @@ class SymbolContainer {
         doc.name                 = methodInfo.qualifiedName;
         doc.returnType           = returnType;
         doc.parameterList        = parameters;
+        doc.description          = description;
         methodInfo.documentation = doc;
 
         classInfo.methods.push_back(methodInfo);
@@ -1415,6 +1420,35 @@ public:
      * @param module Unique pointer to the module to register and store
      */
     void registerModule(Modules::BaseModulePtr module);
+
+    /**
+     * @brief Set the description for a module
+     * @param moduleName Name of the module
+     * @param description Description of the module
+     */
+    void setModuleDescription(const std::string & moduleName, const std::string & description) {
+        moduleDescriptions_[moduleName] = description;
+    }
+
+    /**
+     * @brief Get the description of a module
+     * @param moduleName Name of the module
+     * @return Description of the module, or empty string if not found
+     */
+    std::string getModuleDescription(const std::string & moduleName) const {
+        auto it = moduleDescriptions_.find(moduleName);
+        return (it != moduleDescriptions_.end()) ? it->second : "";
+    }
+
+    /**
+     * @brief Check if a module has a description
+     * @param moduleName Name of the module
+     * @return True if the module has a description, false otherwise
+     */
+    bool hasModuleDescription(const std::string & moduleName) const {
+        auto it = moduleDescriptions_.find(moduleName);
+        return (it != moduleDescriptions_.end()) && !it->second.empty();
+    }
 
     /**
      * @brief Set a static property for a class

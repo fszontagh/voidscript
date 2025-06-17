@@ -11,7 +11,10 @@ namespace Modules {
 
 class ImagickModule : public BaseModule {
   public:
-    ImagickModule() { setModuleName("Imagick"); }
+    ImagickModule() {
+        setModuleName("Imagick");
+        setDescription("Provides comprehensive image processing capabilities using ImageMagick library, including reading, writing, resizing, cropping, rotating, blurring, and various image manipulation operations");
+    }
 
     /**
      * @brief Register this module's functions

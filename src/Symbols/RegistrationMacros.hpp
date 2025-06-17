@@ -46,7 +46,7 @@
         std::string fullMethodName =                                                 \
             std::string(className) + Symbols::SymbolContainer::SCOPE_SEPARATOR + std::string(methodName); \
         Symbols::SymbolContainer::instance()->addNativeMethod(                       \
-            className, methodName, callback, retType, paramList);                    \
+            className, methodName, callback, retType, paramList, false, docStr);     \
         Symbols::SymbolContainer::instance()->registerDoc(                           \
             fullMethodName,                                                          \
             Symbols::FunctionDoc{ fullMethodName, retType, paramList, docStr });     \

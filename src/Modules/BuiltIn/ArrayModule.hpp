@@ -21,7 +21,10 @@ namespace Modules {
  */
 class ArrayModule : public BaseModule {
   public:
-    ArrayModule() { setModuleName("Array"); }
+    ArrayModule() {
+        setModuleName("Array");
+        setDescription("Provides array and object manipulation functions, including size operations for collections");
+    }
 
     void registerFunctions() override {
         std::vector<Symbols::FunctionParameterInfo> params = {

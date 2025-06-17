@@ -17,7 +17,10 @@ namespace Modules {
  */
 class HeaderModule : public BaseModule {
   public:
-    HeaderModule() { setModuleName("Header"); }
+    HeaderModule() {
+        setModuleName("Header");
+        setDescription("Provides HTTP header management functionality for FastCGI applications, allowing setting and manipulation of HTTP response headers similar to PHP's header() function");
+    }
     
     void registerFunctions() override {
         std::vector<Symbols::FunctionParameterInfo> params = {

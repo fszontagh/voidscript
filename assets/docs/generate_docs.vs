@@ -19,10 +19,18 @@ function formatFunctions(string[] $functions) string {
         $doc_output+= $finfo["description"] + "\n";
 
         $doc_output+= format("```void\n{}(", $function);
-        for (object $param : $finfo["parameters"]) {
-            $doc_output+="\$"+$param["name"] + ",";
+
+        if (sizeof($finfo["parameters"]) > 0) {
+            for (object $param : $finfo["parameters"]) {
+                $doc_output+="\$"+$param["name"];
+                if ($param["interpolate"] == true) {
+                    $doc_output+=" ...";
+                }
+                $doc_output+=",";
+            }
+            $doc_output = string_substr($doc_output,0, string_length($doc_output)-1);
         }
-        $doc_output = string_substr($doc_output,0, string_length($doc_output)-1);
+
         $doc_output+=")";
         $doc_output+= format(" -> {} \n```\n",$finfo["return_type"]);
 
@@ -54,9 +62,15 @@ function formatClasses(string[] $classes) string {
 
         for (string $method : $class_details["methods"]) {
             object $method_detail = get_method_details($class, $method);
-            
-            
-            $doc_output+= "######  " + $method_detail["qualified_name"] + " \n";
+
+            $doc_output+= "######  " + $method_detail["qualified_name"] + "  \n";
+            $doc_output+="Visibility: ";
+            if ($method_detail["is_private"] == false) {
+                $doc_output+= "public";
+            }else{
+                $doc_output+= "private";
+            }
+            $doc_output+="  \n\n";
             $doc_output+= $method_detail["description"]+"  \n";
             $doc_output+= "```void\n";
 
@@ -64,7 +78,11 @@ function formatClasses(string[] $classes) string {
             if (sizeof($method_detail["parameters"])>0) {
                 for (object $param : $method_detail["parameters"]){
                     $doc_output+=format("{} ",$param["type"]);
-                    $doc_output+="\$"+$param["name"] + ",";
+                    $doc_output+="\$"+$param["name"];
+                    if ($param["interpolate"] == true) {
+                        $doc_output+=" ...";
+                    }
+                    $doc_output+=",";
                 }
                 $doc_output = string_substr($doc_output, 0, string_length($doc_output) - 1);
             }
@@ -98,6 +116,12 @@ string[] $modules = list_modules();
 for (string $module : $modules) {
     string $md_filename = $target_directory + "/" + $module + ".md";
     string $doc_output = format("# {} module\n", $module);
+    
+    // Add module description if available
+    string $module_description = get_module_description($module);
+    if (string_length($module_description) > 0) {
+        $doc_output += "\n" + $module_description + "\n\n";
+    }
 
     string[] $functions = list_module_functions($module);
 
@@ -110,6 +134,7 @@ for (string $module : $modules) {
         $doc_output+=formatClasses($classes);
     }
 
+    $doc_output += "\n----\n *Generated at: " + date()+"*\n";
     file_put_contents($md_filename, $doc_output, true);
     printnl("Module docs written into: ", $md_filename);
 

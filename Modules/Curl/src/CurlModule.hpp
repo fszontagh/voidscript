@@ -51,7 +51,10 @@ class CurlClient {
  */
 class CurlModule final : public BaseModule {
   public:
-    CurlModule() { setModuleName("Curl"); }
+    CurlModule() {
+        setModuleName("Curl");
+        setDescription("Provides HTTP client functionality using libcurl, supporting GET, POST, PUT, and DELETE requests with customizable headers, timeouts, and redirect handling");
+    }
 
     /**
      * @brief Register this module's symbols (HTTP GET and POST functions).

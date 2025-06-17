@@ -22,7 +22,10 @@ namespace Modules {
  */
 class JsonModule : public BaseModule {
   public:
-    JsonModule() { setModuleName("Json"); }
+    JsonModule() {
+        setModuleName("Json");
+        setDescription("Provides JSON serialization and deserialization functions for converting between VoidScript objects and JSON strings");
+    }
 
     void registerFunctions() override {
         std::vector<Symbols::FunctionParameterInfo> params = {

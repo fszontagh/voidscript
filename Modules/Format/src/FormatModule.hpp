@@ -8,7 +8,10 @@ namespace Modules {
 
 class FormatModule : public BaseModule {
   public:
-    FormatModule() { setModuleName("format"); }
+    FormatModule() {
+        setModuleName("format");
+        setDescription("Provides advanced string formatting capabilities using the fmt library, supporting placeholder-based string interpolation and formatted output similar to Python's format() function");
+    }
 
     /**
      * @brief Register this module's functions

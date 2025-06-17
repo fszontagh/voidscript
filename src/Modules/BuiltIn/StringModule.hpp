@@ -12,7 +12,10 @@ namespace Modules {
 
 class StringModule : public BaseModule {
   public:
-    StringModule() { setModuleName("String"); }
+    StringModule() {
+        setModuleName("String");
+        setDescription("Provides string manipulation and processing functions including length calculation, replacement, and substring extraction");
+    }
 
     void registerFunctions() override {
         // string_length

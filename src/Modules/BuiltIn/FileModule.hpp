@@ -25,7 +25,10 @@ namespace Modules {
 class FileModule : public BaseModule {
 
   public:
-    FileModule() { setModuleName("File"); }
+    FileModule() {
+        setModuleName("File");
+        setDescription("Provides file system operations including reading, writing, file existence checks, directory management, and file size queries");
+    }
 
     void registerFunctions() override {
         std::vector<Symbols::FunctionParameterInfo> params = {

@@ -19,7 +19,10 @@ namespace Modules {
  */
 class ConversionModule : public BaseModule {
   public:
-    ConversionModule() { setModuleName("Conversion"); }
+    ConversionModule() {
+        setModuleName("Conversion");
+        setDescription("Provides data type conversion functions between strings, numbers, and other primitive types with robust error handling");
+    }
 
     void registerFunctions() override {
         // string_to_number - Convert string to number (auto-detects type)

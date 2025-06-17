@@ -31,6 +31,7 @@ static int                                    typeCounter = 0;
 class BaseModule {
   protected:
     std::string moduleName;
+    std::string moduleDescription;
 
   public:
     BaseModule()          = default;
@@ -45,6 +46,18 @@ class BaseModule {
     void setModuleName(const std::string & name) { this->moduleName = name; }
 
     std::string name() const { return this->moduleName; }
+
+    /**
+     * @brief Set the description for this module
+     * @param description The description of what this module provides
+     */
+    void setDescription(const std::string & description) { this->moduleDescription = description; }
+
+    /**
+     * @brief Get the description of this module
+     * @return The module description
+     */
+    std::string description() const { return this->moduleDescription; }
 
     Symbols::ObjectMap getObjectMap(const FunctionArguments & args, const std::string & funcName) {
         constexpr const char* SCOPE_SEP = "::";  // Local definition to avoid circular dependency

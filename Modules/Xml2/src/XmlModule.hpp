@@ -18,6 +18,7 @@ class XmlModule : public BaseModule {
     XmlModule() {
         setModuleName("Xml2");
         this->className = "Xml2";
+        setDescription("Provides XML document parsing and manipulation capabilities using libxml2, supporting file and memory-based XML reading, DOM navigation, and attribute access");
         LIBXML_TEST_VERSION
         xmlInitParser();
     }

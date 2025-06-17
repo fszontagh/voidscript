@@ -16,7 +16,10 @@ namespace Modules {
  */
 class PrintModule : public BaseModule {
   public:
-    PrintModule() { setModuleName("Print"); }
+    PrintModule() {
+        setModuleName("Print");
+        setDescription("Provides essential output and program control functions including print, printnl, error output, exception throwing, and program termination with custom exit codes");
+    }
 
     void registerFunctions() override {
         std::vector<Symbols::FunctionParameterInfo> params = {

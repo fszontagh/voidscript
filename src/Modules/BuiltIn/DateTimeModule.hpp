@@ -36,7 +36,10 @@ class DateTimeModule : public BaseModule {
     // External state management like Imagick module
     static std::unordered_map<std::string, int> object_to_timestamp_map_;
   public:
-    DateTimeModule() { setModuleName("DateTime"); }
+    DateTimeModule() {
+        setModuleName("DateTime");
+        setDescription("Provides comprehensive date and time functionality including current timestamp retrieval, date formatting, and a DateTime class with arithmetic operations and custom formatting support");
+    }
 
     void registerFunctions() override {
         // Register built-in functions
