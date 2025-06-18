@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(
     voidscript
     LANGUAGES CXX
-    VERSION 0.0.1
+    VERSION 0.1.0
     DESCRIPTION "A simple scripting language"
     HOMEPAGE_URL "https://github.com/fszontagh/voidshell"
 )
