@@ -62,4 +62,4 @@ test1 $testclass2 = new test1("Batman", 33);
 $testclass2->incrementAge2();
 int $age = $testclass2->getAge();
 printnl("incremented age: ", $testclass2->getAge());
-printnl("incremented age: ", $testclass2->age);
+printnl("incremented age: ", $testclass2->getAge());

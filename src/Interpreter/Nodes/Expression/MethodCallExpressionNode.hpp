@@ -230,9 +230,28 @@ class MethodCallExpressionNode : public ExpressionNode {
                         funcSym = std::dynamic_pointer_cast<Symbols::FunctionSymbol>(sym_method);
                     } else if (sym_method->getKind() == Symbols::Kind::Function) {
                         funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(sym_method);
+                    } else if (sym_method->getKind() == Symbols::Kind::Variable) {
+                        // This is the dummy symbol returned by findMethod for native methods
+                        // In this case, the method should be handled by the native method call above
+                        // If we reach here, it means there's a mismatch - try to find the method in scope tables directly
+                        std::string classScope = sc->findClassNamespace(cn);
+                        if (!classScope.empty()) {
+                            std::string classMethodScope = classScope + Symbols::SymbolContainer::SCOPE_SEPARATOR + cn;
+                            auto scopeTable = sc->getScopeTable(classMethodScope);
+                            if (scopeTable) {
+                                auto methodSymbol = scopeTable->get(Symbols::SymbolContainer::METHOD_SCOPE, methodName_);
+                                if (methodSymbol && (methodSymbol->getKind() == Symbols::Kind::Function || methodSymbol->getKind() == Symbols::Kind::Method)) {
+                                    funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(methodSymbol);
+                                }
+                            }
+                        }
+                        
+                        if (!funcSym) {
+                            throw std::runtime_error("Method '" + methodName_ + "' found but cannot be properly resolved in class " + cn);
+                        }
                     } else {
                         // This shouldn't happen for script methods, but if it does, throw an error
-                        throw std::runtime_error("Found symbol for method '" + methodName_ + "' but it's not a function or method symbol");
+                        throw std::runtime_error("Found symbol for method '" + methodName_ + "' but it's not a function or method symbol. Kind: " + std::to_string(static_cast<int>(sym_method->getKind())));
                     }
                     
                     const auto& params = funcSym->parameters();
