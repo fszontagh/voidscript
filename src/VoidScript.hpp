@@ -15,10 +15,14 @@
 #include "Modules/BuiltIn/DateTimeModule.hpp"
 #include "Modules/BuiltIn/FileModule.hpp"
 #include "Modules/BuiltIn/JsonModule.hpp"
+#include "Modules/BuiltIn/MathModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
 #include "Modules/BuiltIn/PrintModule.hpp"
 #include "Modules/BuiltIn/StringModule.hpp"
 #include "Modules/BuiltIn/VariableHelpersModule.hpp"
+#ifdef CLI
+#include "Modules/BuiltIn/ReadlineModule.hpp"
+#endif
 #include "options.h"
 #include "utils.h"
 #ifndef _WIN32
@@ -216,11 +220,23 @@ class VoidScript {
         dateTimeModule->setModuleName("DateTime");
         symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(dateTimeModule)));
         
+        // math functions (sin, cos, sqrt, etc.)
+        auto mathModule = std::make_unique<Modules::MathModule>();
+        mathModule->setModuleName("Math");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(mathModule)));
+        
         // module helper functions (module_list, module_info, etc.)
         auto moduleHelperModule = std::make_unique<Modules::ModuleHelperModule>();
         moduleHelperModule->setModuleName("ModuleHelper");
         symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(moduleHelperModule)));
         
+#ifdef CLI
+        // readline functions for CLI input (readline, readchar, getline)
+        auto readlineModule = std::make_unique<Modules::ReadlineModule>();
+        readlineModule->setModuleName("Readline");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(readlineModule)));
+#endif
+
 #ifdef FCGI
         // FastCGI header() function module
         auto headerModule = std::make_unique<Modules::HeaderModule>();

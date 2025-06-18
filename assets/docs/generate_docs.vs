@@ -22,6 +22,7 @@ function formatFunctions(string[] $functions) string {
 
         if (sizeof($finfo["parameters"]) > 0) {
             for (object $param : $finfo["parameters"]) {
+                $doc_output+= $param["type"]+" ";
                 $doc_output+="\$"+$param["name"];
                 if ($param["interpolate"] == true) {
                     $doc_output+=" ...";
@@ -116,7 +117,7 @@ string[] $modules = list_modules();
 for (string $module : $modules) {
     string $md_filename = $target_directory + "/" + $module + ".md";
     string $doc_output = format("# {} module\n", $module);
-    
+
     // Add module description if available
     string $module_description = get_module_description($module);
     if (string_length($module_description) > 0) {

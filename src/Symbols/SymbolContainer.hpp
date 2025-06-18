@@ -147,15 +147,34 @@ class SymbolContainer {
     }
 
     static SymbolContainer * instance() {
+        static thread_local int callDepth = 0;
+        static thread_local bool inRecursiveCall = false;
+        
+        // Prevent infinite recursion during function calls
+        if (inRecursiveCall) {
+            throw std::runtime_error("Infinite recursion detected in SymbolContainer::instance()");
+        }
+        
+        callDepth++;
+        if (callDepth > 100) {  // Reasonable limit for nested calls
+            throw std::runtime_error("SymbolContainer instance call depth exceeded - infinite recursion detected");
+        }
+        
+        inRecursiveCall = true;
+        
         if (!is_initialized_for_singleton_) {
-            // It's crucial that initialize() is called before the first instance() call.
-            // This typically happens at application startup.
+            inRecursiveCall = false;
+            callDepth--;
             throw std::runtime_error(
                 "SymbolContainer has not been initialized. Call SymbolContainer::initialize() with the top-level "
                 "script/file name first.");
         }
+        
         // Meyer's Singleton: instance_ is constructed on first call using the initialized name
         static SymbolContainer instance_(initial_scope_name_for_singleton_);
+        
+        inRecursiveCall = false;
+        callDepth--;
         return &instance_;
     }
 

@@ -13,9 +13,10 @@
  */
 #define REGISTER_FUNCTION(fnName, retType, paramListVec, docStr, callback)         \
     do {                                                                            \
-        Symbols::SymbolContainer::instance()->registerFunction(fnName, callback, retType, \
-            Symbols::SymbolContainer::instance()->getCurrentModule());             \
-        Symbols::SymbolContainer::instance()->registerDoc(                          \
+        auto* sc_instance = Symbols::SymbolContainer::instance();                   \
+        sc_instance->registerFunction(fnName, callback, retType,                    \
+            sc_instance->getCurrentModule());                                       \
+        sc_instance->registerDoc(                                                   \
             fnName,                                                                 \
             Symbols::FunctionDoc{ fnName, retType, paramListVec, docStr });         \
     } while (0)

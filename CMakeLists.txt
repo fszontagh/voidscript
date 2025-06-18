@@ -169,6 +169,8 @@ if (NEED_CLI)
     add_executable(voidscript-cli cli/main.cpp)
     # Mark this build as CLI variant
     target_compile_definitions(voidscript-cli PRIVATE CLI)
+    # Also define CLI for the library when building for CLI
+    target_compile_definitions(voidscript PRIVATE CLI)
     target_link_libraries(voidscript-cli voidscript)
     install(TARGETS voidscript-cli DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT "bin")
     set_target_properties(voidscript-cli PROPERTIES
