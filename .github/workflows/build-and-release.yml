@@ -8,8 +8,9 @@ on:
     branches: ['*']
 
 jobs:
+  # Build and test job for all pushes/PRs
   build:
-    name: Build (${{ matrix.os }})
+    name: Build and Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,7 +28,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential cmake git pkg-config \
-            libcurl4-openssl-dev libfmt-dev libmagick++-dev libmariadb-dev libfcgi-dev 
+            libcurl4-openssl-dev libfmt-dev libmagick++-dev libmariadb-dev libfcgi-dev
     
     - name: Configure CMake
       run: |
@@ -36,71 +37,56 @@ jobs:
           -DBUILD_CLI=ON \
           -DBUILD_COMPILER=ON \
           -DBUILD_FASTCGI=ON \
-          -DBUILD_TESTS=OFF
+          -DBUILD_TESTS=ON
     
     - name: Build project
       run: cmake --build build --parallel
     
-    - name: Create DEB packages (for tags)
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure --parallel
+    
+    - name: Create DEB packages (tags only)
       if: startsWith(github.ref, 'refs/tags/')
       run: |
         cd build
-        cpack -G DEB
+        cpack -G DEB || { echo "DEB creation failed"; exit 1; }
     
-    - name: Upload build artifacts
+    - name: Upload DEB artifacts (tags only)
+      if: startsWith(github.ref, 'refs/tags/') && hashFiles('build/*.deb') != ''
       uses: actions/upload-artifact@v4
       with:
-        name: voidscript-${{ matrix.os }}-${{ github.sha }}
-        path: |
-          build/*.deb
-        retention-days: 30
-        if-no-files-found: warn
+        name: voidscript-deb-${{ matrix.os }}-${{ github.sha }}
+        path: build/*.deb
+        retention-days: 7
+        if-no-files-found: error
 
+  # Release job for tagged versions only
   release:
-    name: Create Release
+    name: Create GitHub Release
     runs-on: ubuntu-24.04
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Download DEB artifacts
+      uses: actions/download-artifact@v4
       with:
-        submodules: recursive
-    
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake git pkg-config \
-            libcurl4-openssl-dev libfmt-dev libmagick++-dev libmysqlclient-dev libfcgi-dev
-    
-    - name: Configure CMake
-      run: |
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_CLI=ON \
-          -DBUILD_COMPILER=ON \
-          -DBUILD_FASTCGI=ON \
-          -DBUILD_TESTS=OFF
-    
-    - name: Build project
-      run: cmake --build build --parallel
-    
-    - name: Create DEB packages
-      run: |
-        cd build
-        cpack -G DEB
+        name: voidscript-deb-ubuntu-24.04-${{ github.sha }}
+        path: artifacts/
     
     - name: Get tag name
       id: get_tag
       run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
     
-    - name: List generated packages
+    - name: List available packages
       run: |
-        echo "Generated DEB packages:"
-        ls -la build/*.deb || echo "No .deb files found"
+        echo "Available DEB packages for release:"
+        ls -la artifacts/*.deb || echo "No .deb files found in artifacts"
     
     - name: Create GitHub Release
+      if: hashFiles('artifacts/*.deb') != ''
       uses: softprops/action-gh-release@v2
       with:
         name: ${{ steps.get_tag.outputs.tag }}
@@ -108,14 +94,6 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: true
-        files: |
-          build/*.deb
+        files: artifacts/*.deb
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Upload release artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: voidscript-release-${{ steps.get_tag.outputs.tag }}
-        path: build/*.deb
-        retention-days: 90
