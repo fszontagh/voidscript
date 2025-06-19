@@ -6,7 +6,7 @@ if (!isset($argv[1])) {
 
 string $target_directory = $argv[1];
 
-if (file_exists($target_directory)) {
+if (!file_exists($target_directory)) {
     mkdir($target_directory);
 }
 
