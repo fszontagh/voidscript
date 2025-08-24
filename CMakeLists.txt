@@ -142,6 +142,8 @@ add_library(voidscript
             src/Symbols/Value.cpp
             src/Symbols/EnumSymbol.cpp
             src/Modules/BuiltIn/ModuleHelperModule.cpp
+            src/Modules/BuiltIn/JsonConverters.cpp
+            src/Modules/BuiltIn/JsonModule.cpp
             src/Interpreter/Interpreter.cpp
             src/Compiler/VoidScriptCompiler.cpp
             src/Compiler/CompilerBackend.cpp
@@ -193,12 +195,12 @@ endif()
 # COMPILER TARGET
 if (BUILD_COMPILER)
     add_subdirectory(compiler)
-    
+
     set(CPACK_DEBIAN_COMPILER_FILE_NAME "${CMAKE_PROJECT_NAME}-compiler_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.deb")
     set(CPACK_DEBIAN_COMPILER_PACKAGE_NAME "${CMAKE_PROJECT_NAME}-compiler")
     set(CPACK_DEBIAN_COMPILER_PACKAGE_SECTION "devel")
     set(CPACK_DEBIAN_COMPILER_PACKAGE_DEPENDS "libvoidscript (= ${CMAKE_PROJECT_VERSION})")
-    
+
     set(CPACK_RPM_COMPILER_FILE_NAME "${CMAKE_PROJECT_NAME}-compiler_${CMAKE_PROJECT_VERSION}_${ARCHITECTURE}_${CPACK_SYSTEM_NAME}.rpm")
     set(CPACK_RPM_COMPILER_PACKAGE_NAME "${CMAKE_PROJECT_NAME}-compiler")
     set(CPACK_RPM_COMPILER_PACKAGE_GROUP "Development/Tools")
@@ -328,7 +330,7 @@ if (BUILD_TESTS)
       # Add more tests here if needed...
 
   endif()
-  
+
   # Add compiler tests if compiler is enabled
   if(BUILD_COMPILER)
       add_subdirectory(tests/compiler)
