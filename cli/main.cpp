@@ -7,6 +7,7 @@
 #include "options.h"
 #include "utils.h"
 #include "VoidScript.hpp"
+#include "Symbols/SymbolContainer.hpp"
 
 // Supported command-line parameters and descriptions
 const std::unordered_map<std::string, std::string> params = {
@@ -16,6 +17,7 @@ const std::unordered_map<std::string, std::string> params = {
     { "--enable-tags",           "Only parse tokens between PARSER_OPEN_TAG and PARSER_CLOSE_TAG when enabled"                 },
     { "--suppress-tags-outside",
      "Suppress text outside PARSER_OPEN_TAG/PARSER_CLOSE_TAG when tag filtering is enabled"                                    },
+    { "-m, --modules",           "List loaded modules"                                                                     },
     { "-c, --command",           "Execute script string instead of reading from file"                                          },
 };
 
@@ -83,6 +85,36 @@ int main(int argc, char * argv[]) {
             enableTags = true;
         } else if (a == "--suppress-tags-outside") {
             suppressTagsOutside = true;
+        } else if (a == "-m" || a == "--modules") {
+            VoidScript voidscript("modules", false, false, false, false, false, false, std::vector<std::string>{});
+            auto modules = Symbols::SymbolContainer::instance()->getModuleNames();
+
+            // Define external modules based on their location in ./Modules/
+            const std::vector<std::string> externalModules = {"Curl", "Format", "Imagick", "MariaDb", "Xml2"};
+
+            // Separate modules into built-in and external
+            std::vector<std::string> builtin, external;
+            for (const auto& module : modules) {
+                if (std::find(externalModules.begin(), externalModules.end(), module) != externalModules.end()) {
+                    external.push_back(module);
+                } else {
+                    builtin.push_back(module);
+                }
+            }
+
+            // Print built-in modules
+            std::cout << "Built-in modules:\n";
+            for (const auto& module : builtin) {
+                std::cout << "  " << module << "\n";
+            }
+            std::cout << "\n";
+
+            // Print external modules
+            std::cout << "External modules:\n";
+            for (const auto& module : external) {
+                std::cout << "  " << module << "\n";
+            }
+            return 0;
         } else if (a == "-c" || a == "--command") {
             // Next argument should be the script content
             if (i + 1 >= argc) {
