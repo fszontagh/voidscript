@@ -8,9 +8,11 @@
 #include <string>
 #include <typeindex>
 #include <typeinfo>
+#include <unordered_map>
 #include <vector>
 
 #include "Symbols/VariableTypes.hpp"
+#include "VariableTypes.hpp"
 
 namespace Symbols {
 

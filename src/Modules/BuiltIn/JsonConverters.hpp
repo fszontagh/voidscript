@@ -2,14 +2,16 @@
 #ifndef MODULES_JSONCONVERTERS_HPP
 #define MODULES_JSONCONVERTERS_HPP
 
+#include <cstdio>
+#include <map>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include "../../json.hpp"
 #include "../../Symbols/Value.hpp"
 #include "../../Symbols/VariableTypes.hpp"
-#include <stdexcept>
-#include <string>
-#include <map>
-#include <vector>
-#include <memory>
 
 namespace Modules {
 
@@ -25,7 +27,7 @@ namespace JsonConverters {
  * @return nlohmann::json The converted JSON object
  * @throws std::runtime_error If conversion fails due to unsupported type or error
  */
-nlohmann::json valueToJson(const Symbols::ValuePtr& value);
+nlohmann::json valueToJson(const Symbols::ValuePtr & value);
 
 /**
  * @brief Converts an nlohmann::json to VoidScript ValuePtr
@@ -34,7 +36,7 @@ nlohmann::json valueToJson(const Symbols::ValuePtr& value);
  * @return Symbols::ValuePtr The converted VoidScript value
  * @throws std::runtime_error If conversion fails due to unsupported type or error
  */
-Symbols::ValuePtr jsonToValue(const nlohmann::json& json);
+Symbols::ValuePtr jsonToValue(const nlohmann::json & json);
 
 /**
  * @brief Converts a VoidScript ValuePtr to nlohmann::json with error context
@@ -44,7 +46,7 @@ Symbols::ValuePtr jsonToValue(const nlohmann::json& json);
  * @return nlohmann::json The converted JSON object
  * @throws std::runtime_error If conversion fails with detailed error information
  */
-nlohmann::json valueToJsonWithContext(const Symbols::ValuePtr& value, const std::string& context = "");
+nlohmann::json valueToJsonWithContext(const Symbols::ValuePtr & value, const std::string & context = "");
 
 /**
  * @brief Converts an nlohmann::json to VoidScript ValuePtr with error context
@@ -54,7 +56,7 @@ nlohmann::json valueToJsonWithContext(const Symbols::ValuePtr& value, const std:
  * @return Symbols::ValuePtr The converted VoidScript value
  * @throws std::runtime_error If conversion fails with detailed error information
  */
-Symbols::ValuePtr jsonToValueWithContext(const nlohmann::json& json, const std::string& context = "");
+Symbols::ValuePtr jsonToValueWithContext(const nlohmann::json & json, const std::string & context = "");
 
 /**
  * @brief Validates if a VoidScript ValuePtr can be converted to JSON
@@ -63,7 +65,7 @@ Symbols::ValuePtr jsonToValueWithContext(const nlohmann::json& json, const std::
  * @return true If the value can be converted to JSON
  * @return false If the value cannot be converted to JSON
  */
-bool canConvertToJson(const Symbols::ValuePtr& value);
+bool canConvertToJson(const Symbols::ValuePtr & value);
 
 /**
  * @brief Validates if an nlohmann::json can be converted to VoidScript ValuePtr
@@ -72,10 +74,10 @@ bool canConvertToJson(const Symbols::ValuePtr& value);
  * @return true If the JSON can be converted to VoidScript
  * @return false If the JSON cannot be converted to VoidScript
  */
-bool canConvertToValue(const nlohmann::json& json);
+bool canConvertToValue(const nlohmann::json & json);
 
-} // namespace JsonConverters
+}  // namespace JsonConverters
 
-} // namespace Modules
+}  // namespace Modules
 
-#endif // MODULES_JSONCONVERTERS_HPP
+#endif  // MODULES_JSONCONVERTERS_HPP

@@ -6,6 +6,9 @@ project(
     DESCRIPTION "A simple scripting language"
     HOMEPAGE_URL "https://github.com/fszontagh/voidshell"
 )
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "Please select another Build Directory! CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} is the same as CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}. In-source builds are discouraged for this project.")
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,6 +21,7 @@ option(BUILD_CLI, "Build example commandline interpreter" ${NEED_CLI})
 option(BUILD_COMPILER "Build VoidScript compiler" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
+option(BUILD_MODULE_MONGODB "Enable MongoDB module" ON)
 option(BUILD_TESTS "Build the test cases" OFF)
 
 
@@ -27,13 +31,6 @@ if (BUILD_CLI)
 endif()
 
 option(BUILD_EMBEDDED "Build to use embedded scripting" ${NEED_EMBEDDED})
-
-
-file(TO_CMAKE_PATH "${CMAKE_BINARY_DIR}/CMakeLists.txt" LOC_PATH)
-if(EXISTS "${LOC_PATH}")
-    message(FATAL_ERROR "You cannot build in a source directory (or any directory with a CMakeLists.txt file). Please make a build subdirectory.")
-endif()
-
 
 
 include(cmake/AppVersion.cmake)
@@ -257,6 +254,12 @@ file(GLOB AVAILABLE_MODULES
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/Modules
     "Modules/*"
 )
+
+# Handle MongoDB module like other modules
+list(REMOVE_ITEM AVAILABLE_MODULES MongoDb)
+if(BUILD_MODULE_MONGODB)
+    add_dynamic_module(MongoDb)
+endif()
 
 
 message(STATUS "APP_GIT_VERSION:       ${APP_GIT_VERSION}")

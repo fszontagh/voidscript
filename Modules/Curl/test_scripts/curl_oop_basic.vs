@@ -16,7 +16,7 @@ printnl("✓ Fluent API configuration completed");
 // Test 3: Basic GET request to httpbin.org (if available)
 printnl("\n3. Testing GET request...");
 try {
-    auto $response : $client->get("https://httpbin.org/get")
+    $response : $client->get("https://httpbin.org/get")
     
     printnl("Status Code: ", $response->getStatusCode());
     printnl("Success: ", $response->isSuccess());
@@ -36,9 +36,9 @@ try {
 // Test 4: CurlClient with base URL
 printnl("\n4. Testing CurlClient with base URL...");
 try {
-    auto $clientWithBase : new CurlClient();
+    $clientWithBase : new CurlClient();
     $clientWithBase->setBaseUrl("https://httpbin.org");
-    auto $response2 : $clientWithBase->get("/user-agent");
+    $response2 : $clientWithBase->get("/user-agent");
     
     printnl("Base URL Status Code: ", $response2->getStatusCode());
     if ($response2->isSuccess()) {
@@ -53,7 +53,7 @@ try {
 // Test 5: POST request with data
 printnl("\n5. Testing POST request...");
 try {
-    auto $postResponse : $client->post("https://httpbin.org/post", "{\"test\":\"data\"}");
+    $postResponse : $client->post("https://httpbin.org/post", "{\"test\":\"data\"}");
     
     printnl("POST Status Code: ", $postResponse->getStatusCode());
     if ($postResponse->isSuccess()) {
@@ -68,8 +68,8 @@ try {
 // Test 6: Response toString method
 printnl("\n6. Testing response toString method...");
 try {
-    auto $testResponse : $client->get("https://httpbin.org/status/200");
-    auto $responseStr : $testResponse->toString();
+    $testResponse : $client->get("https://httpbin.org/status/200");
+    $responseStr : $testResponse->toString();
     printnl("Response toString: ", $responseStr);
     printnl("✓ toString method working");
 } catch {
