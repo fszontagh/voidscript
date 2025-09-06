@@ -14,13 +14,13 @@ project(
 find_package(fmt REQUIRED)
 
 
-add_library(modules-format SHARED)
-target_sources(modules-format
+add_library(voidscript-module-format SHARED)
+target_sources(voidscript-module-format
     PRIVATE
         src/FormatModule.cpp
         src/PluginInit.cpp
 )
 
-target_link_libraries(modules-format PRIVATE fmt::fmt)
+target_link_libraries(voidscript-module-format PRIVATE fmt::fmt)
 
-install(TARGETS modules-format DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-format")
+install(TARGETS voidscript-module-format DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-format")

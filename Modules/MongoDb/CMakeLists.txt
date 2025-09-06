@@ -20,13 +20,13 @@ message(STATUS "BSONCXX_INCLUDE_DIRS: ${BSONCXX_INCLUDE_DIRS}")
 message(STATUS "MONGOCXX_LIBRARIES: ${MONGOCXX_LIBRARIES}")
 message(STATUS "BSONCXX_LIBRARIES: ${BSONCXX_LIBRARIES}")
 
-add_library(modules-${MODULE_NAME} SHARED)
-target_sources(modules-${MODULE_NAME}
+add_library(voidscript-module-${MODULE_NAME} SHARED)
+target_sources(voidscript-module-${MODULE_NAME}
     PRIVATE
         src/MongoDBModule.cpp
         src/PluginInit.cpp
 )
-target_include_directories(modules-${MODULE_NAME} PRIVATE ${MONGOCXX_INCLUDE_DIRS} ${BSONCXX_INCLUDE_DIRS})
-target_link_libraries(modules-${MODULE_NAME} PRIVATE voidscript ${MONGOCXX_LIBRARIES} ${BSONCXX_LIBRARIES})
+target_include_directories(voidscript-module-${MODULE_NAME} PRIVATE ${MONGOCXX_INCLUDE_DIRS} ${BSONCXX_INCLUDE_DIRS})
+target_link_libraries(voidscript-module-${MODULE_NAME} PRIVATE voidscript ${MONGOCXX_LIBRARIES} ${BSONCXX_LIBRARIES})
 
-install(TARGETS modules-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")
+install(TARGETS voidscript-module-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")

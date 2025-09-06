@@ -12,13 +12,13 @@ project(
 
 find_package(CURL REQUIRED)
 
-add_library(modules-${MODULE_NAME} SHARED)
-target_sources(modules-${MODULE_NAME}
+add_library(voidscript-module-${MODULE_NAME} SHARED)
+target_sources(voidscript-module-${MODULE_NAME}
     PRIVATE
         src/CurlModule.cpp
         src/PluginInit.cpp
 )
 
-target_link_libraries(modules-${MODULE_NAME} PRIVATE curl)
+target_link_libraries(voidscript-module-${MODULE_NAME} PRIVATE curl)
 
-install(TARGETS modules-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")
+install(TARGETS voidscript-module-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")

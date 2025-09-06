@@ -15,14 +15,14 @@ project(
 )
 
 find_package(LibXml2 REQUIRED)
-add_library(modules-${MODULE_NAME} SHARED)
-target_sources(modules-${MODULE_NAME}
+add_library(voidscript-module-${MODULE_NAME} SHARED)
+target_sources(voidscript-module-${MODULE_NAME}
     PRIVATE
         src/XmlModule.cpp
         src/PluginInit.cpp
 )
 
-target_include_directories(modules-${MODULE_NAME} PRIVATE ${LIBXML2_INCLUDE_DIRS})
-target_link_libraries(modules-${MODULE_NAME} PRIVATE ${LIBXML2_LIBRARIES})
+target_include_directories(voidscript-module-${MODULE_NAME} PRIVATE ${LIBXML2_INCLUDE_DIRS})
+target_link_libraries(voidscript-module-${MODULE_NAME} PRIVATE ${LIBXML2_LIBRARIES})
 
-install(TARGETS modules-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")
+install(TARGETS voidscript-module-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")

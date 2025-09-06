@@ -17,14 +17,14 @@ if (NOT MARIADB_INCLUDE_DIR OR NOT MARIADBCLIENT_LIB)
     message(FATAL "MariaDB client library or header not found")
 endif()
 
-    add_library(modules-mariadb SHARED)
-    target_sources(modules-mariadb
+    add_library(voidscript-module-mariadb SHARED)
+    target_sources(voidscript-module-mariadb
         PRIVATE
             src/MariaDBModule.cpp
             src/PluginInit.cpp
     )
-    target_include_directories(modules-mariadb PRIVATE ${MARIADB_INCLUDE_DIR})
-    target_link_libraries(modules-mariadb PRIVATE voidscript ${MARIADBCLIENT_LIB})
+    target_include_directories(voidscript-module-mariadb PRIVATE ${MARIADB_INCLUDE_DIR})
+    target_link_libraries(voidscript-module-mariadb PRIVATE voidscript ${MARIADBCLIENT_LIB})
 
 
-install(TARGETS modules-mariadb DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT modules-mariadb)
+install(TARGETS voidscript-module-mariadb DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT modules-mariadb)
