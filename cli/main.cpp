@@ -1,18 +1,18 @@
 #include <unistd.h>  // for isatty, STDIN_FILENO
 
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <fstream>
-#include <sstream>
-#include <filesystem>
-#include <algorithm>
 
 #include "options.h"
+#include "Symbols/SymbolContainer.hpp"
 #include "utils.h"
 #include "VoidScript.hpp"
-#include "Symbols/SymbolContainer.hpp"
 
 // Struct to hold module information
 struct ModuleInfo {
@@ -45,14 +45,14 @@ static std::vector<ModuleInfo> scanExternalModules() {
     std::string modulesPath = "./Modules";
 
     // Try to find the modules directory relative to executable if possible
-    char exePath[1024];
+    char    exePath[1024];
     ssize_t count = readlink("/proc/self/exe", exePath, sizeof(exePath));
     if (count != -1) {
         exePath[count] = '\0';
         std::string binPath(exePath);
-        size_t lastSlash = binPath.find_last_of("/\\");
-        std::string binDir = (lastSlash != std::string::npos) ? binPath.substr(0, lastSlash) : ".";
-        std::string altPath = binDir + "/Modules";
+        size_t      lastSlash = binPath.find_last_of("/\\");
+        std::string binDir    = (lastSlash != std::string::npos) ? binPath.substr(0, lastSlash) : ".";
+        std::string altPath   = binDir + "/Modules";
         if (utils::exists(altPath) && utils::is_directory(altPath)) {
             modulesPath = altPath;
         }
@@ -60,22 +60,26 @@ static std::vector<ModuleInfo> scanExternalModules() {
 
     // Scan modules directory if it exists
     if (utils::exists(modulesPath) && utils::is_directory(modulesPath)) {
-        for (const auto& entry : std::filesystem::directory_iterator(modulesPath)) {
+        for (const auto & entry : std::filesystem::directory_iterator(modulesPath)) {
             if (entry.is_directory()) {
-                std::string module_name = entry.path().filename().string();
+                std::string module_name    = entry.path().filename().string();
                 std::string lowercase_name = module_name;
                 std::transform(lowercase_name.begin(), lowercase_name.end(), lowercase_name.begin(), ::tolower);
-                std::string lib_name = "libvoidscript-module-" + lowercase_name + ".so";
-                std::string module_path = modulesPath + "/" + module_name + "/" + lib_name;
+                std::string lib_name    = "libvoidscript-module-" + lowercase_name + ".so";
+                std::string module_path = modulesPath;
+                module_path.append("/");
+                module_path.append(module_name);
+                module_path.append("/");
+                module_path.append(lib_name);
 
                 // Try to get description from SymbolContainer (will be available after modules are loaded)
-                auto symbolContainer = Symbols::SymbolContainer::instance();
-                std::string description = symbolContainer->getModuleDescription(module_name);
+                Symbols::SymbolContainer * symbolContainer = Symbols::SymbolContainer::instance();
+                std::string                description     = symbolContainer->getModuleDescription(module_name);
                 if (description.empty()) {
                     description = "No description available.";
                 }
 
-                modules.push_back({module_name, module_path, description});
+                modules.push_back({ module_name, module_path, description });
             }
         }
     }
@@ -98,7 +102,7 @@ int main(int argc, char * argv[]) {
     bool debugSymbolTable = false;
 
     std::string              file;
-    std::string              scriptContent;      // For -c option
+    std::string              scriptContent;                // For -c option
     bool                     isCommandMode       = false;  // Flag to indicate -c usage
     bool                     enableTags          = false;
     bool                     suppressTagsOutside = false;
@@ -149,39 +153,39 @@ int main(int argc, char * argv[]) {
             suppressTagsOutside = true;
         } else if (a == "-m" || a == "--modules") {
             VoidScript voidscript("modules", false, false, false, false, false, false, std::vector<std::string>{});
-            auto symbolContainer = Symbols::SymbolContainer::instance();
-            auto moduleNames = symbolContainer->getModuleNames();
+            auto       symbolContainer = Symbols::SymbolContainer::instance();
+            auto       moduleNames     = symbolContainer->getModuleNames();
 
             // Scan external modules from directory
-            std::vector<ModuleInfo> externalModules = scanExternalModules();
+            std::vector<ModuleInfo>         externalModules = scanExternalModules();
             std::unordered_set<std::string> externalModuleNames;
-            for (const auto& mod : externalModules) {
+            for (const auto & mod : externalModules) {
                 externalModuleNames.insert(mod.name);
             }
 
             // Separate modules into built-in and external ModuleInfo
             std::vector<ModuleInfo> builtin, external;
-            for (const auto& name : moduleNames) {
+            for (const auto & name : moduleNames) {
                 std::string description = symbolContainer->getModuleDescription(name);
                 if (description.empty()) {
                     description = "No description available.";
                 }
                 if (externalModuleNames.count(name)) {
                     // Get path from external modules
-                    for (const auto& extMod : externalModules) {
+                    for (const auto & extMod : externalModules) {
                         if (extMod.name == name) {
-                            external.push_back({name, extMod.path, description});
+                            external.push_back({ name, extMod.path, description });
                             break;
                         }
                     }
                 } else {
-                    builtin.push_back({name, "", description});
+                    builtin.push_back({ name, "", description });
                 }
             }
 
             // Print built-in modules
             std::cout << "Built-in modules:\n";
-            for (const auto& module : builtin) {
+            for (const auto & module : builtin) {
                 std::cout << "  Name: " << module.name << "\n";
                 std::cout << "  Path: " << (module.path.empty() ? "(built-in)" : module.path) << "\n";
                 std::cout << "  Description: " << module.description << "\n";
@@ -191,7 +195,7 @@ int main(int argc, char * argv[]) {
 
             // Print external modules
             std::cout << "External modules:\n";
-            for (const auto& module : external) {
+            for (const auto & module : external) {
                 std::cout << "  Name: " << module.name << "\n";
                 std::cout << "  Path: " << module.path << "\n";
                 std::cout << "  Description: " << module.description << "\n";
@@ -208,8 +212,8 @@ int main(int argc, char * argv[]) {
             std::string moduleName = argv[++i];
 
             VoidScript voidscript("module-info", false, false, false, false, false, false, std::vector<std::string>{});
-            auto symbolContainer = Symbols::SymbolContainer::instance();
-            auto moduleNames = symbolContainer->getModuleNames();
+            auto       symbolContainer = Symbols::SymbolContainer::instance();
+            auto       moduleNames     = symbolContainer->getModuleNames();
 
             // Check if the module exists
             if (std::find(moduleNames.begin(), moduleNames.end(), moduleName) != moduleNames.end()) {
@@ -223,11 +227,11 @@ int main(int argc, char * argv[]) {
 
                 // Check if external
                 std::vector<ModuleInfo> externalModules = scanExternalModules();
-                bool isExternal = false;
-                std::string path = "";
-                for (const auto& mod : externalModules) {
+                bool                    isExternal      = false;
+                std::string             path            = "";
+                for (const auto & mod : externalModules) {
                     if (mod.name == moduleName) {
-                        path = mod.path;
+                        path       = mod.path;
                         isExternal = true;
                         break;
                     }
@@ -256,7 +260,7 @@ int main(int argc, char * argv[]) {
             }
             scriptContent = argv[++i];
             isCommandMode = true;
-            file = "<command-line>";  // Virtual filename for command mode
+            file          = "<command-line>";  // Virtual filename for command mode
         } else if (a == "-") {
             // Read script from stdin
             file = a;
@@ -300,11 +304,11 @@ int main(int argc, char * argv[]) {
 
     VoidScript voidscript(filename, debugLexer, debugParser, debugInterp, debugSymbolTable, enableTags,
                           suppressTagsOutside, scriptArgs);
-    
+
     // If in command mode, set the script content directly
     if (isCommandMode) {
         voidscript.setScriptContent(scriptContent);
     }
-    
+
     return voidscript.run();
 }
