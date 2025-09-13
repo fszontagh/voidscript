@@ -32,9 +32,10 @@ class BaseModule {
   protected:
     std::string moduleName;
     std::string moduleDescription;
+    bool        isBuiltIn_ = false;  // Flag to indicate if this is a built-in module (default: false for external)
 
   public:
-    BaseModule()          = default;
+    BaseModule() = default;
     virtual ~BaseModule() = default;
 
     /**
@@ -59,11 +60,23 @@ class BaseModule {
      */
     std::string description() const { return this->moduleDescription; }
 
+    /**
+     * @brief Set whether this module is built-in
+     * @param builtIn True if built-in, false if external
+     */
+    void setBuiltIn(bool builtIn) { this->isBuiltIn_ = builtIn; }
+
+    /**
+     * @brief Check if this module is built-in
+     * @return True if built-in, false otherwise (external)
+     */
+    bool isBuiltIn() const { return this->isBuiltIn_; }
+
     Symbols::ObjectMap getObjectMap(const FunctionArguments & args, const std::string & funcName) {
         constexpr const char* SCOPE_SEP = "::";  // Local definition to avoid circular dependency
         if (!args.empty()) {
-            if (args[0] != Symbols::Variables::Type::CLASS &&
-                args[0] != Symbols::Variables::Type::OBJECT) {
+            if (args[0].getType() != Symbols::Variables::Type::CLASS &&
+                args[0].getType() != Symbols::Variables::Type::OBJECT) {
                 throw std::runtime_error(this->moduleName + SCOPE_SEP + funcName +
                                          " must be called on " + this->moduleName + " instance");
             }
@@ -88,7 +101,7 @@ class BaseModule {
     }
 
     Symbols::ObjectMap storeObject(const FunctionArguments & args, Symbols::ValuePtr value,
-                                          const std::string & objName = "__item__") {
+                                   const std::string & objName = "__item__") {
         auto objectMap     = this->getObjectMap(args, "");
         objectMap[objName] = std::move(value);
         return objectMap;
