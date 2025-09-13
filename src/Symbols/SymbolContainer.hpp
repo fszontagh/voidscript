@@ -1072,7 +1072,7 @@ class SymbolContainer {
      */
     void addMethod(const std::string & className, const std::string & methodName,
                    Variables::Type                            returnType = Variables::Type::NULL_TYPE,
-                   const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false) {
+                   std::vector<FunctionParameterInfo> parameters = {}, bool isPrivate = false) {
         ClassInfo & classInfo = getClassInfo(className);
 
         // Check if method already exists
@@ -1111,7 +1111,7 @@ class SymbolContainer {
     void addNativeMethod(const std::string & className, const std::string & methodName,
                          std::function<ValuePtr(const std::vector<ValuePtr> &)> implementation,
                          Variables::Type                                        returnType = Variables::Type::NULL_TYPE,
-                         const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false,
+                         std::vector<FunctionParameterInfo> parameters = {}, bool isPrivate = false,
                          const std::string & description = "") {
         ClassInfo & classInfo = getClassInfo(className);
 
