@@ -34,59 +34,6 @@ const std::unordered_map<std::string, std::string> params = {
     { "-c, --command",           "Execute script string instead of reading from file"                                          },
 };
 
-/**
- * @brief Scan Modules/ directory for external modules
- * @return Vector of external ModuleInfo
- */
-static std::vector<ModuleInfo> scanExternalModules() {
-    std::vector<ModuleInfo> modules;
-
-    // Determine modules directory (similar to VoidScript::loadPlugins)
-    std::string modulesPath = "./Modules";
-
-    // Try to find the modules directory relative to executable if possible
-    char    exePath[1024];
-    ssize_t count = readlink("/proc/self/exe", exePath, sizeof(exePath));
-    if (count != -1) {
-        exePath[count] = '\0';
-        std::string binPath(exePath);
-        size_t      lastSlash = binPath.find_last_of("/\\");
-        std::string binDir    = (lastSlash != std::string::npos) ? binPath.substr(0, lastSlash) : ".";
-        std::string altPath   = binDir + "/Modules";
-        if (utils::exists(altPath) && utils::is_directory(altPath)) {
-            modulesPath = altPath;
-        }
-    }
-
-    // Scan modules directory if it exists
-    if (utils::exists(modulesPath) && utils::is_directory(modulesPath)) {
-        for (const auto & entry : std::filesystem::directory_iterator(modulesPath)) {
-            if (entry.is_directory()) {
-                std::string module_name    = entry.path().filename().string();
-                std::string lowercase_name = module_name;
-                std::transform(lowercase_name.begin(), lowercase_name.end(), lowercase_name.begin(), ::tolower);
-                std::string lib_name    = "libvoidscript-module-" + lowercase_name + ".so";
-                std::string module_path = modulesPath;
-                module_path.append("/");
-                module_path.append(module_name);
-                module_path.append("/");
-                module_path.append(lib_name);
-
-                // Try to get description from SymbolContainer (will be available after modules are loaded)
-                Symbols::SymbolContainer * symbolContainer = Symbols::SymbolContainer::instance();
-                std::string                description     = symbolContainer->getModuleDescription(module_name);
-                if (description.empty()) {
-                    description = "No description available.";
-                }
-
-                modules.push_back({ module_name, module_path, description });
-            }
-        }
-    }
-
-    return modules;
-}
-
 int main(int argc, char * argv[]) {
     std::string usage = "Usage: " + std::string(argv[0]);
     for (const auto & [key, value] : params) {
@@ -156,49 +103,15 @@ int main(int argc, char * argv[]) {
             auto       symbolContainer = Symbols::SymbolContainer::instance();
             auto       moduleNames     = symbolContainer->getModuleNames();
 
-            // Scan external modules from directory
-            std::vector<ModuleInfo>         externalModules = scanExternalModules();
-            std::unordered_set<std::string> externalModuleNames;
-            for (const auto & mod : externalModules) {
-                externalModuleNames.insert(mod.name);
-            }
-
-            // Separate modules into built-in and external ModuleInfo
-            std::vector<ModuleInfo> builtin, external;
+            // List all loaded modules
+            std::cout << "Loaded modules:\n";
             for (const auto & name : moduleNames) {
                 std::string description = symbolContainer->getModuleDescription(name);
                 if (description.empty()) {
                     description = "No description available.";
                 }
-                if (externalModuleNames.count(name)) {
-                    // Get path from external modules
-                    for (const auto & extMod : externalModules) {
-                        if (extMod.name == name) {
-                            external.push_back({ name, extMod.path, description });
-                            break;
-                        }
-                    }
-                } else {
-                    builtin.push_back({ name, "", description });
-                }
-            }
-
-            // Print built-in modules
-            std::cout << "Built-in modules:\n";
-            for (const auto & module : builtin) {
-                std::cout << "  Name: " << module.name << "\n";
-                std::cout << "  Path: " << (module.path.empty() ? "(built-in)" : module.path) << "\n";
-                std::cout << "  Description: " << module.description << "\n";
-                std::cout << "\n";
-            }
-            std::cout << "\n";
-
-            // Print external modules
-            std::cout << "External modules:\n";
-            for (const auto & module : external) {
-                std::cout << "  Name: " << module.name << "\n";
-                std::cout << "  Path: " << module.path << "\n";
-                std::cout << "  Description: " << module.description << "\n";
+                std::cout << "  Name: " << name << "\n";
+                std::cout << "  Description: " << description << "\n";
                 std::cout << "\n";
             }
             return 0;
@@ -224,26 +137,6 @@ int main(int argc, char * argv[]) {
 
                 std::cout << "Module Information:\n";
                 std::cout << "  Name: " << moduleName << "\n";
-
-                // Check if external
-                std::vector<ModuleInfo> externalModules = scanExternalModules();
-                bool                    isExternal      = false;
-                std::string             path            = "";
-                for (const auto & mod : externalModules) {
-                    if (mod.name == moduleName) {
-                        path       = mod.path;
-                        isExternal = true;
-                        break;
-                    }
-                }
-
-                if (isExternal) {
-                    std::cout << "  Path: " << path << "\n";
-                    std::cout << "  Type: External\n";
-                } else {
-                    std::cout << "  Path: (built-in)\n";
-                    std::cout << "  Type: Built-in\n";
-                }
                 std::cout << "  Description: " << description << "\n";
                 return 0;
             }
