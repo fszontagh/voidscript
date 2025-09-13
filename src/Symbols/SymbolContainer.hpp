@@ -592,3 +592,795 @@ class SymbolContainer {
      * @brief Find a symbol by name, searching hierarchically from current scope upwards.
      * Checks variables, constants, functions, and methods sub-namespaces within each scope.
      * @param name The name of the symbol to find.
+     * @return Shared pointer to the found symbol, or nullptr if not found.
+     */
+    SymbolPtr findSymbol(const std::string & name) {
+        // Try the specialized getter methods which already handle scope traversal correctly
+        if (SymbolPtr variable = getVariable(name)) {
+            return variable;
+        }
+
+        if (SymbolPtr constant = getConstant(name)) {
+            return constant;
+        }
+
+        if (SymbolPtr function = getFunction(name)) {
+            return function;
+        }
+
+        if (SymbolPtr method = getMethod(name)) {
+            return method;
+        }
+
+        // If not found in any scope
+        return nullptr;
+    }
+
+    /**
+     * @brief Find the namespace in which a class is defined.
+     * @param className Name of the class to find.
+     * @return The namespace containing the class, or empty string if not found.
+     */
+    std::string findClassNamespace(const std::string & className) {
+        // Look in all scopes for a symbol with metadata indicating it's the class definition
+        for (const auto & [scopeName, table] : scopes_) {
+            // Classes are registered in the variables namespace (as per addClass method)
+            auto classSymbol = table->get(DEFAULT_VARIABLES_SCOPE, className);
+            if (classSymbol && classSymbol->getKind() == Kind::Class) {
+                // Found the class definition
+                return scopeName;
+            }
+        }
+        return "";
+    }
+
+    /**
+     * @brief Find a method within a class scope
+     * @param className The name of the class
+     * @param methodName The name of the method to find
+     * @return Shared pointer to the found method symbol, or nullptr if not found
+     */
+    SymbolPtr findMethod(const std::string & className, const std::string & methodName) {
+        // First check the class registry (where native methods are stored)
+        if (hasClass(className)) {
+            const ClassInfo & classInfo = getClassInfo(className);
+            
+            for (const auto & method : classInfo.methods) {
+                if (method.name == methodName) {
+                    // For native methods, we need to indicate that the method exists but the actual call
+                    // will go through callMethod() which handles native methods directly.
+                    // Since MethodCallExpressionNode only checks if the return is nullptr or not,
+                    // we need to return a non-null pointer. Let's return a pointer to a static value.
+                    static SymbolPtr dummySymbol = nullptr;
+                    if (!dummySymbol) {
+                        dummySymbol = std::make_shared<Symbols::VariableSymbol>(
+                            "dummy",
+                            Symbols::ValuePtr::null(),
+                            "",
+                            Variables::Type::NULL_TYPE
+                        );
+                    }
+                    return dummySymbol;
+                }
+            }
+        }
+        
+        // If not found in class registry, try scope-based lookup (for script-defined methods)
+        std::string classScope = findClassNamespace(className);
+        if (classScope.empty()) {
+            return nullptr;  // Class not found
+        }
+
+        // The method is stored in a class-specific namespace: classScope::className
+        std::string classMethodScope = classScope + SCOPE_SEPARATOR + className;
+
+        // Get the symbol table for the class-specific method scope
+        auto scopeTable = getScopeTable(classMethodScope);
+        if (!scopeTable) {
+            return nullptr;
+        }
+
+        // Look for the method in the methods namespace within the class-specific scope
+        auto result = scopeTable->get(METHOD_SCOPE, methodName);
+        return result;
+    }
+
+    /**
+     * @brief Get method parameters for a native method
+     * @param className The name of the class
+     * @param methodName The name of the method
+     * @return Vector of parameter info for the method, empty if not found
+     */
+    std::vector<Symbols::FunctionParameterInfo> getNativeMethodParameters(const std::string & className, const std::string & methodName) {
+        if (hasClass(className)) {
+            const ClassInfo & classInfo = getClassInfo(className);
+            
+            for (const auto & method : classInfo.methods) {
+                if (method.name == methodName) {
+                    return method.parameters;
+                }
+            }
+        }
+        return {}; // Return empty vector if not found
+    }
+
+    /**
+     * @brief Get a function from the current scope or parent scopes
+     * @param name The name of the function to retrieve
+     * @return Shared pointer to the found function, or nullptr if not found
+     */
+    SymbolPtr getFunction(const std::string & name) const {
+        // Search scopes in innermost-to-outermost order
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const std::string & scopeName = *it;
+            auto                tableIt   = scopes_.find(scopeName);
+            if (tableIt != scopes_.end()) {
+                auto func = tableIt->second->get(DEFAULT_FUNCTIONS_SCOPE, name);
+                if (func && func->getKind() == Kind::Function) {
+                    return func;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a function from a specific scope
+     * @param scopeName The name of the scope to look in
+     * @param name The name of the function to retrieve
+     * @return Shared pointer to the found function, or nullptr if not found
+     */
+    SymbolPtr getFunction(const std::string & scopeName, const std::string & name) const {
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            return nullptr;
+        }
+        auto func = it->second->get(DEFAULT_FUNCTIONS_SCOPE, name);
+        if (func && func->getKind() == Kind::Function) {
+            return func;
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a method from the current scope or parent scopes
+     * @param name The name of the method to retrieve
+     * @return Shared pointer to the found method, or nullptr if not found
+     */
+    SymbolPtr getMethod(const std::string & name) const {
+        // Search scopes in innermost-to-outermost order
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const std::string & scopeName = *it;
+            auto                tableIt   = scopes_.find(scopeName);
+            if (tableIt != scopes_.end()) {
+                auto method = tableIt->second->get(METHOD_SCOPE, name);
+                if (method && method->getKind() == Kind::Function) {
+                    return method;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a method from a specific scope
+     * @param scopeName The name of the scope to look in
+     * @param name The name of the method to retrieve
+     * @return Shared pointer to the found method, or nullptr if not found
+     */
+    SymbolPtr getMethod(const std::string & scopeName, const std::string & name) const {
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            return nullptr;
+        }
+        auto method = it->second->get(METHOD_SCOPE, name);
+        if (method && method->getKind() == Kind::Function) {
+            return method;
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a variable from the current scope or parent scopes
+     * @param name The name of the variable to retrieve
+     * @return Shared pointer to the found variable, or nullptr if not found
+     */
+    SymbolPtr getVariable(const std::string & name) const {
+        // Search scopes in innermost-to-outermost order
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const auto & scopeName = *it;
+            auto                tableIt   = scopes_.find(scopeName);
+            if (tableIt != scopes_.end()) {
+                auto variable = tableIt->second->get(DEFAULT_VARIABLES_SCOPE, name);
+                if (variable && variable->getKind() == Kind::Variable) {
+                    return variable;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a variable from a specific scope
+     * @param scopeName The name of the scope to look in
+     * @param name The name of the variable to retrieve
+     * @return Shared pointer to the found variable, or nullptr if not found
+     */
+    SymbolPtr getVariable(const std::string & scopeName, const std::string & name) const {
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            return nullptr;
+        }
+        auto variable = it->second->get(DEFAULT_VARIABLES_SCOPE, name);
+        if (variable) {
+            if (variable->getKind() == Kind::Variable) {
+                return variable;
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a constant from the current scope or parent scopes
+     * @param name The name of the constant to retrieve
+     * @return Shared pointer to the found constant, or nullptr if not found
+     */
+    SymbolPtr getConstant(const std::string & name) const {
+        // Search scopes in innermost-to-outermost order
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const auto & scopeName = *it;
+            auto                tableIt   = scopes_.find(scopeName);
+            if (tableIt != scopes_.end()) {
+                auto constant = tableIt->second->get(DEFAULT_CONSTANTS_SCOPE, name);
+                if (constant && constant->getKind() == Kind::Constant) {
+                    return constant;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get a constant from a specific scope
+     * @param scopeName The name of the scope to look in
+     * @param name The name of the constant to retrieve
+     * @return Shared pointer to the found constant, or nullptr if not found
+     */
+    SymbolPtr getConstant(const std::string & scopeName, const std::string & name) const {
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            return nullptr;
+        }
+        auto constant = it->second->get(DEFAULT_CONSTANTS_SCOPE, name);
+        if (constant && constant->getKind() == Kind::Constant) {
+            return constant;
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get an enum from the current scope or parent scopes
+     * @param name The name of the enum to retrieve
+     * @return Shared pointer to the found enum, or nullptr if not found
+     */
+    SymbolPtr getEnum(const std::string & name) const {
+        // Search scopes in innermost-to-outermost order
+        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
+            const auto & scopeName = *it;
+            auto                tableIt   = scopes_.find(scopeName);
+            if (tableIt != scopes_.end()) {
+                auto enumSymbol = tableIt->second->get(DEFAULT_VARIABLES_SCOPE, name);
+                if (enumSymbol && enumSymbol->getKind() == Kind::ENUM) {
+                    return enumSymbol;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Get an enum from a specific scope
+     * @param scopeName The name of the scope to look in
+     * @param name The name of the enum to retrieve
+     * @return Shared pointer to the found enum, or nullptr if not found
+     */
+    SymbolPtr getEnum(const std::string & scopeName, const std::string & name) const {
+        auto it = scopes_.find(scopeName);
+        if (it == scopes_.end()) {
+            return nullptr;
+        }
+        auto enumSymbol = it->second->get(DEFAULT_VARIABLES_SCOPE, name);
+        if (enumSymbol && enumSymbol->getKind() == Kind::ENUM) {
+            return enumSymbol;
+        }
+        return nullptr;
+    }
+
+    static std::string dump() {
+        std::string result;
+
+        result += "\n--- Symbol Table Dump ---\n";
+
+        for (const auto & scope_name : instance()->getScopeNames()) {
+            result += "Scope: '" + scope_name + "'\n";
+
+            // Get the table for this scope
+            auto tablePtr = instance()->getScopeTable(scope_name);
+            if (tablePtr) {
+                // Iterate all symbols in this table using the flat structure
+                for (const auto & symbol : tablePtr->listAll()) {  // listAll doesn't need prefix now
+                    result += symbol->dump() + '\n';
+                    // Recursively dump object properties
+                    dumpValue(symbol->getValue(), result, 2);  // Reduced indent slightly
+                }
+            } else {
+                result += "\t(Error: Scope table not found)\n";
+            }
+        }
+        result += "--- End Dump ---\n";
+        return result;
+    }
+
+    /** @brief Get the SymbolTable for a specific scope name, if it exists. */
+    std::shared_ptr<SymbolTable> getScopeTable(const std::string & scopeName) const {
+        auto it = scopes_.find(scopeName);
+        if (it != scopes_.end()) {
+            return it->second;  // Return the shared_ptr to the table
+        }
+        return nullptr;         // Scope not found
+    }
+
+    // --- Class Registry Methods ---
+
+    /**
+     * @brief Register a new class
+     * @param className Name of the class to register
+     * @param module Pointer to the module that defines this class (nullptr for script-defined classes)
+     * @return Reference to the newly created ClassInfo
+     */
+    ClassInfo & registerClass(const std::string & className, Modules::BaseModule * module = nullptr) {
+        if (hasClass(className)) {
+            throw std::runtime_error("Class already registered: " + className);
+        }
+
+        ClassInfo classInfo;
+        classInfo.name   = className;
+        classInfo.module = module;
+
+        classes_[className] = classInfo;
+        return classes_[className];
+    }
+
+    /**
+     * @brief Register a new class with inheritance
+     * @param className Name of the class to register
+     * @param parentClassName Name of the parent class
+     * @param module Pointer to the module that defines this class (nullptr for script-defined classes)
+     * @return Reference to the newly created ClassInfo
+     */
+    ClassInfo & registerClass(const std::string & className, const std::string & parentClassName,
+                              Modules::BaseModule * module = nullptr) {
+        if (hasClass(className)) {
+            throw std::runtime_error("Class already registered: " + className);
+        }
+
+        if (!hasClass(parentClassName)) {
+            throw std::runtime_error("Parent class not found: " + parentClassName);
+        }
+
+        ClassInfo classInfo;
+        classInfo.name        = className;
+        classInfo.parentClass = parentClassName;
+        classInfo.module      = module;
+
+        classes_[className] = classInfo;
+        return classes_[className];
+    }
+
+    /**
+     * @brief Check if a class is registered
+     * @param className Name of the class to check
+     * @return True if the class is registered, false otherwise
+     */
+    bool hasClass(const std::string & className) const {
+        // Thread-local infinite loop protection
+        static thread_local int recursionDepth = 0;
+        static thread_local std::unordered_set<std::string> visitedClasses;
+        
+        // Prevent infinite recursion
+        if (recursionDepth > 10) {
+            return false;  // Break the infinite loop
+        }
+        
+        // Prevent circular class lookups
+        if (visitedClasses.find(className) != visitedClasses.end()) {
+            return false;  // Already checking this class, prevent infinite loop
+        }
+        
+        recursionDepth++;
+        visitedClasses.insert(className);
+        
+        bool result = classes_.find(className) != classes_.end();
+        
+        visitedClasses.erase(className);
+        recursionDepth--;
+        
+        return result;
+    }
+
+    /**
+     * @brief Get information about a registered class
+     * @param className Name of the class to get information for
+     * @return Reference to the ClassInfo for the class
+     */
+    ClassInfo & getClassInfo(const std::string & className) {
+        auto it = classes_.find(className);
+        if (it == classes_.end()) {
+            throw std::runtime_error("Class not found: " + className);
+        }
+        return it->second;
+    }
+
+    /**
+     * @brief Get information about a registered class (const version)
+     * @param className Name of the class to get information for
+     * @return Const reference to the ClassInfo for the class
+     */
+    const ClassInfo & getClassInfo(const std::string & className) const {
+        auto it = classes_.find(className);
+        if (it == classes_.end()) {
+            throw std::runtime_error("Class not found: " + className);
+        }
+        return it->second;
+    }
+
+    /**
+     * @brief Add a property to a class
+     * @param className Name of the class to add the property to
+     * @param propertyName Name of the property
+     * @param type Type of the property
+     * @param isPrivate Whether the property is private
+     * @param defaultValueExpr Expression for the default value (optional)
+     */
+    void addProperty(const std::string & className, const std::string & propertyName, Variables::Type type,
+                     bool isPrivate = false, Parser::ParsedExpressionPtr defaultValueExpr = nullptr) {
+        ClassInfo & classInfo = getClassInfo(className);
+
+        // Check if property already exists
+        for (const auto & prop : classInfo.properties) {
+            if (prop.name == propertyName) {
+                throw std::runtime_error("Property already exists in class: " + className + "::" + propertyName);
+            }
+        }
+
+        PropertyInfo propertyInfo;
+        propertyInfo.name             = propertyName;
+        propertyInfo.type             = type;
+        propertyInfo.isPrivate        = isPrivate;
+        propertyInfo.defaultValueExpr = defaultValueExpr;
+
+        classInfo.properties.push_back(propertyInfo);
+    }
+
+    /**
+     * @brief Add a method to a class
+     * @param className Name of the class to add the method to
+     * @param methodName Name of the method
+     * @param returnType Return type of the method
+     * @param parameters Method parameters
+     * @param isPrivate Whether the method is private
+     */
+    void addMethod(const std::string & className, const std::string & methodName,
+                   Variables::Type                            returnType = Variables::Type::NULL_TYPE,
+                   const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false) {
+        ClassInfo & classInfo = getClassInfo(className);
+
+        // Check if method already exists
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                throw std::runtime_error("Method already exists in class: " + className + "::" + methodName);
+            }
+        }
+
+        MethodInfo methodInfo;
+        methodInfo.name          = methodName;
+        methodInfo.qualifiedName = className + SCOPE_SEPARATOR + methodName;
+        methodInfo.returnType    = returnType;
+        methodInfo.parameters    = parameters;
+        methodInfo.isPrivate     = isPrivate;
+
+        // Create documentation
+        FunctionDoc doc;
+        doc.name                 = methodInfo.qualifiedName;
+        doc.returnType           = returnType;
+        doc.parameterList        = parameters;
+        methodInfo.documentation = doc;
+
+        classInfo.methods.push_back(methodInfo);
+    }
+
+    /**
+     * @brief Add a native method to a class
+     * @param className Name of the class to add the method to
+     * @param methodName Name of the method
+     * @param implementation Native implementation of the method
+     * @param returnType Return type of the method
+     * @param parameters Method parameters
+     * @param isPrivate Whether the method is private
+     */
+    void addNativeMethod(const std::string & className, const std::string & methodName,
+                         std::function<ValuePtr(const std::vector<ValuePtr> &)> implementation,
+                         Variables::Type                                        returnType = Variables::Type::NULL_TYPE,
+                         const std::vector<FunctionParameterInfo> & parameters = {}, bool isPrivate = false,
+                         const std::string & description = "") {
+        ClassInfo & classInfo = getClassInfo(className);
+
+        // Check if method already exists
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                throw std::runtime_error("Method already exists in class: " + className + "::" + methodName);
+            }
+        }
+
+        MethodInfo methodInfo;
+        methodInfo.name                 = methodName;
+        methodInfo.qualifiedName        = className + SCOPE_SEPARATOR + methodName;
+        methodInfo.returnType           = returnType;
+        methodInfo.parameters           = parameters;
+        methodInfo.isPrivate            = isPrivate;
+        methodInfo.nativeImplementation = implementation;
+
+        // Create documentation
+        FunctionDoc doc;
+        doc.name                 = methodInfo.qualifiedName;
+        doc.returnType           = returnType;
+        doc.parameterList        = parameters;
+        doc.description          = description;
+        methodInfo.documentation = doc;
+
+        classInfo.methods.push_back(methodInfo);
+    }
+
+    /**
+     * @brief Check if a class has a specific property
+     * @param className Name of the class to check
+     * @param propertyName Name of the property to check for
+     * @return True if the property exists, false otherwise
+     */
+    bool hasProperty(const std::string & className, const std::string & propertyName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
+        // Check in this class
+        for (const auto & prop : classInfo.properties) {
+            if (prop.name == propertyName) {
+                return true;
+            }
+        }
+
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return hasProperty(classInfo.parentClass, propertyName);
+        }
+
+        return false;
+    }
+
+    /**
+     * @brief Check if a class has a specific method
+     * @param className Name of the class to check
+     * @param methodName Name of the method to check for
+     * @return True if the method exists, false otherwise
+     */
+    bool hasMethod(const std::string & className, const std::string & methodName) const {
+        std::unordered_set<std::string> visited;
+        bool result = hasMethodInternal(className, methodName, visited, 0);
+        return result;
+    }
+
+private:
+    /**
+     * @brief Internal recursive method with cycle detection
+     */
+    bool hasMethodInternal(const std::string & className, const std::string & methodName,
+                          std::unordered_set<std::string>& visited, int depth) const {
+        const int MAX_RECURSION_DEPTH = 10;
+        
+        // Check for infinite recursion
+        if (depth > MAX_RECURSION_DEPTH) {
+            return false;
+        }
+        
+        // Check for circular inheritance
+        if (visited.find(className) != visited.end()) {
+            return false;
+        }
+        
+        visited.insert(className);
+        
+        if (!hasClass(className)) {
+            return false;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
+        // Check in this class
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                return true;
+            }
+        }
+
+        // Check in parent class if exists
+        if (!classInfo.parentClass.empty()) {
+            return hasMethodInternal(classInfo.parentClass, methodName, visited, depth + 1);
+        }
+
+        return false;
+    }
+
+public:
+    /**
+     * @brief Get all registered class names
+     * @return Vector of class names
+     */
+    std::vector<std::string> getClassNames() const {
+        std::vector<std::string> names;
+        names.reserve(classes_.size());
+        for (const auto & [name, _] : classes_) {
+            names.push_back(name);
+        }
+        return names;
+    }
+
+    /**
+     * @brief Get namespace for a symbol based on its kind
+     * @param symbol The symbol to get namespace for
+     * @return The appropriate namespace string
+     */
+    std::string getNamespaceForSymbol(const SymbolPtr & symbol) const {
+        switch (symbol->kind()) {
+            case Kind::Variable: return DEFAULT_VARIABLES_SCOPE;
+            case Kind::Constant: return DEFAULT_CONSTANTS_SCOPE;
+            case Kind::Function: return DEFAULT_FUNCTIONS_SCOPE;
+            case Kind::Method: return METHOD_SCOPE;
+            default: return "";
+        }
+    }
+
+    /**
+     * @brief Recursively dump value contents for debugging
+     * @param value The value to dump
+     * @param result String to append dump to
+     * @param indent Current indentation level
+     */
+    static void dumpValue(const ValuePtr & value, std::string & result, int indent = 0) {
+        if (!value || value->isNull()) {
+            return;
+        }
+
+        std::string indentStr(indent * 2, ' ');
+        result += indentStr + "Value: " + value->toString() + " (Type: " + Variables::TypeToString(value->getType()) + ")\n";
+
+        if (value->getType() == Variables::Type::OBJECT || value->getType() == Variables::Type::CLASS) {
+            const auto & objMap = value->getObject();
+            for (const auto & [key, val] : objMap) {
+                result += indentStr + "  Property '" + key + "':\n";
+                dumpValue(val, result, indent + 1);
+            }
+        }
+    }
+
+    // --- Module Management Methods ---
+
+    /**
+     * @brief Get all module names
+     * @return Vector of all loaded module names
+     */
+    std::vector<std::string> getModuleNames() const {
+        std::vector<std::string> names;
+        names.reserve(modules_.size());
+        for (const auto & [name, _] : modules_) {
+            names.push_back(name);
+        }
+        return names;
+    }
+
+    /**
+     * @brief Get built-in module names
+     * @return Vector of built-in module names
+     */
+    std::vector<std::string> getBuiltInModuleNames() const {
+        std::vector<std::string> names;
+        for (const auto & [name, modulePtr] : modules_) {
+            if (modulePtr->isBuiltIn()) {
+                names.push_back(name);
+            }
+        }
+        return names;
+    }
+
+    /**
+     * @brief Get external module names
+     * @return Vector of external module names
+     */
+    std::vector<std::string> getExternalModuleNames() const {
+        std::vector<std::string> names;
+        for (const auto & [name, modulePtr] : modules_) {
+            if (!modulePtr->isBuiltIn()) {
+                names.push_back(name);
+            }
+        }
+        return names;
+    }
+
+    /**
+     * @brief Get description for a module
+     * @param moduleName Name of the module
+     * @return Description string, or empty if not found
+     */
+    std::string getModuleDescription(const std::string & moduleName) const {
+        auto it = moduleDescriptions_.find(moduleName);
+        if (it != moduleDescriptions_.end()) {
+            return it->second;
+        }
+        return "";
+    }
+
+    /**
+     * @brief Register a module and its functions
+     * @param module Unique pointer to the BaseModule
+     */
+    void registerModule(Modules::BaseModulePtr module);
+
+    /**
+     * @brief Store a module after registration
+     * @param module Unique pointer to the BaseModule
+     */
+    void storeModule(Modules::BaseModulePtr module);
+
+    /**
+     * @brief Set the current module for registration context
+     * @param module Pointer to the current module
+     */
+    void setCurrentModule(Modules::BaseModule * module) {
+        currentModule_ = module;
+    }
+
+    /**
+     * @brief Get the current module
+     * @return Pointer to current module, or nullptr
+     */
+    Modules::BaseModule * getCurrentModule() const {
+        return currentModule_;
+    }
+
+    /**
+     * @brief Check if a module is loaded
+     * @param moduleName Name of the module to check
+     * @return True if loaded, false otherwise
+     */
+    bool hasModule(const std::string & moduleName) const {
+        return modules_.find(moduleName) != modules_.end();
+    }
+
+    /**
+     * @brief Get a module by name
+     * @param moduleName Name of the module
+     * @return Unique pointer to the module if found, else empty
+     */
+    Modules::BaseModulePtr getModule(const std::string & moduleName) const {
+        auto it = modules_.find(moduleName);
+        if (it != modules_.end()) {
+            return it->second;  // Note: This returns a copy; consider shared_ptr if needed
+        }
+        return nullptr;
+    }
+};
+
+}  // namespace Symbols
+
+#endif  // SYMBOL_CONTAINER_HPP
