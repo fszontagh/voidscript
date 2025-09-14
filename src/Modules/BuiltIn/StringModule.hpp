@@ -15,6 +15,7 @@ class StringModule : public BaseModule {
     StringModule() {
         setModuleName("String");
         setDescription("Provides string manipulation and processing functions including length calculation, replacement, and substring extraction");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

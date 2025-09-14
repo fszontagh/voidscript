@@ -19,6 +19,7 @@ class PrintModule : public BaseModule {
     PrintModule() {
         setModuleName("Print");
         setDescription("Provides essential output and program control functions including print, printnl, error output, exception throwing, and program termination with custom exit codes");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

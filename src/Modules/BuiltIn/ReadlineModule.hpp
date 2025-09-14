@@ -54,6 +54,7 @@ class ReadlineModule : public BaseModule {
     ReadlineModule() {
         setModuleName("Readline");
         setDescription("Provides terminal input functions for reading user input in CLI mode");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

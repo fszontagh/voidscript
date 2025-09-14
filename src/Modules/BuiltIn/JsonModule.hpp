@@ -26,6 +26,7 @@ class JsonModule : public BaseModule {
     JsonModule() {
         setModuleName("Json");
         setDescription("Provides JSON serialization and deserialization functions for converting between VoidScript objects and JSON strings");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

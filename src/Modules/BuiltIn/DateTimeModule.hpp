@@ -39,6 +39,7 @@ class DateTimeModule : public BaseModule {
     DateTimeModule() {
         setModuleName("DateTime");
         setDescription("Provides comprehensive date and time functionality including current timestamp retrieval, date formatting, and a DateTime class with arithmetic operations and custom formatting support");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

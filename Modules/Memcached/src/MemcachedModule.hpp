@@ -118,7 +118,6 @@ public:
     static Symbols::ValuePtr memcachedDecr(FunctionArguments& args);
 
 private:
-    void registerLegacyFunctions();
     void registerOOPClasses();
 };
 

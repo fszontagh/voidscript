@@ -165,8 +165,7 @@ class CurlModule final : public BaseModule {
     Symbols::ValuePtr curlDelete(FunctionArguments & args);
 
   private:
-    void registerLegacyFunctions();
-    void registerOOPClasses();
+      void registerOOPClasses();
 };
 
 }  // namespace Modules

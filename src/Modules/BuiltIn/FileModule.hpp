@@ -28,6 +28,7 @@ class FileModule : public BaseModule {
     FileModule() {
         setModuleName("File");
         setDescription("Provides file system operations including reading, writing, file existence checks, directory management, and file size queries");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

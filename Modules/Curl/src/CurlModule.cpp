@@ -759,35 +759,8 @@ Symbols::ValuePtr CurlClientWrapper::mergeOptions(const std::string& objectId, S
 
 // CurlModule implementation
 void CurlModule::registerFunctions() {
-    // Register legacy functions for backward compatibility
-    registerLegacyFunctions();
-    
     // Register new OOP classes
     registerOOPClasses();
-}
-
-void CurlModule::registerLegacyFunctions() {
-    std::vector<Symbols::FunctionParameterInfo> param_list = {
-        { "url", Symbols::Variables::Type::STRING, "The URL to send the request to" },
-        { "options", Symbols::Variables::Type::OBJECT, "Additional options for the request", true }
-    };
-
-    REGISTER_FUNCTION("curlGet", Symbols::Variables::Type::STRING, param_list, "Perform HTTP GET",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr { return this->curlGet(args); });
-
-    REGISTER_FUNCTION("curlDelete", Symbols::Variables::Type::STRING, param_list, "Perform HTTP DELETE",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr { return this->curlDelete(args); });
-    param_list = {
-        { "url", Symbols::Variables::Type::STRING, "URL to perform query" },
-        { "data", Symbols::Variables::Type::STRING, "Data to send" },
-        { "options", Symbols::Variables::Type::STRING, "Optional CURL options object", true }
-    };
-
-    REGISTER_FUNCTION("curlPost", Symbols::Variables::Type::STRING, param_list, "Perform HTTP POST",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr { return this->curlPost(args); });
-
-    REGISTER_FUNCTION("curlPut", Symbols::Variables::Type::STRING, param_list, "Perform HTTP PUT",
-                      [this](FunctionArguments & args) -> Symbols::ValuePtr { return this->curlPut(args); });
 }
 
 void CurlModule::registerOOPClasses() {

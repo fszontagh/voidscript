@@ -23,6 +23,7 @@ class ModuleHelperModule : public BaseModule {
     ModuleHelperModule() {
         setModuleName("ModuleHelper");
         setDescription("Provides reflection and introspection capabilities for modules, functions, classes, and methods in the VoidScript runtime");
+        setBuiltIn(true);
     }
 
     /**

@@ -128,6 +128,7 @@ class VariableHelpersModule : public BaseModule {
     VariableHelpersModule() {
         setModuleName("VariableHelpers");
         setDescription("Provides essential variable inspection and type checking utilities including typeof, isset, is_null, and var_dump functions for debugging and runtime type analysis");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

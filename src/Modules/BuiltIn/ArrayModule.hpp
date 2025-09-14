@@ -24,6 +24,7 @@ class ArrayModule : public BaseModule {
     ArrayModule() {
         setModuleName("Array");
         setDescription("Provides array and object manipulation functions, including size operations for collections");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

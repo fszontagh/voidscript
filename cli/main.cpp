@@ -101,18 +101,40 @@ int main(int argc, char * argv[]) {
         } else if (a == "-m" || a == "--modules") {
             VoidScript voidscript("modules", false, false, false, false, false, false, std::vector<std::string>{});
             auto       symbolContainer = Symbols::SymbolContainer::instance();
-            auto       moduleNames     = symbolContainer->getModuleNames();
 
-            // List all loaded modules
-            std::cout << "Loaded modules:\n";
-            for (const auto & name : moduleNames) {
-                std::string description = symbolContainer->getModuleDescription(name);
-                if (description.empty()) {
-                    description = "No description available.";
+            // Get built-in modules
+            auto builtInModules = symbolContainer->getBuiltInModuleNames();
+            if (!builtInModules.empty()) {
+                std::cout << "Built-in modules:\n";
+                for (const auto & name : builtInModules) {
+                    std::string description = symbolContainer->getModuleDescription(name);
+                    if (description.empty()) {
+                        description = "No description available.";
+                    }
+                    std::cout << "  Name: " << name << "\n";
+                    std::cout << "  Description: " << description << "\n";
+                    std::cout << "\n";
                 }
-                std::cout << "  Name: " << name << "\n";
-                std::cout << "  Description: " << description << "\n";
-                std::cout << "\n";
+            }
+
+            // Get external/dynamic modules
+            auto externalModules = symbolContainer->getExternalModuleNames();
+            if (!externalModules.empty()) {
+                std::cout << "Dynamic modules:\n";
+                for (const auto & name : externalModules) {
+                    std::string description = symbolContainer->getModuleDescription(name);
+                    if (description.empty()) {
+                        description = "No description available.";
+                    }
+                    std::cout << "  Name: " << name << "\n";
+                    std::cout << "  Description: " << description << "\n";
+                    std::cout << "\n";
+                }
+            }
+
+            // Handle case where no modules are loaded
+            if (builtInModules.empty() && externalModules.empty()) {
+                std::cout << "No modules loaded.\n";
             }
             return 0;
         } else if (a == "--module-info") {

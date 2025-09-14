@@ -37,6 +37,7 @@ class MathModule : public BaseModule {
     MathModule() {
         setModuleName("Math");
         setDescription("Provides comprehensive mathematical functions including trigonometric, logarithmic, and arithmetic operations, along with mathematical constants");
+        setBuiltIn(true);
     }
 
     void registerFunctions() override {

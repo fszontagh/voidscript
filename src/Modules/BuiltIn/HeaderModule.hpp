@@ -20,6 +20,7 @@ class HeaderModule : public BaseModule {
     HeaderModule() {
         setModuleName("Header");
         setDescription("Provides HTTP header management functionality for FastCGI applications, allowing setting and manipulation of HTTP response headers similar to PHP's header() function");
+        setBuiltIn(true);
     }
     
     void registerFunctions() override {

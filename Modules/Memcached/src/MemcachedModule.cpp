@@ -499,75 +499,7 @@ MemcachedClient* MemcachedConnectionWrapper::getClient(const std::string& object
 
 // MemcachedModule implementation
 void MemcachedModule::registerFunctions() {
-    registerLegacyFunctions();
     registerOOPClasses();
-}
-
-void MemcachedModule::registerLegacyFunctions() {
-    // Connection function
-    std::vector<Symbols::FunctionParameterInfo> connect_param = {
-        {"servers", Symbols::Variables::Type::STRING, "Memcached servers string (e.g., 'localhost')"}
-    };
-    REGISTER_FUNCTION("memcachedConnect", Symbols::Variables::Type::STRING, connect_param,
-                      "Connect to memcached servers",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedConnect(args);
-                      });
-
-    // Basic operations
-    std::vector<Symbols::FunctionParameterInfo> key_param = {
-        {"key", Symbols::Variables::Type::STRING, "Cache key"}
-    };
-    REGISTER_FUNCTION("memcachedGet", Symbols::Variables::Type::STRING, key_param,
-                      "Get value from memcached",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedGet(args);
-                      });
-
-    std::vector<Symbols::FunctionParameterInfo> set_params = {
-        {"key", Symbols::Variables::Type::STRING, "Cache key"},
-        {"value", Symbols::Variables::Type::STRING, "Value to store"},
-        {"expiration", Symbols::Variables::Type::INTEGER, "Expiration time in seconds", true}
-    };
-    REGISTER_FUNCTION("memcachedSet", Symbols::Variables::Type::BOOLEAN, set_params,
-                      "Set value in memcached",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedSet(args);
-                      });
-
-    REGISTER_FUNCTION("memcachedDelete", Symbols::Variables::Type::BOOLEAN, key_param,
-                      "Delete key from memcached",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedDelete(args);
-                      });
-
-    REGISTER_FUNCTION("memcachedExists", Symbols::Variables::Type::BOOLEAN, key_param,
-                      "Check if key exists in memcached",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedExists(args);
-                      });
-
-    REGISTER_FUNCTION("memcachedFlush", Symbols::Variables::Type::BOOLEAN, {},
-                      "Flush all cache entries",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedFlush(args);
-                      });
-
-    std::vector<Symbols::FunctionParameterInfo> incr_params = {
-        {"key", Symbols::Variables::Type::STRING, "Cache key"},
-        {"offset", Symbols::Variables::Type::INTEGER, "Increment offset", true}
-    };
-    REGISTER_FUNCTION("memcachedIncr", Symbols::Variables::Type::INTEGER, incr_params,
-                      "Increment numeric value",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedIncr(args);
-                      });
-
-    REGISTER_FUNCTION("memcachedDecr", Symbols::Variables::Type::INTEGER, incr_params,
-                      "Decrement numeric value",
-                      [this](const FunctionArguments & args) -> Symbols::ValuePtr {
-                          return this->memcachedDecr(args);
-                      });
 }
 
 void MemcachedModule::registerOOPClasses() {
