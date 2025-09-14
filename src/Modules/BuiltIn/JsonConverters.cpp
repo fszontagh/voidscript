@@ -83,9 +83,10 @@ Symbols::ValuePtr convertJsonNumberToValue(const nlohmann::json& json) {
  * @brief Recursively converts a JSON object to VoidScript ObjectMap
  *
  * @param json The JSON object to convert
+ * @param context Additional context information
  * @return Symbols::ObjectMap The converted ObjectMap
  */
-Symbols::ObjectMap convertJsonObjectToMap(const nlohmann::json& json) {
+Symbols::ObjectMap convertJsonObjectToMap(const nlohmann::json& json, const std::string& context = "") {
     Symbols::ObjectMap result;
 
     for (auto it = json.begin(); it != json.end(); ++it) {
@@ -124,14 +125,14 @@ Symbols::ObjectMap convertJsonObjectToMap(const nlohmann::json& json) {
                 } else if (element.is_string()) {
                     arrayMap[indexKey] = Symbols::ValuePtr(element.get<std::string>());
                 } else if (element.is_object()) {
-                    arrayMap[indexKey] = Symbols::ValuePtr(convertJsonObjectToMap(element));
+                    arrayMap[indexKey] = jsonToValueWithContext(element, context);
                 } else if (element.is_array()) {
-                    arrayMap[indexKey] = Symbols::ValuePtr(convertJsonObjectToMap(element));
+                    arrayMap[indexKey] = jsonToValueWithContext(element, context);
                 }
             }
             result[key] = Symbols::ValuePtr(arrayMap);
         } else if (value.is_object()) {
-            result[key] = Symbols::ValuePtr(convertJsonObjectToMap(value));
+            result[key] = jsonToValueWithContext(value, context);
         }
     }
 
@@ -282,14 +283,14 @@ Symbols::ValuePtr jsonToValueWithContext(const nlohmann::json& json, const std::
             } else if (element.is_string()) {
                 arrayMap[indexKey] = Symbols::ValuePtr(element.get<std::string>());
             } else if (element.is_object()) {
-                arrayMap[indexKey] = Symbols::ValuePtr(convertJsonObjectToMap(element));
+                arrayMap[indexKey] = jsonToValueWithContext(element, context);
             } else if (element.is_array()) {
-                arrayMap[indexKey] = Symbols::ValuePtr(convertJsonObjectToMap(element));
+                arrayMap[indexKey] = jsonToValueWithContext(element, context);
             }
         }
         return Symbols::ValuePtr(arrayMap);
     } else if (json.is_object()) {
-        return Symbols::ValuePtr(convertJsonObjectToMap(json));
+        return Symbols::ValuePtr(convertJsonObjectToMap(json, context));
     } else {
         throw std::runtime_error(createJsonErrorMessage("JSON to ValuePtr conversion",
                                                        "unknown", context));

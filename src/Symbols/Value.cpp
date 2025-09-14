@@ -122,8 +122,7 @@ std::string Value::toString() const {
     if (type_ == Symbols::Variables::Type::UNDEFINED_TYPE) {
         return "undefined";
     }
-    if (is_null() && type_ != Variables::Type::STRING && type_ != Variables::Type::OBJECT &&
-        type_ != Variables::Type::CLASS) {  // Allow toString on null strings/objects
+    if (is_null() && type_ != Variables::Type::STRING) {  // Allow toString on null strings/objects
         if (type_ == Variables::Type::NULL_TYPE || (!data_ && type_ != Variables::Type::STRING)) {
             return "null";
         }
@@ -166,8 +165,22 @@ std::string Value::toString() const {
                     return "[Invalid Class Object]";
                 }
             }
+        case Variables::Type::OBJECT:
+            {
+                const auto & objMap = get<ObjectMap>();
+                if (objMap.empty()) {
+                    return "{}";
+                }
+                std::string result = "{";
+                for (auto it = objMap.begin(); it != objMap.end(); ++it) {
+                    if (it != objMap.begin()) result += ", ";
+                    result += "\"" + it->first + "\": " + it->second.toString();
+                }
+                result += "}";
+                return result;
+            }
         // STRING is handled above
-        // OBJECT, NULL_TYPE will fall to default or handled by isNULL checks
+        // NULL_TYPE will fall to default or handled by isNULL checks
         default:
             return "null";  // Should ideally be covered by isNULL or type checks
     }
