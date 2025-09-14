@@ -131,7 +131,7 @@ void CurlClient::setCommonOptions() {
 }
 
 void CurlClient::parseOptions(Symbols::ValuePtr options) {
-    if (!options || options->isNULL()) {
+    if (!options || options->is_null()) {
         return; // No options to parse
     }
     
@@ -747,7 +747,7 @@ Symbols::ValuePtr CurlClientWrapper::mergeOptions(const std::string& objectId, S
     }
     
     // Merge with provided options
-    if (options && !options->isNULL() && options == Symbols::Variables::Type::OBJECT) {
+    if (options && !options->is_null() && options == Symbols::Variables::Type::OBJECT) {
         Symbols::ObjectMap providedOptions = options;
         for (const auto& kv : providedOptions) {
             mergedOptions[kv.first] = kv.second;

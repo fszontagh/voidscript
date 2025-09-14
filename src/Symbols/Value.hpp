@@ -40,7 +40,7 @@ class Value {
     std::shared_ptr<void>    data_;
     std::type_index          type_id_ = typeid(void);
   public: // Temporarily public for debugging
-    bool                     is_null  = false;
+    bool                     is_null_flag  = false;
   private: // Back to private
 
     // Private methods - Declarations only
@@ -61,7 +61,7 @@ class Value {
             // or this could be an assertion point depending on design philosophy.
             throw std::runtime_error("Type not found in type_names map during Value::set");
         }
-        this->is_null = false;  // Successfully setting data means it's not null.
+        this->is_null_flag = false;  // Successfully setting data means it's not null.
     }
 
   public:
@@ -70,13 +70,13 @@ class Value {
 
     // Public methods - Declarations only
     std::shared_ptr<Value>   clone() const;
-    bool                     isNULL() const;
+    bool                     is_null() const;
     Symbols::Variables::Type getType() const;
     std::string              toString() const;
 
     std::string getDebugStateString() const {
         std::string type_str       = Symbols::Variables::TypeToString(this->type_);
-        std::string null_str       = this->is_null ? "true" : "false";
+        std::string null_str       = this->is_null_flag ? "true" : "false";
         std::string data_valid_str = this->data_ ? "true" : "false";
         return "type='" + type_str + "', is_null='" + null_str + "', data_ptr_valid='" + data_valid_str + "'";
     }
@@ -93,7 +93,7 @@ class Value {
             std::string type_str = Symbols::Variables::TypeToString(this->type_);
             std::string err_msg =
                 "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str +
-                "', is_null='" + (this->is_null ? "true" : "false") + "'.";
+                "', is_null='" + (this->is_null_flag ? "true" : "false") + "'.";
             throw std::runtime_error(err_msg);
         }
         return *std::static_pointer_cast<T>(data_);
@@ -110,7 +110,7 @@ class Value {
             std::string type_str = Symbols::Variables::TypeToString(this->type_);
             std::string err_msg =
                 "Attempted to access data from a Value object with null data pointer. Value state: type='" + type_str +
-                "', is_null='" + (this->is_null ? "true" : "false") + "'.";
+                "', is_null='" + (this->is_null_flag ? "true" : "false") + "'.";
             throw std::runtime_error(err_msg);
         }
         return *std::static_pointer_cast<T>(data_);
@@ -252,7 +252,7 @@ class ValuePtr {
         if (!ptr_) {
             throw std::runtime_error("Cannot convert null ValuePtr (universal conversion operator)");
         }
-        if (ptr_->isNULL()) {
+        if (ptr_->is_null()) {
             throw std::runtime_error("Cannot convert NULL value (universal conversion operator)");
         }
 
@@ -293,7 +293,7 @@ class ValuePtr {
         if (!ptr_) {
             throw std::runtime_error("Cannot convert null ValuePtr (bool operator)");
         }
-        if (ptr_->isNULL()) {
+        if (ptr_->is_null()) {
             throw std::runtime_error("Cannot convert NULL value (bool operator)");
         }
 

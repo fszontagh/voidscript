@@ -120,7 +120,7 @@ class AssignmentStatementNode : public StatementNode {
                     if (targetName_ == "this") {
                         // Ensure 'this' object and key exist before trying to access for verification
                         const auto& thisObj = interpreter.getThisObject();
-                        if (thisObj->getType() != Symbols::Variables::Type::NULL_TYPE && !thisObj->isNULL() && map_ref.count(key)) {
+                        if (thisObj->getType() != Symbols::Variables::Type::NULL_TYPE && !thisObj->is_null() && map_ref.count(key)) {
                         }
                     }
                 } else {

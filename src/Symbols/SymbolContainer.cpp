@@ -23,8 +23,6 @@ namespace Symbols {
         create(default_scope_name);  // Creates and enters the initial scope
     }
 
-    SymbolContainer::~SymbolContainer() = default;
-
     void SymbolContainer::create(const std::string & name) {
         scopes_[name] = std::make_shared<SymbolTable>(SCOPE_SEPARATOR);
         scopeStack_.push_back(name);
@@ -251,14 +249,6 @@ namespace Symbols {
         return ns;
     }
 
-    std::vector<SymbolPtr> SymbolContainer::getAll(const std::string & ns) const {
-        std::vector<SymbolPtr> result;
-        for (const auto & [_, table] : scopes_) {
-            auto symbols = ns.empty() ? table->listAll() : table->listAll(ns);
-            result.insert(result.end(), symbols.begin(), symbols.end());
-        }
-        return result;
-    }
 
     bool SymbolContainer::exists(const std::string & name, std::string fullNamespace) const {
         if (fullNamespace.empty()) {
@@ -288,69 +278,6 @@ namespace Symbols {
         return nullptr;
     }
 
-    SymbolPtr SymbolContainer::findSymbol(const std::string & name) {
-        if (SymbolPtr variable = getVariable(name)) {
-            return variable;
-        }
-        if (SymbolPtr constant = getConstant(name)) {
-            return constant;
-        }
-        if (SymbolPtr function = getFunction(name)) {
-            return function;
-        }
-        if (SymbolPtr method = getMethod(name)) {
-            return method;
-        }
-        return nullptr;
-    }
-
-    std::string SymbolContainer::findClassNamespace(const std::string & className) {
-        for (const auto & [scopeName, table] : scopes_) {
-            auto classSymbol = table->get(DEFAULT_VARIABLES_SCOPE, className);
-            if (classSymbol && classSymbol->getKind() == Kind::Class) {
-                return scopeName;
-            }
-        }
-        return "";
-    }
-
-    SymbolPtr SymbolContainer::findMethod(const std::string & className, const std::string & methodName) {
-        if (hasClass(className)) {
-            const ClassInfo & classInfo = getClassInfo(className);
-            for (const auto & method : classInfo.methods) {
-                if (method.name == methodName) {
-                    static SymbolPtr dummySymbol = nullptr;
-                    if (!dummySymbol) {
-                        dummySymbol = std::make_shared<Symbols::VariableSymbol>("dummy", Symbols::ValuePtr::null(), "", Variables::Type::NULL_TYPE);
-                    }
-                    return dummySymbol;
-                }
-            }
-        }
-        std::string classScope = findClassNamespace(className);
-        if (classScope.empty()) {
-            return nullptr;
-        }
-        std::string classMethodScope = classScope + SCOPE_SEPARATOR + className;
-        auto scopeTable = getScopeTable(classMethodScope);
-        if (!scopeTable) {
-            return nullptr;
-        }
-        auto result = scopeTable->get(METHOD_SCOPE, methodName);
-        return result;
-    }
-
-    std::vector<Symbols::FunctionParameterInfo> SymbolContainer::getNativeMethodParameters(const std::string & className, const std::string & methodName) {
-        if (hasClass(className)) {
-            const ClassInfo & classInfo = getClassInfo(className);
-            for (const auto & method : classInfo.methods) {
-                if (method.name == methodName) {
-                    return method.parameters;
-                }
-            }
-        }
-        return {};
-    }
 
     SymbolPtr SymbolContainer::getFunction(const std::string & name) const {
         for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
@@ -392,97 +319,7 @@ namespace Symbols {
         return nullptr;
     }
 
-    SymbolPtr SymbolContainer::getMethod(const std::string & scopeName, const std::string & name) const {
-        auto it = scopes_.find(scopeName);
-        if (it == scopes_.end()) {
-            return nullptr;
-        }
-        auto method = it->second->get(METHOD_SCOPE, name);
-        if (method && method->getKind() == Kind::Function) {
-            return method;
-        }
-        return nullptr;
-    }
 
-    SymbolPtr SymbolContainer::getVariable(const std::string & name) const {
-        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
-            const auto & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
-            if (tableIt != scopes_.end()) {
-                auto variable = tableIt->second->get(DEFAULT_VARIABLES_SCOPE, name);
-                if (variable && variable->getKind() == Kind::Variable) {
-                    return variable;
-                }
-            }
-        }
-        return nullptr;
-    }
-
-    SymbolPtr SymbolContainer::getVariable(const std::string & scopeName, const std::string & name) const {
-        auto it = scopes_.find(scopeName);
-        if (it == scopes_.end()) {
-            return nullptr;
-        }
-        auto variable = it->second->get(DEFAULT_VARIABLES_SCOPE, name);
-        if (variable) {
-            if (variable->getKind() == Kind::Variable) {
-                return variable;
-            }
-        }
-        return nullptr;
-    }
-
-    SymbolPtr SymbolContainer::getConstant(const std::string & name) const {
-        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
-            const auto & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
-            if (tableIt != scopes_.end()) {
-                auto constant = tableIt->second->get(DEFAULT_CONSTANTS_SCOPE, name);
-                if (constant && constant->getKind() == Kind::Constant) {
-                    return constant;
-                }
-            }
-        }
-        return nullptr;
-    }
-
-    SymbolPtr SymbolContainer::getConstant(const std::string & scopeName, const std::string & name) const {
-        auto it = scopes_.find(scopeName);
-        if (it == scopes_.end()) {
-            return nullptr;
-        }
-        auto constant = it->second->get(DEFAULT_CONSTANTS_SCOPE, name);
-        if (constant && constant->getKind() == Kind::Constant) {
-            return constant;
-        }
-        return nullptr;
-    }
-
-    SymbolPtr SymbolContainer::getEnum(const std::string & name) const {
-        for (auto it = scopeStack_.rbegin(); it != scopeStack_.rend(); ++it) {
-            const auto & scopeName = *it;
-            auto tableIt = scopes_.find(scopeName);
-            if (tableIt != scopes_.end()) {
-                auto enumSymbol = tableIt->second->get(DEFAULT_VARIABLES_SCOPE, name);
-                if (enumSymbol && enumSymbol->getKind() == Kind::ENUM) {
-                    return enumSymbol;
-                }
-            }
-        }
-        return nullptr;
-    }
-
-    SymbolPtr SymbolContainer::getEnum(const std::string & scopeName, const std::string & name) const {
-        auto it = scopes_.find(scopeName);
-        if (it == scopes_.end()) {
-            return nullptr;
-        }
-        auto enumSymbol = it->second->get(DEFAULT_VARIABLES_SCOPE, name);
-        if (enumSymbol && enumSymbol->getKind() == Kind::ENUM) {
-            return enumSymbol;
-        }
-        return nullptr;
-    }
 
     std::string SymbolContainer::dump() {
         std::string result;
@@ -511,31 +348,6 @@ namespace Symbols {
         return nullptr;
     }
 
-    ClassInfo & SymbolContainer::registerClass(const std::string & className, Modules::BaseModule * module) {
-        if (hasClass(className)) {
-            throw std::runtime_error("Class already registered: " + className);
-        }
-        ClassInfo classInfo;
-        classInfo.name = className;
-        classInfo.module = module;
-        classes_[className] = classInfo;
-        return classes_[className];
-    }
-
-    ClassInfo & SymbolContainer::registerClass(const std::string & className, const std::string & parentClassName, Modules::BaseModule * module) {
-        if (hasClass(className)) {
-            throw std::runtime_error("Class already registered: " + className);
-        }
-        if (!hasClass(parentClassName)) {
-            throw std::runtime_error("Parent class not found: " + parentClassName);
-        }
-        ClassInfo classInfo;
-        classInfo.name = className;
-        classInfo.parentClass = parentClassName;
-        classInfo.module = module;
-        classes_[className] = classInfo;
-        return classes_[className];
-    }
 
     bool SymbolContainer::hasClass(const std::string & className) const {
         static thread_local int recursionDepth = 0;
@@ -650,29 +462,6 @@ namespace Symbols {
         return hasMethodInternal(className, methodName, visited, 0);
     }
 
-    bool SymbolContainer::hasMethodInternal(const std::string & className, const std::string & methodName, std::unordered_set<std::string>& visited, int depth) const {
-        const int MAX_RECURSION_DEPTH = 10;
-        if (depth > MAX_RECURSION_DEPTH) {
-            return false;
-        }
-        if (visited.find(className) != visited.end()) {
-            return false;
-        }
-        visited.insert(className);
-        if (!hasClass(className)) {
-            return false;
-        }
-        const ClassInfo & classInfo = getClassInfo(className);
-        for (const auto & method : classInfo.methods) {
-            if (method.name == methodName) {
-                return true;
-            }
-        }
-        if (!classInfo.parentClass.empty()) {
-            return hasMethodInternal(classInfo.parentClass, methodName, visited, depth + 1);
-        }
-        return false;
-    }
 
     std::vector<std::string> SymbolContainer::getClassNames() const {
         std::vector<std::string> names;
@@ -694,13 +483,13 @@ namespace Symbols {
     }
 
     void SymbolContainer::dumpValue(const ValuePtr & value, std::string & result, int indent) {
-        if (!value || value->isNull()) {
+        if (!value || value->is_null()) {
             return;
         }
         std::string indentStr(indent * 2, ' ');
         result += indentStr + "Value: " + value->toString() + " (Type: " + Variables::TypeToString(value->getType()) + ")\n";
         if (value->getType() == Variables::Type::OBJECT || value->getType() == Variables::Type::CLASS) {
-            const auto & objMap = value->getObject();
+            const auto & objMap = value->get<ObjectMap>();
             for (const auto & [key, val] : objMap) {
                 result += indentStr + "  Property '" + key + "':\n";
                 dumpValue(val, result, indent + 1);
@@ -782,12 +571,218 @@ namespace Symbols {
         return modules_.find(moduleName) != modules_.end();
     }
 
-    Modules::BaseModulePtr SymbolContainer::getModule(const std::string & moduleName) const {
+    Modules::BaseModule * SymbolContainer::getModule(const std::string & moduleName) const {
         auto it = modules_.find(moduleName);
         if (it != modules_.end()) {
+            return it->second.get();
+        }
+        return nullptr;
+    }
+
+    // --- Function Management Methods ---
+
+    void SymbolContainer::registerDoc(const std::string & name, const FunctionDoc & doc) {
+        functionDocs_[name] = doc;
+    }
+
+    void SymbolContainer::registerFunction(const std::string & name, CallbackFunction callback,
+                                          Variables::Type returnType, Modules::BaseModule * module) {
+        functions_[name] = callback;
+        functionModules_[name] = module;
+
+        // Create basic documentation
+        FunctionDoc doc;
+        doc.name = name;
+        doc.returnType = returnType;
+        functionDocs_[name] = doc;
+    }
+
+    void SymbolContainer::registerFunction(const std::string & name, const FunctionDoc & doc,
+                                          const std::vector<FunctionParameterInfo> & parameters,
+                                          const std::string & plainbody, Variables::Type returnType) {
+        // This version is for functions with documentation but no callback (e.g., script functions)
+        // For now, we'll store the documentation
+        FunctionDoc enhancedDoc = doc;
+        enhancedDoc.parameterList = parameters;
+        functionDocs_[name] = enhancedDoc;
+    }
+
+    bool SymbolContainer::hasFunction(const std::string & name) const {
+        return functions_.find(name) != functions_.end();
+    }
+
+    ValuePtr SymbolContainer::callFunction(const std::string & name, const std::vector<ValuePtr> & args) {
+        auto it = functions_.find(name);
+        if (it == functions_.end()) {
+            throw std::runtime_error("Function not found: " + name);
+        }
+        return it->second(args);
+    }
+
+    ValuePtr SymbolContainer::callMethod(const std::string & className, const std::string & methodName,
+                                        const std::vector<ValuePtr> & args) {
+        if (!hasClass(className)) {
+            throw std::runtime_error("Class not found: " + className);
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                if (method.nativeImplementation) {
+                    return method.nativeImplementation(args);
+                } else {
+                    throw std::runtime_error("Method has no native implementation: " + className + "::" + methodName);
+                }
+            }
+        }
+
+        throw std::runtime_error("Method not found: " + className + "::" + methodName);
+    }
+
+    std::vector<FunctionParameterInfo> SymbolContainer::getMethodParameters(const std::string & className,
+                                                                           const std::string & methodName) const {
+        if (!hasClass(className)) {
+            return {};
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                return method.parameters;
+            }
+        }
+
+        return {};
+    }
+
+    const FunctionDoc & SymbolContainer::getFunctionDoc(const std::string & name) const {
+        static const FunctionDoc emptyDoc;
+        auto it = functionDocs_.find(name);
+        if (it != functionDocs_.end()) {
+            return it->second;
+        }
+        return emptyDoc;
+    }
+
+    Variables::Type SymbolContainer::getFunctionReturnType(const std::string & name) const {
+        auto it = functionDocs_.find(name);
+        if (it != functionDocs_.end()) {
+            return it->second.returnType;
+        }
+        return Variables::Type::NULL_TYPE;
+    }
+
+    Variables::Type SymbolContainer::getMethodReturnType(const std::string & className, const std::string & methodName) const {
+        if (!hasClass(className)) {
+            return Variables::Type::NULL_TYPE;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                return method.returnType;
+            }
+        }
+
+        return Variables::Type::NULL_TYPE;
+    }
+
+    std::vector<std::string> SymbolContainer::getFunctionNamesByModule(const Modules::BaseModule * module) const {
+        std::vector<std::string> result;
+        if (!module) {
+            return result;
+        }
+
+        std::string moduleName = module->name();
+        for (const auto & [funcName, funcModule] : functionModules_) {
+            if (funcModule && funcModule->name() == moduleName) {
+                result.push_back(funcName);
+            }
+        }
+        return result;
+    }
+
+    Modules::BaseModule * SymbolContainer::getClassModule(const std::string & className) const {
+        if (!hasClass(className)) {
+            return nullptr;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+        return classInfo.module;
+    }
+
+    std::vector<std::string> SymbolContainer::getMethodNames(const std::string & className) const {
+        std::vector<std::string> result;
+        if (!hasClass(className)) {
+            return result;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+        for (const auto & method : classInfo.methods) {
+            result.push_back(method.name);
+        }
+        return result;
+    }
+
+    Modules::BaseModule * SymbolContainer::getFunctionModule(const std::string & functionName) const {
+        auto it = functionModules_.find(functionName);
+        if (it != functionModules_.end()) {
             return it->second;
         }
         return nullptr;
+    }
+
+    bool SymbolContainer::isMethodPrivate(const std::string & className, const std::string & methodName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+        for (const auto & method : classInfo.methods) {
+            if (method.name == methodName) {
+                return method.isPrivate;
+            }
+        }
+        return false;
+    }
+
+    bool SymbolContainer::isPropertyPrivate(const std::string & className, const std::string & propertyName) const {
+        if (!hasClass(className)) {
+            return false;
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+        for (const auto & property : classInfo.properties) {
+            if (property.name == propertyName) {
+                return property.isPrivate;
+            }
+        }
+        return false;
+    }
+
+    ValuePtr SymbolContainer::getObjectProperty(const std::string & className, const std::string & propertyName) const {
+        if (!hasClass(className)) {
+            return ValuePtr::null();
+        }
+
+        const ClassInfo & classInfo = getClassInfo(className);
+        auto it = classInfo.staticProperties.find(propertyName);
+        if (it != classInfo.staticProperties.end()) {
+            return it->second;
+        }
+        return ValuePtr::null();
+    }
+
+    void SymbolContainer::setObjectProperty(const std::string & className, const std::string & propertyName, const ValuePtr & value) {
+        if (!hasClass(className)) {
+            return;
+        }
+
+        ClassInfo & classInfo = getClassInfo(className);
+        classInfo.staticProperties[propertyName] = value;
     }
 
 } // namespace Symbols

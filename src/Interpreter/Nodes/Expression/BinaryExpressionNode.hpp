@@ -26,12 +26,12 @@ class BinaryExpressionNode : public ExpressionNode {
 
 
         // Handle NULL values in comparisons
-        if (leftVal->isNULL() || rightVal->isNULL()) {
+        if (leftVal->is_null() || rightVal->is_null()) {
             if (op_ == "==") {
-                return leftVal->isNULL() == rightVal->isNULL();
+                return leftVal->is_null() == rightVal->is_null();
             }
             if (op_ == "!=") {
-                return leftVal->isNULL() != rightVal->isNULL();
+                return leftVal->is_null() != rightVal->is_null();
             }
             return false;
         }

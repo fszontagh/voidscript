@@ -127,7 +127,7 @@ class MemberExpressionNode : public ExpressionNode {
             throw Exception("Property '" + keyToLookup + "' points to a null value pointer", filename_, line_, column_);
         }
         
-        if (it->second->isNULL()) {
+        if (it->second->is_null()) {
             throw Exception("Property '" + keyToLookup + "' is null in MemberExpressionNode", filename_, line_, column_);
         }
         

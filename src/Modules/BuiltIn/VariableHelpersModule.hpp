@@ -174,7 +174,7 @@ class VariableHelpersModule : public BaseModule {
                               if (args[0] == Symbols::Variables::Type::UNDEFINED_TYPE) {
                                   return true;
                               }
-                              return args[0]->isNULL();
+                              return args[0]->is_null();
                           });
 
         std::vector<Symbols::FunctionParameterInfo> var_dump_param_list = {

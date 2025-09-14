@@ -92,7 +92,7 @@ class IdentifierExpressionNode : public ExpressionNode {
             }
             // Fallback to interpreter's 'this' object if direct symbol not found (e.g. in method calls)
             const auto& interpreterThis = interpreter_instance.getThisObject();
-            if (interpreterThis->getType() != Symbols::Variables::Type::NULL_TYPE && !interpreterThis->isNULL()) { // Check if interpreter's 'this' is valid
+            if (interpreterThis->getType() != Symbols::Variables::Type::NULL_TYPE && !interpreterThis->is_null()) { // Check if interpreter's 'this' is valid
                  return interpreterThis;
             }
             throw Exception("Keyword '" + name_ + "' not found or not valid in current context.", eval_filename, eval_line, eval_column);

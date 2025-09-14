@@ -25,7 +25,7 @@ namespace Symbols {
 // --- Implementations for Symbols::Value methods ---
 
 void Value::setNULL() {
-    is_null = true;
+    is_null_flag = true;
     data_.reset();
 }
 
@@ -36,7 +36,7 @@ Value::Value() {
 void Value::clone_data_from(const Value & other) {
     // Reset current data
     this->data_.reset();
-    this->is_null = true;  // Default to null until data is set
+    this->is_null_flag = true;  // Default to null until data is set
 
     switch (other.type_) {
         case Symbols::Variables::Type::INTEGER:
@@ -84,11 +84,11 @@ void Value::clone_data_from(const Value & other) {
     }
 
     if (this->data_) {
-        this->is_null = false;
+        this->is_null_flag = false;
         // type_ and type_id_ are set by set<T>()
     } else {
         // Data was not set (e.g., setNULL() was called or unhandled type).
-        this->is_null  = true;
+        this->is_null_flag  = true;
         this->type_    = other.type_;  // Preserve original type info for null values
         this->type_id_ = other.type_id_;
     }
@@ -99,19 +99,19 @@ std::shared_ptr<Value> Value::clone() const {
 
     new_value->type_    = this->type_;
     new_value->type_id_ = this->type_id_;
-    new_value->is_null  = this->is_null;
+    new_value->is_null_flag  = this->is_null_flag;
 
-    if (!this->is_null && this->data_) {
+    if (!this->is_null_flag && this->data_) {
         new_value->clone_data_from(*this);
     }
     return new_value;
 }
 
-bool Value::isNULL() const {
-    // is_null is the primary flag. data_ check is secondary.
-    // A Value can be semantically null (is_null = true) but have a type (e.g. null string).
-    // A Value might also be is_null = false, but data_ is null if improperly handled (should not happen).
-    return is_null || !data_;
+bool Value::is_null() const {
+    // is_null_flag is the primary flag. data_ check is secondary.
+    // A Value can be semantically null (is_null_flag = true) but have a type (e.g. null string).
+    // A Value might also be is_null_flag = false, but data_ is null if improperly handled (should not happen).
+    return is_null_flag || !data_;
 }
 
 Symbols::Variables::Type Value::getType() const {
@@ -122,7 +122,7 @@ std::string Value::toString() const {
     if (type_ == Symbols::Variables::Type::UNDEFINED_TYPE) {
         return "undefined";
     }
-    if (isNULL() && type_ != Variables::Type::STRING && type_ != Variables::Type::OBJECT &&
+    if (is_null() && type_ != Variables::Type::STRING && type_ != Variables::Type::OBJECT &&
         type_ != Variables::Type::CLASS) {  // Allow toString on null strings/objects
         if (type_ == Variables::Type::NULL_TYPE || (!data_ && type_ != Variables::Type::STRING)) {
             return "null";
@@ -131,15 +131,15 @@ std::string Value::toString() const {
 
     // Specific handling for STRING to allow "null" for null strings vs empty string ""
     if (type_ == Variables::Type::STRING) {
-        if (!data_ || is_null) {  // if is_null is true, it's a "null string"
+        if (!data_ || is_null_flag) {  // if is_null_flag is true, it's a "null string"
             return "null";
         }
         return get<std::string>();  // Will return "" if string is empty but not null
     }
 
-    // For other types, if data_ is null but is_null wasn't true (e.g. uninitialized non-string)
-    // or if is_null is true, then it's "null"
-    if (!data_ || is_null) {
+    // For other types, if data_ is null but is_null_flag wasn't true (e.g. uninitialized non-string)
+    // or if is_null_flag is true, then it's "null"
+    if (!data_ || is_null_flag) {
         return "null";
     }
 
@@ -181,7 +181,7 @@ std::string ValuePtr::valueToString(const Value & value) {
     // as it's called internally when ptr_ is known to be valid.
     // Or, it could simply call value.toString() if that's preferred.
     // For now, replicating simpler logic:
-    if (value.isNULL()) {  // Use Value's own isNULL logic
+    if (value.is_null()) {  // Use Value's own is_null logic
         return "null";
     }
     if (value.type_ == Variables::Type::STRING) {
@@ -248,10 +248,10 @@ void ValuePtr::setType(Symbols::Variables::Type type) {
         ptr_->setNULL();  // Ensure it's in a valid null state
     }
     // Allow setting type if current value is conceptually null or uninitialized
-    if (ptr_->isNULL() || ptr_->getType() == Variables::Type::NULL_TYPE) {
+    if (ptr_->is_null() || ptr_->getType() == Variables::Type::NULL_TYPE) {
         ptr_->type_ = type;
         // If it was NULL_TYPE and now becomes e.g. STRING, it's a "null string"
-        // If it was already a "null string" (type_ == STRING, is_null == true), this just re-affirms type_
+        // If it was already a "null string" (type_ == STRING, is_null_flag == true), this just re-affirms type_
     } else {
         throw std::logic_error("Cannot set type manually on an already initialized, non-null value.");
     }
@@ -294,30 +294,30 @@ ValuePtr ValuePtr::null(Symbols::Variables::Type type) {
     // - A call to get<std::string>() should ideally not throw if it's a "null string".
     // The current Value::setNULL() resets data_.
     // Value::set<std::string>("") would make it a non-null empty string.
-    // Let's stick to: a null ValuePtr of type STRING has its type_ = STRING, is_null = true, data_ = nullptr.
+    // Let's stick to: a null ValuePtr of type STRING has its type_ = STRING, is_null_flag = true, data_ = nullptr.
     // Value::get<std::string>() will throw if data_ is null. This is consistent.
-    // The Value::clone_data_from will call new_value->clone_data_from(*this) only if !this->is_null && this->data_
-    // So, if a Value is_null, its data won't be cloned via get<T>(). This is fine.
+    // The Value::clone_data_from will call new_value->clone_data_from(*this) only if !this->is_null_flag && this->data_
+    // So, if a Value is_null_flag, its data won't be cloned via get<T>(). This is fine.
     // The ValuePtr::null(STRING) method sets the type to STRING. If it represents a null string,
-    // its Value object will have type_ = STRING and is_null = true.
+    // its Value object will have type_ = STRING and is_null_flag = true.
     // The original code had: if (type == Variables::Type::STRING) { z->set<std::string>(""); }
     // This makes it a non-null empty string. If we want a "null string", this line should be removed.
     // Given the problem statement, we are refactoring existing code. Let's keep behavior.
     // This means ValuePtr::null(STRING) returns a ValuePtr to an *empty string*, not a *null string*.
     if (type == Variables::Type::STRING) {
         z->set<std::string>("");  // Makes it a non-null empty string
-        z->is_null = false;       // Explicitly set after set<std::string>
+        z->is_null_flag = false;       // Explicitly set after set<std::string>
     } else if (type == Variables::Type::OBJECT) {
         z->set<ObjectMap>({});
-        z->is_null = false;
+        z->is_null_flag = false;
     } else if (type == Variables::Type::CLASS) {
         // CRITICAL FIX: Do not call makeClassInstance here as it could cause infinite recursion
         // when called from within makeClassInstance for property initialization
         z->set<ObjectMap>({});
         z->type_   = Variables::Type::CLASS;  // Override the type to CLASS
-        z->is_null = false;
+        z->is_null_flag = false;
     }
-    // For other types, it remains a "null" value of that type (is_null=true, data_=nullptr)
+    // For other types, it remains a "null" value of that type (is_null_flag=true, data_=nullptr)
     // but type_ is set.
 
     return z;
@@ -329,7 +329,7 @@ ValuePtr ValuePtr::null() {
 
 ValuePtr ValuePtr::undefined() {
     auto v     = ValuePtr();
-    v->is_null = true;
+    v->is_null_flag = true;
     v.setType(Symbols::Variables::Type::UNDEFINED_TYPE);
     return v;
 }
