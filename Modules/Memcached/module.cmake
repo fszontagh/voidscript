@@ -1,0 +1,1 @@
+set(MODULE_DESCRIPTION "VoidScript - Memcached module")

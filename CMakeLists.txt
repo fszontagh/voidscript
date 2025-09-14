@@ -22,6 +22,7 @@ option(BUILD_COMPILER "Build VoidScript compiler" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 option(BUILD_FASTCGI "Enable building FastCGI executable" ON)
 option(BUILD_MODULE_MONGODB "Enable MongoDB module" ON)
+option(BUILD_MODULE_MEMCACHED "Enable Memcached module" ON)
 option(BUILD_TESTS "Build the test cases" OFF)
 
 
@@ -259,6 +260,12 @@ file(GLOB AVAILABLE_MODULES
 list(REMOVE_ITEM AVAILABLE_MODULES MongoDb)
 if(BUILD_MODULE_MONGODB)
     add_dynamic_module(MongoDb)
+endif()
+
+# Handle Memcached module like other modules
+list(REMOVE_ITEM AVAILABLE_MODULES Memcached)
+if(BUILD_MODULE_MEMCACHED)
+    add_dynamic_module(Memcached)
 endif()
 
 
