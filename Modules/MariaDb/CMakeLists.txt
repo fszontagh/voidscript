@@ -1,4 +1,4 @@
-if(NOT _MODULE_MARIADB)
+if(NOT BUILD_MODULE_MARIADB)
     return()
 endif()
 
