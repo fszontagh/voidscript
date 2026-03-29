@@ -1,12 +1,13 @@
-if(NOT BUILD_MODULE_MARIADB)
+if (NOT BUILD_MODULE_MARIADB)
     return()
 endif()
-
+include(module.cmake)
 project(
-    modules-mariadb
+    modules-${MODULE_NAME}
     VERSION 0.0.1
-    DESCRIPTION "MariaDB support module for VoidScript"
+    DESCRIPTION "${MODULE_DESCRIPTION}"
     LANGUAGES CXX
+    HOMEPAGE_URL "https://github.com/fszontagh/voidshell"
 )
 
 # Find MariaDB headers and client library
@@ -17,14 +18,14 @@ if (NOT MARIADB_INCLUDE_DIR OR NOT MARIADBCLIENT_LIB)
     message(FATAL "MariaDB client library or header not found")
 endif()
 
-    add_library(voidscript-module-mariadb SHARED)
-    target_sources(voidscript-module-mariadb
-        PRIVATE
-            src/MariaDBModule.cpp
-            src/PluginInit.cpp
-    )
-    target_include_directories(voidscript-module-mariadb PRIVATE ${MARIADB_INCLUDE_DIR})
-    target_link_libraries(voidscript-module-mariadb PRIVATE voidscript ${MARIADBCLIENT_LIB})
+add_library(voidscript-module-${MODULE_NAME} SHARED)
+target_sources(voidscript-module-${MODULE_NAME}
+    PRIVATE
+        src/MariaDBModule.cpp
+        src/PluginInit.cpp
+)
 
+target_include_directories(voidscript-module-${MODULE_NAME} PRIVATE ${MARIADB_INCLUDE_DIR})
+target_link_libraries(voidscript-module-${MODULE_NAME} PRIVATE voidscript ${MARIADBCLIENT_LIB})
 
-install(TARGETS voidscript-module-mariadb DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT modules-mariadb)
+install(TARGETS voidscript-module-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")

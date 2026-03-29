@@ -759,6 +759,12 @@ Symbols::ValuePtr CurlClientWrapper::mergeOptions(const std::string& objectId, S
 
 // CurlModule implementation
 void CurlModule::registerFunctions() {
+    std::vector<Symbols::FunctionParameterInfo> curlGet_params = {
+        {"url", Symbols::Variables::Type::STRING, "URL to request"},
+        {"options", Symbols::Variables::Type::OBJECT, "Optional options object"}
+    };
+    REGISTER_FUNCTION("curlGet", Symbols::Variables::Type::STRING, curlGet_params, "Perform HTTP GET request using libcurl", [](Symbols::FunctionArguments& args){ return curlGet(args); });
+    
     // Register new OOP classes
     registerOOPClasses();
 }
