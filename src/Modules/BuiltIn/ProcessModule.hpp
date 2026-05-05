@@ -8,14 +8,17 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "Modules/BaseModule.hpp"
@@ -150,11 +153,41 @@ class ProcessModule : public BaseModule {
             throw std::runtime_error("argv must be an object/array of strings");
         }
         const auto & m = v->get<Symbols::ObjectMap>();
+
+        // Detect array-literal shape: every key parses as a non-negative integer.
+        // If so, sort by integer value so [a, b, ..., m] iterates in insertion
+        // order (not lexicographic, which would put "10" before "2"). Otherwise
+        // fall back to map order (already lex-sorted by std::map).
+        bool all_numeric = !m.empty();
+        std::vector<std::pair<long long, const Symbols::ValuePtr*>> indexed;
+        indexed.reserve(m.size());
         for (const auto & kv : m) {
-            if (kv.second != Symbols::Variables::Type::STRING) {
-                throw std::runtime_error("argv element '" + kv.first + "' is not a string");
+            char *end = nullptr;
+            long long n = std::strtoll(kv.first.c_str(), &end, 10);
+            if (end == kv.first.c_str() || *end != '\0' || n < 0) {
+                all_numeric = false;
+                break;
             }
-            out.push_back(kv.second->get<std::string>());
+            indexed.emplace_back(n, &kv.second);
+        }
+
+        if (all_numeric) {
+            std::sort(indexed.begin(), indexed.end(),
+                      [](const auto & a, const auto & b) { return a.first < b.first; });
+            for (const auto & [n, vp] : indexed) {
+                if (*vp != Symbols::Variables::Type::STRING) {
+                    throw std::runtime_error("argv element [" + std::to_string(n) +
+                                             "] is not a string");
+                }
+                out.push_back((*vp)->get<std::string>());
+            }
+        } else {
+            for (const auto & kv : m) {
+                if (kv.second != Symbols::Variables::Type::STRING) {
+                    throw std::runtime_error("argv element '" + kv.first + "' is not a string");
+                }
+                out.push_back(kv.second->get<std::string>());
+            }
         }
         return out;
     }
