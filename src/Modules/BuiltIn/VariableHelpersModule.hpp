@@ -191,6 +191,34 @@ class VariableHelpersModule : public BaseModule {
 
                               return var_dump_recursive(args[0], 0);
                           });
+
+        std::vector<Symbols::FunctionParameterInfo> object_set_param_list = {
+            { "target", Symbols::Variables::Type::OBJECT,    "The object to mutate",           false, false },
+            { "key",    Symbols::Variables::Type::STRING,    "The key to set",                 false, false },
+            { "value",  Symbols::Variables::Type::AUTO_TYPE, "The value to assign to the key", false, false },
+        };
+        REGISTER_FUNCTION("object_set", Symbols::Variables::Type::OBJECT, object_set_param_list,
+                          "Set a key on an object map in place and return the target (chainable)",
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() < 3) {
+                                  throw std::runtime_error("object_set requires (object, string, any)");
+                              }
+                              if (args[0] != Symbols::Variables::Type::OBJECT) {
+                                  throw std::runtime_error(
+                                      "object_set: first argument must be an object, got " +
+                                      Symbols::Variables::TypeToString(args[0]->getType()));
+                              }
+                              if (args[1] != Symbols::Variables::Type::STRING) {
+                                  throw std::runtime_error(
+                                      "object_set: second argument must be a string key, got " +
+                                      Symbols::Variables::TypeToString(args[1]->getType()));
+                              }
+                              const std::string & key    = args[1]->get<std::string>();
+                              Symbols::ValuePtr   target = args[0];  // non-const copy shares same Value
+                              Symbols::ObjectMap & map   = target.get<Symbols::ObjectMap>();
+                              map[key]                   = args[2];
+                              return args[0];
+                          });
     }
 };
 
