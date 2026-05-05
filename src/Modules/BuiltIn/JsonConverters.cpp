@@ -1,10 +1,12 @@
 // JsonConverters.cpp
 #include "JsonConverters.hpp"
 #include "../../json.hpp"
-#include <sstream>
-#include <iomanip>
+#include <algorithm>
 #include <cmath>
+#include <iomanip>
 #include <limits>
+#include <sstream>
+#include <vector>
 
 namespace Modules {
 namespace JsonConverters {
@@ -145,51 +147,78 @@ Symbols::ObjectMap convertJsonObjectToMap(const nlohmann::json& json, const std:
  * @param objMap The ObjectMap to convert
  * @return nlohmann::json The converted JSON object
  */
-nlohmann::json convertMapToJson(const Symbols::ObjectMap& objMap) {
-    nlohmann::json result;
+// Detect array-shape ObjectMap: every key is "0","1",...,"N-1" with no
+// gaps. Such maps were created from JSON arrays (jsonToValueWithContext)
+// or array literals; round-trip them back as JSON arrays so consumers
+// see the same shape they wrote in.
+static bool isArrayShape(const Symbols::ObjectMap& m) {
+    if (m.empty()) return false;
+    for (size_t i = 0; i < m.size(); ++i) {
+        auto it = m.find(std::to_string(i));
+        if (it == m.end()) return false;
+    }
+    return true;
+}
 
-    for (const auto& kv : objMap) {
-        const std::string& key = kv.first;
-        const Symbols::ValuePtr& value = kv.second;
+nlohmann::json convertMapToJson(const Symbols::ObjectMap& objMap) {
+    nlohmann::json result = isArrayShape(objMap) ? nlohmann::json::array()
+                                                 : nlohmann::json::object();
+    auto put = [&](const std::string& key, nlohmann::json v) {
+        if (result.is_array()) result.push_back(std::move(v));
+        else                   result[key] = std::move(v);
+    };
+
+    // For arrays we must iterate in numeric order, not std::map's lex order.
+    std::vector<std::string> keys;
+    keys.reserve(objMap.size());
+    for (const auto& kv : objMap) keys.push_back(kv.first);
+    if (result.is_array()) {
+        std::sort(keys.begin(), keys.end(), [](const std::string& a, const std::string& b) {
+            return std::stoll(a) < std::stoll(b);
+        });
+    }
+
+    for (const auto& key : keys) {
+        const Symbols::ValuePtr& value = objMap.at(key);
 
         switch (value.getType()) {
             case Symbols::Variables::Type::NULL_TYPE:
-                result[key] = nullptr;
+                put(key, nullptr);
                 break;
 
             case Symbols::Variables::Type::BOOLEAN:
-                result[key] = value.get<bool>();
+                put(key, value.get<bool>());
                 break;
 
             case Symbols::Variables::Type::INTEGER:
-                result[key] = value.get<int>();
+                put(key, value.get<int>());
                 break;
 
             case Symbols::Variables::Type::FLOAT:
-                result[key] = value.get<float>();
+                put(key, value.get<float>());
                 break;
 
             case Symbols::Variables::Type::DOUBLE:
-                result[key] = value.get<double>();
+                put(key, value.get<double>());
                 break;
 
             case Symbols::Variables::Type::STRING:
-                result[key] = value.get<std::string>();
+                put(key, value.get<std::string>());
                 break;
 
             case Symbols::Variables::Type::OBJECT:
             case Symbols::Variables::Type::CLASS:
-                result[key] = convertMapToJson(value.get<Symbols::ObjectMap>());
+                put(key, convertMapToJson(value.get<Symbols::ObjectMap>()));
                 break;
 
             case Symbols::Variables::Type::ENUM:
                 // Convert enum to string representation
-                result[key] = value.toString();
+                put(key, value.toString());
                 break;
 
             default:
                 // Unsupported type, convert to null
-                result[key] = nullptr;
+                put(key, nullptr);
                 break;
         }
     }
