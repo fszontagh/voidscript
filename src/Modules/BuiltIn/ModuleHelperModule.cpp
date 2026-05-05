@@ -622,8 +622,11 @@ Symbols::ValuePtr ModuleHelperModule::FunctionExists(const FunctionArguments & a
     
     std::string functionName = args[0]->toString();
     auto * sc = Symbols::SymbolContainer::instance();
-    
-    return Symbols::ValuePtr(sc->hasFunction(functionName));
+
+    // hasFunction checks the built-in/native callback registry.
+    // getFunction searches scope tables for user-defined (script-level) functions.
+    bool exists = sc->hasFunction(functionName) || (sc->getFunction(functionName) != nullptr);
+    return Symbols::ValuePtr(exists);
 }
 
 Symbols::ValuePtr ModuleHelperModule::ClassExists(const FunctionArguments & args) {
