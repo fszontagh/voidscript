@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(
     voidscript
     LANGUAGES CXX
-    VERSION 0.1.1
+    VERSION 0.2.0
     DESCRIPTION "A simple scripting language"
     HOMEPAGE_URL "https://github.com/fszontagh/voidshell"
 )
@@ -28,6 +28,8 @@ option(BUILD_MODULE_FORMAT "Enable Format module" ON)
 option(BUILD_MODULE_IMAGICK "Enable Imagick module" ON)
 option(BUILD_MODULE_XML2 "Enable Xml2 module" ON)
 option(BUILD_MODULE_MARIADB "Enable MariaDB module" ON)
+option(BUILD_MODULE_HASH "Enable Hash module (OpenSSL)" ON)
+option(BUILD_MODULE_ARCHIVE "Enable Archive module (libarchive)" ON)
 option(BUILD_TESTS "Build the test cases" OFF)
 
 

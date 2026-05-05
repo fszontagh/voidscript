@@ -13,11 +13,14 @@
 #include "Modules/BuiltIn/ArrayModule.hpp"
 #include "Modules/BuiltIn/ConversionModule.hpp"
 #include "Modules/BuiltIn/DateTimeModule.hpp"
+#include "Modules/BuiltIn/EnvModule.hpp"
 #include "Modules/BuiltIn/FileModule.hpp"
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Modules/BuiltIn/MathModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
+#include "Modules/BuiltIn/PathModule.hpp"
 #include "Modules/BuiltIn/PrintModule.hpp"
+#include "Modules/BuiltIn/ProcessModule.hpp"
 #include "Modules/BuiltIn/StringModule.hpp"
 #include "Modules/BuiltIn/VariableHelpersModule.hpp"
 #ifdef CLI
@@ -209,6 +212,21 @@ class VoidScript {
         auto fileModule = std::make_unique<Modules::FileModule>();
         fileModule->setModuleName("File");
         symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(fileModule)));
+
+        // environment variable builtin
+        auto envModule = std::make_unique<Modules::EnvModule>();
+        envModule->setModuleName("Env");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(envModule)));
+
+        // path manipulation builtin
+        auto pathModule = std::make_unique<Modules::PathModule>();
+        pathModule->setModuleName("Path");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(pathModule)));
+
+        // process exec builtin
+        auto processModule = std::make_unique<Modules::ProcessModule>();
+        processModule->setModuleName("Process");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(processModule)));
         
         // JSON encode/decode builtin
         auto jsonModule = std::make_unique<Modules::JsonModule>();
