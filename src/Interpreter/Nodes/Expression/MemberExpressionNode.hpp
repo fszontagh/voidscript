@@ -122,19 +122,14 @@ class MemberExpressionNode : public ExpressionNode {
             throw Exception("Property '" + keyToLookup + "' (resolved from '" + propertyName_ + "') not found in object", filename_, line_, column_);
         }
         
-        // Check for null property value
-        if (!it->second) {
-            throw Exception("Property '" + keyToLookup + "' points to a null value pointer", filename_, line_, column_);
-        }
-        
+        // Note: do NOT use `if (!it->second)` here — ValuePtr's operator bool()
+        // treats falsy values (int 0, empty string, false) as null, which would
+        // block legitimate access to those property values. operator-> auto-
+        // fills a null shared_ptr, so the only meaningful check is is_null().
         if (it->second->is_null()) {
             throw Exception("Property '" + keyToLookup + "' is null in MemberExpressionNode", filename_, line_, column_);
         }
-        
-        // Return a reference to the actual property value, not a clone
-        if (!it->second) {
-            throw Exception("CRITICAL: Property value is NULL pointer - this should never happen", filename_, line_, column_);
-        }
+
         return it->second;
     }
 

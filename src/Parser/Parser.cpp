@@ -125,16 +125,13 @@ void Parser::parseVariableDefinition() {
 
     // Check if there's an assignment or just a declaration
     if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
-        // Variable with initialization
+        // Variable with initialization. The Declaration node already evaluates
+        // the initializer and binds it; emitting a separate Assignment would
+        // re-evaluate the expression a second time, which doubles side effects
+        // for any function call on the right-hand side.
         auto expr = parseParsedExpression(var_type);
-        
-        // Generate both Declaration and Assignment operations for variable declarations with initializers
         Interpreter::OperationsFactory::defineVariableWithExpression(var_name, var_type, expr, ns, current_filename_,
                                                                      id_token.line_number, id_token.column_number);
-        
-        // Also generate an Assignment operation to actually assign the value
-        Interpreter::OperationsFactory::assignVariable(var_name, expr, ns, current_filename_,
-                                                       id_token.line_number, id_token.column_number);
     } else {
         // Variable declaration without initialization
         std::unique_ptr<Interpreter::DeclareVariableStatementNode> stmt =
