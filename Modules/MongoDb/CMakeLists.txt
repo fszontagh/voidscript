@@ -27,6 +27,7 @@ target_sources(voidscript-module-${MODULE_NAME}
         src/PluginInit.cpp
 )
 target_include_directories(voidscript-module-${MODULE_NAME} PRIVATE ${MONGOCXX_INCLUDE_DIRS} ${BSONCXX_INCLUDE_DIRS})
+target_link_directories(voidscript-module-${MODULE_NAME} PRIVATE ${MONGOCXX_LIBRARY_DIRS} ${BSONCXX_LIBRARY_DIRS})
 target_link_libraries(voidscript-module-${MODULE_NAME} PRIVATE voidscript ${MONGOCXX_LIBRARIES} ${BSONCXX_LIBRARIES})
 
 install(TARGETS voidscript-module-${MODULE_NAME} DESTINATION ${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}/Modules COMPONENT "modules-${MODULE_NAME}")
