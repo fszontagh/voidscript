@@ -29,14 +29,43 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential cmake git pkg-config curl \
             libcurl4-openssl-dev libfmt-dev libmagick++-dev libmariadb-dev libfcgi-dev \
-            libxml2-dev libmemcached-dev
+            libxml2-dev libmemcached-dev libarchive-dev libssl-dev \
+            libmongoc-dev libbson-dev libsasl2-dev
 
-        # Install MongoDB C++ driver from official repository
-        curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
-        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
-        sudo apt-get update
-        sudo apt-get install -y libmongocxx-dev
-    
+    # MongoDB does not ship apt packages for the modern mongocxx (3.x/4.x) C++
+    # driver, and Ubuntu 24.04 dropped `libmongocxx-dev` from its universe repo.
+    # We build mongocxx from the official source release and cache the install
+    # tree keyed on the version so we only pay the ~4-minute build on version
+    # bumps.
+    - name: Cache mongocxx install
+      id: cache-mongocxx
+      uses: actions/cache@v4
+      with:
+        path: /opt/mongocxx
+        key: mongocxx-r4.3.0-${{ matrix.os }}
+
+    - name: Build mongocxx from source
+      if: steps.cache-mongocxx.outputs.cache-hit != 'true'
+      run: |
+        curl -fsSL -o /tmp/mongocxx.tar.gz \
+          https://github.com/mongodb/mongo-cxx-driver/releases/download/r4.3.0/mongo-cxx-driver-r4.3.0.tar.gz
+        tar -xzf /tmp/mongocxx.tar.gz -C /tmp
+        cmake -S /tmp/mongo-cxx-driver-r4.3.0 -B /tmp/mongocxx-build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_CXX_STANDARD=20 \
+          -DCMAKE_INSTALL_PREFIX=/opt/mongocxx \
+          -DBUILD_SHARED_LIBS=ON \
+          -DENABLE_TESTS=OFF \
+          -DBUILD_VERSION=4.3.0
+        cmake --build /tmp/mongocxx-build --parallel
+        cmake --install /tmp/mongocxx-build
+
+    - name: Register mongocxx with pkg-config/ldconfig
+      run: |
+        echo "PKG_CONFIG_PATH=/opt/mongocxx/lib/pkgconfig" >> $GITHUB_ENV
+        echo "/opt/mongocxx/lib" | sudo tee /etc/ld.so.conf.d/mongocxx.conf
+        sudo ldconfig
+
     - name: Configure CMake
       run: |
         cmake -B build \
