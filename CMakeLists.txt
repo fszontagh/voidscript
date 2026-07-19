@@ -388,7 +388,33 @@ if (BUILD_TESTS)
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/index_operator.vs)
       set_tests_properties(RegressionIndexOperator PROPERTIES
                TIMEOUT 10
-               PASS_REGULAR_EXPRESSION "20\n99\n30\n77\n3\n30\ndone")
+               PASS_REGULAR_EXPRESSION "20\n99\n30\n77\n3\n30\ndone\n3\n4\n8\nappend-ok")
+
+      # Bug #11: a top-level return must end the script, not escape main and abort
+      # the process via std::terminate.
+      add_test(NAME RegressionTopLevelReturn
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/toplevel_return.vs)
+      set_tests_properties(RegressionTopLevelReturn PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED;terminate called")
+
+      # Bug #10: numeric initialisers adopt the declared numeric type, since every
+      # float literal lexes as double.
+      add_test(NAME RegressionNumericConversion
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/numeric_conversion.vs)
+      set_tests_properties(RegressionNumericConversion PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "done")
+
+      # Bug #6: sized array declarations, `int $codes[3];`
+      add_test(NAME RegressionSizedArrayDecl
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/sized_array_decl.vs)
+      set_tests_properties(RegressionSizedArrayDecl PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "0\n200\n404\nsecond\n0.000000\ndone")
 
   endif()
 

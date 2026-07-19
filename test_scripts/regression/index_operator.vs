@@ -33,3 +33,18 @@ int $i = 1;
 printnl($a[$i + 1]);            // 30
 
 printnl("done");
+
+// --- append: $a[] = x (PHP-style push onto the end) ---
+int[] $list = [1, 2];
+$list[] = 3;
+$list[] = 4;
+printnl($list[2]);              // 3
+printnl($list[3]);              // 4
+
+// append through a member
+object $bag = {};
+$bag->items = [7];
+$bag->items[] = 8;
+printnl($bag->items[1]);        // 8
+
+printnl("append-ok");

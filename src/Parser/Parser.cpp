@@ -125,6 +125,47 @@ void Parser::parseVariableDefinition() {
     // Corrected: ns should be the pure scope name, not combined with sub-namespace here.
     const auto ns = Symbols::SymbolContainer::instance()->currentScopeName();
 
+    // Sized array declaration: `int $codes[3];` declares an array of 3 default
+    // elements. Arrays are ObjectMaps keyed "0".."N-1", so build that literal here.
+    if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[" &&
+        peekToken().type != Lexer::Tokens::Type::PUNCTUATION) {
+        consumeToken();  // '['
+        auto sizeToken = expect(Lexer::Tokens::Type::NUMBER);
+        expect(Lexer::Tokens::Type::PUNCTUATION, "]");
+        expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+
+        const long long size = std::stoll(sizeToken.value);
+        if (size < 0) {
+            reportError("Array size cannot be negative", sizeToken);
+        }
+
+        // Elements start at the zero value for their type rather than null, so that
+        // reading an untouched element gives something usable and writing to one is
+        // still type checked.
+        auto defaultElement = [&]() -> Symbols::ValuePtr {
+            switch (var_type) {
+                case Symbols::Variables::Type::INTEGER: return Symbols::ValuePtr(0);
+                case Symbols::Variables::Type::FLOAT:   return Symbols::ValuePtr(0.0f);
+                case Symbols::Variables::Type::DOUBLE:  return Symbols::ValuePtr(0.0);
+                case Symbols::Variables::Type::STRING:  return Symbols::ValuePtr(std::string{});
+                case Symbols::Variables::Type::BOOLEAN: return Symbols::ValuePtr(false);
+                default:                                return Symbols::ValuePtr::null(var_type);
+            }
+        };
+
+        std::vector<std::pair<std::string, ParsedExpressionPtr>> members;
+        members.reserve(static_cast<size_t>(size));
+        for (long long i = 0; i < size; ++i) {
+            members.emplace_back(std::to_string(i), ParsedExpression::makeLiteral(defaultElement()));
+        }
+        auto arrayExpr = ParsedExpression::makeObject(std::move(members), current_filename_, id_token.line_number,
+                                                      id_token.column_number);
+        Interpreter::OperationsFactory::defineVariableWithExpression(var_name, Symbols::Variables::Type::OBJECT,
+                                                                     arrayExpr, ns, current_filename_,
+                                                                     id_token.line_number, id_token.column_number);
+        return;
+    }
+
     // Check if there's an assignment or just a declaration
     if (match(Lexer::Tokens::Type::OPERATOR_ASSIGNMENT, "=")) {
         // Variable with initialization. The Declaration node already evaluates
@@ -1582,6 +1623,13 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
         } else if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "[") {
             // Array indexing
             consumeToken(); // consume '['
+            if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "]") {
+                // Append: `$a[] = expr`. A null index expression means "next free slot",
+                // resolved at runtime since the size is not known while parsing.
+                consumeToken();  // ']'
+                indexExpressions.push_back(nullptr);
+                continue;
+            }
             auto indexExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
             expect(Lexer::Tokens::Type::PUNCTUATION, "]");
             indexExpressions.push_back(buildExpressionFromParsed(indexExpr));
@@ -1663,6 +1711,10 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
         // neither "[]" nor "=", so building the target out of those (as this used to)
         // produced a node the interpreter could never evaluate.
         for (size_t i = 0; i + 1 < indexExpressions.size(); ++i) {
+            if (!indexExpressions[i]) {
+                reportError("Append '[]' is only allowed as the last index of an assignment target", baseToken);
+                return nullptr;
+            }
             lhsNode = std::make_unique<Interpreter::ArrayAccessExpressionNode>(
                 std::move(lhsNode), std::move(indexExpressions[i]), this->current_filename_, baseToken.line_number,
                 baseToken.column_number);

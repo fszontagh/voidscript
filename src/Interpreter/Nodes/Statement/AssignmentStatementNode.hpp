@@ -6,6 +6,7 @@
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
+#include "Symbols/NumericCoercion.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 
@@ -145,13 +146,16 @@ class AssignmentStatementNode : public StatementNode {
             Symbols::ValuePtr newValue = rhs_->evaluate(interpreter);
             auto currentValue = symbol->getValue();  // Get current value for type checking
 
-            // Type check (allow assigning NULL to anything, otherwise types must match)
+            // Type check (allow assigning NULL to anything, otherwise types must match).
+            // Numeric values convert to the variable's type, same rule as declaration.
             if (newValue != Variables::Type::NULL_TYPE && currentValue != Variables::Type::NULL_TYPE &&
                 newValue.getType() != currentValue.getType()) { // Corrected type comparison
-                throw Exception("Type mismatch assigning to variable '" + targetName_ + "': expected '" +
-                                    Symbols::Variables::TypeToString(currentValue.getType()) + "' but got '" +
-                                    Symbols::Variables::TypeToString(newValue.getType()) + "'",
-                                filename_, line_, column_);
+                if (!Symbols::tryNumericCoerce(newValue, currentValue.getType())) {
+                    throw Exception("Type mismatch assigning to variable '" + targetName_ + "': expected '" +
+                                        Symbols::Variables::TypeToString(currentValue.getType()) + "' but got '" +
+                                        Symbols::Variables::TypeToString(newValue.getType()) + "'",
+                                    filename_, line_, column_);
+                }
             }
             // Only reference assignment, do not clone ValuePtr
             symbol->setValue(newValue);

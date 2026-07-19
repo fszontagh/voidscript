@@ -9,6 +9,7 @@
 #include <unistd.h>  // for readlink
 
 #include "Interpreter/Interpreter.hpp"
+#include "Interpreter/ReturnException.hpp"
 #include "Lexer/Lexer.hpp"
 #include "Modules/BuiltIn/ArrayModule.hpp"
 #include "Modules/BuiltIn/ConversionModule.hpp"
@@ -403,8 +404,18 @@ class VoidScript {
             }  // while (!files.empty())
 
             return 0;
+        } catch (const Interpreter::ReturnException &) {
+            // A return outside any function ends the script, as it does in PHP.
+            return 0;
         } catch (const std::exception & e) {
             std::cerr << e.what() << '\n';
+            return 1;
+        } catch (...) {
+            // Backstop. Nothing thrown by the interpreter should reach here, but
+            // ReturnException is not a std::exception and neither are any future
+            // control-flow signals, so without this an escaped one aborts the process
+            // via std::terminate with no diagnostic at all.
+            std::cerr << "Internal error: unhandled exception\n";
             return 1;
         }
         return 1;

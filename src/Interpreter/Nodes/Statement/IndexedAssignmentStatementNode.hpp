@@ -43,21 +43,27 @@ class IndexedAssignmentStatementNode : public StatementNode {
             throw Exception("Attempted to assign to an index of a non-array value", filename_, line_, column_);
         }
 
-        ValuePtr idxVal = indexExpr_->evaluate(interpreter, filename_, line_, column_);
+        ObjectMap & map_ref = container->get<ObjectMap>();
+
         std::string key;
-        if (idxVal == Variables::Type::INTEGER) {
-            key = std::to_string(idxVal->get<int>());
-        } else if (idxVal == Variables::Type::STRING) {
-            key = idxVal.get<std::string>();
+        if (!indexExpr_) {
+            // Append: `$a[] = expr`. Arrays are keyed by consecutive decimal indices,
+            // so the next free slot is the current size.
+            key = std::to_string(map_ref.size());
         } else {
-            throw Exception("Array index must be integer or string, got '" +
-                                Variables::TypeToString(idxVal.getType()) + "'",
-                            filename_, line_, column_);
+            ValuePtr idxVal = indexExpr_->evaluate(interpreter, filename_, line_, column_);
+            if (idxVal == Variables::Type::INTEGER) {
+                key = std::to_string(idxVal->get<int>());
+            } else if (idxVal == Variables::Type::STRING) {
+                key = idxVal.get<std::string>();
+            } else {
+                throw Exception("Array index must be integer or string, got '" +
+                                    Variables::TypeToString(idxVal.getType()) + "'",
+                                filename_, line_, column_);
+            }
         }
 
         ValuePtr newValue = rhs_->evaluate(interpreter, filename_, line_, column_);
-
-        ObjectMap & map_ref = container->get<ObjectMap>();
 
         // Match the element type check AssignmentStatementNode does for properties:
         // replacing an existing element must not silently change its type.

@@ -8,6 +8,7 @@
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
+#include "Symbols/NumericCoercion.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/SymbolFactory.hpp"
 
@@ -135,11 +136,16 @@ class DeclareVariableStatementNode : public StatementNode {
                 // Don't try to convert types - just allow the assignment as-is
                 // Enum variables can store integer values since enums are internally integers
             } else if (value.getType() != variableType_) {
-                std::string expected = Symbols::Variables::TypeToString(variableType_);
-                std::string actual = Symbols::Variables::TypeToString(value.getType());
-                throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
-                                    "' but got '" + actual + "' in scope '" + target_scope_name + "'",
-                                filename_, line_, column_);
+                // Numeric initialisers adopt the declared numeric type - every float
+                // literal lexes as double, so without this even `float $f = 2.718;`
+                // is a type error.
+                if (!Symbols::tryNumericCoerce(value, variableType_)) {
+                    std::string expected = Symbols::Variables::TypeToString(variableType_);
+                    std::string actual = Symbols::Variables::TypeToString(value.getType());
+                    throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
+                                        "' but got '" + actual + "' in scope '" + target_scope_name + "'",
+                                    filename_, line_, column_);
+                }
             }
 
 
