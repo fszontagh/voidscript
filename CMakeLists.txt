@@ -429,6 +429,15 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #8: string interpolation in double-quoted literals, with escaping and
+      # single quotes as the opt-out.
+      add_test(NAME RegressionStringInterpolation
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/string_interpolation.vs)
+      set_tests_properties(RegressionStringInterpolation PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "Hello world\nn=42 d=1.500000\nworldworld\n\\[world\\]\nworlds\ncosts \\$5\n100% \\$ ok\nraw \\$name\ngot inner\nworld\ndone")
+
       # Bug #7: try / catch / throw. The test also pins that catch does NOT swallow
       # break (BreakException derives from std::exception) or return.
       add_test(NAME RegressionTryCatch

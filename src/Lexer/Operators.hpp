@@ -6,6 +6,7 @@
 
 #include "Lexer/Token.hpp"
 #include "Parser/ParsedExpression.hpp"
+#include "Parser/StringInterpolation.hpp"
 
 namespace Lexer {
 
@@ -103,6 +104,14 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
         return true;
     }
     if (token.type == Tokens::Type::STRING_LITERAL) {
+        // A double-quoted literal may interpolate $variables. Work from the raw lexeme,
+        // since once the lexer has resolved escapes an escaped \$ is indistinguishable
+        // from a real one - and that distinction is what decides whether to interpolate.
+        if (auto interpolated = Parser::interpolation::interpolate(token.lexeme, filename, token.line_number,
+                                                                   token.column_number)) {
+            output_queue.push_back(std::move(interpolated));
+            return true;
+        }
         output_queue.push_back(Parser::ParsedExpression::makeLiteral(token.value));
         return true;
     }
