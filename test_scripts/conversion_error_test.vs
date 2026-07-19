@@ -4,5 +4,9 @@ printnl("=== Testing ConversionModule Error Handling ===");
 
 // Test with empty string (should cause error)
 printnl("Testing empty string...");
-double $result = string_to_number("");
-printnl("This line should not be reached!");
+try {
+    double $result = string_to_number("");
+    printnl("FAIL: empty string should not have converted: ", $result);
+} catch (string $e) {
+    printnl("OK: rejected empty numeric input");
+}

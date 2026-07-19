@@ -453,7 +453,7 @@ if (BUILD_TESTS)
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/loop_scope.vs)
       set_tests_properties(RegressionLoopScope PROPERTIES
                TIMEOUT 10
-               PASS_REGULAR_EXPRESSION "a0\na1\nb0\nb1\nc00\nc01\nc10\nc11\ndx\ndy\nex\ney\nf0\nf1\ndone\nk=3\nscope-done")
+               PASS_REGULAR_EXPRESSION "a0\na1\nb0\nb1\nc00\nc01\nc10\nc11\ndx\ndy\nex\ney\nf0\nf1\ndone\nk=3\nscope-done\ns0\ns2\ns4\nc0\nc3\nincr-done")
 
       # Bug #21: hex/binary/octal literals, scientific notation, digit separators.
       add_test(NAME RegressionNumericLiterals

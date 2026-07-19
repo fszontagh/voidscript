@@ -337,8 +337,26 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
                     incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
                         incrName, std::vector<std::string>(), std::move(bin), this->current_filename_,
                         incrTok.line_number, incrTok.column_number);
+                } else if (currentToken().type == Lexer::Tokens::Type::OPERATOR_ASSIGNMENT) {
+                    // Any assignment is a valid increment clause: `$i = $i + 2`,
+                    // `$i += 2`. Restricting this to ++/-- ruled out every step size
+                    // other than one.
+                    auto        opTok = consumeToken();
+                    const auto  op    = opTok.value;
+                    auto        rhs   = buildExpressionFromParsed(
+                        parseParsedExpression(Symbols::Variables::Type::NULL_TYPE));
+                    if (op != "=") {
+                        // Compound form: rewrite `$i op= expr` as `$i = $i op expr`.
+                        auto lhs = std::make_unique<Interpreter::IdentifierExpressionNode>(
+                            incrName, this->current_filename_, incrTok.line_number, incrTok.column_number);
+                        rhs = std::make_unique<Interpreter::BinaryExpressionNode>(
+                            std::move(lhs), op.substr(0, op.size() - 1), std::move(rhs));
+                    }
+                    incrStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
+                        incrName, std::vector<std::string>(), std::move(rhs), this->current_filename_,
+                        incrTok.line_number, incrTok.column_number);
                 } else {
-                    reportError("Expected '++' or '--' in for-loop increment", incrTok);
+                    reportError("Expected '++', '--' or an assignment in for-loop increment", incrTok);
                 }
             } else if (incrTok.type == Lexer::Tokens::Type::PUNCTUATION && incrTok.value == ")") {
                 // Empty increment statement

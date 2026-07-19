@@ -2,8 +2,9 @@ printnl("Starting while loop");
 
 int $i = 0;
 
+int $var = 0;
 while ($i < 10) {
-    int $var = $i;
+    $var = $i;
     printnl("i: ", $i);
     $i++;
 }
@@ -32,15 +33,17 @@ object $obj = {
 };
 
 // For-in loop
+int $var2 = 0;
 for (int $key, auto $val : $obj) {
-    int $var2 = $val;
+    $var2 = $val;
     printnl("key: ", $key, " val: ", $val);
 }
 printnl("var2 from for-in: ", $var2);
 
 // C-style for loop
+int $var3 = 0;
 for (int $j = 0; $j < 2; $j++) {
-    int $var3 = $j;
+    $var3 = $j;
     printnl("j: ", $j);
 }
 printnl("var3 from c-style for: ", $var3);

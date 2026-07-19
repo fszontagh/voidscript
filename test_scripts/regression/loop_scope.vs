@@ -43,3 +43,8 @@ int $k = 0;
 for ($k = 0; $k < 3; $k++) { }
 printnl("k=$k");                    // k=3
 printnl("scope-done");
+
+// #25: the increment clause accepts any assignment, not just ++/--
+for (int $s = 0; $s < 6; $s = $s + 2) { printnl("s$s"); }   // s0 s2 s4
+for (int $c = 0; $c < 6; $c += 3) { printnl("c$c"); }       // c0 c3
+printnl("incr-done");
