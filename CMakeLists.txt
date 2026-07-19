@@ -429,6 +429,25 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #19: json_encode and var_dump mishandled falsy values, via the same
+      # ValuePtr::operator bool() trap as #18.
+      add_test(NAME RegressionFalsyValues
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/falsy_values.vs)
+      set_tests_properties(RegressionFalsyValues PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "0\n\"\"\nfalse\n42\n\"hi\"\ntrue")
+
+      # Bug #15: runtime errors must report a real source location, not stack garbage.
+      # This script deliberately fails; PASS_REGULAR_EXPRESSION makes the exit code
+      # irrelevant and asserts on where the error claims to be.
+      add_test(NAME RegressionErrorSourceLocation
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/error_source_location.vs)
+      set_tests_properties(RegressionErrorSourceLocation PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "at line: 2, column: 7")
+
       set_tests_properties(RegressionSwitchStringAndReturn PROPERTIES
                TIMEOUT 10
                FAIL_REGULAR_EXPRESSION "NOT REACHED;end of stream"

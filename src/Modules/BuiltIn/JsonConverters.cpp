@@ -229,10 +229,10 @@ nlohmann::json convertMapToJson(const Symbols::ObjectMap& objMap) {
 } // anonymous namespace
 
 nlohmann::json valueToJson(const Symbols::ValuePtr& value) {
-    if (!value) {
-        throw std::runtime_error("Cannot convert null ValuePtr to JSON");
-    }
-
+    // No null guard here on purpose. `if (!value)` would use ValuePtr::operator bool(),
+    // which reports the VALUE's truthiness - so it rejected 0, "" and false - and throws
+    // outright on a genuinely null value. The switch below already maps NULL_TYPE to
+    // JSON null, so the guard was both wrong and redundant.
     return valueToJsonWithContext(value, "");
 }
 
@@ -241,11 +241,7 @@ Symbols::ValuePtr jsonToValue(const nlohmann::json& json) {
 }
 
 nlohmann::json valueToJsonWithContext(const Symbols::ValuePtr& value, const std::string& context) {
-    if (!value) {
-        throw std::runtime_error(createErrorMessage("ValuePtr to JSON conversion",
-                                                  Symbols::Variables::Type::NULL_TYPE, context));
-    }
-
+    // See valueToJson: no `if (!value)` guard - NULL_TYPE is handled by the switch.
     Symbols::Variables::Type type = value.getType();
 
     switch (type) {
@@ -327,10 +323,7 @@ Symbols::ValuePtr jsonToValueWithContext(const nlohmann::json& json, const std::
 }
 
 bool canConvertToJson(const Symbols::ValuePtr& value) {
-    if (!value) {
-        return false;
-    }
-
+    // See valueToJson: no `if (!value)` guard - NULL_TYPE is listed as convertible below.
     Symbols::Variables::Type type = value.getType();
 
     switch (type) {

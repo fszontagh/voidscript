@@ -32,7 +32,9 @@ class VariableHelpersModule : public BaseModule {
         std::string indent(indent_level * 2, ' ');
         std::string result;
 
-        if (!value) {
+        // is_null(), not `!value`: ValuePtr::operator bool() reports the VALUE's
+        // truthiness, so `!value` labelled 0, "" and false as NULL.
+        if (value->is_null()) {
             return indent + "NULL\n";
         }
 
