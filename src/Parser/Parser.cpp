@@ -8,6 +8,8 @@
 #include "Interpreter/Nodes/Expression/ArrayAccessExpressionNode.hpp"
 #include "Interpreter/Nodes/Statement/AssignmentStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/IndexedAssignmentStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/ThrowStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/TryStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/CallStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/ClassDefinitionStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/ConditionalStatementNode.hpp"
@@ -46,6 +48,9 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "break",    Lexer::Tokens::Type::KEYWORD_BREAK                },
     { "switch",   Lexer::Tokens::Type::KEYWORD_SWITCH               },
     { "case",     Lexer::Tokens::Type::KEYWORD_CASE                 },
+    { "try",      Lexer::Tokens::Type::KEYWORD_TRY                  },
+    { "catch",    Lexer::Tokens::Type::KEYWORD_CATCH                },
+    { "throw",    Lexer::Tokens::Type::KEYWORD_THROW                },
     { "default",  Lexer::Tokens::Type::KEYWORD_DEFAULT              },
     // Class support keywords
     { "class",    Lexer::Tokens::Type::KEYWORD_CLASS                },
@@ -409,6 +414,12 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD_BREAK) {
         return parseBreakStatement();
     }
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_TRY) {
+        return parseTryStatement();
+    }
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_THROW) {
+        return parseThrowStatement();
+    }
     // Switch statement
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD_SWITCH) {
         return parseSwitchStatement();
@@ -514,6 +525,12 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     // Break statement (handled above)
     if (currentTokenType == Lexer::Tokens::Type::KEYWORD_BREAK) {
         return parseBreakStatement();
+    }
+    if (currentTokenType == Lexer::Tokens::Type::KEYWORD_TRY) {
+        return parseTryStatement();
+    }
+    if (currentTokenType == Lexer::Tokens::Type::KEYWORD_THROW) {
+        return parseThrowStatement();
     }
     // Switch statement (handled above)
     if (currentTokenType == Lexer::Tokens::Type::KEYWORD_SWITCH) {
@@ -1849,6 +1866,14 @@ void Parser::parseTopLevelStatement() {
                 Operations::Operation{ Operations::Type::ControlFlow, "", std::move(switchNode) } // Assuming ControlFlow type
             );
         }
+    } else if (token_type == Lexer::Tokens::Type::KEYWORD_TRY ||
+               token_type == Lexer::Tokens::Type::KEYWORD_THROW) {
+        auto stmt = (token_type == Lexer::Tokens::Type::KEYWORD_TRY) ? parseTryStatement() : parseThrowStatement();
+        if (stmt) {
+            Operations::Container::instance()->add(
+                Symbols::SymbolContainer::instance()->currentScopeName(),
+                Operations::Operation{ Operations::Type::ControlFlow, "", std::move(stmt) });
+        }
     } else if (token_type == Lexer::Tokens::Type::KEYWORD_CONST) {
         parseConstVariableDefinition();
     }
@@ -2127,6 +2152,46 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseBreakStatement() {
         breakKeywordToken.line_number,
         breakKeywordToken.column_number
     );
+}
+
+// Parse `try { ... } catch { ... }` / `catch (type $e) { ... }`
+std::unique_ptr<Interpreter::StatementNode> Parser::parseTryStatement() {
+    auto tryKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_TRY);
+
+    auto tryBody = parseStatementBody("try block");
+
+    expect(Lexer::Tokens::Type::KEYWORD_CATCH);
+
+    // The catch variable is optional: `catch { }` is valid, and is the form the
+    // existing test scripts use. An optional type keyword before it is accepted and
+    // ignored, since the caught value is always delivered as a string.
+    std::string catchVarName;
+    if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == "(") {
+        consumeToken();  // '('
+        if (Parser::variable_types.find(currentToken().type) != Parser::variable_types.end()) {
+            consumeToken();  // the type keyword
+        }
+        auto varToken = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
+        catchVarName  = parseIdentifierName(varToken);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ")");
+    }
+
+    auto catchBody = parseStatementBody("catch block");
+
+    return std::make_unique<Interpreter::TryStatementNode>(
+        std::move(tryBody), std::move(catchBody), catchVarName, current_filename_, tryKeywordToken.line_number,
+        tryKeywordToken.column_number);
+}
+
+// Parse `throw expr;`
+std::unique_ptr<Interpreter::StatementNode> Parser::parseThrowStatement() {
+    auto throwKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_THROW);
+    auto parsedExpr        = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+
+    return std::make_unique<Interpreter::ThrowStatementNode>(buildExpressionFromParsed(parsedExpr), current_filename_,
+                                                             throwKeywordToken.line_number,
+                                                             throwKeywordToken.column_number);
 }
 
 // NEW: Parse a switch statement and return its node

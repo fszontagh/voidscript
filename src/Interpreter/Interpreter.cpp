@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "Interpreter/ReturnException.hpp"
+#include "Interpreter/ThrowException.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
 #include "Symbols/EnumSymbol.hpp" // Added for EnumSymbol
@@ -150,6 +151,9 @@ void Interpreter::runOperation(const Operations::Operation & op) {
                 throw Exception("Unknown operation type", "-", 0, 0);
         }
     } catch (const Exception &) {
+        throw;
+    } catch (const ThrowException &) {
+        // Already carries its own location; wrapping would double-format the message.
         throw;
     } catch (const std::exception & e) {
         throw Exception(e.what(), "-", 0, 0);

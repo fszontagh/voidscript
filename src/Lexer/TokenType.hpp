@@ -48,6 +48,9 @@ enum class Type : std::uint8_t {
     KEYWORD_CASE,
     KEYWORD_DEFAULT,
     KEYWORD_BREAK, // Added for break statements
+    KEYWORD_TRY,
+    KEYWORD_CATCH,
+    KEYWORD_THROW,
     KEYWORD_AUTO,  // Added for auto type inference
     UNKNOWN  // Unknown token type
 };
@@ -132,6 +135,12 @@ inline std::string TypeToString(Lexer::Tokens::Type type) {
             return "KEYWORD_DEFAULT";
         case Lexer::Tokens::Type::KEYWORD_BREAK:
             return "KEYWORD_BREAK";
+        case Lexer::Tokens::Type::KEYWORD_TRY:
+            return "KEYWORD_TRY";
+        case Lexer::Tokens::Type::KEYWORD_CATCH:
+            return "KEYWORD_CATCH";
+        case Lexer::Tokens::Type::KEYWORD_THROW:
+            return "KEYWORD_THROW";
         case Lexer::Tokens::Type::KEYWORD_AUTO:
             return "KEYWORD_AUTO";
         case Lexer::Tokens::Type::UNKNOWN:

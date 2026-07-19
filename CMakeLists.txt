@@ -429,6 +429,16 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #7: try / catch / throw. The test also pins that catch does NOT swallow
+      # break (BreakException derives from std::exception) or return.
+      add_test(NAME RegressionTryCatch
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/try_catch.vs)
+      set_tests_properties(RegressionTryCatch PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED"
+               PASS_REGULAR_EXPRESSION "caught-bare\ndetailed message\n3\ncaught-runtime\ntry-ok\nafter\ninner-caught\nouter-continues\nrethrown\nok\nrecovered:failed\n1\nreturned\ndone")
+
       # Bug #14: the ternary conditional, including right associativity, precedence,
       # and that only the taken branch is evaluated.
       add_test(NAME RegressionTernary

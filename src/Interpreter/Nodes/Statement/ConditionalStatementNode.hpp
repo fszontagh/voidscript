@@ -10,6 +10,7 @@
 #include "Interpreter/BreakException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
+#include "Interpreter/ThrowException.hpp"
 
 namespace Interpreter {
 
@@ -52,6 +53,11 @@ class ConditionalStatementNode : public StatementNode {
             // Re-throw BreakException so loop nodes can catch it
             throw;
         } catch (const Exception &) {
+            throw;
+        } catch (const ThrowException &) {
+            // A script-level throw must reach its try/catch with its type and
+            // value intact. Wrapping it into an Exception below would flatten it
+            // to a formatted message string.
             throw;
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);

@@ -7,6 +7,7 @@
 
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
+#include "Interpreter/ThrowException.hpp"
 #include "Interpreter/StatementNode.hpp"
 #include "Symbols/NumericCoercion.hpp"
 #include "Symbols/SymbolContainer.hpp"
@@ -163,6 +164,11 @@ class DeclareVariableStatementNode : public StatementNode {
             }
 
         } catch (const Exception &) {
+            throw;
+        } catch (const ThrowException &) {
+            // A script-level throw must reach its try/catch with its type and
+            // value intact. Wrapping it into an Exception below would flatten it
+            // to a formatted message string.
             throw;
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);

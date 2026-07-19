@@ -166,6 +166,8 @@ class Parser {
 
     // NEW: Parse a switch statement and return its node
     std::unique_ptr<Interpreter::StatementNode> parseSwitchStatement();
+    std::unique_ptr<Interpreter::StatementNode> parseTryStatement();
+    std::unique_ptr<Interpreter::StatementNode> parseThrowStatement();
 
     // --- Parsing helper functions ---
 
