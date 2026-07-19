@@ -352,6 +352,21 @@ if (BUILD_TESTS)
 
       # Add more tests here if needed...
 
+      # Every script in test_scripts/ must run clean and unattended. Scripts that
+      # need an interactive TTY or an input file now detect its absence and skip,
+      # rather than failing, so this is a meaningful all-green target. The absolute
+      # path matters: `include` resolves against the parent of the path as given.
+      file(GLOB VS_SUITE_SCRIPTS "${CMAKE_SOURCE_DIR}/test_scripts/*.vs")
+      foreach(VS_SCRIPT ${VS_SUITE_SCRIPTS})
+          get_filename_component(VS_SCRIPT_NAME ${VS_SCRIPT} NAME_WE)
+          # stdin must be closed: ctest otherwise hands the tests the terminal and the
+          # interactive scripts block forever waiting for a line that never comes.
+          add_test(NAME Script.${VS_SCRIPT_NAME}
+                   COMMAND sh -c "'${CMAKE_BINARY_DIR}/voidscript' '${VS_SCRIPT}' < /dev/null")
+          set_tests_properties(Script.${VS_SCRIPT_NAME} PROPERTIES TIMEOUT 30)
+      endforeach()
+
+
       # --- Regression tests (see BUGS.md) ---
 
       # Bug #1: a declaration missing the $ sigil must be a prompt syntax error,

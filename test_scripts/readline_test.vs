@@ -5,28 +5,48 @@ printnl("=== VoidScript ReadlineModule Test ===\n");
 # Test 1: Basic readline with prompt
 printnl("Test 1: readline() with prompt");
 printnl("Please enter your name: ");
-string $name = readline("Name: ");
+string $name = "";
+try {
+    $name = readline("Name: ");
+} catch {
+    printnl("(no input available - skipping interactive test)");
+}
 printnl("Hello, " + $name + "!\n");
 
 # Test 2: getline() without prompt
 printnl("Test 2: getline() without prompt");
 printnl("Enter something (no prompt will be shown): ");
-string $input = getline();
+string $input = "";
+try {
+    $input = getline();
+} catch {
+    printnl("(no input available - skipping interactive test)");
+}
 printnl("You entered: '" + $input + "'\n");
 
 # Test 3: readchar() for single character input
 printnl("Test 3: readchar() for single character");
 printnl("Press any key (no Enter needed): ");
-string $char = readchar();
-int $number = string_to_number($char);
-printnl("You pressed char: ", $char, " converted to number: ", $number);
+string $char = "";
+try {
+    $char = readchar();
+    int $number = string_to_number($char);
+    printnl("You pressed char: ", $char, " converted to number: ", $number);
+} catch {
+    printnl("(no input available - skipping interactive test)");
+}
 
 # Test 4: Interactive menu example
 printnl("=== Interactive Menu Example ===");
 printnl("1. Option 1");
 printnl("2. Option 2");
 printnl("3. Exit");
-string $choice = readline("Select option (1-3): ");
+string $choice = "";
+try {
+    $choice = readline("Select option (1-3): ");
+} catch {
+    printnl("(no input available - skipping interactive test)");
+}
 
 if ($choice == "1") {
     printnl("You selected Option 1");

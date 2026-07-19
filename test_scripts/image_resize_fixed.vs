@@ -1,11 +1,22 @@
-// Check command line arguments
-if ($argc < 3 || $argc > 4) {
+// With no arguments, fall back to the bundled fixture so the script is runnable
+// unattended as part of the test suite. Explicit arguments still behave as a CLI tool.
+string $image = "";
+int $width = 0;
+boolean $usingFixture = false;
+
+if ($argc == 1) {
+    $image = path_join(path_dirname($argv[0]), "fixtures/sample.png");
+    $width = 8;
+    $usingFixture = true;
+    printnl("No arguments given - using bundled fixture ", $image);
+} else if ($argc < 3 || $argc > 4) {
     error("Usage: ", $argv[0], " <image> <width> [height]");
     exit(1);
+} else {
+    $image = $argv[1];
+    $width = string_to_number($argv[2]);
 }
 
-const string $image = $argv[1];
-int $width = string_to_number($argv[2]);
 int $height = 0;
 
 // Validate input file exists
@@ -21,7 +32,7 @@ Imagick $imagick = new Imagick();
 $imagick->read($image);
 
 // Calculate height if not provided (maintain aspect ratio)
-if ($argc == 3) {
+if ($usingFixture || $argc == 3) {
     int $origWidth = $imagick->getWidth();
     int $origHeight = $imagick->getHeight();
     $height = ($origHeight * $width / $origWidth);
@@ -61,3 +72,8 @@ if ($dotPos > 0) {
 // Write the resized image
 $imagick->write($output);
 printnl("Resized image saved as: ", $output);
+
+if ($usingFixture) {
+    file_unlink($output);
+    printnl("Removed fixture output ", $output);
+}
