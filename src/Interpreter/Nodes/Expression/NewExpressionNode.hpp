@@ -162,6 +162,30 @@ class NewExpressionNode : public ExpressionNode {
                     evaluatedArgs.push_back(argExpr->evaluate(interpreter));
                 }
 
+                // A constructor supplied by a module is a native callable, not a set of
+                // operations in the Operations container. The script-constructor path
+                // below would find no operations and silently do nothing, so a module
+                // class such as DateTime came back uninitialised. Dispatch it the same
+                // way MethodCallExpressionNode dispatches any other native method.
+                bool constructorIsNative = false;
+                if (sc->hasClass(fqClassName)) {
+                    const Symbols::ClassInfo & classInfo = sc->getClassInfo(fqClassName);
+                    for (const auto & method : classInfo.methods) {
+                        if (method.name == foundConstructor && method.nativeImplementation) {
+                            constructorIsNative = true;
+                            break;
+                        }
+                    }
+                }
+                if (constructorIsNative) {
+                    std::vector<Symbols::ValuePtr> nativeArgs;
+                    nativeArgs.reserve(evaluatedArgs.size() + 1);
+                    nativeArgs.push_back(newObject);  // the instance is always argument 0
+                    nativeArgs.insert(nativeArgs.end(), evaluatedArgs.begin(), evaluatedArgs.end());
+                    sc->callMethod(fqClassName, foundConstructor, nativeArgs);
+                    return newObject;
+                }
+
                 // Get function symbol for constructor using different approaches
                 
                 std::shared_ptr<Symbols::FunctionSymbol> constructorSymbol = nullptr;

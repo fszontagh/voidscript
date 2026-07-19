@@ -34,7 +34,6 @@ namespace Modules {
 class DateTimeModule : public BaseModule {
   private:
     // External state management like Imagick module
-    static std::unordered_map<std::string, int> object_to_timestamp_map_;
   public:
     DateTimeModule() {
         setModuleName("DateTime");
@@ -107,10 +106,18 @@ class DateTimeModule : public BaseModule {
                             auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(
                                 now.time_since_epoch()).count();
                             
-                            // Store timestamp using object identity (like Imagick module)
-                            std::string objectId = args[0].toString();
-                            object_to_timestamp_map_[objectId] = static_cast<int>(timestamp);
-                            
+                            // Store the timestamp ON the object. The previous scheme
+                            // keyed an external map by args[0].toString(), i.e. by the
+                            // object's serialised CONTENTS - which is not identity, and
+                            // which changes the moment the object is mutated. day() and
+                            // month() already read __timestamp__, so nothing agreed.
+                            // Copy the handle, not the value: ValuePtr shares the
+                            // underlying Value, so writing through it mutates the object
+                            // the caller holds.
+                            Symbols::ValuePtr self = args[0];
+                            self->get<Symbols::ObjectMap>()["__timestamp__"] =
+                                Symbols::ValuePtr(static_cast<int>(timestamp));
+
                             // Return the original object
                             return args[0];
                         },
@@ -155,13 +162,12 @@ class DateTimeModule : public BaseModule {
         // year() method
         REGISTER_METHOD("DateTime", "year", no_params,
                         [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
-                            // Use external state management like Imagick
-                            std::string objectId = args[0].toString();
-                            auto it = object_to_timestamp_map_.find(objectId);
-                            if (it == object_to_timestamp_map_.end()) {
+                            auto objMap = this->getObjectMap(args, "year");
+                            auto it = objMap.find("__timestamp__");
+                            if (it == objMap.end()) {
                                 throw std::runtime_error("DateTime::year: object not properly initialized");
                             }
-                            int timestamp = it->second;
+                            int timestamp = it->second->get<int>();
                             
                             auto time_t = static_cast<std::time_t>(timestamp);
                             auto tm = *std::localtime(&time_t);
@@ -512,6 +518,5 @@ class DateTimeModule : public BaseModule {
 } // namespace Modules
 
 // Define the static member
-std::unordered_map<std::string, int> Modules::DateTimeModule::object_to_timestamp_map_;
 
 #endif // MODULES_DATETIMEMODULE_HPP

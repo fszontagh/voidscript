@@ -429,6 +429,15 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #24: `new` must invoke a native (module-supplied) constructor, and the
+      # DateTime class must store its timestamp where its own methods look for it.
+      add_test(NAME RegressionDateTimeObject
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/datetime_object.vs)
+      set_tests_properties(RegressionDateTimeObject PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ndone")
+
       # Bug #23: `auto` as a general declaration type, inferring from the initialiser.
       add_test(NAME RegressionAutoType
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
