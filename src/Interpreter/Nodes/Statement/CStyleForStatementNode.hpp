@@ -47,29 +47,33 @@ class CStyleForStatementNode : public StatementNode {
         // Get symbol container instance
         auto * symContainer = Symbols::SymbolContainer::instance();
 
-        // 1. Execute initialization statement in the current (parent) scope
-        if (initStmt_) {
-            initStmt_->interpret(interpreter);
-        }
-
         // Flag to track if the specific loop scope was entered
         bool entered_loop_scope = false;
-        // Define the name for the loop's own operational scope (for body, condition, increment)
-        // This scope is nested within the parent scope where initStmt_ vars now reside.
-        std::string runtime_loop_scope_name = symContainer->currentScopeName() + 
+        // Define the name for the loop's own operational scope (for init, body, condition
+        // and increment). It is keyed by source position, so each loop in the file gets
+        // its own scope and re-entering the same loop reuses it.
+        std::string runtime_loop_scope_name = symContainer->currentScopeName() +
                                            Symbols::SymbolContainer::SCOPE_SEPARATOR + "for_" +
-                                           std::to_string(line_) + "_" + 
+                                           std::to_string(line_) + "_" +
                                            std::to_string(column_);
         try {
-            // 2. Create and enter the specific operational scope for the loop
+            // 1. Create and enter the loop's own scope BEFORE running the initialiser.
+            // The induction variable belongs to the loop, as in C. Running the init in
+            // the parent scope leaked it, so a second `for (int $i = ...)` anywhere in
+            // the same scope failed with "Variable 'i' already declared".
             if (!symContainer->getScopeTable(runtime_loop_scope_name)) {
                 symContainer->create(runtime_loop_scope_name);
             } else {
-                // If scope exists (e.g. from a previous identical loop construct not recommended),
-                // for now, just enter. Future: consider if SymbolTable needs a clearVariables()
+                // Re-entering the same loop: DeclareVariableStatementNode updates rather
+                // than rejects a redeclaration in a scope named "for_...".
                 symContainer->enter(runtime_loop_scope_name);
             }
             entered_loop_scope = true;
+
+            // 2. Execute the initialisation statement inside the loop scope
+            if (initStmt_) {
+                initStmt_->interpret(interpreter);
+            }
 
             // 3. Loop condition, body, and increment execute within runtime_loop_scope_name
             while (true) {

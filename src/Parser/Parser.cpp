@@ -292,8 +292,17 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
 
     const std::string currentScope = Symbols::SymbolContainer::instance()->currentScopeName();
 
-    // Parse element type and variable name (common to both loop types)
-    Symbols::Variables::Type elemType  = parseType();
+    // Parse element type and variable name (common to both loop types).
+    // The type is optional in a C-style loop: `for ($g = 0; ...)` reuses an existing
+    // variable, which is the only way to observe the counter after the loop now that
+    // a declared induction variable is correctly scoped to the loop itself.
+    bool                     declaresVar = true;
+    Symbols::Variables::Type elemType    = Symbols::Variables::Type::NULL_TYPE;
+    if (currentToken().type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
+        declaresVar = false;
+    } else {
+        elemType = parseType();
+    }
     auto                     firstTok  = expect(Lexer::Tokens::Type::VARIABLE_IDENTIFIER);
     std::string              firstName = parseIdentifierName(firstTok);  // Use helper
 
@@ -345,10 +354,18 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
 
         // Build nodes for C-style for
         auto initExprNode = buildExpressionFromParsed(initExpr);
-        // Create initStmt node targeting loopScope
-        auto initStmt     = std::make_unique<Interpreter::DeclareVariableStatementNode>(
-            firstName, currentScope, elemType, std::move(initExprNode), this->current_filename_, firstTok.line_number,
-            firstTok.column_number);
+        // Declaring form scopes the variable to the loop; the bare form assigns to an
+        // existing variable in an enclosing scope, which therefore outlives the loop.
+        std::unique_ptr<Interpreter::StatementNode> initStmt;
+        if (declaresVar) {
+            initStmt = std::make_unique<Interpreter::DeclareVariableStatementNode>(
+                firstName, currentScope, elemType, std::move(initExprNode), this->current_filename_,
+                firstTok.line_number, firstTok.column_number);
+        } else {
+            initStmt = std::make_unique<Interpreter::AssignmentStatementNode>(
+                firstName, std::vector<std::string>(), std::move(initExprNode), this->current_filename_,
+                firstTok.line_number, firstTok.column_number);
+        }
         // NO Operations::add here
         auto condExprNode = buildExpressionFromParsed(condExpr);
 

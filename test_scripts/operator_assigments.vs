@@ -18,7 +18,10 @@ printnl("$u = ", $u);
 
 $i = 0;
 int $l = 0;
-for (int $g = 0;$g <= 10; $g++) {
+// $g is read after the loop, so it must be declared outside it: a declared
+// induction variable is scoped to the loop, as in C.
+int $g = 0;
+for ($g = 0;$g <= 10; $g++) {
     printnl("$g: ", $g);
     printnl("$i: ", $i);
     printnl("$l: ", $l);

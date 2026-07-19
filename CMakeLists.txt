@@ -429,6 +429,15 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #22: a for loop's induction variable must be scoped to the loop, so the
+      # same name can be reused by a later loop.
+      add_test(NAME RegressionLoopScope
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/loop_scope.vs)
+      set_tests_properties(RegressionLoopScope PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "a0\na1\nb0\nb1\nc00\nc01\nc10\nc11\ndx\ndy\nex\ney\nf0\nf1\ndone\nk=3\nscope-done")
+
       # Bug #21: hex/binary/octal literals, scientific notation, digit separators.
       add_test(NAME RegressionNumericLiterals
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
