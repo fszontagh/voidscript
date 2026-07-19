@@ -184,10 +184,46 @@ Lexer::Tokens::Token Lexer::Lexer::matchIdentifierOrKeyword(size_t start_pos, To
 }
 
 Lexer::Tokens::Token Lexer::Lexer::matchNumber(size_t start_pos) {
+    // Base-prefixed literals: 0xFF, 0b1010, 0o17. '_' is allowed as a digit separator
+    // in every base.
+    if (peek() == '0' && !isAtEnd()) {
+        const char prefix = peek(1);
+        int        base   = 0;
+        if (prefix == 'x' || prefix == 'X') {
+            base = 16;
+        } else if (prefix == 'b' || prefix == 'B') {
+            base = 2;
+        } else if (prefix == 'o' || prefix == 'O') {
+            base = 8;
+        }
+
+        if (base != 0) {
+            const auto isBaseDigit = [base](char c) {
+                if (base == 16) {
+                    return isxdigit(static_cast<unsigned char>(c)) != 0;
+                }
+                if (base == 8) {
+                    return c >= '0' && c <= '7';
+                }
+                return c == '0' || c == '1';
+            };
+            // Only commit to the prefix if at least one valid digit follows, so that
+            // something like `0x` alone does not silently swallow the 'x'.
+            if (isBaseDigit(peek(2))) {
+                advance();  // '0'
+                advance();  // base letter
+                while (!isAtEnd() && (isBaseDigit(peek()) || peek() == '_')) {
+                    advance();
+                }
+                return createToken(Tokens::Type::NUMBER, start_pos, pos());
+            }
+        }
+    }
+
     bool has_dot = false;
 
     while (!isAtEnd()) {
-        if (isdigit(peek())) {
+        if (isdigit(peek()) || peek() == '_') {
             advance();
         } else if (!has_dot && peek() == '.' && isdigit(peek(1))) {
             has_dot = true;
@@ -195,6 +231,21 @@ Lexer::Tokens::Token Lexer::Lexer::matchNumber(size_t start_pos) {
             advance();  // az első számjegy a pont után
         } else {
             break;
+        }
+    }
+
+    // Scientific notation: 1e3, 1.5e2, 2e-2. The exponent must have at least one
+    // digit, otherwise the 'e' belongs to whatever identifier follows.
+    if (!isAtEnd() && (peek() == 'e' || peek() == 'E')) {
+        const bool signed_exponent = (peek(1) == '+' || peek(1) == '-');
+        if (isdigit(peek(signed_exponent ? 2 : 1))) {
+            advance();  // 'e'
+            if (signed_exponent) {
+                advance();
+            }
+            while (!isAtEnd() && (isdigit(peek()) || peek() == '_')) {
+                advance();
+            }
         }
     }
 

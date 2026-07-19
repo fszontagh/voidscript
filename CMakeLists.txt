@@ -429,6 +429,14 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #21: hex/binary/octal literals, scientific notation, digit separators.
+      add_test(NAME RegressionNumericLiterals
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/numeric_literals.vs)
+      set_tests_properties(RegressionNumericLiterals PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "255\n65280\n255\n255\n10\n15\n15\n1000.000000\n150.000000\n0.020000\n1000000\n65535\n42\n3.500000\n0\n16711680\n255\ndone")
+
       # Bug #8: string interpolation in double-quoted literals, with escaping and
       # single quotes as the opt-out.
       add_test(NAME RegressionStringInterpolation

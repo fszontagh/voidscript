@@ -491,18 +491,56 @@ ValuePtr ValuePtr::fromString(const std::string & str) {
         return ValuePtr(false);
     }
 
+    // Base-prefixed literals (0xFF, 0b1010, 0o17) and digit separators. Only strip
+    // '_' once the string is known to look numeric, so an identifier-ish string is
+    // left alone.
+    std::string digits;
+    {
+        digits.reserve(str.size());
+        for (char c : str) {
+            if (c != '_') {
+                digits += c;
+            }
+        }
+        if (digits.size() > 2 && digits[0] == '0') {
+            int base = 0;
+            switch (digits[1]) {
+                case 'x': case 'X': base = 16; break;
+                case 'b': case 'B': base = 2;  break;
+                case 'o': case 'O': base = 8;  break;
+                default: break;
+            }
+            if (base != 0) {
+                try {
+                    size_t    consumed = 0;
+                    long long l        = std::stoll(digits.substr(2), &consumed, base);
+                    if (consumed == digits.size() - 2) {
+                        if (l >= std::numeric_limits<int>::min() && l <= std::numeric_limits<int>::max()) {
+                            return ValuePtr(static_cast<int>(l));
+                        }
+                        return ValuePtr(static_cast<double>(l));
+                    }
+                } catch (const std::exception &) {
+                    // fall through to the generic parsing below
+                }
+            }
+        }
+    }
+
     // Number check (simplified: check for '.' for double/float, otherwise integer)
     // This is basic, production code might need more robust parsing.
     try {
-        if (str.find('.') != std::string::npos) {
+        // Scientific notation yields a double even with no decimal point: 1e3.
+        if (digits.find('.') != std::string::npos || digits.find('e') != std::string::npos ||
+            digits.find('E') != std::string::npos) {
             // Potentially double or float. stod can parse both.
             // For simplicity, let's assume double if it has a dot.
-            double d = std::stod(str);
+            double d = std::stod(digits);
             // Check if it's a whole number, could be int, but precision might matter
             // if (d == static_cast<long long>(d)) { /* could be int */ }
             return ValuePtr(d);
         } else {
-            long long l = std::stoll(str);  // Use stoll for wider range
+            long long l = std::stoll(digits);  // Use stoll for wider range
             if (l >= std::numeric_limits<int>::min() && l <= std::numeric_limits<int>::max()) {
                 return ValuePtr(static_cast<int>(l));
             }

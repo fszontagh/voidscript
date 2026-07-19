@@ -115,6 +115,32 @@ void Parser::parseConstVariableDefinition() {
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 }
 
+namespace {
+// Base-aware integer literal parsing. std::stoi("0xFF") silently returns 0 - it parses
+// the leading '0' and stops - so hex, binary and octal enum values were all read as
+// zero. Also drops '_' digit separators.
+long long parseIntegerLiteral(const std::string & text) {
+    std::string digits;
+    digits.reserve(text.size());
+    for (char c : text) {
+        if (c != '_') {
+            digits += c;
+        }
+    }
+    int    base   = 10;
+    size_t offset = 0;
+    if (digits.size() > 2 && digits[0] == '0') {
+        switch (digits[1]) {
+            case 'x': case 'X': base = 16; offset = 2; break;
+            case 'b': case 'B': base = 2;  offset = 2; break;
+            case 'o': case 'O': base = 8;  offset = 2; break;
+            default: break;
+        }
+    }
+    return std::stoll(digits.substr(offset), nullptr, base);
+}
+}  // namespace
+
 void Parser::parseVariableDefinition() {
     Symbols::Variables::Type var_type = parseType();
 
@@ -833,7 +859,7 @@ Symbols::ValuePtr Parser::parseNumericLiteral(const std::string & value, bool is
                     if (value.find('.') != std::string::npos) {
                         throw std::invalid_argument("Floating point value in integer context: " + value);
                     }
-                    int v = std::stoi(value);
+                    int v = static_cast<int>(parseIntegerLiteral(value));
                     return Symbols::ValuePtr(is_negative ? -v : v);
                 }
             case Symbols::Variables::Type::DOUBLE:
@@ -2104,7 +2130,7 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseEnumDeclaration() {
             }
             auto valueToken = expect(Lexer::Tokens::Type::NUMBER);
             try {
-                int val = std::stoi(valueToken.value);
+                int val = static_cast<int>(parseIntegerLiteral(valueToken.value));
                 enumeratorValue = isNegative ? -val : val;
             } catch (const std::invalid_argument& ia) {
                 reportError("Invalid integer literal for enum value: " + valueToken.value, valueToken);
