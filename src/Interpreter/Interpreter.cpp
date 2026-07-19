@@ -125,6 +125,7 @@ void Interpreter::runOperation(const Operations::Operation & op) {
             case Operations::Type::Conditional:
             case Operations::Type::Loop:
             case Operations::Type::While:
+            case Operations::Type::ControlFlow:  // switch
                 op.statement->interpret(*this);
                 break;
 

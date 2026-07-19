@@ -352,6 +352,35 @@ if (BUILD_TESTS)
 
       # Add more tests here if needed...
 
+      # --- Regression tests (see BUGS.md) ---
+
+      # Bug #1: a declaration missing the $ sigil must be a prompt syntax error,
+      # not an infinite parser loop. The TIMEOUT is the actual assertion here.
+      add_test(NAME RegressionMissingSigilSyntaxError
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/missing_sigil_syntax_error.vs)
+      set_tests_properties(RegressionMissingSigilSyntaxError PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "Syntax ERROR")
+
+      # Bug #2: return from a function called in statement position must not
+      # abort the process with an uncaught ReturnException.
+      add_test(NAME RegressionBareReturn
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/bare_return.vs)
+      set_tests_properties(RegressionBareReturn PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED;terminate called")
+
+      # Bug #3: switch must be dispatched by the interpreter, not fall through
+      # to "Unknown operation type".
+      add_test(NAME RegressionSwitchStatement
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_statement.vs)
+      set_tests_properties(RegressionSwitchStatement PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED;Unknown operation type")
+
   endif()
 
   # Add compiler tests if compiler is enabled

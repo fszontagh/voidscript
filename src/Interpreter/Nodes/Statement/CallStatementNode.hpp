@@ -8,6 +8,7 @@
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/OperationContainer.hpp"
+#include "Interpreter/ReturnException.hpp"
 #include "Interpreter/StatementNode.hpp"
 
 #include "Symbols/FunctionSymbol.hpp"
@@ -107,7 +108,15 @@ class CallStatementNode : public StatementNode {
             // Operations are associated with the canonical function name
             auto ops = Operations::Container::instance()->getAll(canonical_fn_scope_name);
             for (const auto & op : ops) {
-                interpreter.runOperation(*op);  // These operations will use the current unique_call_scope_name
+                try {
+                    interpreter.runOperation(*op);  // These operations will use the current unique_call_scope_name
+                } catch (const ReturnException &) {
+                    // Called in statement position, so the returned value (if any) is
+                    // discarded. Catching here rather than letting it escape keeps the
+                    // scope exit below reachable and stops ReturnException - which is not
+                    // a std::exception - from unwinding out of main into std::terminate.
+                    break;
+                }
             }
             sc->enterPreviousScope();           // Exit unique_call_scope_name
         } catch (const Exception &) {

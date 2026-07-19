@@ -1255,7 +1255,14 @@ void Parser::parseScript(const std::vector<Lexer::Tokens::Token> & tokens, std::
     current_filename_                              = filename;
 
     while (!isAtEnd() && currentToken().type != Lexer::Tokens::Type::END_OF_FILE) {
+        const size_t index_before = current_token_index_;
         parseTopLevelStatement();
+        // Safety net: every parseTopLevelStatement() branch must consume at least one
+        // token. If none matched, the token is one we cannot start a statement with,
+        // and returning here without consuming would spin the loop forever.
+        if (current_token_index_ == index_before) {
+            reportError("Unexpected token, cannot start a statement here");
+        }
     }
     if (!isAtEnd() && currentToken().type != Lexer::Tokens::Type::END_OF_FILE) {
         reportError("Unexpected tokens after program end");
@@ -1803,6 +1810,12 @@ void Parser::parseTopLevelStatement() {
             peekToken(lookahead_offset).type == Lexer::Tokens::Type::VARIABLE_IDENTIFIER) {
             // Always treat as variable definition statement at top level
             parseVariableDefinition();
+        } else if (lookahead_offset < tokens_.size() &&
+                   peekToken(lookahead_offset).type == Lexer::Tokens::Type::IDENTIFIER) {
+            // A type keyword followed by a bare identifier: the '$' sigil is missing.
+            // Point at it directly instead of emitting a generic "unexpected token".
+            reportError("Variable names must start with '$' (did you mean '$" +
+                        peekToken(lookahead_offset).value + "'?)");
         }
     }
     // Prefix increment/decrement statement (++$var; or --$var;)
@@ -2117,7 +2130,11 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
     }
 
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
-    expect(Lexer::Tokens::Type::PUNCTUATION, ";"); // Expect semicolon after switch block
+    // A block statement needs no terminator, same as if/while/class. Older scripts
+    // wrote '};' because this used to be mandatory, so tolerate a stray semicolon.
+    if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ";") {
+        consumeToken();
+    }
 
     return std::make_unique<Interpreter::Nodes::Statement::SwitchStatementNode>(
         current_filename_, // Use Parser's current_filename_
