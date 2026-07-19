@@ -30,6 +30,12 @@ inline int getPrecedence(const std::string & op) {
     if (op == "->") {
         return 5;  // Member access has highest precedence
     }
+    if (op == "[]") {
+        // Indexing is an accessor, same level as '->' and left-associative, so that
+        // $q->outputs[0] groups as ($q->outputs)[0] and $a[0][1] as ($a[0])[1].
+        // Without this it fell through to -1 and bound looser than every operator.
+        return 5;
+    }
     if (op == "u-" || op == "u+" || op == "u!") {
         return 4;
     }

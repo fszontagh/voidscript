@@ -381,6 +381,15 @@ if (BUILD_TESTS)
                TIMEOUT 10
                FAIL_REGULAR_EXPRESSION "NOT REACHED;Unknown operation type")
 
+      # Bug #4: '[' must bind as a postfix accessor, so indexing composes with
+      # member access and works as an assignment target.
+      add_test(NAME RegressionIndexOperator
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/index_operator.vs)
+      set_tests_properties(RegressionIndexOperator PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "20\n99\n30\n77\n3\n30\ndone")
+
   endif()
 
   # Add compiler tests if compiler is enabled

@@ -5,7 +5,9 @@
 #include <stack>
 
 #include "Interpreter/ExpressionBuilder.hpp"
+#include "Interpreter/Nodes/Expression/ArrayAccessExpressionNode.hpp"
 #include "Interpreter/Nodes/Statement/AssignmentStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/IndexedAssignmentStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/CallStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/ClassDefinitionStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/ConditionalStatementNode.hpp"
@@ -912,6 +914,12 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
             consumeToken();  // consume '['
             auto indexExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
             expect(Lexer::Tokens::Type::PUNCTUATION, "]");
+            // Indexing is postfix and takes the whole accessor chain to its left as its
+            // operand. Any pending accessor operators (e.g. the '->' of $q->outputs[0])
+            // are still on the operator stack at this point, so apply them first -
+            // otherwise output_queue.back() is just the bare 'outputs' and the index
+            // would bind to it rather than to $q->outputs.
+            applyHigherPrecedenceOperators("[]", operator_stack, output_queue);
             if (output_queue.empty()) {
                 reportError("Missing array/object for indexing");
             }
@@ -1650,22 +1658,19 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseAssignmentStatementNode
                 std::move(lhsNode), prop, this->current_filename_, lastPropLine, lastPropCol);
         }
 
-        // Apply array indexing - for now, only support single-level indexing
-        if (indexExpressions.size() == 1) {
-            lhsNode = std::make_unique<Interpreter::BinaryExpressionNode>(
-                std::move(lhsNode), "[]", std::move(indexExpressions[0]));
-        } else {
-            reportError("Multi-dimensional array assignment not yet supported", baseToken);
-            return nullptr;
+        // Every index but the last one just navigates deeper into the container; the
+        // last one names the element being written. Note BinaryExpressionNode supports
+        // neither "[]" nor "=", so building the target out of those (as this used to)
+        // produced a node the interpreter could never evaluate.
+        for (size_t i = 0; i + 1 < indexExpressions.size(); ++i) {
+            lhsNode = std::make_unique<Interpreter::ArrayAccessExpressionNode>(
+                std::move(lhsNode), std::move(indexExpressions[i]), this->current_filename_, baseToken.line_number,
+                baseToken.column_number);
         }
 
-        // Create an expression statement that performs the assignment
-        // We'll use a special assignment expression for array elements
-        auto assignmentExpr = std::make_unique<Interpreter::BinaryExpressionNode>(
-            std::move(lhsNode), "=", std::move(rhsNode));
-        
-        return std::make_unique<Interpreter::ExpressionStatementNode>(
-            std::move(assignmentExpr), this->current_filename_, baseToken.line_number, baseToken.column_number);
+        return std::make_unique<Interpreter::IndexedAssignmentStatementNode>(
+            std::move(lhsNode), std::move(indexExpressions.back()), std::move(rhsNode), this->current_filename_,
+            baseToken.line_number, baseToken.column_number);
     } else {
         // Regular variable or property assignment
         return std::make_unique<Interpreter::AssignmentStatementNode>(baseName, std::move(propertyPath), std::move(rhsNode),
