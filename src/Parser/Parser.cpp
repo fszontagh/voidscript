@@ -2189,7 +2189,10 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
     expect(Lexer::Tokens::Type::PUNCTUATION, "}");
     // A block statement needs no terminator, same as if/while/class. Older scripts
     // wrote '};' because this used to be mandatory, so tolerate a stray semicolon.
-    if (currentToken().type == Lexer::Tokens::Type::PUNCTUATION && currentToken().value == ";") {
+    // Guard with isAtEnd(): function bodies are re-parsed from a bare token slice that
+    // carries no END_OF_FILE, so a switch ending a function body leaves nothing here.
+    if (!isAtEnd() && currentToken().type == Lexer::Tokens::Type::PUNCTUATION &&
+        currentToken().value == ";") {
         consumeToken();
     }
 

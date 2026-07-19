@@ -424,6 +424,16 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "8\n14\n6\n48\n3\n-13\n7\n2\ntrue\n7\ntrue\nfalse\ntrue\ndone")
 
+      # Bugs #16/#17: switch must dispatch on strings, and a switch ending a function
+      # body must parse (function bodies are re-parsed from a slice with no EOF token).
+      add_test(NAME RegressionSwitchStringAndReturn
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      set_tests_properties(RegressionSwitchStringAndReturn PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED;end of stream"
+               PASS_REGULAR_EXPRESSION "deleting\nunknown-ok\na-or-b\none\ntwo\nother\nyes\nno\ntwo-ok\ndone")
+
   endif()
 
   # Add compiler tests if compiler is enabled

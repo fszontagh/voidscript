@@ -58,15 +58,22 @@ public:
     }
 
     // interpret() is pure virtual in StatementNode.
+    // Types a switch can dispatch on. Enum values are stored as integers, so ENUM needs
+    // no separate case in the comparison below.
+    static bool isSwitchableType(::Symbols::Variables::Type type) {
+        return type == ::Symbols::Variables::Type::INTEGER || type == ::Symbols::Variables::Type::ENUM ||
+               type == ::Symbols::Variables::Type::STRING;
+    }
+
     void interpret(::Interpreter::Interpreter& interpreter) const override {
         // Copied logic from SwitchStatementNode.cpp's interpret method:
         ::Symbols::ValuePtr switch_value = this->switchExpression->evaluate( // Added ::Symbols
             interpreter, this->filename_, this->line_, this->column_
         );
         
-        if (!switch_value || switch_value->is_null() || switch_value->getType() != ::Symbols::Variables::Type::INTEGER) { // Qualified Type
+        if (!switch_value || switch_value->is_null() || !isSwitchableType(switch_value->getType())) {
             const auto& expr_node = *this->switchExpression;
-            throw ::Interpreter::Exception("Switch expression must evaluate to a non-null integer type (enum values are also supported).",
+            throw ::Interpreter::Exception("Switch expression must evaluate to a non-null integer, enum or string value.",
                                          expr_node.filename.empty() ? this->filename_ : expr_node.filename,
                                          expr_node.line == 0 ? this->line_ : expr_node.line,
                                          expr_node.column == 0 ? this->column_ : expr_node.column);
@@ -89,16 +96,31 @@ public:
                     case_expr_node_ref.column == 0 ? this->column_ : case_expr_node_ref.column
                 );
                 
-                if (!case_expr_value || case_expr_value->is_null() || case_expr_value->getType() != ::Symbols::Variables::Type::INTEGER) { // Qualified Type
-                     throw ::Interpreter::Exception("Case expression must evaluate to a non-null integer type (enum values are also supported).",
+                if (!case_expr_value || case_expr_value->is_null() || !isSwitchableType(case_expr_value->getType())) {
+                     throw ::Interpreter::Exception("Case expression must evaluate to a non-null integer, enum or string value.",
                                          case_expr_node_ref.filename.empty() ? this->filename_ : case_expr_node_ref.filename,
                                          case_expr_node_ref.line == 0 ? this->line_ : case_expr_node_ref.line,
                                          case_expr_node_ref.column == 0 ? this->column_ : case_expr_node_ref.column);
                 }
-                
+
+                // A string switch cannot match an integer case, and vice versa. Saying
+                // so is far more useful than silently never matching.
+                const bool switchIsString = switch_value->getType() == ::Symbols::Variables::Type::STRING;
+                const bool caseIsString   = case_expr_value->getType() == ::Symbols::Variables::Type::STRING;
+                if (switchIsString != caseIsString) {
+                    throw ::Interpreter::Exception("Case type does not match the switch expression type: cannot compare " +
+                                         ::Symbols::Variables::TypeToString(switch_value->getType()) + " with " +
+                                         ::Symbols::Variables::TypeToString(case_expr_value->getType()) + ".",
+                                         case_expr_node_ref.filename.empty() ? this->filename_ : case_expr_node_ref.filename,
+                                         case_expr_node_ref.line == 0 ? this->line_ : case_expr_node_ref.line,
+                                         case_expr_node_ref.column == 0 ? this->column_ : case_expr_node_ref.column);
+                }
+
                 bool values_equal = false;
                 try {
-                    values_equal = (switch_value->get<int>() == case_expr_value->get<int>());
+                    values_equal = switchIsString
+                                       ? (switch_value->get<std::string>() == case_expr_value->get<std::string>())
+                                       : (switch_value->get<int>() == case_expr_value->get<int>());
                 } catch (const std::runtime_error& e) {
                      throw ::Interpreter::Exception(std::string("Error during case value comparison: ") + e.what(), 
                                          case_expr_node_ref.filename.empty() ? this->filename_ : case_expr_node_ref.filename, 
