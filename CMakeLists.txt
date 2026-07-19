@@ -432,7 +432,7 @@ if (BUILD_TESTS)
       set_tests_properties(RegressionSwitchStringAndReturn PROPERTIES
                TIMEOUT 10
                FAIL_REGULAR_EXPRESSION "NOT REACHED;end of stream"
-               PASS_REGULAR_EXPRESSION "deleting\nunknown-ok\na-or-b\none\ntwo\nother\nyes\nno\ntwo-ok\ndone")
+               PASS_REGULAR_EXPRESSION "deleting\nunknown-ok\na-or-b\none\ntwo\nother\nyes\nno\ntwo-ok\ndone\nzero-ok\nempty-ok\nred-ok\nfalsy-done")
 
   endif()
 

@@ -67,3 +67,27 @@ switch ($n) {
 }
 
 printnl("done");
+
+// --- #18: falsy values must be switchable ---
+// ValuePtr::operator bool() returns VALUE truthiness, not pointer validity, so the
+// guard `!switch_value` rejected any switch on 0 or "" as "non-null".
+int $zero = 0;
+switch ($zero) {
+    case 0: printnl("zero-ok"); break;
+    default: printnl("NOT REACHED");
+}
+
+string $empty = "";
+switch ($empty) {
+    case "": printnl("empty-ok"); break;
+    default: printnl("NOT REACHED");
+}
+
+// enum member with an implicit value of 0 - what broke enum_switch.vs
+enum Color { RED, GREEN = 5, BLUE };
+switch (Color.RED) {
+    case Color.RED: printnl("red-ok"); break;
+    default: printnl("NOT REACHED");
+}
+
+printnl("falsy-done");

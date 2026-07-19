@@ -71,7 +71,11 @@ public:
             interpreter, this->filename_, this->line_, this->column_
         );
         
-        if (!switch_value || switch_value->is_null() || !isSwitchableType(switch_value->getType())) {
+        // NB: do NOT write `!switch_value` here. ValuePtr::operator bool() returns the
+        // VALUE's truthiness, not pointer validity, so that rejected every switch on 0
+        // or "". operator-> materialises a NULL Value when empty, so is_null() is safe
+        // on its own.
+        if (switch_value->is_null() || !isSwitchableType(switch_value->getType())) {
             const auto& expr_node = *this->switchExpression;
             throw ::Interpreter::Exception("Switch expression must evaluate to a non-null integer, enum or string value.",
                                          expr_node.filename.empty() ? this->filename_ : expr_node.filename,
@@ -96,7 +100,7 @@ public:
                     case_expr_node_ref.column == 0 ? this->column_ : case_expr_node_ref.column
                 );
                 
-                if (!case_expr_value || case_expr_value->is_null() || !isSwitchableType(case_expr_value->getType())) {
+                if (case_expr_value->is_null() || !isSwitchableType(case_expr_value->getType())) {
                      throw ::Interpreter::Exception("Case expression must evaluate to a non-null integer, enum or string value.",
                                          case_expr_node_ref.filename.empty() ? this->filename_ : case_expr_node_ref.filename,
                                          case_expr_node_ref.line == 0 ? this->line_ : case_expr_node_ref.line,
