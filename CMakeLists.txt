@@ -416,6 +416,14 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "0\n200\n404\nsecond\n0.000000\ndone")
 
+      # Bug #5: bitwise operators, and the C-like precedence ladder they need.
+      add_test(NAME RegressionBitwiseOperators
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/bitwise_operators.vs)
+      set_tests_properties(RegressionBitwiseOperators PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "8\n14\n6\n48\n3\n-13\n7\n2\ntrue\n7\ntrue\nfalse\ntrue\ndone")
+
   endif()
 
   # Add compiler tests if compiler is enabled

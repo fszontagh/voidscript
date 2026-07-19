@@ -279,6 +279,7 @@ Lexer::Tokens::Token Lexer::Lexer::matchOperatorOrPunctuation(size_t start_pos) 
             { &OPERATOR_INCREMENT,  Tokens::Type::OPERATOR_INCREMENT  },
             { &OPERATOR_ASSIGNMENT, Tokens::Type::OPERATOR_ASSIGNMENT },
             { &OPERATOR_LOGICAL,    Tokens::Type::OPERATOR_LOGICAL    },
+            { &OPERATOR_BITWISE,    Tokens::Type::OPERATOR_ARITHMETIC },
             { &PUNCTUATION,         Tokens::Type::PUNCTUATION         }
         };
 
@@ -322,7 +323,8 @@ Lexer::Tokens::Token Lexer::Lexer::matchOperatorOrPunctuation(size_t start_pos) 
 Lexer::Lexer::Lexer() {
     for (const auto & vecRef :
          { std::cref(OPERATOR_ARITHMETIC), std::cref(OPERATOR_RELATIONAL), std::cref(OPERATOR_INCREMENT),
-           std::cref(OPERATOR_ASSIGNMENT), std::cref(OPERATOR_LOGICAL), std::cref(PUNCTUATION) }) {
+           std::cref(OPERATOR_ASSIGNMENT), std::cref(OPERATOR_LOGICAL), std::cref(OPERATOR_BITWISE),
+           std::cref(PUNCTUATION) }) {
         for (const auto & str : vecRef.get()) {
             operators_ += str;
         }

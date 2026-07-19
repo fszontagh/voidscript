@@ -2290,7 +2290,7 @@ void Parser::applyStackOperator(
     // Note: Closing parentheses ')' are handled directly in parseParsedExpression and should not reach here.
 
     // Handle unary operators (prefix/postfix)
-    if (op == "u-" || op == "u+" || op == "u!" || op == "u++" || op == "u--" || op == "p++" || op == "p--") {
+    if (op == "u-" || op == "u+" || op == "u!" || op == "u~" || op == "u++" || op == "u--" || op == "p++" || op == "p--") {
         if (outputQueue.empty()) {
             reportError("Missing operand for unary operator '" + op + "' from stack.", currentToken());
         }

@@ -57,6 +57,33 @@ class BinaryExpressionNode : public ExpressionNode {
             }
             throw std::runtime_error("Unknown operator: " + op_);
         }
+        // Bitwise operations. Integer-only by design: applying them to a float would
+        // require reinterpreting its bit pattern, which is never what a script means.
+        if (op_ == "&" || op_ == "|" || op_ == "^" || op_ == "<<" || op_ == ">>") {
+            if (leftVal != Symbols::Variables::Type::INTEGER || rightVal != Symbols::Variables::Type::INTEGER) {
+                throw std::runtime_error("Bitwise operator '" + op_ + "' requires integer operands, got " +
+                                         Symbols::Variables::TypeToString(leftVal) + " and " +
+                                         Symbols::Variables::TypeToString(rightVal));
+            }
+            const int l = leftVal->get<int>();
+            const int r = rightVal->get<int>();
+            if (op_ == "&") {
+                return Symbols::ValuePtr(l & r);
+            }
+            if (op_ == "|") {
+                return Symbols::ValuePtr(l | r);
+            }
+            if (op_ == "^") {
+                return Symbols::ValuePtr(l ^ r);
+            }
+            // Shifting by a negative amount or by >= the operand width is undefined
+            // behaviour in C++, so reject it rather than let it through.
+            if (r < 0 || r >= static_cast<int>(sizeof(int) * 8)) {
+                throw std::runtime_error("Shift amount " + std::to_string(r) + " is out of range for '" + op_ + "'");
+            }
+            return Symbols::ValuePtr(op_ == "<<" ? (l << r) : (l >> r));
+        }
+
         // Numeric operations: int, float, double (including mixed types)
         if ((leftVal == Symbols::Variables::Type::INTEGER || leftVal == Symbols::Variables::Type::FLOAT ||
              leftVal == Symbols::Variables::Type::DOUBLE) &&

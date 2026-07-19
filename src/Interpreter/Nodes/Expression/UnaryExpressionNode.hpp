@@ -39,6 +39,10 @@ class UnaryExpressionNode : public ExpressionNode {
                 return v - 1;
                 //return Symbols::ValuePtr(v - 1);
             }
+            if (op_ == "~") {
+                // Bitwise complement is integer-only; there is no meaningful float form.
+                return ~v;
+            }
         } else if (value == Symbols::Variables::Type::DOUBLE) {
             double v = value;
             if (op_ == "-") {

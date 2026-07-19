@@ -14,6 +14,7 @@ extern const std::vector<std::string> OPERATOR_RELATIONAL;
 extern const std::vector<std::string> OPERATOR_INCREMENT;
 extern const std::vector<std::string> OPERATOR_ASSIGNMENT;
 extern const std::vector<std::string> OPERATOR_LOGICAL;
+extern const std::vector<std::string> OPERATOR_BITWISE;
 
 // one char
 extern const std::vector<std::string> OPERATOR_ARITHMETIC;
@@ -23,39 +24,52 @@ bool contains(const std::vector<std::string> & vec, const std::string & value);
 bool isUnaryOperator(const std::string & op);
 
 
+// Binding strength, loosest first, following C. Only the relative order matters.
+// Note '[]' must be listed: when it was absent it fell through to the -1 default and
+// bound looser than every operator, so $q->outputs[0] grouped as $q->(outputs[0]).
 inline int getPrecedence(const std::string & op) {
-    if (op == "::") { // ADD THIS CASE
-        return 5; 
+    if (op == "||") {
+        return 0;
     }
-    if (op == "->") {
-        return 5;  // Member access has highest precedence
-    }
-    if (op == "[]") {
-        // Indexing is an accessor, same level as '->' and left-associative, so that
-        // $q->outputs[0] groups as ($q->outputs)[0] and $a[0][1] as ($a[0])[1].
-        // Without this it fell through to -1 and bound looser than every operator.
-        return 5;
-    }
-    if (op == "u-" || op == "u+" || op == "u!") {
-        return 4;
-    }
-    if (op == "*" || op == "/" || op == "%") {
-        return 3;
-    }
-    if (op == "+" || op == "-") {
-        return 2;
-    }
-    if (op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=") {
+    if (op == "&&") {
         return 1;
     }
-    if (op == "&&" || op == "||") {
-        return 0;
+    if (op == "|") {
+        return 2;
+    }
+    if (op == "^") {
+        return 3;
+    }
+    if (op == "&") {
+        return 4;
+    }
+    if (op == "==" || op == "!=") {
+        return 5;
+    }
+    if (op == "<" || op == ">" || op == "<=" || op == ">=") {
+        return 6;
+    }
+    if (op == "<<" || op == ">>") {
+        return 7;
+    }
+    if (op == "+" || op == "-") {
+        return 8;
+    }
+    if (op == "*" || op == "/" || op == "%") {
+        return 9;
+    }
+    if (op == "u-" || op == "u+" || op == "u!" || op == "u~") {
+        return 10;
+    }
+    // Accessors bind tightest: '->', '::' and indexing, all left-associative.
+    if (op == "->" || op == "::" || op == "[]") {
+        return 11;
     }
     return -1;
 }
 
 inline bool isLeftAssociative(const std::string & op) {
-    return !(op == "u-" || op == "u+");
+    return !(op == "u-" || op == "u+" || op == "u~" || op == "u!");
 }
 
 inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser::ParsedExpressionPtr rhs,
