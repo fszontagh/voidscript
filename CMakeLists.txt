@@ -429,6 +429,15 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #9: string + number concatenation. Note the test also pins that numeric
+      # '+' stays arithmetic, so this cannot regress into JS-style "2"+3 == "23".
+      add_test(NAME RegressionStringConcat
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/string_concat.vs)
+      set_tests_properties(RegressionStringConcat PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "i=42\n42=i\nd=3.500000\nb=true\na42b\nxy\n5\n3.500000\ndone")
+
       # Bug #19: json_encode and var_dump mishandled falsy values, via the same
       # ValuePtr::operator bool() trap as #18.
       add_test(NAME RegressionFalsyValues

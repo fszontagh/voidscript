@@ -309,6 +309,16 @@ class BinaryExpressionNode : public ExpressionNode {
             throw std::runtime_error("Unknown operator: " + op_);
         }
 
+        // Mixed string concatenation: "count=" + $n. '+' already means concatenation
+        // when both sides are strings, so extending it to "string on exactly one side"
+        // is consistent, and it is by far the most natural way to build a message.
+        // Deliberately limited to '+': comparing a string with a number stays a type
+        // error rather than silently stringifying one side.
+        if (op_ == "+" && (leftVal == Symbols::Variables::Type::STRING ||
+                           rightVal == Symbols::Variables::Type::STRING)) {
+            return leftVal->toString() + rightVal->toString();
+        }
+
         throw std::runtime_error(
             "Unsupported types in binary expression: " + Symbols::Variables::TypeToString(leftVal) + " and " +
             Symbols::Variables::TypeToString(rightVal) + " " + toString());
