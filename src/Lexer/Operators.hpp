@@ -91,26 +91,18 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
 [[nodiscard]] inline bool pushOperand(const Tokens::Token & token, const Symbols::Variables::Type & expected_var_type,
                                       std::vector<Parser::ParsedExpressionPtr> & output_queue, const std::string & filename = "") {
     // Literal operands: number, string, or keyword literals (e.g., true/false/null)
+    // Literals are NOT gated on expected_var_type. A declaration's type says what the
+    // whole expression must produce, not what may appear inside it: `string $s = "x" + 5;`
+    // and `string $s = $c ? "a" : "b";` are both legitimate, and gating here rejected
+    // them at parse time. DeclareVariableStatementNode still type checks the final
+    // value, and its message ("expected 'string' but got 'int'") is clearer than the
+    // parse error this replaced.
     if (token.type == Tokens::Type::NUMBER) {
-        // Allow numeric literals in any numeric context, including comparisons
-        // When used in comparisons, the result will be a boolean but operands can be numeric
-        if (expected_var_type != Symbols::Variables::Type::BOOLEAN && 
-            expected_var_type != Symbols::Variables::Type::NULL_TYPE &&
-            expected_var_type != Symbols::Variables::Type::INTEGER &&
-            expected_var_type != Symbols::Variables::Type::DOUBLE &&
-            expected_var_type != Symbols::Variables::Type::FLOAT) {
-            return false;
-        }
         // Auto-detect or cast to appropriate numeric type
         output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::ValuePtr::fromString(token.value)));
         return true;
     }
     if (token.type == Tokens::Type::STRING_LITERAL) {
-        // String literal: only allowed if expected is string or unspecified
-        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE &&
-            expected_var_type != Symbols::Variables::Type::STRING) {
-            return false;
-        }
         output_queue.push_back(Parser::ParsedExpression::makeLiteral(token.value));
         return true;
     }

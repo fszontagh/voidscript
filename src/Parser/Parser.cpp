@@ -1235,7 +1235,24 @@ ParsedExpressionPtr Parser::parseParsedExpression(const Symbols::Variables::Type
         reportError("Expression could not be parsed cleanly, expected 1 item on output queue, found " + std::to_string(output_queue.size()));
     }
 
-    return std::move(output_queue.back());
+    auto result = std::move(output_queue.back());
+
+    // Ternary conditional: cond ? a : b. Handled here rather than inside the
+    // shunting-yard because it is the loosest-binding construct and right
+    // associative - recursing on the else branch gives both for free, so
+    // `a ? b : c ? d : e` groups as `a ? b : (c ? d : e)`, as in C.
+    if (!isAtEnd() && currentToken().type == Lexer::Tokens::Type::PUNCTUATION &&
+        currentToken().value == "?") {
+        auto questionToken = consumeToken();  // '?'
+        auto thenExpr = parseParsedExpression(expected_var_type);
+        expect(Lexer::Tokens::Type::PUNCTUATION, ":");
+        auto elseExpr = parseParsedExpression(expected_var_type);
+        return ParsedExpression::makeTernary(std::move(result), std::move(thenExpr), std::move(elseExpr),
+                                             current_filename_, questionToken.line_number,
+                                             questionToken.column_number);
+    }
+
+    return result;
 }
 
 // New private method to parse object literal expressions

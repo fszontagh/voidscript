@@ -14,6 +14,7 @@
 #include "Nodes/Expression/LiteralExpressionNode.hpp"
 #include "Nodes/Expression/MemberExpressionNode.hpp"
 #include "Nodes/Expression/MethodCallExpressionNode.hpp"
+#include "Nodes/Expression/TernaryExpressionNode.hpp"
 #include "Nodes/Expression/NewExpressionNode.hpp"
 #include "Nodes/Expression/ObjectExpressionNode.hpp"
 #include "Nodes/Expression/UnaryExpressionNode.hpp"
@@ -81,6 +82,11 @@ inline std::unique_ptr<Interpreter::ExpressionNode> buildExpressionFromParsed(co
                 auto rhs = buildExpressionFromParsed(expr->rhs);
                 return std::make_unique<Interpreter::BinaryExpressionNode>(std::move(lhs), expr->op, std::move(rhs));
             }
+
+        case Kind::Ternary:
+            return std::make_unique<Interpreter::TernaryExpressionNode>(
+                buildExpressionFromParsed(expr->lhs), buildExpressionFromParsed(expr->rhs),
+                buildExpressionFromParsed(expr->elseBranch), expr->filename, expr->line, expr->column);
 
         case Kind::Unary:
             {

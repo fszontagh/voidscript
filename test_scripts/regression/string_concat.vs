@@ -30,3 +30,11 @@ printnl(2.5 + 1);               // 3.500000
 // comparisons across types remain an error, so they are not exercised here.
 
 printnl("done");
+
+// Literals must not be gated on the declared type: the declaration's type says what
+// the whole expression yields, not what may appear inside it.
+string $mixed = "x" + 5;
+printnl($mixed);                // x5
+
+// but the final type is still checked
+printnl("concat-done");

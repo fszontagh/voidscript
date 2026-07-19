@@ -17,7 +17,7 @@ struct ParsedExpression;
 using ParsedExpressionPtr = std::shared_ptr<ParsedExpression>;
 
 struct ParsedExpression {
-    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Call, MethodCall, New, Object, Member, EnumAccess, Unknown };
+    enum class Kind : std::uint8_t { Literal, Variable, Binary, Unary, Ternary, Call, MethodCall, New, Object, Member, EnumAccess, Unknown };
 
     static std::string kindToString(ParsedExpression::Kind kind) {
         const std::unordered_map<Kind, std::string> kindstringmap = {
@@ -25,6 +25,7 @@ struct ParsedExpression {
             { Kind::Variable,   "Variable"   },
             { Kind::Binary,     "Binary"     },
             { Kind::Unary,      "Unary"      },
+            { Kind::Ternary,    "Ternary"    },
             { Kind::Call,       "Call"       },
             { Kind::MethodCall, "MethodCall" },
             { Kind::New,        "New"        },
@@ -46,6 +47,8 @@ struct ParsedExpression {
     std::string                                              op;
     ParsedExpressionPtr                                      lhs;
     ParsedExpressionPtr                                      rhs;
+    // Third operand, used only by Kind::Ternary (lhs = condition, rhs = then branch)
+    ParsedExpressionPtr                                      elseBranch;
     // For function call arguments
     std::vector<ParsedExpressionPtr>                         args;
     std::vector<std::pair<std::string, ParsedExpressionPtr>> objectMembers;
@@ -92,6 +95,23 @@ struct ParsedExpression {
         expr->filename = filename;
         expr->line     = line;
         expr->column   = column;
+
+        return expr;
+    }
+
+    // Constructor for the ternary conditional: lhs ? rhs : elseBranch
+    static ParsedExpressionPtr makeTernary(ParsedExpressionPtr cond, ParsedExpressionPtr thenBranch,
+                                           ParsedExpressionPtr elseBranch, const std::string & filename, int line,
+                                           size_t column) {
+        auto expr        = std::make_shared<ParsedExpression>();
+        expr->kind       = Kind::Ternary;
+        expr->op         = "?:";
+        expr->lhs        = std::move(cond);
+        expr->rhs        = std::move(thenBranch);
+        expr->elseBranch = std::move(elseBranch);
+        expr->filename   = filename;
+        expr->line       = line;
+        expr->column     = column;
 
         return expr;
     }
