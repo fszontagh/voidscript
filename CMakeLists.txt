@@ -429,6 +429,14 @@ if (BUILD_TESTS)
       add_test(NAME RegressionSwitchStringAndReturn
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/switch_string_and_return.vs)
+      # Bug #23: `auto` as a general declaration type, inferring from the initialiser.
+      add_test(NAME RegressionAutoType
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/auto_type.vs)
+      set_tests_properties(RegressionAutoType PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "42\ntext\n3.500000\ntrue\n43\ntext!\nv\n2\ntrue\n7\nk\ndone")
+
       # Bug #22: a for loop's induction variable must be scoped to the loop, so the
       # same name can be reused by a later loop.
       add_test(NAME RegressionLoopScope

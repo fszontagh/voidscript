@@ -89,13 +89,24 @@ class DeclareVariableStatementNode : public StatementNode {
                 value.setType(variableType_);
             }
 
+            // `auto` adopts the initialiser's type, as in C++. Resolve it here so every
+            // check below - and the symbol itself - sees the real type.
+            Symbols::Variables::Type variableType_resolved = variableType_;
+            if (variableType_resolved == Symbols::Variables::Type::AUTO_TYPE) {
+                if (!expression_) {
+                    throw Exception("'auto' variable '" + variableName_ + "' needs an initialiser to infer its type",
+                                    filename_, line_, column_);
+                }
+                variableType_resolved = value.getType();
+            }
+
             // For class types, we need to handle the comparison differently
-            if (variableType_ == Symbols::Variables::Type::CLASS) {
+            if (variableType_resolved == Symbols::Variables::Type::CLASS) {
                 // The value should be either CLASS type or OBJECT type (from new ClassName())
                 if (value.getType() != Symbols::Variables::Type::CLASS &&
                     value.getType() != Symbols::Variables::Type::OBJECT &&
                     value.getType() != Symbols::Variables::Type::NULL_TYPE) {
-                    std::string expected = Symbols::Variables::TypeToString(variableType_);
+                    std::string expected = Symbols::Variables::TypeToString(variableType_resolved);
                     std::string actual = Symbols::Variables::TypeToString(value.getType());
                     throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
                                         "' but got '" + actual + "' in scope '" + target_scope_name + "'",
@@ -123,12 +134,12 @@ class DeclareVariableStatementNode : public StatementNode {
                     // Just manually set the type to CLASS on the existing null value
                     value.setType(Symbols::Variables::Type::CLASS);
                 }
-            } else if (variableType_ == Symbols::Variables::Type::ENUM) {
+            } else if (variableType_resolved == Symbols::Variables::Type::ENUM) {
                 // For enum types, allow integer values to be assigned (since enum values are integers)
                 if (value.getType() != Symbols::Variables::Type::ENUM &&
                     value.getType() != Symbols::Variables::Type::INTEGER &&
                     value.getType() != Symbols::Variables::Type::NULL_TYPE) {
-                    std::string expected = Symbols::Variables::TypeToString(variableType_);
+                    std::string expected = Symbols::Variables::TypeToString(variableType_resolved);
                     std::string actual = Symbols::Variables::TypeToString(value.getType());
                     throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
                                         "' but got '" + actual + "' in scope '" + target_scope_name + "'",
@@ -136,12 +147,12 @@ class DeclareVariableStatementNode : public StatementNode {
                 }
                 // Don't try to convert types - just allow the assignment as-is
                 // Enum variables can store integer values since enums are internally integers
-            } else if (value.getType() != variableType_) {
+            } else if (value.getType() != variableType_resolved) {
                 // Numeric initialisers adopt the declared numeric type - every float
                 // literal lexes as double, so without this even `float $f = 2.718;`
                 // is a type error.
-                if (!Symbols::tryNumericCoerce(value, variableType_)) {
-                    std::string expected = Symbols::Variables::TypeToString(variableType_);
+                if (!Symbols::tryNumericCoerce(value, variableType_resolved)) {
+                    std::string expected = Symbols::Variables::TypeToString(variableType_resolved);
                     std::string actual = Symbols::Variables::TypeToString(value.getType());
                     throw Exception("Type mismatch for variable '" + variableName_ + "': expected '" + expected +
                                         "' but got '" + actual + "' in scope '" + target_scope_name + "'",
@@ -159,7 +170,7 @@ class DeclareVariableStatementNode : public StatementNode {
                 sc->addConstant(symbol_to_define, target_scope_name); // Use current scope
             } else {
                 symbol_to_define = Symbols::SymbolFactory::createVariable(variableName_, value,
-                                                                          target_scope_name, variableType_);
+                                                                          target_scope_name, variableType_resolved);
                 sc->addVariable(symbol_to_define, target_scope_name); // Use current scope
             }
 

@@ -116,13 +116,11 @@ inline Parser::ParsedExpressionPtr applyOperator(const std::string & op, Parser:
         return true;
     }
     if (token.type == Tokens::Type::KEYWORD) {
-        // Keyword literal: e.g., true, false, null
-        Symbols::ValuePtr val   = Symbols::ValuePtr::fromString(token.value);
-        // only allowed if expected matches or unspecified
-        if (expected_var_type != Symbols::Variables::Type::NULL_TYPE && expected_var_type != val) {
-            return false;
-        }
-        output_queue.push_back(Parser::ParsedExpression::makeLiteral(val));
+        // Keyword literal: e.g., true, false, null. Not gated on expected_var_type, for
+        // the same reason as the literals above - `boolean $b = $c ? true : false;` and
+        // `auto $b = true;` are both fine, and the declaration's own check is better
+        // placed to reject a real mismatch.
+        output_queue.push_back(Parser::ParsedExpression::makeLiteral(Symbols::ValuePtr::fromString(token.value)));
         return true;
     }
     if (token.type == Tokens::Type::VARIABLE_IDENTIFIER) {
