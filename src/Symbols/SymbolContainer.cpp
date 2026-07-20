@@ -483,7 +483,10 @@ namespace Symbols {
     }
 
     void SymbolContainer::dumpValue(const ValuePtr & value, std::string & result, int indent) {
-        if (!value || value->is_null()) {
+        // `!value` here tested the VALUE's truthiness, not whether one was present, so
+        // 0, "" and false were all dumped as nothing. is_null() alone is both correct
+        // and sufficient - operator-> materialises a NULL Value when empty.
+        if (value->is_null()) {
             return;
         }
         std::string indentStr(indent * 2, ' ');

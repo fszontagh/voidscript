@@ -1347,7 +1347,7 @@ XmlDocument* XmlModule::getDocumentFromArgs(const FunctionArguments& args) const
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlDocument", "__xml_document_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid document handler");
     }
 
@@ -1367,7 +1367,7 @@ XmlNode* XmlModule::getNodeFromArgs(const FunctionArguments& args) const {
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlNode", "__xml_node_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid node handler");
     }
 
@@ -1387,7 +1387,7 @@ XmlNodeList* XmlModule::getNodeListFromArgs(const FunctionArguments& args) const
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlNodeList", "__xml_nodelist_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid node list handler");
     }
 
@@ -1452,7 +1452,7 @@ XmlXPath* XmlModule::getXPathFromArgs(const FunctionArguments& args) const {
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlXPath", "__xml_xpath_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid XPath handler");
     }
 
@@ -1472,7 +1472,7 @@ XmlXPathResult* XmlModule::getXPathResultFromArgs(const FunctionArguments& args)
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlXPathResult", "__xml_xpath_result_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid XPath result handler");
     }
 
@@ -1907,7 +1907,7 @@ Symbols::ValuePtr XmlModule::GetRootElement(const FunctionArguments& args) {
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty(this->className, "__xml2_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("Xml2::getRootElement: invalid object");
     }
 
@@ -2857,7 +2857,7 @@ XmlSchema* XmlModule::getSchemaFromArgs(const FunctionArguments& args) const {
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlSchema", "__xml_schema_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid schema handler");
     }
 
@@ -2877,7 +2877,7 @@ XmlDtd* XmlModule::getDtdFromArgs(const FunctionArguments& args) const {
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlDtd", "__xml_dtd_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid DTD handler");
     }
 
@@ -2897,7 +2897,7 @@ XmlValidator* XmlModule::getValidatorFromArgs(const FunctionArguments& args) con
 
     auto symbolContainer = Symbols::SymbolContainer::instance();
     auto handlerProperty = symbolContainer->getObjectProperty("XmlValidator", "__xml_validator_handler_id__");
-    if (!handlerProperty) {
+    if (handlerProperty->is_null()) {
         throw std::runtime_error("XmlModule: Invalid validator handler");
     }
 

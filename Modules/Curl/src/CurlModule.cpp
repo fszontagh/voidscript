@@ -131,7 +131,10 @@ void CurlClient::setCommonOptions() {
 }
 
 void CurlClient::parseOptions(Symbols::ValuePtr options) {
-    if (!options || options->is_null()) {
+    // `!options` invoked ValuePtr's bool conversion, which THROWS on a genuinely
+    // null value - so calling any request method without an options argument died
+    // with "Cannot convert NULL value (bool operator)" before parsing began.
+    if (options->is_null()) {
         return; // No options to parse
     }
     
@@ -166,7 +169,7 @@ void CurlClient::parseOptions(Symbols::ValuePtr options) {
             if (v != Symbols::Variables::Type::BOOLEAN) {
                 throw std::runtime_error("follow_redirects must be boolean");
             }
-            setFollowRedirects(v);
+            setFollowRedirects(v.toBool());
         } else if (key == "headers") {
             setHeaders(v);
         } else {
@@ -455,7 +458,10 @@ Symbols::ValuePtr CurlResponseWrapper::toString(Symbols::FunctionArguments& args
 Symbols::ValuePtr CurlResponseWrapper::createResponse(const CurlResponseData& responseData) {
     // Create a new CurlResponse object
     Symbols::ObjectMap objectMap;
-    objectMap["__class__"] = Symbols::ValuePtr("CurlResponse");
+    // The interpreter identifies a class instance by "$class_name" (see
+    // MethodCallExpressionNode); "__class__" was never read, so every method call on a
+    // CurlResponse failed with "Object missing $class_name property".
+    objectMap["$class_name"] = Symbols::ValuePtr("CurlResponse");
     
     // Create the object
     auto responseObj = Symbols::ValuePtr::makeClassInstance(objectMap);
@@ -743,18 +749,22 @@ Symbols::ValuePtr CurlClientWrapper::mergeOptions(const std::string& objectId, S
     
     auto headersIt = default_headers_map_.find(objectId);
     if (headersIt != default_headers_map_.end() && !headersIt->second.empty()) {
-        mergedOptions["headers"] = Symbols::ValuePtr(headersIt->second, true);
+        mergedOptions["headers"] = Symbols::ValuePtr(headersIt->second);
     }
     
     // Merge with provided options
-    if (options && !options->is_null() && options == Symbols::Variables::Type::OBJECT) {
+    if (!options->is_null() && options == Symbols::Variables::Type::OBJECT) {
         Symbols::ObjectMap providedOptions = options;
         for (const auto& kv : providedOptions) {
             mergedOptions[kv.first] = kv.second;
         }
     }
     
-    return Symbols::ValuePtr(mergedOptions, true);
+    // Plain OBJECT, not a class instance. The `true` flag here marked the map as
+    // Variables::Type::CLASS, and parseOptions requires OBJECT - so every request
+    // method rejected the very options it had just built with "options must be an
+    // object".
+    return Symbols::ValuePtr(mergedOptions);
 }
 
 // CurlModule implementation
@@ -764,6 +774,17 @@ void CurlModule::registerFunctions() {
         {"options", Symbols::Variables::Type::OBJECT, "Optional options object"}
     };
     REGISTER_FUNCTION("curlGet", Symbols::Variables::Type::STRING, curlGet_params, "Perform HTTP GET request using libcurl", [](Symbols::FunctionArguments& args){ return curlGet(args); });
+
+    // curlPost, curlPut and curlDelete were fully implemented but never registered, so
+    // the only reachable HTTP verb was GET and every script had to shell out to curl.
+    std::vector<Symbols::FunctionParameterInfo> curlBody_params = {
+        {"url", Symbols::Variables::Type::STRING, "URL to request"},
+        {"data", Symbols::Variables::Type::STRING, "Request body"},
+        {"options", Symbols::Variables::Type::OBJECT, "Optional options object"}
+    };
+    REGISTER_FUNCTION("curlPost", Symbols::Variables::Type::STRING, curlBody_params, "Perform HTTP POST request using libcurl", [](Symbols::FunctionArguments& args){ return curlPost(args); });
+    REGISTER_FUNCTION("curlPut", Symbols::Variables::Type::STRING, curlBody_params, "Perform HTTP PUT request using libcurl", [](Symbols::FunctionArguments& args){ return curlPut(args); });
+    REGISTER_FUNCTION("curlDelete", Symbols::Variables::Type::STRING, curlGet_params, "Perform HTTP DELETE request using libcurl", [](Symbols::FunctionArguments& args){ return curlDelete(args); });
     
     // Register new OOP classes
     registerOOPClasses();

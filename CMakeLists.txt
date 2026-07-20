@@ -458,6 +458,15 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ndone")
 
+      # Task #8: the OOP CurlClient and the unregistered curl free functions.
+      # Uses a file:// URL, so no network or listening port is involved.
+      add_test(NAME RegressionCurlClient
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/curl_client.vs)
+      set_tests_properties(RegressionCurlClient PROPERTIES
+               TIMEOUT 20
+               PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\n\\{\"ok\":true\\}\ndone")
+
       # Bug #23: `auto` as a general declaration type, inferring from the initialiser.
       add_test(NAME RegressionAutoType
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

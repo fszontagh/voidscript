@@ -38,8 +38,8 @@ class BinaryExpressionNode : public ExpressionNode {
 
         // Boolean operations
         if (leftVal == Symbols::Variables::Type::BOOLEAN && rightVal == Symbols::Variables::Type::BOOLEAN) {
-            bool l = leftVal;
-            bool r = rightVal;
+            bool l = leftVal.toBool();
+            bool r = rightVal.toBool();
             if (op_ == "&&") {
                 return l && r;
                 //return std::make_shared<Symbols::Value>(l && r);

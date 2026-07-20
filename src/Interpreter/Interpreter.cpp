@@ -69,7 +69,10 @@ bool Interpreter::canAccessPrivateMember(const std::string& targetClassName,
         }
         
         // Also check if we have a thisObject and it belongs to the target class
-        if (thisObject_ && thisObject_->getType() == Symbols::Variables::Type::CLASS) {
+        // Presence check, NOT truthiness: `if (thisObject_)` would have asked whether
+        // the object is "true", so a class instance with an empty member map would have
+        // read as absent and silently skipped this access check.
+        if (!thisObject_->is_null() && thisObject_->getType() == Symbols::Variables::Type::CLASS) {
             const auto& objMap = thisObject_->get<Symbols::ObjectMap>();
             auto classMetaIt = objMap.find("$class_name");
             if (classMetaIt != objMap.end() &&

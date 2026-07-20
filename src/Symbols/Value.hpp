@@ -246,8 +246,15 @@ class ValuePtr {
 
     // Universal conversion operator with type constraints
     template <typename T>
+    // NOTE: bool is deliberately NOT in this list. An implicit ValuePtr->bool
+    // conversion makes `if (!value)` look like a null check while actually testing the
+    // VALUE's truthiness - so 0, "" and false read as "absent" - and it throws outright
+    // on a genuinely null value, making the idiom wrong in both directions. It caused
+    // four separate user-visible bugs (switch on 0 or "", enums whose first member is 0,
+    // json_encode(0), var_dump(0)). Call toBool() to ask for truthiness, or is_null()
+    // to ask whether a value is present.
     requires(std::is_same_v<T, int> || std::is_same_v<T, float> || std::is_same_v<T, double> ||
-             std::is_same_v<T, ObjectMap> || std::is_same_v<T, bool> ||
+             std::is_same_v<T, ObjectMap> ||
              std::is_same_v<T, std::string>) operator T() const {
         if (!ptr_) {
             throw std::runtime_error("Cannot convert null ValuePtr (universal conversion operator)");
@@ -256,40 +263,11 @@ class ValuePtr {
             throw std::runtime_error("Cannot convert NULL value (universal conversion operator)");
         }
 
-        if constexpr (std::is_same_v<T, bool>) {
-            // For boolean conversion, handle numeric types and comparison results
-            switch (ptr_->getType()) {
-                case Variables::Type::BOOLEAN:
-                    return ptr_->get<bool>();
-                case Variables::Type::INTEGER:
-                    return ptr_->get<int>() != 0;
-                case Variables::Type::FLOAT:
-                    return ptr_->get<float>() != 0;
-                case Variables::Type::DOUBLE:
-                    return ptr_->get<double>() != 0;
-                case Variables::Type::STRING:
-                    return !ptr_->get<std::string>().empty();
-                case Variables::Type::OBJECT:
-                case Variables::Type::CLASS:
-                    // For objects and classes, treat as boolean
-                    try {
-                        // Try to get as bool first
-                        return ptr_->get<bool>();
-                    } catch (const std::runtime_error &) {
-                        // If not a direct bool, assume non-empty object is true
-                        return !ptr_->get<ObjectMap>().empty();
-                    }
-                default:
-                    throw std::runtime_error("Bad cast, cannot convert type " +
-                                             std::to_string(static_cast<int>(ptr_->getType())) + " to bool");
-            }
-        }
-
         return ptr_->get<T>();
     }
 
     // Specialized boolean conversion operator
-    operator bool() const {
+    bool toBool() const {
         if (!ptr_) {
             throw std::runtime_error("Cannot convert null ValuePtr (bool operator)");
         }

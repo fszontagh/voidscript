@@ -161,8 +161,8 @@ class CurlModule final : public BaseModule {
      */
     static Symbols::ValuePtr curlPost(FunctionArguments & args);
 
-    Symbols::ValuePtr curlPut(FunctionArguments & args);
-    Symbols::ValuePtr curlDelete(FunctionArguments & args);
+    static Symbols::ValuePtr curlPut(FunctionArguments & args);
+    static Symbols::ValuePtr curlDelete(FunctionArguments & args);
 
   private:
       void registerOOPClasses();

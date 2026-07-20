@@ -37,7 +37,7 @@ class ConditionalStatementNode : public StatementNode {
             auto val  = condition_->evaluate(interpreter, filename_, line_, column_);
             bool cond = false;
             if (val == Symbols::Variables::Type::BOOLEAN) {
-                cond = val;
+                cond = val.toBool();
             } else {
                 throw Exception("Condition did not evaluate to boolean: " + condition_->toString(), filename_, line_,
                                 column_);

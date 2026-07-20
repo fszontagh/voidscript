@@ -90,7 +90,7 @@ class CStyleForStatementNode : public StatementNode {
                     // No need to manually pop scope here, catch block will handle it
                     throw Exception("For loop condition not boolean", filename_, line_, column_);
                 }
-                bool shouldContinue = condVal; // Implicit conversion from ValuePtr to bool
+                bool shouldContinue = condVal.toBool();
                 if (!shouldContinue) {
                     break;
                 }

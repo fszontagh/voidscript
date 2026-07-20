@@ -806,7 +806,9 @@ Symbols::ValuePtr CompilerBackend::evaluateExpression(const Interpreter::Express
 }
 
 std::string CompilerBackend::valuePtrToCCode(const Symbols::ValuePtr& value) {
-    if (!value || value->is_null()) {
+    // `!value` tested the VALUE's truthiness, not whether one was present, so the
+    // integer 0, the empty string and false all compiled to "" instead of themselves.
+    if (value->is_null()) {
         return "\"\""; // Empty string for null values
     }
     

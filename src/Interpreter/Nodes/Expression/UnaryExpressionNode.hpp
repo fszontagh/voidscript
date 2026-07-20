@@ -80,7 +80,7 @@ class UnaryExpressionNode : public ExpressionNode {
                 //return Symbols::ValuePtr(v - 1);
             }
         } else if (value == Symbols::Variables::Type::BOOLEAN) {
-            bool v = value;  //->get<bool>();
+            bool v = value.toBool();
             if (op_ == "!") {
                 return !v;
                 //return Symbols::ValuePtr(!v);

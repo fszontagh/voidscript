@@ -135,7 +135,7 @@ class MethodCallExpressionNode : public ExpressionNode {
                 if (methodName_ == "isPositive" || methodName_ == "isNegative" || methodName_ == "isZero") {
                     // For comparison methods, ensure boolean return
                     try {
-                        return static_cast<bool>(objVal);
+                        return objVal.toBool();
                     } catch (const std::exception&) {
                         // If conversion fails, return false
                         return Symbols::ValuePtr(false);
