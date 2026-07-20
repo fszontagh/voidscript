@@ -458,6 +458,15 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ndone")
 
+      # Task #9: Imagick per-pixel access, and optional native-method parameters.
+      add_test(NAME RegressionImagickPixels
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_pixels.vs)
+      set_tests_properties(RegressionImagickPixels PROPERTIES
+               TIMEOUT 20
+               FAIL_REGULAR_EXPRESSION "NOT REACHED"
+               PASS_REGULAR_EXPRESSION "16x16\n32,48,128\n255,0,0\n10,20,30,128\n255,0,0\nout-of-range rejected\ndone")
+
       # Task #7: the String module beyond length/replace/substr.
       add_test(NAME RegressionStringFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

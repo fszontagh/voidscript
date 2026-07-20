@@ -86,6 +86,20 @@ void Modules::ImagickModule::registerFunctions() {
     REGISTER_METHOD(
         this->name(), "getHeight", {}, [this](const FunctionArguments & args) { return this->getHeight(args); },
         Symbols::Variables::Type::INTEGER, "Get the height of the image");
+    params = { { "x", Symbols::Variables::Type::INTEGER, "X coordinate" },
+               { "y", Symbols::Variables::Type::INTEGER, "Y coordinate" } };
+    REGISTER_METHOD(
+        this->name(), "getPixel", params, [this](const FunctionArguments & args) { return this->getPixel(args); },
+        Symbols::Variables::Type::OBJECT, "Read a pixel as { red, green, blue, alpha }, each 0-255");
+    params = { { "x", Symbols::Variables::Type::INTEGER, "X coordinate" },
+               { "y", Symbols::Variables::Type::INTEGER, "Y coordinate" },
+               { "red", Symbols::Variables::Type::INTEGER, "Red 0-255" },
+               { "green", Symbols::Variables::Type::INTEGER, "Green 0-255" },
+               { "blue", Symbols::Variables::Type::INTEGER, "Blue 0-255" },
+               { "alpha", Symbols::Variables::Type::INTEGER, "Alpha 0-255", true } };
+    REGISTER_METHOD(
+        this->name(), "setPixel", params, [this](const FunctionArguments & args) { return this->setPixel(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Write a pixel from 0-255 channel values");
     //REGISTER_METHOD(
     //    this->name(), "composite", [this](const FunctionArguments & args) { return this->composite(args); },
     //    Symbols::Variables::Type::NULL_TYPE, "Composite image");
@@ -383,6 +397,98 @@ Symbols::ValuePtr Modules::ImagickModule::flip(Symbols::FunctionArguments & args
     } else {
         throw std::invalid_argument("Imagick::flip: invalid direction. Supported directions are: horizontal, vertical");
     }
+
+    return Symbols::ValuePtr::null();
+}
+
+
+Magick::Image & Modules::ImagickModule::imageFor(Symbols::FunctionArguments & args, const char * method) {
+    const auto & objVal = args[0];
+    if (objVal != Symbols::Variables::Type::CLASS && objVal != Symbols::Variables::Type::OBJECT) {
+        throw std::runtime_error(std::string("Imagick::") + method + " must be called on an Imagick instance");
+    }
+    const std::string objectId  = args[0].toString();
+    auto              handleIt  = object_to_handle_map_.find(objectId);
+    if (handleIt == object_to_handle_map_.end()) {
+        throw std::runtime_error(std::string("Imagick::") + method +
+                                 ": no valid image - call read() first");
+    }
+    auto imgIt = images_.find(handleIt->second);
+    if (imgIt == images_.end()) {
+        throw std::runtime_error(std::string("Imagick::") + method + ": image handle " +
+                                 std::to_string(handleIt->second) + " is invalid");
+    }
+    return imgIt->second;
+}
+
+// getPixel(x, y) -> { int red, int green, int blue, int alpha }, each 0-255.
+// Magick::Quantum depth varies by build (8 or 16 bit), so scale rather than assume.
+Symbols::ValuePtr Modules::ImagickModule::getPixel(Symbols::FunctionArguments & args) {
+    if (args.size() != 3 || args[1] != Symbols::Variables::Type::INTEGER ||
+        args[2] != Symbols::Variables::Type::INTEGER) {
+        throw std::runtime_error("Imagick::getPixel expects (int x, int y)");
+    }
+    Magick::Image & image = imageFor(args, "getPixel");
+
+    const int x = args[1];
+    const int y = args[2];
+    if (x < 0 || y < 0 || static_cast<size_t>(x) >= image.columns() || static_cast<size_t>(y) >= image.rows()) {
+        throw std::runtime_error("Imagick::getPixel: coordinates (" + std::to_string(x) + ", " +
+                                 std::to_string(y) + ") are outside the image");
+    }
+
+    const Magick::ColorRGB colour(image.pixelColor(x, y));
+    Symbols::ObjectMap     out;
+    out["red"]   = Symbols::ValuePtr(static_cast<int>(colour.red() * 255.0 + 0.5));
+    out["green"] = Symbols::ValuePtr(static_cast<int>(colour.green() * 255.0 + 0.5));
+    out["blue"]  = Symbols::ValuePtr(static_cast<int>(colour.blue() * 255.0 + 0.5));
+    out["alpha"] = Symbols::ValuePtr(static_cast<int>(colour.alpha() * 255.0 + 0.5));
+    return Symbols::ValuePtr(out);
+}
+
+// setPixel(x, y, red, green, blue [, alpha]), each channel 0-255.
+Symbols::ValuePtr Modules::ImagickModule::setPixel(Symbols::FunctionArguments & args) {
+    if (args.size() < 6 || args.size() > 7) {
+        throw std::runtime_error("Imagick::setPixel expects (int x, int y, int red, int green, int blue [, int alpha])");
+    }
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] != Symbols::Variables::Type::INTEGER) {
+            throw std::runtime_error("Imagick::setPixel expects integer arguments");
+        }
+    }
+    Magick::Image & image = imageFor(args, "setPixel");
+
+    const int x = args[1];
+    const int y = args[2];
+    if (x < 0 || y < 0 || static_cast<size_t>(x) >= image.columns() || static_cast<size_t>(y) >= image.rows()) {
+        throw std::runtime_error("Imagick::setPixel: coordinates (" + std::to_string(x) + ", " +
+                                 std::to_string(y) + ") are outside the image");
+    }
+
+    const auto channel = [](int v, const char * what) {
+        if (v < 0 || v > 255) {
+            throw std::runtime_error(std::string("Imagick::setPixel: ") + what + " must be 0-255");
+        }
+        return static_cast<double>(v) / 255.0;
+    };
+
+    // Writing needs the image to own its pixels outright, otherwise the change can be
+    // lost to copy-on-write sharing with another Image referencing the same blob.
+    image.modifyImage();
+
+    Magick::ColorRGB colour(channel(args[3], "red"), channel(args[4], "green"), channel(args[5], "blue"));
+    if (args.size() == 7) {
+        const double a = channel(args[6], "alpha");
+        // An image loaded from a format without an alpha channel has nowhere to store
+        // one, and the write is silently discarded. Turn the channel on first.
+        if (a < 1.0 && !image.alpha()) {
+            image.alpha(true);
+        }
+        colour.alpha(a);
+    } else {
+        colour.alpha(1.0);
+    }
+    image.pixelColor(x, y, colour);
 
     return Symbols::ValuePtr::null();
 }

@@ -150,9 +150,22 @@ class MethodCallExpressionNode : public ExpressionNode {
                 std::vector<Symbols::FunctionParameterInfo> nativeParams = sc->getNativeMethodParameters(cn, methodName_);
                 if (!nativeParams.empty()) {
                     // This is a native method, validate using ClassInfo parameters
-                    if (evaluatedArgs.size() != nativeParams.size()) {
+                    // FunctionParameterInfo has an `optional` flag; honour it. Every
+                    // arity check ignored it, so a method could declare an optional
+                    // parameter but never be callable without it.
+                    size_t requiredParams = 0;
+                    for (const auto & p : nativeParams) {
+                        if (!p.optional) {
+                            ++requiredParams;
+                        }
+                    }
+                    if (evaluatedArgs.size() < requiredParams || evaluatedArgs.size() > nativeParams.size()) {
                         throw ::Interpreter::Exception("Method '" + methodName_ + "' expects " +
-                                                      std::to_string(nativeParams.size()) + " parameters but " +
+                                                      (requiredParams == nativeParams.size()
+                                                           ? std::to_string(nativeParams.size())
+                                                           : std::to_string(requiredParams) + " to " +
+                                                                 std::to_string(nativeParams.size())) +
+                                                      " parameters but " +
                                                       std::to_string(evaluatedArgs.size()) + " provided",
                                                       f, l, c);
                     }

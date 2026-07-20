@@ -36,6 +36,12 @@ class ImagickModule : public BaseModule {
     Symbols::ValuePtr                      flip(FunctionArguments & args);
     Symbols::ValuePtr                      getWidth(FunctionArguments & args);
     Symbols::ValuePtr                      getHeight(FunctionArguments & args);
+    Symbols::ValuePtr                      getPixel(FunctionArguments & args);
+    Symbols::ValuePtr                      setPixel(FunctionArguments & args);
+
+    // Shared handle lookup. Every method repeated the same three-step dance of
+    // objectId -> handle -> image with its own error strings.
+    Magick::Image &                        imageFor(FunctionArguments & args, const char * method);
     Symbols::ValuePtr                      composite(FunctionArguments & args);
 };
 
