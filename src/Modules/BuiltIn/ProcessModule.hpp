@@ -16,7 +16,9 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <chrono>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -84,6 +86,42 @@ class ProcessModule : public BaseModule {
     }
 
     void registerFunctions() override {
+
+        // ---- sleep. Previously absent everywhere, so scripts shelled out to /bin/sleep
+        // through process_run just to pause. ----
+        std::vector<Symbols::FunctionParameterInfo> sleep_params = {
+            { "seconds", Symbols::Variables::Type::INTEGER, "Seconds to sleep", false, false }
+        };
+        REGISTER_FUNCTION("sleep", Symbols::Variables::Type::NULL_TYPE, sleep_params,
+                          "Pause execution for a number of seconds",
+                          [this](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() != 1 || args[0] != Symbols::Variables::Type::INTEGER) {
+                                  throw Exception(name() + "::sleep expects one integer argument");
+                              }
+                              const int seconds = args[0];
+                              if (seconds < 0) {
+                                  throw Exception(name() + "::sleep duration must not be negative");
+                              }
+                              std::this_thread::sleep_for(std::chrono::seconds(seconds));
+                              return Symbols::ValuePtr::null();
+                          });
+
+        std::vector<Symbols::FunctionParameterInfo> usleep_params = {
+            { "microseconds", Symbols::Variables::Type::INTEGER, "Microseconds to sleep", false, false }
+        };
+        REGISTER_FUNCTION("usleep", Symbols::Variables::Type::NULL_TYPE, usleep_params,
+                          "Pause execution for a number of microseconds",
+                          [this](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() != 1 || args[0] != Symbols::Variables::Type::INTEGER) {
+                                  throw Exception(name() + "::usleep expects one integer argument");
+                              }
+                              const int micros = args[0];
+                              if (micros < 0) {
+                                  throw Exception(name() + "::usleep duration must not be negative");
+                              }
+                              std::this_thread::sleep_for(std::chrono::microseconds(micros));
+                              return Symbols::ValuePtr::null();
+                          });
         std::vector<Symbols::FunctionParameterInfo> run_params = {
             { "program", Symbols::Variables::Type::STRING, "Program to execute (looked up via PATH if not absolute)", false, false },
             { "argv",    Symbols::Variables::Type::OBJECT, "Object/array of string arguments (does NOT include program)", false, false },

@@ -458,6 +458,22 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ndone")
 
+      # Task #7: the String module beyond length/replace/substr.
+      add_test(NAME RegressionStringFunctions
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/string_functions.vs)
+      set_tests_properties(RegressionStringFunctions PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "MIXED\nmixed\npadded\\|\n6\n-1\ntrue\nfalse\ntrue\ntrue\nababab\ncba\n3\nb\na-b-c\n1\nabc")
+
+      # Task #6: base64 and sleep, which were absent from the whole tree.
+      add_test(NAME RegressionBase64Sleep
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/base64_sleep.vs)
+      set_tests_properties(RegressionBase64Sleep PROPERTIES
+               TIMEOUT 20
+               PASS_REGULAR_EXPRESSION "SGVsbG8sIFZvaWRTY3JpcHQh\nHello, VoidScript!\na\nab\nabc\n\\|\ntrue\ndone")
+
       # Task #5: `continue`, and a clear diagnostic for break/continue outside a loop.
       add_test(NAME RegressionBreakContinue
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
