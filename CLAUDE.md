@@ -80,11 +80,6 @@ had nothing to do with it.
 - **The parse loop needs a progress guard.** `Parser::parse` checks that
   `parseTopLevelStatement()` consumed at least one token, otherwise a branch that falls
   through without consuming spins forever. Keep it when adding statement kinds.
-- **Control-flow exceptions are not errors.** `ReturnException` does not derive from
-  `std::exception`; `BreakException` derives from `std::runtime_error` and therefore
-  *will* be caught by a generic `catch (const std::exception&)`. Any new handler must
-  rethrow both, plus `ThrowException`, before its generic arm - see
-  `TryStatementNode::interpret`.
 - **Arrays are `ObjectMap`s keyed by the decimal index** (`"0"`, `"1"`, ...), so an
   element write is the same operation as an object property write.
 - **A declaration's type constrains what the expression produces, not what appears
