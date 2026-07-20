@@ -389,6 +389,7 @@ Lexer::Lexer::Lexer() {
     keywords["case"]    = Tokens::Type::KEYWORD_CASE;
     keywords["default"] = Tokens::Type::KEYWORD_DEFAULT;
     keywords["break"]   = Tokens::Type::KEYWORD_BREAK;
+    keywords["continue"] = Tokens::Type::KEYWORD_CONTINUE;
     keywords["try"]     = Tokens::Type::KEYWORD_TRY;
     keywords["catch"]   = Tokens::Type::KEYWORD_CATCH;
     keywords["throw"]   = Tokens::Type::KEYWORD_THROW;

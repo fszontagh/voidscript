@@ -1,13 +1,15 @@
 #ifndef BREAK_EXCEPTION_HPP
 #define BREAK_EXCEPTION_HPP
 
-#include <stdexcept> // For std::runtime_error
+#include "Interpreter/ControlFlowSignal.hpp"
 
 namespace Interpreter {
 
-class BreakException : public std::runtime_error {
+// NOT a std::exception - see ControlFlowSignal. This used to derive from
+// std::runtime_error, which let a generic catch swallow `break` inside a try.
+class BreakException : public ControlFlowSignal {
 public:
-    BreakException() : std::runtime_error("Break statement encountered") {}
+    BreakException() = default;
     // It might be useful to allow a message, though not strictly needed for break
     // explicit BreakException(const std::string& msg) : std::runtime_error(msg) {}
 };

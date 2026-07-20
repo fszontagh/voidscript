@@ -79,12 +79,11 @@ class DeclareFunctionStatementNode : public StatementNode {
                 sc->addFunction(func, ns); // Explicitly define in the target scope 'ns'
             }
 
-        } catch (const Exception &) {
-            throw;
-        } catch (const ThrowException &) {
-            // A script-level throw must reach its try/catch with its type and
-            // value intact. Wrapping it into an Exception below would flatten it
-            // to a formatted message string.
+        } catch (const BaseException &) {
+            // BaseException, not Exception: ThrowException also derives from it, and
+            // catching only Exception here let the generic handler below flatten a
+            // script-level `throw` into a formatted message string before it could
+            // reach its try/catch.
             throw;
         } catch (const std::exception & e) {
             throw Exception(e.what(), filename_, line_, column_);

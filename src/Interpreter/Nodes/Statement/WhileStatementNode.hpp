@@ -5,6 +5,7 @@
 #include <string>
 
 #include "Interpreter/BreakException.hpp"
+#include "Interpreter/ContinueException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
@@ -67,9 +68,11 @@ class WhileStatementNode : public StatementNode {
                 } catch (const BreakException &) {
                     // Break out of the while loop
                     break;
+                } catch (const ContinueException &) {
+                    // Skip the rest of this iteration and carry on.
                 }
             }
-        } catch (const Exception &) {
+        } catch (const BaseException &) {
             if (entered_scope) {
                 Symbols::SymbolContainer::instance()->enterPreviousScope();
             }

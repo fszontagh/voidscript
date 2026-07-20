@@ -155,10 +155,7 @@ void Interpreter::runOperation(const Operations::Operation & op) {
         // compile time. A default arm previously swallowed a missing
         // Operations::Type::ControlFlow case and made every `switch` statement in the
         // language fail at runtime with "Unknown operation type".
-    } catch (const Exception &) {
-        throw;
-    } catch (const ThrowException &) {
-        // Already carries its own location; wrapping would double-format the message.
+    } catch (const BaseException &) {
         throw;
     } catch (const std::exception & e) {
         throw Exception(e.what(), "-", 0, 0);

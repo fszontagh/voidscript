@@ -4,13 +4,14 @@
 
 #include <utility>
 
+#include "Interpreter/ControlFlowSignal.hpp"
 #include "Symbols/Value.hpp"
 
 namespace Interpreter {
 /**
  * @brief Exception used to unwind the call stack when a return statement is executed.
  */
-class ReturnException {
+class ReturnException : public ControlFlowSignal {
   public:
     explicit ReturnException(Symbols::ValuePtr value) : value_(std::move(value)) {}
 

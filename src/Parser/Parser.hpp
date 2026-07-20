@@ -166,6 +166,14 @@ class Parser {
 
     // NEW: Parse a switch statement and return its node
     std::unique_ptr<Interpreter::StatementNode> parseSwitchStatement();
+
+    // Nesting depth of loop / switch bodies being parsed, so `break` and `continue`
+    // outside one can be rejected with a clear message instead of escaping to the
+    // top-level catch-all. Function bodies are parsed by a separate Parser instance,
+    // which starts at zero - correctly, since a loop cannot span a function boundary.
+    int loop_depth_   = 0;
+    int switch_depth_ = 0;
+    std::unique_ptr<Interpreter::StatementNode> parseContinueStatement();
     std::unique_ptr<Interpreter::StatementNode> parseTryStatement();
     std::unique_ptr<Interpreter::StatementNode> parseThrowStatement();
 

@@ -8,6 +8,7 @@
 #include "Interpreter/Nodes/Expression/ArrayAccessExpressionNode.hpp"
 #include "Interpreter/Nodes/Statement/AssignmentStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/IndexedAssignmentStatementNode.hpp"
+#include "Interpreter/Nodes/Statement/ContinueNode.hpp"
 #include "Interpreter/Nodes/Statement/ThrowStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/TryStatementNode.hpp"
 #include "Interpreter/Nodes/Statement/CallStatementNode.hpp"
@@ -48,6 +49,7 @@ const std::unordered_map<std::string, Lexer::Tokens::Type> Parser::keywords = {
     { "break",    Lexer::Tokens::Type::KEYWORD_BREAK                },
     { "switch",   Lexer::Tokens::Type::KEYWORD_SWITCH               },
     { "case",     Lexer::Tokens::Type::KEYWORD_CASE                 },
+    { "continue", Lexer::Tokens::Type::KEYWORD_CONTINUE             },
     { "try",      Lexer::Tokens::Type::KEYWORD_TRY                  },
     { "catch",    Lexer::Tokens::Type::KEYWORD_CATCH                },
     { "throw",    Lexer::Tokens::Type::KEYWORD_THROW                },
@@ -368,7 +370,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
         expect(Lexer::Tokens::Type::PUNCTUATION, ")");
 
         // Parse loop body (within loopScope)
+        ++loop_depth_;
         auto body = parseStatementBody("C-style for loop");
+        --loop_depth_;
 
         // Build nodes for C-style for
         auto initExprNode = buildExpressionFromParsed(initExpr);
@@ -426,7 +430,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseForStatementNode() {
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
 
     // Parse body (within the loopScope created earlier)
-    auto body             = parseStatementBody("for-in loop");
+    ++loop_depth_;
+        auto body             = parseStatementBody("for-in loop");
+        --loop_depth_;
     auto iterableExprNode = buildExpressionFromParsed(iterableExpr);
 
     // Pass loopScope (created at function start) to the ForStatementNode constructor
@@ -444,7 +450,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseWhileStatementNode() {
     auto condExpr = parseParsedExpression(Symbols::Variables::Type::NULL_TYPE);
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
 
-    auto body         = parseStatementBody("while loop");
+    ++loop_depth_;
+        auto body         = parseStatementBody("while loop");
+        --loop_depth_;
     auto condExprNode = buildExpressionFromParsed(condExpr);
     return std::make_unique<Interpreter::WhileStatementNode>(std::move(condExprNode), std::move(body),
                                                              this->current_filename_, whileToken.line_number,
@@ -474,6 +482,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     // Break statement
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD_BREAK) {
         return parseBreakStatement();
+    }
+    if (currentToken().type == Lexer::Tokens::Type::KEYWORD_CONTINUE) {
+        return parseContinueStatement();
     }
     if (currentToken().type == Lexer::Tokens::Type::KEYWORD_TRY) {
         return parseTryStatement();
@@ -586,6 +597,9 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseStatementNode() {
     // Break statement (handled above)
     if (currentTokenType == Lexer::Tokens::Type::KEYWORD_BREAK) {
         return parseBreakStatement();
+    }
+    if (currentTokenType == Lexer::Tokens::Type::KEYWORD_CONTINUE) {
+        return parseContinueStatement();
     }
     if (currentTokenType == Lexer::Tokens::Type::KEYWORD_TRY) {
         return parseTryStatement();
@@ -2208,6 +2222,12 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseBreakStatement() {
     auto breakKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_BREAK);
     expect(Lexer::Tokens::Type::PUNCTUATION, ";");
 
+    // A break outside any loop or switch used to escape all the way to the top-level
+    // catch-all and print "Internal error: unhandled exception". Name the problem here.
+    if (loop_depth_ == 0 && switch_depth_ == 0) {
+        reportError("'break' outside of a loop or switch", breakKeywordToken);
+    }
+
     return std::make_unique<Interpreter::Nodes::Statement::BreakNode>(
         current_filename_, // Use Parser's current_filename_
         breakKeywordToken.line_number,
@@ -2255,6 +2275,19 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseThrowStatement() {
                                                              throwKeywordToken.column_number);
 }
 
+// Parse a continue statement and return its node
+std::unique_ptr<Interpreter::StatementNode> Parser::parseContinueStatement() {
+    auto continueKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_CONTINUE);
+    expect(Lexer::Tokens::Type::PUNCTUATION, ";");
+
+    if (loop_depth_ == 0) {
+        reportError("'continue' outside of a loop", continueKeywordToken);
+    }
+
+    return std::make_unique<Interpreter::Nodes::Statement::ContinueNode>(
+        current_filename_, continueKeywordToken.line_number, continueKeywordToken.column_number);
+}
+
 // NEW: Parse a switch statement and return its node
 std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
     auto switchKeywordToken = expect(Lexer::Tokens::Type::KEYWORD_SWITCH);
@@ -2266,6 +2299,13 @@ std::unique_ptr<Interpreter::StatementNode> Parser::parseSwitchStatement() {
     expect(Lexer::Tokens::Type::PUNCTUATION, ")");
 
     expect(Lexer::Tokens::Type::PUNCTUATION, "{");
+
+    // `break` is legal inside a switch as well as a loop.
+    ++switch_depth_;
+    struct SwitchDepthGuard {
+        int & d;
+        ~SwitchDepthGuard() { --d; }
+    } switchDepthGuard{ switch_depth_ };
 
     std::vector<Interpreter::Nodes::Statement::SwitchStatementNode::CaseBlock> caseBlocks;
     std::optional<Interpreter::Nodes::Statement::SwitchStatementNode::DefaultBlock> defaultBlockOpt = std::nullopt;

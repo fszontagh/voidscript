@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Interpreter/BreakException.hpp"
+#include "Interpreter/ContinueException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
 #include "Interpreter/StatementNode.hpp"
@@ -105,6 +106,9 @@ class CStyleForStatementNode : public StatementNode {
                 } catch (const BreakException &) {
                     // Break out of the C-style for loop
                     break;
+                } catch (const ContinueException &) {
+                    // Skip the rest of this iteration. Fall through to the increment
+                    // below - skipping it would make the loop spin forever.
                 }
 
                 // Execute increment (in loop scope)
@@ -112,7 +116,7 @@ class CStyleForStatementNode : public StatementNode {
                     incrStmt_->interpret(interpreter);
                 }
             }
-        } catch (const Exception &) { // Catch voidscript specific exceptions
+        } catch (const BaseException &) { // Any VoidScript error, including a script `throw`
             if (entered_loop_scope) {
                 symContainer->enterPreviousScope();  // Ensure exit on exception
             }

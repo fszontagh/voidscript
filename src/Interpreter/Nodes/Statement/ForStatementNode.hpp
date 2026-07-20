@@ -8,6 +8,7 @@
 #include "Interpreter/StatementNode.hpp"
 // Include for unified runtime Exception
 #include "Interpreter/BreakException.hpp"
+#include "Interpreter/ContinueException.hpp"
 #include "Interpreter/ExpressionNode.hpp"
 #include "Interpreter/Nodes/Expression/IdentifierExpressionNode.hpp"
 #include "Interpreter/Interpreter.hpp"
@@ -99,9 +100,11 @@ class ForStatementNode : public StatementNode {
                 } catch (const BreakException &) {
                     // Break out of the for-in loop
                     break;
+                } catch (const ContinueException &) {
+                    // Skip the rest of this iteration and carry on.
                 }
             }
-        } catch (const Exception &) {
+        } catch (const BaseException &) {
             if (entered_scope) {
                 Symbols::SymbolContainer::instance()->enterPreviousScope();
             }

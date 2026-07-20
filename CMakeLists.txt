@@ -458,6 +458,15 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ndone")
 
+      # Task #5: `continue`, and a clear diagnostic for break/continue outside a loop.
+      add_test(NAME RegressionBreakContinue
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/break_continue.vs)
+      set_tests_properties(RegressionBreakContinue PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED"
+               PASS_REGULAR_EXPRESSION "a0\na1\na3\na4\nb1\nb2\nb4\nb5\ncx\ncy\nd0\nd2\ne00\ne02\ne10\ne12\nf0\nf2\ndone")
+
       # Task #8: the OOP CurlClient and the unregistered curl free functions.
       # Uses a file:// URL, so no network or listening port is involved.
       add_test(NAME RegressionCurlClient
