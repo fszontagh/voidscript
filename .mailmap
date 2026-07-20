@@ -1,0 +1,17 @@
+# Canonicalises author identities in git log / shortlog / blame output.
+#
+# Several commits were authored with a placeholder address
+# (fszontagh@example.com) or with one of a few name spellings for the same
+# person. A mailmap fixes the attribution git reports WITHOUT rewriting a
+# single commit: no SHAs change, the v0.1.0/v0.1.1/v0.2.0 tags keep pointing
+# at the same objects, existing GPG signatures stay valid, and nobody has to
+# re-clone.
+#
+# Format: Canonical Name <canonical@email>  Old Name <old@email>
+
+Ferenc Szontágh <szf@fsociety.hu>  Fszontagh <fszontagh@example.com>
+Ferenc Szontágh <szf@fsociety.hu>  Fszontagh (aider) <fszontagh@example.com>
+Ferenc Szontágh <szf@fsociety.hu>  Ferenc Szontágh (aider) <szf@fsociety.hu>
+Ferenc Szontágh <szf@fsociety.hu>  fszontagh <szf@fsociety.hu>
+Ferenc Szontágh <szf@fsociety.hu>  Szontágh Ferenc <szf@fsociety.hu>
+Ferenc Szontágh <szf@fsociety.hu>  fszontagh <51741446+fszontagh@users.noreply.github.com>
