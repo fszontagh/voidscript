@@ -1,8 +1,14 @@
 printnl("=== COMPREHENSIVE MODULE TEST ===");
 
 printnl("1. Testing Curl Module...");
+// Serve the fixture over file:// rather than fetching https://httpbin.org/get. This
+// script is a ctest case, and pointing it at a third-party website made the build
+// depend on that site being up AND returning JSON - it started failing the moment
+// httpbin answered with an HTML error page instead.
+string $fixture = "/tmp/voidscript_comprehensive_fixture.json";
+file_put_contents($fixture, "{\"url\": \"file\", \"ok\": true}", true);
 object $options = {};
-string $result = curlGet("https://httpbin.org/get", $options);
+string $result = curlGet("file://" + $fixture, $options);
 printnl("✓ Curl GET successful, response length: ", string_length($result));
 
 printnl("2. Testing Format Module...");
@@ -34,3 +40,5 @@ printnl("");
 printnl("=== DYNAMIC MODULE LOADING SUCCESS! ===");
 printnl("All core modules are working correctly.");
 printnl("Note: XML classes may have registration conflicts but functions work.");
+
+file_unlink($fixture);
