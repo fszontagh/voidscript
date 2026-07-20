@@ -10,7 +10,7 @@ and dynamic ones under `Modules/`.
 ```bash
 cmake -S . -B build -DBUILD_TESTS=ON
 cmake --build build -j$(nproc)          # ~2 min; run it in the background
-ctest --test-dir build                  # 35 tests
+ctest --test-dir build                  # 102 tests
 ctest --test-dir build -R Regression    # the bug regression suite only
 ```
 
@@ -25,8 +25,9 @@ for f in test_scripts/*.vs; do
 done
 ```
 
-55 of 62 pass. The other seven need an interactive TTY (readline) or command-line
-arguments and an image (image_resize), so they cannot pass unattended. **Compare the
+All 62 pass, and every script is also a ctest case (globbed, so new ones are picked up
+automatically). ctest redirects stdin from /dev/null - it otherwise hands the tests the
+terminal and the interactive scripts block forever. **Compare the
 pass *set*, not the count** - it is easy to fix one script and break another and see no
 change in the total.
 
@@ -35,18 +36,20 @@ under load produces spurious "hangs" that look exactly like parser infinite loop
 
 ## Two hazards that have each caused real bugs
 
-**1. `if (!somePtr)` on a `ValuePtr` does not test the pointer.**
+**1. `ValuePtr` has no implicit conversion to bool - and must not regain one.**
 
-`ValuePtr::operator bool()` (`src/Symbols/Value.hpp`) returns the *value's* truthiness -
-`0`, `""`, `false` and empty objects are all falsy - and it *throws* on a genuinely null
-value instead of returning false. So the idiom is wrong in both directions.
+It used to. `operator bool()` returned the *value's* truthiness - `0`, `""`, `false` and
+empty objects were all falsy - and *threw* on a genuinely null value, so `if (!value)`
+was wrong in both directions while looking exactly like a null check.
 
 It made `switch (0)` and `switch ("")` report "must evaluate to a non-null value", broke
-every enum whose first member had the implicit value 0, made `json_encode(0)` throw
-"Cannot convert null ValuePtr to JSON", and made `var_dump(0)` print `NULL`.
+every enum whose first member had the implicit value 0, made `json_encode(0)` throw,
+made `var_dump(0)` print `NULL`, and made every `CurlClient` request die on a missing
+options argument.
 
-Use `value->is_null()`. `operator->` materialises a NULL `Value` when the pointer is
-empty, so it is safe on its own and needs no `!value` guard in front of it.
+The conversion is gone, so `if (!value)` no longer compiles. Use `value->is_null()` to
+test presence and `value.toBool()` to test truthiness. Do not re-add bool to the
+universal conversion operator's `requires` clause.
 
 **2. Function bodies are re-parsed from a bare token slice with no `END_OF_FILE`
 token.**
@@ -63,6 +66,17 @@ had nothing to do with it.
 
 ## Other things worth knowing
 
+- **`-Werror=switch` is on.** Switches over an `enum class` have no `default:` arm on
+  purpose, so adding an enumerator fails the build until every switch handles it. A
+  `default: throw` once hid a missing case and broke the entire `switch` statement at
+  runtime.
+- **Control-flow exceptions derive from `ControlFlowSignal`, not `std::exception`.**
+  Break, Continue and Return cannot be caught by a generic handler, by construction. Do
+  not "helpfully" give them a `std::exception` base.
+- **`REGISTER_FUNCTION`/`REGISTER_METHOD` are macros.** A comma anywhere at the top
+  level of an argument splits it - that rules out two-item lambda captures like
+  `[this, helper]` and multi-variable declarations inside a lambda body. The error is a
+  confusing "passed 6 arguments, but takes just 5".
 - **The parse loop needs a progress guard.** `Parser::parse` checks that
   `parseTopLevelStatement()` consumed at least one token, otherwise a branch that falls
   through without consuming spins forever. Keep it when adding statement kinds.
