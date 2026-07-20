@@ -146,10 +146,12 @@ void Interpreter::runOperation(const Operations::Operation & op) {
 
             case Operations::Type::Error:
                 throw Exception("Error operation encountered", "-", 0, 0);
-
-            default:
-                throw Exception("Unknown operation type", "-", 0, 0);
         }
+        // No `default:` arm on purpose. This switch covers every Operations::Type, and
+        // leaving it exhaustive means -Werror=switch catches a newly added type at
+        // compile time. A default arm previously swallowed a missing
+        // Operations::Type::ControlFlow case and made every `switch` statement in the
+        // language fail at runtime with "Unknown operation type".
     } catch (const Exception &) {
         throw;
     } catch (const ThrowException &) {

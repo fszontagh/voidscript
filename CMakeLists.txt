@@ -11,6 +11,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
+
+# An enum switch that gains a new case must not compile until every switch handles it.
+# A `default: throw` arm once hid a missing Operations::Type::ControlFlow case and broke
+# the entire `switch` statement at runtime instead of at build time.
+add_compile_options(-Wswitch -Werror=switch)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
