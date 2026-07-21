@@ -26,8 +26,10 @@ identity, not contents.
 | Memcached | connection keyed by `toString()` -> all connections shared | FIXED, compile-only (needs server) |
 | **Xml2** | `__class__` marker instead of `$class_name` -> ...fails "Object missing $class_name" | FIXED |
 | **Xml2** | instance handle stored as a CLASS-level property (`setObjectProperty("XmlDocument", ...)`) -> all instances of a class share one handle | FIXED (per-object handle reads) |
-| **Xml2** | `createFromString` baseUrl documented optional but not flagged `optional` | minor, open |
-| **Xml2** | SIGSEGV at process teardown (`~XmlDocument`->`xmlFreeDoc` during static destruction) - PRE-EXISTING, reproduces on the original code | open, needs valgrind (task) |
+| **Xml2** | `createFromString` baseUrl not flagged `optional` | FIXED |
+| **Xml2** | SIGSEGV at teardown - inline-static holders destroyed out of order with `~XmlModule` (use-after-free) | FIXED (valgrind: 0 errors) |
+| **Xml2** | dual doc storage left `getRootElement` unable to reach createFromString docs | FIXED (bridge via createNodeObject) |
+| **Xml2** | `isWellFormed` called `xmlValidateDocument` (DTD validity), false for any DTD-less doc | FIXED |
 | Archive | none | clean |
 | Hash | none | clean |
 | Format | `toString()` used for output, not identity | clean |
@@ -46,9 +48,9 @@ Memcached now key on it (their local `*_oid_` helpers are gone).
   and tested; MariaDB/Memcached compile-verified.
 - Imagick: composite + mode registered, crop/blur/rotate/flip revived, instance
   collision fixed (prior commits).
-- Xml2: `$class_name` marker and per-object handle reads fixed - the ~76 per-object
-  methods now work and are independent (verified: two documents serialise to their own
-  content, no crosstalk). Still open: a PRE-EXISTING teardown SIGSEGV in the document
-  ownership model, the dual doc-storage systems (docHolder vs documentHolder) that leave
-  `getRootElement` unable to bridge, and `isWellFormed`. Filed as a task.
-- `XmlDocument` given a proper Rule of Five (was a copyable owning handle).
+- Xml2: fully fixed. $class_name marker + per-object handle reads (dispatch + document
+  independence), teardown SIGSEGV (holders no longer touched by ~XmlModule; valgrind 0
+  errors), getRootElement bridges createFromString documents, isWellFormed corrected,
+  baseUrl made optional. XmlDocument given a proper Rule of Five. Regression:
+  xml_independence.vs. Two document systems (docHolder/documentHolder) still coexist but
+  now interoperate; collapsing them to one is future cleanup, not a bug.

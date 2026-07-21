@@ -406,23 +406,20 @@ class XmlModule : public BaseModule {
     void registerFunctions() override;
 
     ~XmlModule() {
-        // Clean up all document holders
-        for (auto& doc : docHolder) {
-            if (doc.second) {
-                xmlFreeDoc(doc.second);
-            }
-        }
-        docHolder.clear();
-        nodeHolder.clear();
-        documentHolder.clear();
-        nodeObjectHolder.clear();
-        nodeListHolder.clear();
-        xpathHolder.clear();
-        xpathResultHolder.clear();
-        schemaHolder.clear();
-        dtdHolder.clear();
-        validatorHolder.clear();
-        xmlCleanupParser();
+        // Deliberately does NOT touch the holders. They are `inline static` (namespace
+        // lifetime) and are destroyed at program exit in an order unspecified relative
+        // to this module's owner (SymbolContainer). This destructor runs via
+        // ~SymbolContainer during exit handlers, and the holders had often already been
+        // destroyed by then - iterating them here was a use-after-free (SIGSEGV at
+        // teardown, confirmed with valgrind).
+        //
+        // The owning holders (documentHolder, nodeObjectHolder, ...) free their contents
+        // via ~XmlDocument / ~XmlNode when they self-destruct, so cleanup still happens
+        // exactly once. The raw docHolder xmlDocPtrs (from the factory createDocument
+        // path) are leaked at process exit and reclaimed by the OS - acceptable, and
+        // safe, versus a crash. Do NOT call xmlCleanupParser() here either: libxml2
+        // documents it as callable only once at the very end of all libxml use, never
+        // while parsers/documents may still live.
     }
 
     // Static utility methods

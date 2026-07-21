@@ -687,14 +687,11 @@ std::string XmlDocument::getEncoding() const {
 }
 
 bool XmlDocument::isWellFormed() const {
-    if (!doc_) {
-        return false;
-    }
-    
-    xmlValidCtxt cvp;
-    memset(&cvp, 0, sizeof(cvp));
-    
-    return xmlValidateDocument(&cvp, doc_) == 1;
+    // Well-formedness is not DTD validity. The old code called xmlValidateDocument,
+    // which validates against a DTD and so returned false for any well-formed document
+    // that simply has no DTD. A document that libxml parsed into doc_ with a root
+    // element IS well-formed by definition (a malformed one would have failed to parse).
+    return doc_ != nullptr && xmlDocGetRootElement(doc_) != nullptr;
 }
 
 std::unique_ptr<XmlNode> XmlDocument::getRootElement() const {
@@ -1603,7 +1600,7 @@ void XmlModule::registerDocumentMethods() {
 
     params = {
         { "xmlString", Symbols::Variables::Type::STRING, "XML content as string" },
-        { "baseUrl", Symbols::Variables::Type::STRING, "Base URL for relative references (optional)" }
+        { "baseUrl", Symbols::Variables::Type::STRING, "Base URL for relative references", true }
     };
     REGISTER_METHOD(
         this->className, "createFromString", params,
@@ -1917,15 +1914,30 @@ Symbols::ValuePtr XmlModule::GetRootElement(const FunctionArguments& args) {
     // Read the handle from THIS object (works for both the factory doc and a doc
     // created via createFromString, since both stamp a handle on their own map).
     const Symbols::ObjectMap & selfMap = args[0]->get<Symbols::ObjectMap>();
+
+    // A document created via createFromString lives in documentHolder (an owning
+    // XmlDocument), keyed __xml_document_handler_id__ - a different store from the
+    // factory's raw docHolder handled below. Bridge it: wrap its root as a non-owning
+    // XmlNode (the document owns the node) via the canonical createNodeObject, which
+    // registers it in nodeObjectHolder where the node methods look.
+    if (auto it = selfMap.find("__xml_document_handler_id__");
+        it != selfMap.end() && !it->second->is_null()) {
+        int docId = it->second->get<int>();
+        auto dit = documentHolder.find(docId);
+        if (dit == documentHolder.end()) {
+            throw std::runtime_error("Xml2::getRootElement: document not found");
+        }
+        xmlNodePtr rootRaw = xmlDocGetRootElement(dit->second->getDoc());
+        if (!rootRaw) {
+            throw std::runtime_error("Xml2::getRootElement: no root element");
+        }
+        return createNodeObject(std::make_unique<XmlNode>(rootRaw));  // non-owning
+    }
+
     int handlerId = -1;
     if (auto it = selfMap.find("__xml2_handler_id__"); it != selfMap.end() && !it->second->is_null()) {
         handlerId = it->second->get<int>();
     }
-    // NOTE: a document created via createFromString lives in a SEPARATE storage system
-    // (documentHolder, keyed __xml_document_handler_id__) from the factory's docHolder
-    // used here. Bridging the two safely needs the node-ownership model unified first -
-    // see the Xml2 architecture task. Such a document reaches this branch with
-    // handlerId == -1 and gets a clean error below rather than a wrong result.
     if (handlerId == -1) {
         throw std::runtime_error("Xml2::getRootElement: invalid object");
     }

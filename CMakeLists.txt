@@ -467,6 +467,15 @@ if (BUILD_TESTS)
                TIMEOUT 20
                PASS_REGULAR_EXPRESSION "32,32,128\n8x8\n80,80,128\n255,0,0\ntrue\ndone")
 
+      # Xml2: dispatch, per-document independence, navigation, well-formedness, and a
+      # crash-free teardown (was a use-after-free SIGSEGV).
+      add_test(NAME RegressionXmlIndependence
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/xml_independence.vs)
+      set_tests_properties(RegressionXmlIndependence PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "true\ntrue\nalpha\nbeta\ntrue\nfalse\ndone")
+
       # Integer division/modulo by zero must throw, not SIGFPE the process.
       add_test(NAME RegressionDivisionByZero
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
