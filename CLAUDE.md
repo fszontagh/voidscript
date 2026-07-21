@@ -80,6 +80,18 @@ had nothing to do with it.
 - **The parse loop needs a progress guard.** `Parser::parse` checks that
   `parseTopLevelStatement()` consumed at least one token, otherwise a branch that falls
   through without consuming spins forever. Keep it when adding statement kinds.
+- **Native modules must store per-instance state ON the object, not in a `static`
+  map keyed by `args[0].toString()`.** A fresh class instance serialises to just its
+  `$class_name`, so every instance produces the same key and they all collide onto one
+  entry - two `new Imagick()`s ended up sharing one image, and DateTime one timestamp.
+  Stamp a handle into the object's map (e.g. `__image_id__`) and read it back; see
+  ImagickModule / DateTimeModule.
+- **`new` returns the object it built, not the constructor's return value.** A native
+  constructor mutates `args[0]` in place (stamp state there) and its return is ignored.
+- **Method-call nesting is bounded at depth 100** by a `DepthGuard` RAII object in
+  `MethodCallExpressionNode`. It must stay RAII: an earlier manual counter leaked on
+  some return paths and counted cumulative calls, capping whole programs at ~100 method
+  calls.
 - **Arrays are `ObjectMap`s keyed by the decimal index** (`"0"`, `"1"`, ...), so an
   element write is the same operation as an object property write.
 - **A declaration's type constrains what the expression produces, not what appears
