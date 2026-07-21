@@ -203,12 +203,16 @@ class BinaryExpressionNode : public ExpressionNode {
                 //return std::make_shared<Symbols::Value>(l * r);
             }
             if (op_ == "/") {
+                if (r == 0) {
+                    throw std::runtime_error("Division by zero");
+                }
                 return l / r;
-                //return std::make_shared<Symbols::Value>(l / r);
             }
             if (op_ == "%") {
+                if (r == 0) {
+                    throw std::runtime_error("Modulo by zero");
+                }
                 return l % r;
-                //return std::make_shared<Symbols::Value>(l % r);
             }
             if (op_ == "==") {
                 return l == r;
@@ -254,12 +258,18 @@ class BinaryExpressionNode : public ExpressionNode {
                 //return std::make_shared<Symbols::Value>(l * r);
             }
             if (op_ == "/") {
+                // Integer division by zero is undefined behaviour in C++ (SIGFPE), which
+                // killed the whole process with an uncatchable signal and no diagnostic.
+                if (r == 0) {
+                    throw std::runtime_error("Division by zero");
+                }
                 return l / r;
-                //return std::make_shared<Symbols::Value>(l / r);  // TODO: 0 div
             }
             if (op_ == "%") {
+                if (r == 0) {
+                    throw std::runtime_error("Modulo by zero");
+                }
                 return l % r;
-                //return std::make_shared<Symbols::Value>(l % r);
             }
             if (op_ == "==") {
                 return l == r;

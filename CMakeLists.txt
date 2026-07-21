@@ -467,6 +467,15 @@ if (BUILD_TESTS)
                TIMEOUT 20
                PASS_REGULAR_EXPRESSION "32,32,128\n8x8\n80,80,128\n255,0,0\ntrue\ndone")
 
+      # Integer division/modulo by zero must throw, not SIGFPE the process.
+      add_test(NAME RegressionDivisionByZero
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/division_by_zero.vs)
+      set_tests_properties(RegressionDivisionByZero PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED"
+               PASS_REGULAR_EXPRESSION "div caught\nmod caught\nvar div caught\n5\n1\n3.500000\ndone")
+
       # Method-call depth counter must measure nesting, not cumulative calls.
       add_test(NAME RegressionMethodCallDepth
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
