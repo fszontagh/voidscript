@@ -132,6 +132,47 @@ void writePng(const sd_image_t & img, const std::string & path) {
     }
 }
 
+// Read a `loras` option into an sd_lora_t vector. Accepts an array of strings (paths,
+// multiplier 1.0) or of objects { path, multiplier, is_high_noise }. Paths are kept
+// alive in `keep` for as long as the sd_lora_t pointers are used.
+void readLoras(const Symbols::ObjectMap & o, std::list<std::string> & keep, std::vector<sd_lora_t> & out) {
+    auto it = o.find("loras");
+    if (it == o.end() || it->second->is_null()) {
+        return;
+    }
+    if (it->second->getType() != Symbols::Variables::Type::OBJECT &&
+        it->second->getType() != Symbols::Variables::Type::CLASS) {
+        throw std::runtime_error("StableDiffusion: option 'loras' must be an array");
+    }
+    const Symbols::ObjectMap & arr = it->second->get<Symbols::ObjectMap>();
+    for (size_t i = 0;; ++i) {
+        auto e = arr.find(std::to_string(i));
+        if (e == arr.end()) {
+            break;
+        }
+        sd_lora_t lora{};
+        lora.multiplier = 1.0f;
+        if (e->second->getType() == Symbols::Variables::Type::STRING) {
+            keep.push_back(e->second->get<std::string>());
+            lora.path = keep.back().c_str();
+        } else if (e->second->getType() == Symbols::Variables::Type::OBJECT ||
+                   e->second->getType() == Symbols::Variables::Type::CLASS) {
+            const Symbols::ObjectMap & lo   = e->second->get<Symbols::ObjectMap>();
+            const std::string          path = optStr(lo, "path");
+            if (path.empty()) {
+                throw std::runtime_error("StableDiffusion: each lora needs a 'path'");
+            }
+            keep.push_back(path);
+            lora.path         = keep.back().c_str();
+            lora.multiplier   = static_cast<float>(optNum(lo, "multiplier", 1.0));
+            lora.is_high_noise = optBool(lo, "is_high_noise", false);
+        } else {
+            throw std::runtime_error("StableDiffusion: 'loras' entries must be a path string or an object");
+        }
+        out.push_back(lora);
+    }
+}
+
 std::string indexedPath(const std::string & base, int index) {
     if (index == 0) {
         return base;
@@ -369,6 +410,15 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
     if (!sampler.empty())      p.sample_params.sample_method     = str_to_sample_method(sampler.c_str());
     if (!scheduler.empty())    p.sample_params.scheduler         = str_to_scheduler(scheduler.c_str());
     if (!extra_sample.empty()) p.sample_params.extra_sample_args = extra_sample.c_str();
+
+    // LoRAs (multiple). Kept alive until generate_image returns.
+    std::list<std::string> loraKeep;
+    std::vector<sd_lora_t>  loras;
+    readLoras(o, loraKeep, loras);
+    if (!loras.empty()) {
+        p.loras      = loras.data();
+        p.lora_count = static_cast<uint32_t>(loras.size());
+    }
 
     sd_image_t control{};
     const std::string control_path = optStr(o, "control_image");
