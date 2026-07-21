@@ -15,32 +15,6 @@
 
 namespace Modules {
 
-namespace {
-// Per-object identity. Keying the state maps by args[0].toString() - the object's
-// serialised CONTENTS - collided every instance, since a fresh CurlClient/CurlResponse
-// serialises to just its $class_name. So two clients shared one HTTP client and two
-// responses shared one body. Each object instead carries a unique __curl_oid__ stamped
-// at creation, and every map is keyed by that.
-static long g_curl_next_oid = 1;
-
-std::string curlStampOid(Symbols::ValuePtr obj) {
-    const long id = g_curl_next_oid++;
-    obj->get<Symbols::ObjectMap>()["__curl_oid__"] = Symbols::ValuePtr(static_cast<int>(id));
-    return std::to_string(id);
-}
-
-std::string curlOidOf(const Symbols::ValuePtr & obj) {
-    if (obj == Symbols::Variables::Type::CLASS || obj == Symbols::Variables::Type::OBJECT) {
-        const auto & m  = obj->get<Symbols::ObjectMap>();
-        auto         it = m.find("__curl_oid__");
-        if (it != m.end()) {
-            return it->second->toString();
-        }
-    }
-    // Not stamped: an object that never went through construct()/createResponse().
-    return obj.toString();
-}
-}  // namespace
 
 
 // Static member definitions
@@ -364,14 +338,14 @@ Symbols::ValuePtr CurlResponseWrapper::construct(Symbols::FunctionArguments& arg
     }
     
     // Initialize with empty response data
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     response_data_map_[objectId] = CurlResponseData{};
     
     return args[0];
 }
 
 Symbols::ValuePtr CurlResponseWrapper::getStatusCode(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::getStatusCode: object not properly initialized");
@@ -380,7 +354,7 @@ Symbols::ValuePtr CurlResponseWrapper::getStatusCode(Symbols::FunctionArguments&
 }
 
 Symbols::ValuePtr CurlResponseWrapper::getBody(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::getBody: object not properly initialized");
@@ -389,7 +363,7 @@ Symbols::ValuePtr CurlResponseWrapper::getBody(Symbols::FunctionArguments& args)
 }
 
 Symbols::ValuePtr CurlResponseWrapper::getHeaders(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::getHeaders: object not properly initialized");
@@ -402,7 +376,7 @@ Symbols::ValuePtr CurlResponseWrapper::getHeader(Symbols::FunctionArguments& arg
         throw std::runtime_error("CurlResponse::getHeader expects one string argument");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string headerName = args[1].get<std::string>();
     
     auto it = response_data_map_.find(objectId);
@@ -419,7 +393,7 @@ Symbols::ValuePtr CurlResponseWrapper::getHeader(Symbols::FunctionArguments& arg
 }
 
 Symbols::ValuePtr CurlResponseWrapper::getTotalTime(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::getTotalTime: object not properly initialized");
@@ -428,7 +402,7 @@ Symbols::ValuePtr CurlResponseWrapper::getTotalTime(Symbols::FunctionArguments& 
 }
 
 Symbols::ValuePtr CurlResponseWrapper::isSuccess(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::isSuccess: object not properly initialized");
@@ -437,7 +411,7 @@ Symbols::ValuePtr CurlResponseWrapper::isSuccess(Symbols::FunctionArguments& arg
 }
 
 Symbols::ValuePtr CurlResponseWrapper::getErrorMessage(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::getErrorMessage: object not properly initialized");
@@ -446,7 +420,7 @@ Symbols::ValuePtr CurlResponseWrapper::getErrorMessage(Symbols::FunctionArgument
 }
 
 Symbols::ValuePtr CurlResponseWrapper::asJson(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::asJson: object not properly initialized");
@@ -469,7 +443,7 @@ Symbols::ValuePtr CurlResponseWrapper::asJson(Symbols::FunctionArguments& args) 
 }
 
 Symbols::ValuePtr CurlResponseWrapper::toString(Symbols::FunctionArguments& args) {
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     auto it = response_data_map_.find(objectId);
     if (it == response_data_map_.end()) {
         throw std::runtime_error("CurlResponse::toString: object not properly initialized");
@@ -493,7 +467,7 @@ Symbols::ValuePtr CurlResponseWrapper::createResponse(const CurlResponseData& re
     
     // Create the object
     auto responseObj = Symbols::ValuePtr::makeClassInstance(objectMap);
-    std::string objectId = curlStampOid(responseObj);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(responseObj));
 
     // Store the response data
     response_data_map_[objectId] = responseData;
@@ -511,7 +485,7 @@ Symbols::ValuePtr CurlClientWrapper::constructDefault(Symbols::FunctionArguments
         throw std::runtime_error("CurlClient::construct must be called on CurlClient instance");
     }
     
-    std::string objectId = curlStampOid(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     
     // Initialize client state
     client_map_[objectId] = std::make_unique<CurlClient>();
@@ -529,7 +503,7 @@ Symbols::ValuePtr CurlClientWrapper::constructWithBaseUrl(Symbols::FunctionArgum
         throw std::runtime_error("CurlClient::construct expects one string parameter (baseUrl)");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string baseUrl = args[1].get<std::string>();
     
     // Initialize client state
@@ -547,7 +521,7 @@ Symbols::ValuePtr CurlClientWrapper::setBaseUrl(Symbols::FunctionArguments& args
         throw std::runtime_error("CurlClient::setBaseUrl expects one string argument");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string baseUrl = args[1].get<std::string>();
     
     base_url_map_[objectId] = baseUrl;
@@ -560,7 +534,7 @@ Symbols::ValuePtr CurlClientWrapper::setTimeout(Symbols::FunctionArguments& args
         throw std::runtime_error("CurlClient::setTimeout expects one integer argument");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     int timeout = args[1].get<int>();
     
     timeout_map_[objectId] = timeout;
@@ -573,7 +547,7 @@ Symbols::ValuePtr CurlClientWrapper::setDefaultHeader(Symbols::FunctionArguments
         throw std::runtime_error("CurlClient::setDefaultHeader expects two string arguments");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string name = args[1].get<std::string>();
     std::string value = args[2].get<std::string>();
     
@@ -587,7 +561,7 @@ Symbols::ValuePtr CurlClientWrapper::setFollowRedirects(Symbols::FunctionArgumen
         throw std::runtime_error("CurlClient::setFollowRedirects expects one boolean argument");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     bool follow = args[1].get<bool>();
     
     follow_redirects_map_[objectId] = follow;
@@ -600,7 +574,7 @@ Symbols::ValuePtr CurlClientWrapper::get(Symbols::FunctionArguments& args) {
         throw std::runtime_error("CurlClient::get expects one string argument (url)");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     
     CurlClient* client = getOrCreateClient(objectId);
@@ -616,7 +590,7 @@ Symbols::ValuePtr CurlClientWrapper::getWithOptions(Symbols::FunctionArguments& 
         throw std::runtime_error("CurlClient::get expects string (url) and object (options) arguments");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     Symbols::ValuePtr options = args[2];
     
@@ -633,7 +607,7 @@ Symbols::ValuePtr CurlClientWrapper::post(Symbols::FunctionArguments& args) {
         throw std::runtime_error("CurlClient::post expects two string arguments (url, data)");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     std::string data = args[2].get<std::string>();
     
@@ -651,7 +625,7 @@ Symbols::ValuePtr CurlClientWrapper::postWithOptions(Symbols::FunctionArguments&
         throw std::runtime_error("CurlClient::post expects string (url), string (data) and object (options) arguments");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     std::string data = args[2].get<std::string>();
     Symbols::ValuePtr options = args[3];
@@ -669,7 +643,7 @@ Symbols::ValuePtr CurlClientWrapper::put(Symbols::FunctionArguments& args) {
         throw std::runtime_error("CurlClient::put expects two string arguments (url, data)");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     std::string data = args[2].get<std::string>();
     
@@ -687,7 +661,7 @@ Symbols::ValuePtr CurlClientWrapper::putWithOptions(Symbols::FunctionArguments& 
         throw std::runtime_error("CurlClient::put expects string (url), string (data) and object (options) arguments");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     std::string data = args[2].get<std::string>();
     Symbols::ValuePtr options = args[3];
@@ -705,7 +679,7 @@ Symbols::ValuePtr CurlClientWrapper::delete_(Symbols::FunctionArguments& args) {
         throw std::runtime_error("CurlClient::delete expects one string argument (url)");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     
     CurlClient* client = getOrCreateClient(objectId);
@@ -721,7 +695,7 @@ Symbols::ValuePtr CurlClientWrapper::deleteWithOptions(Symbols::FunctionArgument
         throw std::runtime_error("CurlClient::delete expects string (url) and object (options) arguments");
     }
     
-    std::string objectId = curlOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     std::string url = args[1].get<std::string>();
     Symbols::ValuePtr options = args[2];
     

@@ -18,30 +18,6 @@
 
 namespace Modules {
 
-namespace {
-// Per-object identity. Keying the connection map by args[0].toString() - the object's
-// serialised CONTENTS - collided every instance, since a fresh connection object
-// serialises to just its $class_name, so all of them shared ONE connection. Each object
-// carries a unique __conn_oid__ stamped at construct, and the map is keyed by that.
-static long g_conn_next_oid = 1;
-
-std::string connStampOid(Symbols::ValuePtr obj) {
-    const long id = g_conn_next_oid++;
-    obj->get<Symbols::ObjectMap>()["__conn_oid__"] = Symbols::ValuePtr(static_cast<int>(id));
-    return std::to_string(id);
-}
-
-std::string connOidOf(const Symbols::ValuePtr & obj) {
-    if (obj == Symbols::Variables::Type::CLASS || obj == Symbols::Variables::Type::OBJECT) {
-        const auto & m  = obj->get<Symbols::ObjectMap>();
-        auto         it = m.find("__conn_oid__");
-        if (it != m.end()) {
-            return it->second->toString();
-        }
-    }
-    return obj.toString();
-}
-}  // namespace
 
 
 // Static member definitions
@@ -221,7 +197,7 @@ Symbols::ValuePtr MariaDBWrapper::construct(const std::vector<Symbols::ValuePtr>
         throw DatabaseException("MariaDB::construct must be called on MariaDB instance");
     }
 
-    std::string objectId = connStampOid(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     connection_map_[objectId] = std::make_unique<MariaDBClient>();
 
     return args[0];
@@ -240,7 +216,7 @@ Symbols::ValuePtr MariaDBWrapper::connect(const std::vector<Symbols::ValuePtr>& 
         throw DatabaseException("Parameters must be strings for host/username/password/database and boolean for useSSL");
     }
 
-    std::string objectId = connOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     MariaDBClient* client = getClient(objectId);
 
     std::string host = args[1].get<std::string>();
@@ -254,14 +230,14 @@ Symbols::ValuePtr MariaDBWrapper::connect(const std::vector<Symbols::ValuePtr>& 
 }
 
 Symbols::ValuePtr MariaDBWrapper::disconnect(const std::vector<Symbols::ValuePtr>& args) {
-    std::string objectId = connOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     MariaDBClient* client = getClient(objectId);
     client->disconnect();
     return Symbols::ValuePtr(true);
 }
 
 Symbols::ValuePtr MariaDBWrapper::isConnected(const std::vector<Symbols::ValuePtr>& args) {
-    std::string objectId = connOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     MariaDBClient* client = getClient(objectId);
     return Symbols::ValuePtr(client->isConnected());
 }
@@ -271,7 +247,7 @@ Symbols::ValuePtr MariaDBWrapper::query(const std::vector<Symbols::ValuePtr>& ar
         throw DatabaseException("MariaDB::query expects one string parameter: sql");
     }
 
-    std::string objectId = connOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     MariaDBClient* client = getClient(objectId);
     std::string sql = args[1].get<std::string>();
 
@@ -279,13 +255,13 @@ Symbols::ValuePtr MariaDBWrapper::query(const std::vector<Symbols::ValuePtr>& ar
 }
 
 Symbols::ValuePtr MariaDBWrapper::getLastInsertId(const std::vector<Symbols::ValuePtr>& args) {
-    std::string objectId = connOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     MariaDBClient* client = getClient(objectId);
     return Symbols::ValuePtr(static_cast<int>(client->getLastInsertId()));
 }
 
 Symbols::ValuePtr MariaDBWrapper::getAffectedRows(const std::vector<Symbols::ValuePtr>& args) {
-    std::string objectId = connOidOf(args[0]);
+    std::string objectId = std::to_string(Symbols::ValuePtr::instanceId(args[0]));
     MariaDBClient* client = getClient(objectId);
     return Symbols::ValuePtr(static_cast<int>(client->getAffectedRows()));
 }

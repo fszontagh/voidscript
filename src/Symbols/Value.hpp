@@ -197,6 +197,14 @@ class ValuePtr {
     static ValuePtr null();
     static ValuePtr undefined();
     static ValuePtr makeClassInstance(const ObjectMap & v);
+
+    // Process-unique, stable identity for a class/object instance. Native modules that
+    // keep per-instance state in a side map MUST key on this, never on toString():
+    // toString() serialises the object's CONTENTS, and a freshly constructed instance is
+    // empty but for its $class_name, so every instance collides onto one key. The id is
+    // lazily stamped onto the object as "__instance_id__" on first call and is shared by
+    // every reference to that object. Returns 0 for non-object values.
+    static long instanceId(const ValuePtr & obj);
     static ValuePtr fromString(const std::string & str);
     static ValuePtr fromStringToInt(const std::string & str);
     static ValuePtr fromStringToDouble(const std::string & str);

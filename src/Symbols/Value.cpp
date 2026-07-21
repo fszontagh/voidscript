@@ -1,6 +1,7 @@
 #include "Symbols/Value.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <mutex>
 #include <sstream>
@@ -402,6 +403,28 @@ ValuePtr & ValuePtr::operator[](const std::string & key) {
 }
 
 // Static method
+long ValuePtr::instanceId(const ValuePtr & obj) {
+    // Monotonic, process-unique. A static counter is deterministic per run, which is all
+    // that is needed - the id only has to be unique among live instances, not stable
+    // across runs.
+    static std::atomic<long> counter{ 1 };
+
+    if (obj.getType() != Variables::Type::CLASS && obj.getType() != Variables::Type::OBJECT) {
+        return 0;
+    }
+    // Copy the handle (shares the underlying Value/ObjectMap) so we can mutate through
+    // it even when handed a const ValuePtr.
+    ValuePtr    self = obj;
+    ObjectMap & map  = self->get<ObjectMap>();
+    auto        it   = map.find("__instance_id__");
+    if (it != map.end() && it->second.getType() == Variables::Type::INTEGER) {
+        return it->second->get<int>();
+    }
+    const long id            = counter++;
+    map["__instance_id__"]   = ValuePtr(static_cast<int>(id));
+    return id;
+}
+
 ValuePtr ValuePtr::makeClassInstance(const ObjectMap & v) {
     // Use the new constructor that takes a bool to indicate it's a class
     auto _class_instance_vp = Symbols::ValuePtr(v, true);

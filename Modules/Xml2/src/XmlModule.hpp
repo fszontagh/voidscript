@@ -58,6 +58,28 @@ class XmlDocument {
     XmlDocument(xmlDocPtr doc, bool takeOwnership = true);
     ~XmlDocument();
 
+    // Owns an xmlDocPtr, so it must not be copied (a shallow copy would xmlFreeDoc the
+    // same document twice). Rule of Five: copy deleted, move transfers ownership.
+    XmlDocument(const XmlDocument &)             = delete;
+    XmlDocument & operator=(const XmlDocument &) = delete;
+    XmlDocument(XmlDocument && other) noexcept : doc_(other.doc_), id_(other.id_), ownsDocument_(other.ownsDocument_) {
+        other.doc_          = nullptr;
+        other.ownsDocument_ = false;
+    }
+    XmlDocument & operator=(XmlDocument && other) noexcept {
+        if (this != &other) {
+            if (ownsDocument_ && doc_) {
+                xmlFreeDoc(doc_);
+            }
+            doc_                = other.doc_;
+            id_                 = other.id_;
+            ownsDocument_       = other.ownsDocument_;
+            other.doc_          = nullptr;
+            other.ownsDocument_ = false;
+        }
+        return *this;
+    }
+
     // Document creation methods
     static std::unique_ptr<XmlDocument> createDocument(const std::string& version = "1.0", const std::string& encoding = "UTF-8");
     static std::unique_ptr<XmlDocument> createFromString(const std::string& xmlString, const std::string& baseUrl = "");

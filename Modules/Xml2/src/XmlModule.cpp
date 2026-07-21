@@ -1345,13 +1345,15 @@ XmlDocument* XmlModule::getDocumentFromArgs(const FunctionArguments& args) const
         throw std::runtime_error("XmlModule: Invalid document object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlDocument", "__xml_document_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_document_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid document handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = documentHolder.find(handlerId);
     if (it == documentHolder.end()) {
         throw std::runtime_error("XmlModule: Document not found");
@@ -1365,13 +1367,15 @@ XmlNode* XmlModule::getNodeFromArgs(const FunctionArguments& args) const {
         throw std::runtime_error("XmlModule: Invalid node object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlNode", "__xml_node_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_node_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid node handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = nodeObjectHolder.find(handlerId);
     if (it == nodeObjectHolder.end()) {
         throw std::runtime_error("XmlModule: Node not found");
@@ -1385,13 +1389,15 @@ XmlNodeList* XmlModule::getNodeListFromArgs(const FunctionArguments& args) const
         throw std::runtime_error("XmlModule: Invalid node list object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlNodeList", "__xml_nodelist_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_nodelist_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid node list handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = nodeListHolder.find(handlerId);
     if (it == nodeListHolder.end()) {
         throw std::runtime_error("XmlModule: Node list not found");
@@ -1404,13 +1410,14 @@ Symbols::ValuePtr XmlModule::createDocumentObject(std::unique_ptr<XmlDocument> d
     int id = doc->getId();
     documentHolder[id] = std::move(doc);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlDocument", "__xml_document_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlDocument", "__class__", "XmlDocument");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_document_handler_id__"] = symbolContainer->getObjectProperty("XmlDocument", "__xml_document_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlDocument", "__class__");
+    objMap["__xml_document_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlDocument"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -1419,13 +1426,14 @@ Symbols::ValuePtr XmlModule::createNodeObject(std::unique_ptr<XmlNode> node) {
     int id = node->getId();
     nodeObjectHolder[id] = std::move(node);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlNode", "__xml_node_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlNode", "__class__", "XmlNode");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_node_handler_id__"] = symbolContainer->getObjectProperty("XmlNode", "__xml_node_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlNode", "__class__");
+    objMap["__xml_node_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlNode"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -1434,13 +1442,14 @@ Symbols::ValuePtr XmlModule::createNodeListObject(std::unique_ptr<XmlNodeList> n
     int id = nodeList->getId();
     nodeListHolder[id] = std::move(nodeList);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlNodeList", "__xml_nodelist_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlNodeList", "__class__", "XmlNodeList");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_nodelist_handler_id__"] = symbolContainer->getObjectProperty("XmlNodeList", "__xml_nodelist_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlNodeList", "__class__");
+    objMap["__xml_nodelist_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlNodeList"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -1450,13 +1459,15 @@ XmlXPath* XmlModule::getXPathFromArgs(const FunctionArguments& args) const {
         throw std::runtime_error("XmlModule: Invalid XPath object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlXPath", "__xml_xpath_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_xpath_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid XPath handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = xpathHolder.find(handlerId);
     if (it == xpathHolder.end()) {
         throw std::runtime_error("XmlModule: XPath not found");
@@ -1470,13 +1481,15 @@ XmlXPathResult* XmlModule::getXPathResultFromArgs(const FunctionArguments& args)
         throw std::runtime_error("XmlModule: Invalid XPath result object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlXPathResult", "__xml_xpath_result_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_xpath_result_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid XPath result handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = xpathResultHolder.find(handlerId);
     if (it == xpathResultHolder.end()) {
         throw std::runtime_error("XmlModule: XPath result not found");
@@ -1489,13 +1502,14 @@ Symbols::ValuePtr XmlModule::createXPathObject(std::unique_ptr<XmlXPath> xpath) 
     int id = xpath->getId();
     xpathHolder[id] = std::move(xpath);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlXPath", "__xml_xpath_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlXPath", "__class__", "XmlXPath");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_xpath_handler_id__"] = symbolContainer->getObjectProperty("XmlXPath", "__xml_xpath_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlXPath", "__class__");
+    objMap["__xml_xpath_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlXPath"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -1504,13 +1518,14 @@ Symbols::ValuePtr XmlModule::createXPathResultObject(std::unique_ptr<XmlXPathRes
     int id = result->getId();
     xpathResultHolder[id] = std::move(result);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlXPathResult", "__xml_xpath_result_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlXPathResult", "__class__", "XmlXPathResult");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_xpath_result_handler_id__"] = symbolContainer->getObjectProperty("XmlXPathResult", "__xml_xpath_result_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlXPathResult", "__class__");
+    objMap["__xml_xpath_result_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlXPathResult"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -1882,16 +1897,10 @@ Symbols::ValuePtr XmlModule::readMemory(FunctionArguments& args) {
         objMap = args[0];
     }
 
-    // Use the new property management system
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty(this->className, "__xml2_handler_id__", handler);
-    symbolContainer->setObjectProperty(this->className, "__class__", this->className);
-    symbolContainer->setObjectProperty(this->className, "__type__", this->className);
-
-    // Copy properties to the object map for backward compatibility
-    objMap["__xml2_handler_id__"] = symbolContainer->getObjectProperty(this->className, "__xml2_handler_id__");
-    objMap["__class__"]           = symbolContainer->getObjectProperty(this->className, "__class__");
-    objMap["__type__"]            = symbolContainer->getObjectProperty(this->className, "__type__");
+    // Stamp handle + $class_name on THIS object, not on class-level storage.
+    objMap["__xml2_handler_id__"] = Symbols::ValuePtr(handler);
+    objMap["$class_name"]         = Symbols::ValuePtr(this->className);
+    objMap["__type__"]            = Symbols::ValuePtr(this->className);
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -1905,13 +1914,18 @@ Symbols::ValuePtr XmlModule::GetRootElement(const FunctionArguments& args) {
         throw std::runtime_error("Xml2::getRootElement: invalid object type");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty(this->className, "__xml2_handler_id__");
-    if (handlerProperty->is_null()) {
-        throw std::runtime_error("Xml2::getRootElement: invalid object");
+    // Read the handle from THIS object (works for both the factory doc and a doc
+    // created via createFromString, since both stamp a handle on their own map).
+    const Symbols::ObjectMap & selfMap = args[0]->get<Symbols::ObjectMap>();
+    int handlerId = -1;
+    if (auto it = selfMap.find("__xml2_handler_id__"); it != selfMap.end() && !it->second->is_null()) {
+        handlerId = it->second->get<int>();
     }
-
-    int handlerId = handlerProperty;
+    // NOTE: a document created via createFromString lives in a SEPARATE storage system
+    // (documentHolder, keyed __xml_document_handler_id__) from the factory's docHolder
+    // used here. Bridging the two safely needs the node-ownership model unified first -
+    // see the Xml2 architecture task. Such a document reaches this branch with
+    // handlerId == -1 and gets a clean error below rather than a wrong result.
     if (handlerId == -1) {
         throw std::runtime_error("Xml2::getRootElement: invalid object");
     }
@@ -1934,13 +1948,9 @@ Symbols::ValuePtr XmlModule::GetRootElement(const FunctionArguments& args) {
     // Create a new object map for the XML node
     Symbols::ObjectMap nodeObjMap;
 
-    // Use the new property management system for the XmlNode class
-    symbolContainer->setObjectProperty("XmlNode", "__xml_node_handler_id__", nodeHandle);
-    symbolContainer->setObjectProperty("XmlNode", "__class__", "XmlNode");
-
-    // Copy properties to the object map for backward compatibility
-    nodeObjMap["__xml_node_handler_id__"] = symbolContainer->getObjectProperty("XmlNode", "__xml_node_handler_id__");
-    nodeObjMap["__class__"]               = symbolContainer->getObjectProperty("XmlNode", "__class__");
+    // Stamp handle + $class_name directly on this object (see the other creators).
+    nodeObjMap["__xml_node_handler_id__"] = Symbols::ValuePtr(nodeHandle);
+    nodeObjMap["$class_name"]             = Symbols::ValuePtr(std::string("XmlNode"));
 
     return Symbols::ValuePtr::makeClassInstance(nodeObjMap);
 }
@@ -2855,13 +2865,15 @@ XmlSchema* XmlModule::getSchemaFromArgs(const FunctionArguments& args) const {
         throw std::runtime_error("XmlModule: Invalid schema object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlSchema", "__xml_schema_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_schema_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid schema handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = schemaHolder.find(handlerId);
     if (it == schemaHolder.end()) {
         throw std::runtime_error("XmlModule: Schema not found");
@@ -2875,13 +2887,15 @@ XmlDtd* XmlModule::getDtdFromArgs(const FunctionArguments& args) const {
         throw std::runtime_error("XmlModule: Invalid DTD object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlDtd", "__xml_dtd_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_dtd_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid DTD handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = dtdHolder.find(handlerId);
     if (it == dtdHolder.end()) {
         throw std::runtime_error("XmlModule: DTD not found");
@@ -2895,13 +2909,15 @@ XmlValidator* XmlModule::getValidatorFromArgs(const FunctionArguments& args) con
         throw std::runtime_error("XmlModule: Invalid validator object");
     }
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    auto handlerProperty = symbolContainer->getObjectProperty("XmlValidator", "__xml_validator_handler_id__");
-    if (handlerProperty->is_null()) {
+    // Read the handle from THIS object, not from class-level storage - the
+    // latter held only the last-created instance, so every call operated on
+    // the wrong object.
+    const Symbols::ObjectMap & objMap = args[0]->get<Symbols::ObjectMap>();
+    auto idIt = objMap.find("__xml_validator_handler_id__");
+    if (idIt == objMap.end() || idIt->second->is_null()) {
         throw std::runtime_error("XmlModule: Invalid validator handler");
     }
-
-    int handlerId = handlerProperty;
+    int handlerId = idIt->second->get<int>();
     auto it = validatorHolder.find(handlerId);
     if (it == validatorHolder.end()) {
         throw std::runtime_error("XmlModule: Validator not found");
@@ -2914,13 +2930,14 @@ Symbols::ValuePtr XmlModule::createSchemaObject(std::unique_ptr<XmlSchema> schem
     int id = schema->getId();
     schemaHolder[id] = std::move(schema);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlSchema", "__xml_schema_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlSchema", "__class__", "XmlSchema");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_schema_handler_id__"] = symbolContainer->getObjectProperty("XmlSchema", "__xml_schema_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlSchema", "__class__");
+    objMap["__xml_schema_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlSchema"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -2929,13 +2946,14 @@ Symbols::ValuePtr XmlModule::createDtdObject(std::unique_ptr<XmlDtd> dtd) {
     int id = dtd->getId();
     dtdHolder[id] = std::move(dtd);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlDtd", "__xml_dtd_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlDtd", "__class__", "XmlDtd");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_dtd_handler_id__"] = symbolContainer->getObjectProperty("XmlDtd", "__xml_dtd_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlDtd", "__class__");
+    objMap["__xml_dtd_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlDtd"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
@@ -2944,13 +2962,14 @@ Symbols::ValuePtr XmlModule::createValidatorObject(std::unique_ptr<XmlValidator>
     int id = validator->getId();
     validatorHolder[id] = std::move(validator);
 
-    auto symbolContainer = Symbols::SymbolContainer::instance();
-    symbolContainer->setObjectProperty("XmlValidator", "__xml_validator_handler_id__", id);
-    symbolContainer->setObjectProperty("XmlValidator", "__class__", "XmlValidator");
-
+    // Stamp the handle and the class marker directly on THIS object. The old
+    // code staged them as class-level properties and read them back, which
+    // meant every instance of a class shared one handle (all method calls hit
+    // the last-created object). $class_name (not __class__) is what the
+    // interpreter reads for method dispatch.
     Symbols::ObjectMap objMap;
-    objMap["__xml_validator_handler_id__"] = symbolContainer->getObjectProperty("XmlValidator", "__xml_validator_handler_id__");
-    objMap["__class__"] = symbolContainer->getObjectProperty("XmlValidator", "__class__");
+    objMap["__xml_validator_handler_id__"] = Symbols::ValuePtr(id);
+    objMap["$class_name"] = Symbols::ValuePtr(std::string("XmlValidator"));
 
     return Symbols::ValuePtr::makeClassInstance(objMap);
 }
