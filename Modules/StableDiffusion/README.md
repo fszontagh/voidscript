@@ -86,6 +86,25 @@ Tiling: `circular_x`, `circular_y`.
 
 Returns an array of output paths (one per `batch_count`).
 
+### video (video-capable models only)
+
+`$sd->video({ string prompt, string output, int video_frames, int fps, int width, int height,
+              int steps, double cfg_scale, ... })` -> array of frame paths (`out_0.png`, ...).
+Also accepts `init_image` / `end_image` conditioning, `loras`, `vae_tiling`, `strength`,
+`moe_boundary`, `vace_strength`, `circular_x/y`. Errors clearly if the loaded model is
+image-only (`sd_ctx_supports_video_generation`).
+
+Status: implemented and the full pipeline runs on a real WAN 2.1 model (text encode ->
+VACE context -> diffusion -> VAE). On a 12 GB card the WAN VAE decode of the frames OOMs
+for the VACE-1.3B model even with `vae_tiling` / TAESD; a lighter/non-VACE t2v model or
+more VRAM completes it. Image generation (small VAE) is unaffected.
+
+### vae_tiling
+
+`vae_tiling: true`, or an object `{ enabled, temporal_tiling, tile_size_x, tile_size_y,
+target_overlap, rel_size_x, rel_size_y }`. Keeps the VAE compute buffer small for
+high-res / video decode. Accepted by txt2img/img2img/video.
+
 ### upscale options
 
 Required: `esrgan_path`, `input`, `output`. Optional: `scale` (default 4), `tile_size`,
@@ -109,11 +128,10 @@ user-defined function). Log lines still stream to stderr live unless `quiet: tru
 
 ## Not yet wired
 
-The flat parameters above cover the common workflows. These advanced sd.cpp params need
-array / nested-struct plumbing and are not exposed yet: multiple LoRAs and embeddings,
-`ref_images` (PhotoMaker/PuLID/Kontext reference sets), `custom_sigmas`, the built-in
-hi-res-fix (`hires`), decode cache, and VAE tiling params. `generate_video` is also not
-wrapped.
+The flat parameters above cover the common workflows. LoRAs, VAE tiling and video are wired (above). Still not exposed (need array /
+nested-struct plumbing): textual-inversion embeddings arrays, `ref_images`
+(PhotoMaker/PuLID/Kontext reference sets), `custom_sigmas`, the built-in hi-res-fix
+(`hires`), and the decode cache.
 
 ## Test
 

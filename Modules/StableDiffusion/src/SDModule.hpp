@@ -59,6 +59,7 @@ class SDModule : public BaseModule {
     Symbols::ValuePtr unload(FunctionArguments & args);
     Symbols::ValuePtr txt2img(FunctionArguments & args);
     Symbols::ValuePtr img2img(FunctionArguments & args);
+    Symbols::ValuePtr video(FunctionArguments & args);
     Symbols::ValuePtr upscale(FunctionArguments & args);
     Symbols::ValuePtr getLog(FunctionArguments & args);
     Symbols::ValuePtr getProgress(FunctionArguments & args);

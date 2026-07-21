@@ -173,6 +173,38 @@ void readLoras(const Symbols::ObjectMap & o, std::list<std::string> & keep, std:
     }
 }
 
+// Read a `vae_tiling` option into an sd_tiling_params_t. Accepts a boolean (enable with
+// defaults) or an object { enabled, temporal_tiling, tile_size_x, tile_size_y,
+// target_overlap, rel_size_x, rel_size_y }. VAE tiling keeps the VAE compute buffer
+// small, which is what fits high-res / video decode into limited VRAM.
+void readTiling(const Symbols::ObjectMap & o, const char * key, sd_tiling_params_t & t, std::list<std::string> & keep) {
+    auto it = o.find(key);
+    if (it == o.end() || it->second->is_null()) {
+        return;
+    }
+    if (it->second->getType() == Symbols::Variables::Type::BOOLEAN) {
+        t.enabled = it->second->get<bool>();
+        return;
+    }
+    if (it->second->getType() != Symbols::Variables::Type::OBJECT &&
+        it->second->getType() != Symbols::Variables::Type::CLASS) {
+        throw std::runtime_error("StableDiffusion: option 'vae_tiling' must be a boolean or an object");
+    }
+    const Symbols::ObjectMap & to = it->second->get<Symbols::ObjectMap>();
+    t.enabled         = optBool(to, "enabled", true);
+    t.temporal_tiling = optBool(to, "temporal_tiling", t.temporal_tiling);
+    t.tile_size_x     = static_cast<int>(optInt(to, "tile_size_x", t.tile_size_x));
+    t.tile_size_y     = static_cast<int>(optInt(to, "tile_size_y", t.tile_size_y));
+    t.target_overlap  = static_cast<float>(optNum(to, "target_overlap", t.target_overlap));
+    t.rel_size_x      = static_cast<float>(optNum(to, "rel_size_x", t.rel_size_x));
+    t.rel_size_y      = static_cast<float>(optNum(to, "rel_size_y", t.rel_size_y));
+    const std::string extra = optStr(to, "extra_tiling_args");
+    if (!extra.empty()) {
+        keep.push_back(extra);
+        t.extra_tiling_args = keep.back().c_str();
+    }
+}
+
 std::string indexedPath(const std::string & base, int index) {
     if (index == 0) {
         return base;
@@ -234,6 +266,10 @@ void SDModule::registerFunctions() {
     REGISTER_METHOD(this->name(), "img2img", opts,
                     [this](FunctionArguments & args) { return this->img2img(args); },
                     Symbols::Variables::Type::OBJECT, "Image-to-image; returns array of output paths");
+    REGISTER_METHOD(this->name(), "video", opts,
+                    [this](FunctionArguments & args) { return this->video(args); },
+                    Symbols::Variables::Type::OBJECT,
+                    "Generate video frames (needs a video-capable model); returns array of frame paths");
     REGISTER_METHOD(this->name(), "upscale", opts,
                     [this](FunctionArguments & args) { return this->upscale(args); },
                     Symbols::Variables::Type::STRING, "ESRGAN upscale; returns output path");
@@ -419,6 +455,7 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         p.loras      = loras.data();
         p.lora_count = static_cast<uint32_t>(loras.size());
     }
+    readTiling(o, "vae_tiling", p.vae_tiling_params, loraKeep);
 
     sd_image_t control{};
     const std::string control_path = optStr(o, "control_image");
@@ -472,6 +509,103 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         throw;
     }
     free_sd_images(out, num_out);
+    return Symbols::ValuePtr(paths);
+}
+
+Symbols::ValuePtr SDModule::video(FunctionArguments & args) {
+    const long   id  = Symbols::ValuePtr::instanceId(args[0]);
+    sd_ctx_t *   ctx = contextFor(args, "video");
+    const auto & o   = optionsOf(args, "video");
+
+    if (!sd_ctx_supports_video_generation(ctx)) {
+        throw std::runtime_error("StableDiffusion::video: the loaded model does not support video generation "
+                                 "(load a video model, e.g. WAN / SVD / AnimateDiff)");
+    }
+
+    const std::string prompt = optStr(o, "prompt");
+    const std::string output = optStr(o, "output");
+    if (prompt.empty()) {
+        throw std::runtime_error("StableDiffusion::video: 'prompt' is required");
+    }
+    if (output.empty()) {
+        throw std::runtime_error("StableDiffusion::video: 'output' path is required");
+    }
+    const std::string negative  = optStr(o, "negative_prompt");
+    const std::string sampler   = optStr(o, "sampler");
+    const std::string scheduler = optStr(o, "scheduler");
+
+    sd_vid_gen_params_t p;
+    sd_vid_gen_params_init(&p);
+    p.prompt          = prompt.c_str();
+    p.negative_prompt = negative.c_str();
+    p.width           = static_cast<int>(optInt(o, "width", 512));
+    p.height          = static_cast<int>(optInt(o, "height", 512));
+    p.clip_skip       = static_cast<int>(optInt(o, "clip_skip", p.clip_skip));
+    p.seed            = optInt(o, "seed", -1);
+    p.video_frames    = static_cast<int>(optInt(o, "video_frames", 16));
+    p.fps             = static_cast<int>(optInt(o, "fps", 8));
+    p.strength        = static_cast<float>(optNum(o, "strength", p.strength));
+    p.moe_boundary    = static_cast<float>(optNum(o, "moe_boundary", p.moe_boundary));
+    p.vace_strength   = static_cast<float>(optNum(o, "vace_strength", p.vace_strength));
+    p.circular_x      = optBool(o, "circular_x", p.circular_x);
+    p.circular_y      = optBool(o, "circular_y", p.circular_y);
+
+    p.sample_params.sample_steps     = static_cast<int>(optInt(o, "steps", 20));
+    p.sample_params.guidance.txt_cfg = static_cast<float>(optNum(o, "cfg_scale", 7.0));
+    if (!sampler.empty())   p.sample_params.sample_method = str_to_sample_method(sampler.c_str());
+    if (!scheduler.empty()) p.sample_params.scheduler     = str_to_scheduler(scheduler.c_str());
+
+    std::list<std::string> loraKeep;
+    std::vector<sd_lora_t>  loras;
+    readLoras(o, loraKeep, loras);
+    if (!loras.empty()) {
+        p.loras      = loras.data();
+        p.lora_count = static_cast<uint32_t>(loras.size());
+    }
+    readTiling(o, "vae_tiling", p.vae_tiling_params, loraKeep);
+
+    // Optional first/last frame conditioning.
+    sd_image_t init{};
+    sd_image_t end{};
+    const std::string init_path = optStr(o, "init_image");
+    const std::string end_path  = optStr(o, "end_image");
+    if (!init_path.empty()) { init = loadImage(init_path); p.init_image = init; }
+    if (!end_path.empty())  { end  = loadImage(end_path);  p.end_image  = end; }
+
+    sd_image_t * frames    = nullptr;
+    int          numFrames = 0;
+    sd_audio_t * audio     = nullptr;
+    beginCapture(id);
+    const bool ok = generate_video(ctx, &p, &frames, &numFrames, &audio);
+    endCapture();
+
+    if (init.data) { stbi_image_free(init.data); }
+    if (end.data)  { stbi_image_free(end.data); }
+
+    if (!ok || !frames || numFrames <= 0) {
+        if (frames) { free_sd_images(frames, numFrames); }
+        if (audio)  { free_sd_audio(audio); }
+        throw std::runtime_error("StableDiffusion::video: generation failed");
+    }
+
+    // Frames are always indexed: "vid.png" -> vid_0.png, vid_1.png, ...
+    Symbols::ObjectMap paths;
+    try {
+        for (int i = 0; i < numFrames; ++i) {
+            const auto        dot  = output.rfind('.');
+            const std::string path = (dot == std::string::npos)
+                                         ? output + "_" + std::to_string(i)
+                                         : output.substr(0, dot) + "_" + std::to_string(i) + output.substr(dot);
+            writePng(frames[i], path);
+            paths[std::to_string(i)] = Symbols::ValuePtr(path);
+        }
+    } catch (...) {
+        free_sd_images(frames, numFrames);
+        if (audio) { free_sd_audio(audio); }
+        throw;
+    }
+    free_sd_images(frames, numFrames);
+    if (audio) { free_sd_audio(audio); }
     return Symbols::ValuePtr(paths);
 }
 
