@@ -6,6 +6,9 @@
 #include <stb_image_write.h>
 
 #include <cstdint>
+#include <cstdio>
+#include <list>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -18,7 +21,37 @@ namespace Modules {
 
 namespace {
 
-// --- option readers over a VoidScript object (map) argument -----------------------
+// --- module-global callback routing ------------------------------------------------
+// sd.cpp's log/progress callbacks are process-global, not per-context. Generation is
+// synchronous (one generate_image at a time), so a single "currently capturing" target
+// is enough. Guarded by a mutex because sd.cpp may log from a worker thread.
+std::mutex  g_cbMutex;
+SDModule *  g_activeModule = nullptr;
+long        g_activeId     = 0;
+bool        g_quiet        = false;
+bool        g_cbInstalled  = false;
+
+void logTrampoline(sd_log_level_t /*level*/, const char * text, void * /*data*/) {
+    if (!text) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_cbMutex);
+    if (!g_quiet) {
+        std::fputs(text, stderr);  // preserve sd.cpp's live console output
+    }
+    if (g_activeModule) {
+        g_activeModule->appendLog(text);
+    }
+}
+
+void progressTrampoline(int step, int steps, float time, void * /*data*/) {
+    std::lock_guard<std::mutex> lock(g_cbMutex);
+    if (g_activeModule) {
+        g_activeModule->appendProgress(step, steps, time);
+    }
+}
+
+// --- option readers over a VoidScript object (map) argument ------------------------
 
 const Symbols::ObjectMap & optionsOf(FunctionArguments & args, const char * method) {
     if (args.size() < 2 || (args[1] != Symbols::Variables::Type::OBJECT && args[1] != Symbols::Variables::Type::CLASS)) {
@@ -74,7 +107,6 @@ bool optBool(const Symbols::ObjectMap & o, const char * key, bool def) {
     return it->second->get<bool>();
 }
 
-// Load a PNG/JPG from disk into an sd_image_t (RGB, 3 channels). Caller frees .data.
 sd_image_t loadImage(const std::string & path) {
     int   w = 0, h = 0, c = 0;
     uint8_t * data = stbi_load(path.c_str(), &w, &h, &c, 3);
@@ -89,7 +121,6 @@ sd_image_t loadImage(const std::string & path) {
     return img;
 }
 
-// Write one generated image to a PNG path.
 void writePng(const sd_image_t & img, const std::string & path) {
     if (!img.data) {
         throw std::runtime_error("StableDiffusion: generation produced no image data");
@@ -101,7 +132,6 @@ void writePng(const sd_image_t & img, const std::string & path) {
     }
 }
 
-// "out.png" + index 2 -> "out_2.png". Index 0 keeps the base name.
 std::string indexedPath(const std::string & base, int index) {
     if (index == 0) {
         return base;
@@ -114,6 +144,28 @@ std::string indexedPath(const std::string & base, int index) {
 }
 
 }  // namespace
+
+void SDModule::appendLog(const char * text) { logs_[g_activeId] += text; }
+
+void SDModule::appendProgress(int step, int steps, float time) {
+    progress_[g_activeId].push_back(ProgressRec{ step, steps, time });
+}
+
+void SDModule::beginCapture(long id) {
+    std::lock_guard<std::mutex> lock(g_cbMutex);
+    if (!g_cbInstalled) {
+        sd_set_log_callback(logTrampoline, nullptr);
+        sd_set_progress_callback(progressTrampoline, nullptr);
+        g_cbInstalled = true;
+    }
+    g_activeModule = this;
+    g_activeId     = id;
+}
+
+void SDModule::endCapture() {
+    std::lock_guard<std::mutex> lock(g_cbMutex);
+    g_activeModule = nullptr;
+}
 
 void SDModule::registerFunctions() {
     REGISTER_CLASS(this->name());
@@ -128,42 +180,37 @@ void SDModule::registerFunctions() {
 
     REGISTER_METHOD(this->name(), "loadModel", opts,
                     [this](FunctionArguments & args) { return this->loadModel(args); },
-                    Symbols::Variables::Type::BOOLEAN,
-                    "Load a model. Keys: model_path | diffusion_model_path, vae_path, clip_l_path, "
-                    "clip_g_path, t5xxl_path, control_net_path, taesd_path, n_threads, wtype, rng_type, "
-                    "flash_attn, diffusion_flash_attn, stream_layers, max_vram");
-
+                    Symbols::Variables::Type::BOOLEAN, "Load a model (see README for all keys)");
     REGISTER_METHOD(this->name(), "isLoaded", {},
                     [this](FunctionArguments & args) { return this->isLoaded(args); },
                     Symbols::Variables::Type::BOOLEAN, "Whether a model is loaded");
-
     REGISTER_METHOD(this->name(), "unload", {},
                     [this](FunctionArguments & args) { return this->unload(args); },
                     Symbols::Variables::Type::NULL_TYPE, "Free the loaded model");
-
     REGISTER_METHOD(this->name(), "txt2img", opts,
                     [this](FunctionArguments & args) { return this->txt2img(args); },
-                    Symbols::Variables::Type::OBJECT,
-                    "Generate image(s) from a prompt. Keys: prompt (required), output (required), "
-                    "negative_prompt, width, height, steps, cfg_scale, seed, sampler, scheduler, "
-                    "clip_skip, batch_count, control_image, control_strength. Returns an array of paths.");
-
+                    Symbols::Variables::Type::OBJECT, "Text-to-image; returns array of output paths");
     REGISTER_METHOD(this->name(), "img2img", opts,
                     [this](FunctionArguments & args) { return this->img2img(args); },
-                    Symbols::Variables::Type::OBJECT,
-                    "As txt2img plus init_image (required), strength, mask_image. Returns an array of paths.");
-
+                    Symbols::Variables::Type::OBJECT, "Image-to-image; returns array of output paths");
     REGISTER_METHOD(this->name(), "upscale", opts,
                     [this](FunctionArguments & args) { return this->upscale(args); },
-                    Symbols::Variables::Type::STRING,
-                    "ESRGAN upscale. Keys: esrgan_path (required), input (required), output (required), scale.");
+                    Symbols::Variables::Type::STRING, "ESRGAN upscale; returns output path");
+    REGISTER_METHOD(this->name(), "getLog", {},
+                    [this](FunctionArguments & args) { return this->getLog(args); },
+                    Symbols::Variables::Type::STRING, "Captured log text since the last clearLog()");
+    REGISTER_METHOD(this->name(), "getProgress", {},
+                    [this](FunctionArguments & args) { return this->getProgress(args); },
+                    Symbols::Variables::Type::OBJECT, "Array of { step, total, time } sampling ticks");
+    REGISTER_METHOD(this->name(), "clearLog", {},
+                    [this](FunctionArguments & args) { return this->clearLog(args); },
+                    Symbols::Variables::Type::NULL_TYPE, "Clear captured log and progress");
 }
 
 Symbols::ValuePtr SDModule::construct(FunctionArguments & args) {
     if (args.empty() || (args[0] != Symbols::Variables::Type::CLASS && args[0] != Symbols::Variables::Type::OBJECT)) {
         throw std::runtime_error("StableDiffusion::__construct must be called on a StableDiffusion instance");
     }
-    // Stamp the instance id now so the object carries stable identity from the start.
     Symbols::ValuePtr::instanceId(args[0]);
     return args[0];
 }
@@ -181,10 +228,9 @@ sd_ctx_t * SDModule::contextFor(FunctionArguments & args, const char * method) {
 }
 
 Symbols::ValuePtr SDModule::loadModel(FunctionArguments & args) {
-    const long id = Symbols::ValuePtr::instanceId(args[0]);
+    const long   id = Symbols::ValuePtr::instanceId(args[0]);
     const auto & o  = optionsOf(args, "loadModel");
 
-    // Free any previously loaded context on this instance.
     if (auto it = contexts_.find(id); it != contexts_.end() && it->second) {
         free_sd_ctx(it->second);
         contexts_.erase(it);
@@ -193,40 +239,67 @@ Symbols::ValuePtr SDModule::loadModel(FunctionArguments & args) {
     sd_ctx_params_t p;
     sd_ctx_params_init(&p);
 
-    // Held for the duration of new_sd_ctx (the struct stores const char* into these).
-    const std::string model_path        = optStr(o, "model_path");
-    const std::string diffusion_model   = optStr(o, "diffusion_model_path");
-    const std::string vae_path          = optStr(o, "vae_path");
-    const std::string clip_l_path       = optStr(o, "clip_l_path");
-    const std::string clip_g_path       = optStr(o, "clip_g_path");
-    const std::string t5xxl_path        = optStr(o, "t5xxl_path");
-    const std::string control_net_path  = optStr(o, "control_net_path");
-    const std::string taesd_path        = optStr(o, "taesd_path");
-    const std::string wtype_str         = optStr(o, "wtype");
-    const std::string rng_str           = optStr(o, "rng_type");
-    // GiB VRAM budget for segmented offload (e.g. "8" or "auto"); helps on smaller cards.
-    const std::string max_vram          = optStr(o, "max_vram");
+    // const char* fields point into these; a std::list keeps element addresses stable.
+    std::list<std::string> keep;
+    auto S = [&](const char ** field, const char * key) {
+        std::string v = optStr(o, key);
+        if (!v.empty()) {
+            keep.push_back(std::move(v));
+            *field = keep.back().c_str();
+        }
+    };
 
-    if (model_path.empty() && diffusion_model.empty()) {
+    S(&p.model_path, "model_path");
+    S(&p.clip_l_path, "clip_l_path");
+    S(&p.clip_g_path, "clip_g_path");
+    S(&p.clip_vision_path, "clip_vision_path");
+    S(&p.t5xxl_path, "t5xxl_path");
+    S(&p.llm_path, "llm_path");
+    S(&p.diffusion_model_path, "diffusion_model_path");
+    S(&p.high_noise_diffusion_model_path, "high_noise_diffusion_model_path");
+    S(&p.vae_path, "vae_path");
+    S(&p.taesd_path, "taesd_path");
+    S(&p.control_net_path, "control_net_path");
+    S(&p.motion_module_path, "motion_module_path");
+    S(&p.photo_maker_path, "photo_maker_path");
+    S(&p.pulid_weights_path, "pulid_weights_path");
+    S(&p.embeddings_connectors_path, "embeddings_connectors_path");
+    S(&p.tensor_type_rules, "tensor_type_rules");
+    S(&p.max_vram, "max_vram");
+    S(&p.backend, "backend");
+    S(&p.params_backend, "params_backend");
+    S(&p.split_mode, "split_mode");
+    S(&p.rpc_servers, "rpc_servers");
+    S(&p.model_args, "model_args");
+
+    if (p.model_path == nullptr && p.diffusion_model_path == nullptr) {
         throw std::runtime_error("StableDiffusion::loadModel: 'model_path' or 'diffusion_model_path' is required");
     }
 
-    if (!model_path.empty())       p.model_path           = model_path.c_str();
-    if (!diffusion_model.empty())  p.diffusion_model_path = diffusion_model.c_str();
-    if (!vae_path.empty())         p.vae_path             = vae_path.c_str();
-    if (!clip_l_path.empty())      p.clip_l_path          = clip_l_path.c_str();
-    if (!clip_g_path.empty())      p.clip_g_path          = clip_g_path.c_str();
-    if (!t5xxl_path.empty())       p.t5xxl_path           = t5xxl_path.c_str();
-    if (!control_net_path.empty()) p.control_net_path     = control_net_path.c_str();
-    if (!taesd_path.empty())       p.taesd_path           = taesd_path.c_str();
-    if (!wtype_str.empty())        p.wtype                = str_to_sd_type(wtype_str.c_str());
-    if (!rng_str.empty())          p.rng_type             = str_to_rng_type(rng_str.c_str());
-    if (!max_vram.empty())         p.max_vram             = max_vram.c_str();
+    const std::string wtype       = optStr(o, "wtype");
+    const std::string rng         = optStr(o, "rng_type");
+    const std::string sampler_rng = optStr(o, "sampler_rng_type");
+    const std::string prediction  = optStr(o, "prediction");
+    const std::string lora_mode   = optStr(o, "lora_apply_mode");
+    if (!wtype.empty())       p.wtype            = str_to_sd_type(wtype.c_str());
+    if (!rng.empty())         p.rng_type         = str_to_rng_type(rng.c_str());
+    if (!sampler_rng.empty()) p.sampler_rng_type = str_to_rng_type(sampler_rng.c_str());
+    if (!prediction.empty())  p.prediction       = str_to_prediction(prediction.c_str());
+    if (!lora_mode.empty())   p.lora_apply_mode  = str_to_lora_apply_mode(lora_mode.c_str());
 
-    p.n_threads             = static_cast<int>(optInt(o, "n_threads", p.n_threads));
-    p.flash_attn            = optBool(o, "flash_attn", p.flash_attn);
-    p.diffusion_flash_attn  = optBool(o, "diffusion_flash_attn", p.diffusion_flash_attn);
-    p.stream_layers         = optBool(o, "stream_layers", p.stream_layers);
+    p.n_threads                  = static_cast<int>(optInt(o, "n_threads", p.n_threads));
+    p.enable_mmap                = optBool(o, "enable_mmap", p.enable_mmap);
+    p.flash_attn                 = optBool(o, "flash_attn", p.flash_attn);
+    p.diffusion_flash_attn       = optBool(o, "diffusion_flash_attn", p.diffusion_flash_attn);
+    p.tae_preview_only           = optBool(o, "tae_preview_only", p.tae_preview_only);
+    p.diffusion_conv_direct      = optBool(o, "diffusion_conv_direct", p.diffusion_conv_direct);
+    p.vae_conv_direct            = optBool(o, "vae_conv_direct", p.vae_conv_direct);
+    p.force_sdxl_vae_conv_scale  = optBool(o, "force_sdxl_vae_conv_scale", p.force_sdxl_vae_conv_scale);
+    p.stream_layers              = optBool(o, "stream_layers", p.stream_layers);
+    p.eager_load                 = optBool(o, "eager_load", p.eager_load);
+    p.auto_fit                   = optBool(o, "auto_fit", p.auto_fit);
+
+    g_quiet = optBool(o, "quiet", false);
 
     sd_ctx_t * ctx = new_sd_ctx(&p);
     if (!ctx) {
@@ -251,15 +324,11 @@ Symbols::ValuePtr SDModule::unload(FunctionArguments & args) {
     return Symbols::ValuePtr::null();
 }
 
-Symbols::ValuePtr SDModule::txt2img(FunctionArguments & args) {
-    return generate(args, "txt2img", false);
-}
-
-Symbols::ValuePtr SDModule::img2img(FunctionArguments & args) {
-    return generate(args, "img2img", true);
-}
+Symbols::ValuePtr SDModule::txt2img(FunctionArguments & args) { return generate(args, "txt2img", false); }
+Symbols::ValuePtr SDModule::img2img(FunctionArguments & args) { return generate(args, "img2img", true); }
 
 Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * method, bool isImg2Img) {
+    const long   id  = Symbols::ValuePtr::instanceId(args[0]);
     sd_ctx_t *   ctx = contextFor(args, method);
     const auto & o   = optionsOf(args, method);
 
@@ -272,9 +341,10 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         throw std::runtime_error(std::string("StableDiffusion::") + method + ": 'output' path is required");
     }
 
-    const std::string negative  = optStr(o, "negative_prompt");
-    const std::string sampler   = optStr(o, "sampler");
-    const std::string scheduler = optStr(o, "scheduler");
+    const std::string negative     = optStr(o, "negative_prompt");
+    const std::string sampler      = optStr(o, "sampler");
+    const std::string scheduler    = optStr(o, "scheduler");
+    const std::string extra_sample = optStr(o, "extra_sample_args");
 
     sd_img_gen_params_t p;
     sd_img_gen_params_init(&p);
@@ -285,13 +355,21 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
     p.clip_skip       = static_cast<int>(optInt(o, "clip_skip", p.clip_skip));
     p.seed            = optInt(o, "seed", -1);
     p.batch_count     = static_cast<int>(optInt(o, "batch_count", 1));
+    p.circular_x      = optBool(o, "circular_x", p.circular_x);
+    p.circular_y      = optBool(o, "circular_y", p.circular_y);
 
-    p.sample_params.sample_steps       = static_cast<int>(optInt(o, "steps", 20));
-    p.sample_params.guidance.txt_cfg   = static_cast<float>(optNum(o, "cfg_scale", 7.0));
-    if (!sampler.empty())   p.sample_params.sample_method = str_to_sample_method(sampler.c_str());
-    if (!scheduler.empty()) p.sample_params.scheduler     = str_to_scheduler(scheduler.c_str());
+    p.sample_params.sample_steps     = static_cast<int>(optInt(o, "steps", 20));
+    p.sample_params.eta              = static_cast<float>(optNum(o, "eta", p.sample_params.eta));
+    p.sample_params.shifted_timestep = static_cast<int>(optInt(o, "shifted_timestep", p.sample_params.shifted_timestep));
+    p.sample_params.flow_shift       = static_cast<float>(optNum(o, "flow_shift", p.sample_params.flow_shift));
+    p.sample_params.guidance.txt_cfg = static_cast<float>(optNum(o, "cfg_scale", 7.0));
+    p.sample_params.guidance.img_cfg = static_cast<float>(optNum(o, "img_cfg", p.sample_params.guidance.img_cfg));
+    p.sample_params.guidance.distilled_guidance =
+        static_cast<float>(optNum(o, "distilled_guidance", p.sample_params.guidance.distilled_guidance));
+    if (!sampler.empty())      p.sample_params.sample_method     = str_to_sample_method(sampler.c_str());
+    if (!scheduler.empty())    p.sample_params.scheduler         = str_to_scheduler(scheduler.c_str());
+    if (!extra_sample.empty()) p.sample_params.extra_sample_args = extra_sample.c_str();
 
-    // Optional control image (controlnet), for both txt2img and img2img.
     sd_image_t control{};
     const std::string control_path = optStr(o, "control_image");
     if (!control_path.empty()) {
@@ -300,7 +378,6 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         p.control_strength = static_cast<float>(optNum(o, "control_strength", 0.9));
     }
 
-    // img2img extras.
     sd_image_t init{};
     sd_image_t mask{};
     if (isImg2Img) {
@@ -308,9 +385,9 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         if (init_path.empty()) {
             throw std::runtime_error("StableDiffusion::img2img: 'init_image' path is required");
         }
-        init          = loadImage(init_path);
-        p.init_image  = init;
-        p.strength    = static_cast<float>(optNum(o, "strength", 0.75));
+        init         = loadImage(init_path);
+        p.init_image = init;
+        p.strength   = static_cast<float>(optNum(o, "strength", 0.75));
         const std::string mask_path = optStr(o, "mask_image");
         if (!mask_path.empty()) {
             mask         = loadImage(mask_path);
@@ -320,9 +397,10 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
 
     sd_image_t * out     = nullptr;
     int          num_out = 0;
-    const bool   ok      = generate_image(ctx, &p, &out, &num_out);
+    beginCapture(id);
+    const bool ok = generate_image(ctx, &p, &out, &num_out);
+    endCapture();
 
-    // Free any images we loaded regardless of outcome.
     if (init.data)    { stbi_image_free(init.data); }
     if (mask.data)    { stbi_image_free(mask.data); }
     if (control.data) { stbi_image_free(control.data); }
@@ -351,7 +429,8 @@ Symbols::ValuePtr SDModule::upscale(FunctionArguments & args) {
     if (args.empty() || (args[0] != Symbols::Variables::Type::CLASS && args[0] != Symbols::Variables::Type::OBJECT)) {
         throw std::runtime_error("StableDiffusion::upscale must be called on a StableDiffusion instance");
     }
-    const auto & o = optionsOf(args, "upscale");
+    const long   id = Symbols::ValuePtr::instanceId(args[0]);
+    const auto & o  = optionsOf(args, "upscale");
 
     const std::string esrgan = optStr(o, "esrgan_path");
     const std::string input  = optStr(o, "input");
@@ -361,9 +440,9 @@ Symbols::ValuePtr SDModule::upscale(FunctionArguments & args) {
     }
     const int factor    = static_cast<int>(optInt(o, "scale", 4));
     const int n_threads = static_cast<int>(optInt(o, "n_threads", sd_get_num_physical_cores()));
+    const int tile      = static_cast<int>(optInt(o, "tile_size", 0));
 
-    // new_upscaler_ctx(esrgan_path, direct, n_threads, tile_size, backend, params_backend)
-    upscaler_ctx_t * up = new_upscaler_ctx(esrgan.c_str(), false, n_threads, 0, nullptr, nullptr);
+    upscaler_ctx_t * up = new_upscaler_ctx(esrgan.c_str(), false, n_threads, tile, nullptr, nullptr);
     if (!up) {
         throw std::runtime_error("StableDiffusion::upscale: failed to load ESRGAN model '" + esrgan + "'");
     }
@@ -371,7 +450,9 @@ Symbols::ValuePtr SDModule::upscale(FunctionArguments & args) {
     sd_image_t   in      = loadImage(input);
     sd_image_t * out     = nullptr;
     int          num_out = 0;
-    const bool   ok      = ::upscale(up, in, static_cast<uint32_t>(factor), &out, &num_out);
+    beginCapture(id);
+    const bool ok = ::upscale(up, in, static_cast<uint32_t>(factor), &out, &num_out);
+    endCapture();
     stbi_image_free(in.data);
     free_upscaler_ctx(up);
 
@@ -387,6 +468,36 @@ Symbols::ValuePtr SDModule::upscale(FunctionArguments & args) {
     }
     free_sd_images(out, num_out);
     return Symbols::ValuePtr(output);
+}
+
+Symbols::ValuePtr SDModule::getLog(FunctionArguments & args) {
+    const long id = Symbols::ValuePtr::instanceId(args[0]);
+    auto       it = logs_.find(id);
+    return Symbols::ValuePtr(it == logs_.end() ? std::string{} : it->second);
+}
+
+Symbols::ValuePtr SDModule::getProgress(FunctionArguments & args) {
+    const long         id = Symbols::ValuePtr::instanceId(args[0]);
+    Symbols::ObjectMap out;
+    auto               it = progress_.find(id);
+    if (it != progress_.end()) {
+        int i = 0;
+        for (const auto & r : it->second) {
+            Symbols::ObjectMap rec;
+            rec["step"]              = Symbols::ValuePtr(r.step);
+            rec["total"]             = Symbols::ValuePtr(r.total);
+            rec["time"]              = Symbols::ValuePtr(static_cast<double>(r.time));
+            out[std::to_string(i++)] = Symbols::ValuePtr(rec);
+        }
+    }
+    return Symbols::ValuePtr(out);
+}
+
+Symbols::ValuePtr SDModule::clearLog(FunctionArguments & args) {
+    const long id = Symbols::ValuePtr::instanceId(args[0]);
+    logs_.erase(id);
+    progress_.erase(id);
+    return Symbols::ValuePtr::null();
 }
 
 }  // namespace Modules

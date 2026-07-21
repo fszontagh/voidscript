@@ -1,16 +1,17 @@
 # StableDiffusion module
 
 Wraps [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) as a
-VoidScript class: text-to-image, image-to-image, and ESRGAN upscaling, writing PNGs to a
-path. Generated images are returned as an array of paths.
+VoidScript class: text-to-image, image-to-image (incl. inpaint and controlnet), and
+ESRGAN upscaling, writing PNGs to a path and returning the path(s). Sampling progress and
+log output are captured per instance and readable from the script.
 
-This module is **opt-in** (`BUILD_MODULE_STABLEDIFFUSION`, default OFF) because it needs a
-prebuilt stable-diffusion.cpp and (for GPU) CUDA. A normal VoidScript build ignores it.
+Opt-in (`BUILD_MODULE_STABLEDIFFUSION`, default OFF): needs a prebuilt
+stable-diffusion.cpp and (for GPU) CUDA. A normal VoidScript build ignores it.
 
 ## Building the dependency
 
-stable-diffusion.cpp must be built with `-DCMAKE_POSITION_INDEPENDENT_CODE=ON` so its
-static libraries link into this shared module.
+Must be built with `-DCMAKE_POSITION_INDEPENDENT_CODE=ON` so its static libs link into
+this shared module.
 
 ```bash
 git clone --recursive https://github.com/leejet/stable-diffusion.cpp /data/stable-diffusion.cpp
@@ -20,8 +21,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSD_CUDA=ON \
 cmake --build build -j$(nproc)
 ```
 
-(Pinned and verified against upstream commit `5e4e03c`. Drop `-DSD_CUDA=ON` for a
-CPU-only build.)
+Pinned/verified against upstream commit `5e4e03c`. Drop `-DSD_CUDA=ON` for CPU-only.
 
 ## Building the module
 
@@ -30,45 +30,93 @@ cmake -S . -B build -DBUILD_MODULE_STABLEDIFFUSION=ON -DSDCPP_ROOT=/data/stable-
 cmake --build build -j$(nproc)
 ```
 
-`SDCPP_ROOT` defaults to `/data/stable-diffusion.cpp`; its `build/` must contain the
-`.a` archives.
-
-## Usage
+## API
 
 ```voidscript
 StableDiffusion $sd = new StableDiffusion();
-
 $sd->loadModel({ string model_path: "/path/sd15.safetensors" });
-// or a split model: diffusion_model_path + vae_path + clip_l_path + t5xxl_path, etc.
-// plus optional: control_net_path, taesd_path, wtype, rng_type, flash_attn,
-//                diffusion_flash_attn, stream_layers, max_vram ("8" | "auto"), n_threads
 
 auto $paths = $sd->txt2img({
     string prompt: "a red apple on a table, photo",
     string negative_prompt: "blurry",
     int width: 512, int height: 512, int steps: 20,
     double cfg_scale: 7.0, int seed: 42,
-    string sampler: "euler_a", string scheduler: "discrete",
-    int batch_count: 1,
-    string output: "/tmp/out.png"          // "out.png", "out_1.png", ... for a batch
+    string sampler: "euler_a", string output: "/tmp/out.png"   // batch => out.png, out_1.png, ...
 });
 printnl($paths[0]);
 
 $sd->img2img({ string init_image: "in.png", double strength: 0.6,
                string prompt: "...", string output: "/tmp/i2i.png" });
-// mask_image + init_image => inpainting; control_image + control_net_path => controlnet
+// + mask_image => inpaint;  + control_image (with control_net_path loaded) => controlnet
 
 $sd->upscale({ string esrgan_path: "/path/4x.pth", string input: "in.png",
                string output: "in_4x.png", int scale: 4 });
 
-$sd->unload();   // free VRAM; the destructor also frees on scope exit
+$sd->unload();
 ```
 
 Each instance holds its own `sd_ctx_t*`, keyed by the framework instance id, so multiple
 `StableDiffusion` objects are independent.
 
+### loadModel options (all optional except a model source)
+
+Model sources (one required): `model_path` (a full checkpoint) **or** `diffusion_model_path`.
+Extra weights: `vae_path`, `clip_l_path`, `clip_g_path`, `clip_vision_path`, `t5xxl_path`,
+`llm_path`, `high_noise_diffusion_model_path`, `control_net_path`, `motion_module_path`,
+`photo_maker_path`, `pulid_weights_path`, `embeddings_connectors_path`, `taesd_path`,
+`tensor_type_rules`.
+Enums (strings): `wtype` (e.g. `q8_0`, `f16`), `rng_type`, `sampler_rng_type`,
+`prediction`, `lora_apply_mode`.
+Scalars/flags: `n_threads`, `enable_mmap`, `flash_attn`, `diffusion_flash_attn`,
+`tae_preview_only`, `diffusion_conv_direct`, `vae_conv_direct`, `force_sdxl_vae_conv_scale`,
+`eager_load`, `auto_fit`, `stream_layers`, `max_vram` (GiB budget e.g. `"8"` or `"auto"`),
+`backend`, `params_backend`, `split_mode`, `rpc_servers`, `model_args`, `quiet` (suppress
+the live log echo to stderr; the log is still captured).
+
+### txt2img / img2img options
+
+Required: `prompt`, `output`. img2img also needs `init_image`.
+Common: `negative_prompt`, `width`, `height`, `steps`, `cfg_scale`, `seed` (-1 = random),
+`batch_count`, `sampler`, `scheduler`, `clip_skip`.
+img2img: `strength`, `mask_image`.
+Guidance/sampling: `img_cfg`, `distilled_guidance`, `eta`, `flow_shift`,
+`shifted_timestep`, `extra_sample_args`.
+ControlNet: `control_image`, `control_strength`.
+Tiling: `circular_x`, `circular_y`.
+
+Returns an array of output paths (one per `batch_count`).
+
+### upscale options
+
+Required: `esrgan_path`, `input`, `output`. Optional: `scale` (default 4), `tile_size`,
+`n_threads`. Returns the output path.
+
+### Progress and logs
+
+```voidscript
+$sd->clearLog();
+$sd->txt2img({ ... });
+auto $prog = $sd->getProgress();          // array of { int step, int total, double time }
+int  $n    = sizeof($prog);
+printnl("last: ", $prog[$n-1]->step, "/", $prog[$n-1]->total);
+string $log = $sd->getLog();              // captured model/sampling log text
+```
+
+Capture is retrospective: `generate_image` is a single blocking call, so the script reads
+`getProgress()` / `getLog()` after it returns, not per-step. Live per-step callbacks into
+a script function are not supported (a native module cannot drive the interpreter to run a
+user-defined function). Log lines still stream to stderr live unless `quiet: true`.
+
+## Not yet wired
+
+The flat parameters above cover the common workflows. These advanced sd.cpp params need
+array / nested-struct plumbing and are not exposed yet: multiple LoRAs and embeddings,
+`ref_images` (PhotoMaker/PuLID/Kontext reference sets), `custom_sigmas`, the built-in
+hi-res-fix (`hires`), decode cache, and VAE tiling params. `generate_video` is also not
+wrapped.
+
 ## Test
 
-`test_scripts/integration/stablediffusion_txt2img.vs` does a small real generation. It
-needs a GPU and an SD1.5 checkpoint, so it is not part of the unattended ctest suite.
-Verified end to end against `v1-5-pruned-emaonly-fp16.safetensors` on an RTX 3060.
+`test_scripts/integration/stablediffusion_txt2img.vs` does a small real generation
+(512x512, 20 steps) and checks progress + log capture. Not part of the unattended ctest
+suite. Verified against `v1-5-pruned-emaonly-fp16.safetensors` on an RTX 3060.
