@@ -39,7 +39,22 @@ bool MemcachedClient::connect(const std::string& servers) {
         return false;
     }
 
-    memcached_return_t rc = memcached_server_add(memc, servers.c_str(), 11211);
+    // Parse "host:port". The old code passed the whole string as the HOSTNAME and
+    // hardcoded port 11211, so "127.0.0.1:21211" was resolved as a literal hostname
+    // (getaddrinfo failure) and any non-default port was ignored. A bare host still
+    // defaults to 11211.
+    std::string  serverHost = servers;
+    in_port_t    serverPort = 11211;
+    if (auto colon = servers.rfind(':'); colon != std::string::npos) {
+        try {
+            serverPort = static_cast<in_port_t>(std::stoul(servers.substr(colon + 1)));
+            serverHost = servers.substr(0, colon);
+        } catch (const std::exception &) {
+            // Not a numeric port suffix; use the string as given.
+        }
+    }
+
+    memcached_return_t rc = memcached_server_add(memc, serverHost.c_str(), serverPort);
     if (rc != MEMCACHED_SUCCESS) {
         cleanup();
         return false;

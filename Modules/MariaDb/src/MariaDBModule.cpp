@@ -61,9 +61,23 @@ bool MariaDBClient::connect(const std::string& host, const std::string& username
         mysql_ssl_set(connection, nullptr, nullptr, nullptr, nullptr, nullptr);
     }
 
+    // Accept "host:port" in the host argument. The port was previously hardcoded to 0
+    // (libmysql's default 3306), so the module could only ever reach a server on the
+    // default port. A bare host still defaults to 3306.
+    std::string hostName = host;
+    unsigned int port    = 0;
+    if (auto colon = host.rfind(':'); colon != std::string::npos) {
+        try {
+            port     = static_cast<unsigned int>(std::stoul(host.substr(colon + 1)));
+            hostName = host.substr(0, colon);
+        } catch (const std::exception &) {
+            // Not a numeric port suffix (e.g. an IPv6 literal); use the host as given.
+        }
+    }
+
     // Attempt connection
-    MYSQL* result = mysql_real_connect(connection, host.c_str(), username.c_str(),
-                                     password.c_str(), database.c_str(), 0, nullptr, 0);
+    MYSQL* result = mysql_real_connect(connection, hostName.c_str(), username.c_str(),
+                                     password.c_str(), database.c_str(), port, nullptr, 0);
 
     if (!result) {
         std::string error = mysql_error(connection);
@@ -302,7 +316,7 @@ void MariaDBModule::registerOOPClasses() {
         {"username", Symbols::Variables::Type::STRING, "Database username"},
         {"password", Symbols::Variables::Type::STRING, "Database password"},
         {"database", Symbols::Variables::Type::STRING, "Database name"},
-        {"useSSL", Symbols::Variables::Type::BOOLEAN, "Enable SSL connection (optional, default: false)"}
+        {"useSSL", Symbols::Variables::Type::BOOLEAN, "Enable SSL connection", true}
     };
     if (!Symbols::SymbolContainer::instance()->hasMethod("MariaDBConnection", "connect")) {
         REGISTER_METHOD("MariaDBConnection", "connect", connect_params, MariaDBWrapper::connect,

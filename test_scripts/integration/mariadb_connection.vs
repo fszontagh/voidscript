@@ -1,0 +1,13 @@
+MariaDBConnection $c1 = new MariaDBConnection();
+MariaDBConnection $c2 = new MariaDBConnection();
+boolean $ok = $c1->connect("127.0.0.1:13306", "root", "testpw", "testdb", false);
+printnl("c1 connect: ", $ok);
+printnl("c1 isConnected: ", $c1->isConnected());
+printnl("c2 isConnected: ", $c2->isConnected());
+$c1->query("CREATE TABLE IF NOT EXISTS t (id INT PRIMARY KEY, v VARCHAR(20))");
+$c1->query("INSERT INTO t VALUES (1,'hello') ON DUPLICATE KEY UPDATE v='hello'");
+auto $r = $c1->query("SELECT v FROM t WHERE id=1");
+printnl("rows: ", sizeof($r));
+$c1->disconnect();
+printnl("c1 after disconnect: ", $c1->isConnected());
+printnl("done");
