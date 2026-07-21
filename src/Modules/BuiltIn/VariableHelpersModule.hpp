@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "Interpreter/Interpreter.hpp"
 #include "Modules/BaseModule.hpp"
 #include "Symbols/RegistrationMacros.hpp"
 #include "Symbols/SymbolContainer.hpp"
@@ -134,6 +135,23 @@ class VariableHelpersModule : public BaseModule {
     }
 
     void registerFunctions() override {
+        // call_user_func(name, ...args): invoke a user-defined function by name, passing
+        // the remaining arguments. The general primitive behind dynamic dispatch and the
+        // callback/event style native modules use (e.g. a live progress handler).
+        std::vector<Symbols::FunctionParameterInfo> cuf_params = {
+            { "name", Symbols::Variables::Type::STRING, "Name of the function to call", false, false }
+        };
+        REGISTER_FUNCTION("call_user_func", Symbols::Variables::Type::NULL_TYPE, cuf_params,
+                          "Call a user-defined function by name with the given arguments",
+                          [](const Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.empty() || args[0]->getType() != Symbols::Variables::Type::STRING) {
+                                  throw Exception("call_user_func expects a function name string as the first argument");
+                              }
+                              const std::string name = args[0]->get<std::string>();
+                              std::vector<Symbols::ValuePtr> forwarded(args.begin() + 1, args.end());
+                              return Interpreter::Interpreter::callUserFunction(name, forwarded);
+                          });
+
         std::vector<Symbols::FunctionParameterInfo> param_list = {
             { "string", Symbols::Variables::Type::STRING, "The string to calculate the length of", false, false },
             { "string", Symbols::Variables::Type::STRING, "The type to compare against",           true,  false }

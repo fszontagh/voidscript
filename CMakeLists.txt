@@ -480,6 +480,15 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "true\ntrue\nalpha\nbeta\ntrue\nfalse\ndone")
 
+      # call_user_func: native code invoking a user-defined function by name.
+      add_test(NAME RegressionCallUserFunc
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/call_user_func.vs)
+      set_tests_properties(RegressionCallUserFunc PROPERTIES
+               TIMEOUT 10
+               FAIL_REGULAR_EXPRESSION "NOT REACHED"
+               PASS_REGULAR_EXPRESSION "hi world\nn=7\nhi dynamic\nhi 0\nhi 1\nhi 2\ncaught missing fn\ndone")
+
       # Integer division/modulo by zero must throw, not SIGFPE the process.
       add_test(NAME RegressionDivisionByZero
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

@@ -47,6 +47,10 @@ class Interpreter {
     Symbols::ValuePtr thisObject_;  // Current "this" object for method calls
     std::string currentClassName_;  // Current class context for method execution
 
+    // The interpreter currently executing on this thread. Set for the duration of run()
+    // so that native modules can call back into script code (see callUserFunction).
+    static inline thread_local Interpreter * current_ = nullptr;
+
   public:
     /**
      * @brief Construct interpreter with optional debug output
@@ -129,6 +133,22 @@ class Interpreter {
      * @throws Interpreter::Exception if operation execution fails
      */
     void runOperation(const Operations::Operation& op);
+
+    /**
+     * @brief Invoke a user-defined VoidScript function by name from native code.
+     *
+     * Lets a native module call back into a script function (e.g. a live progress
+     * handler) while the interpreter is running. Uses the thread's current interpreter,
+     * so it must be called on the interpreter thread - which is the case for a callback
+     * fired synchronously from inside a native method call. Returns the function's
+     * return value, or null. Throws if there is no active interpreter or the function is
+     * not found.
+     */
+    static Symbols::ValuePtr callUserFunction(const std::string & name,
+                                              const std::vector<Symbols::ValuePtr> & args);
+
+    /** Whether a script-callable interpreter is active on this thread. */
+    static bool hasCurrent() { return current_ != nullptr; }
 
     // Visitor methods for AST nodes
     // Add other Visit methods here as they are implemented

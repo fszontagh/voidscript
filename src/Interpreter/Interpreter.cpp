@@ -5,6 +5,9 @@
 #include "Interpreter/ReturnException.hpp"
 #include "Interpreter/ThrowException.hpp"
 #include "Symbols/SymbolContainer.hpp"
+#include "Symbols/SymbolFactory.hpp"
+#include "Symbols/FunctionSymbol.hpp"
+
 #include "Symbols/Value.hpp"
 #include "Symbols/EnumSymbol.hpp" // Added for EnumSymbol
 #include "Nodes/Statement/EnumDeclarationNode.hpp" // Added for EnumDeclarationNode
@@ -94,11 +97,88 @@ bool Interpreter::canAccessPrivateMember(const std::string& targetClassName,
 }
 
 void Interpreter::run() {
+    // Publish this interpreter as the thread's current one for the duration of the run,
+    // so native modules can call back into script functions (callUserFunction).
+    Interpreter * prev = current_;
+    current_           = this;
+    struct Restore {
+        Interpreter *& slot;
+        Interpreter *  saved;
+        ~Restore() { slot = saved; }
+    } restore{ current_, prev };
+
     // Determine namespace to execute
     const std::string ns = Symbols::SymbolContainer::instance()->currentScopeName();
     for (const auto & operation : Operations::Container::instance()->getAll(ns)) {
         runOperation(*operation);
     }
+}
+
+Symbols::ValuePtr Interpreter::callUserFunction(const std::string & name,
+                                                const std::vector<Symbols::ValuePtr> & args) {
+    if (!current_) {
+        throw Exception("callUserFunction: no interpreter is running on this thread", "-", 0, 0);
+    }
+    Interpreter &            interpreter = *current_;
+    Symbols::SymbolContainer * sc        = Symbols::SymbolContainer::instance();
+
+    // Resolve the function symbol, walking up the scope hierarchy like a normal call.
+    std::string                              lookupNs = sc->currentScopeName();
+    std::shared_ptr<Symbols::FunctionSymbol> funcSym;
+    while (true) {
+        if (auto scope_table = sc->getScopeTable(lookupNs)) {
+            auto sym = scope_table->get(Symbols::SymbolContainer::DEFAULT_FUNCTIONS_SCOPE, name);
+            if (sym && sym->getKind() == Symbols::Kind::Function) {
+                funcSym = std::static_pointer_cast<Symbols::FunctionSymbol>(sym);
+                break;
+            }
+        }
+        auto pos = lookupNs.rfind(Symbols::SymbolContainer::SCOPE_SEPARATOR);
+        if (pos == std::string::npos) {
+            break;
+        }
+        lookupNs = lookupNs.substr(0, pos);
+        if (lookupNs.empty()) {
+            break;
+        }
+    }
+    if (!funcSym) {
+        throw Exception("callUserFunction: function not found: " + name, "-", 0, 0);
+    }
+
+    const auto & params = funcSym->parameters();
+    if (params.size() != args.size()) {
+        throw Exception("callUserFunction: '" + name + "' expects " + std::to_string(params.size()) +
+                            " args, got " + std::to_string(args.size()),
+                        "-", 0, 0);
+    }
+
+    const std::string canonical = funcSym->context().empty()
+                                      ? name
+                                      : funcSym->context() + Symbols::SymbolContainer::SCOPE_SEPARATOR + name;
+    const std::string callScope = canonical + Symbols::SymbolContainer::CALL_SCOPE + std::to_string(get_unique_call_id());
+
+    sc->create(callScope);
+    for (size_t i = 0; i < params.size(); ++i) {
+        sc->addVariable(Symbols::SymbolFactory::createVariable(params[i].name, args[i].clone(), callScope));
+    }
+
+    Symbols::ValuePtr returnValue;
+    for (const auto & op : Operations::Container::instance()->getAll(canonical)) {
+        try {
+            interpreter.runOperation(*op);
+        } catch (const ReturnException & ret) {
+            returnValue = ret.value();
+            break;
+        }
+    }
+
+    if (sc->currentScopeName() == callScope) {
+        sc->enterPreviousScope();
+    } else {
+        sc->validateAndCleanupScopeStack(callScope);
+    }
+    return returnValue;
 }
 
 void Interpreter::runOperation(const Operations::Operation & op) {
