@@ -60,20 +60,34 @@ class MethodCallExpressionNode : public ExpressionNode {
         size_t c = column_ == 0 && col > 0 ? col : column_;
 
         const int MAX_CALL_DEPTH = 100;
-        callDepth++;
-        
-        
+
+        // RAII so the counter is restored on EVERY exit path. It used to be a bare
+        // callDepth++ with manual decrements before some, but not all, returns - the
+        // native-method and comparison-method paths returned without decrementing. The
+        // counter therefore measured cumulative calls, not nesting depth, so any program
+        // that made more than ~100 method calls total (e.g. a loop of setPixel) aborted
+        // with a bogus "infinite recursion".
+        struct DepthGuard {
+            int &                      depth;
+            std::vector<std::string> & stack;
+            DepthGuard(int & d, std::vector<std::string> & s, const std::string & name) : depth(d), stack(s) {
+                ++depth;
+                stack.push_back(name);
+            }
+            ~DepthGuard() {
+                --depth;
+                stack.pop_back();
+            }
+        } depthGuard(callDepth, callStack, methodName_);
+
         if (callDepth > MAX_CALL_DEPTH) {
             std::cerr << "[ERROR] MethodCallExpressionNode::evaluate: Maximum call depth exceeded! Possible infinite recursion in method calls." << std::endl;
             std::cerr << "[ERROR] Call stack:" << std::endl;
             for (size_t i = 0; i < callStack.size(); ++i) {
                 std::cerr << "[ERROR]   " << i << ": " << callStack[i] << std::endl;
             }
-            callDepth--;
             throw std::runtime_error("Infinite loop detected in method calls");
         }
-        
-        callStack.push_back(methodName_);
 
         try {
             // Evaluate target object (produces a copy)
@@ -327,22 +341,16 @@ class MethodCallExpressionNode : public ExpressionNode {
                     sc->enterPreviousScope();
                 }
                 
-                // Clean up
+                // Clean up (callDepth/callStack handled by DepthGuard)
                 interpreter.clearThisObject();
-                callStack.pop_back();
-                callDepth--;
                 return returnValue;
             }
             
             throw std::runtime_error("Object is not a class instance");
             
         } catch (const ReturnException & re) {
-            callStack.pop_back();
-            callDepth--;
             return re.value();
         } catch (const std::exception& e) {
-            callStack.pop_back();
-            callDepth--;
             throw;
         }
     }

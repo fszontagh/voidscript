@@ -23,7 +23,6 @@ class ImagickModule : public BaseModule {
 
   private:
     std::unordered_map<int, Magick::Image> images_;
-    static std::unordered_map<std::string, int> object_to_handle_map_; // Map object identity to image handle
     unsigned int                           next_image_id = 0;
     Symbols::ValuePtr                      construct(FunctionArguments & args);
     Symbols::ValuePtr                      read(FunctionArguments & args);
@@ -41,7 +40,8 @@ class ImagickModule : public BaseModule {
 
     // Shared handle lookup. Every method repeated the same three-step dance of
     // objectId -> handle -> image with its own error strings.
-    Magick::Image &                        imageFor(FunctionArguments & args, const char * method);
+    Magick::Image &                        imageFor(FunctionArguments & args, const char * method,
+                                                            size_t argIndex = 0);
     Symbols::ValuePtr                      composite(FunctionArguments & args);
 };
 

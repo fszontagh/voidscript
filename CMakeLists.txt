@@ -458,6 +458,23 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ndone")
 
+      # Imagick composite, plus the crop/blur/rotate/flip revival and the per-instance
+      # handle fix (two images from the same file must be independent).
+      add_test(NAME RegressionImagickComposite
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_composite.vs)
+      set_tests_properties(RegressionImagickComposite PROPERTIES
+               TIMEOUT 20
+               PASS_REGULAR_EXPRESSION "32,32,128\n8x8\n80,80,128\n255,0,0\ndone")
+
+      # Method-call depth counter must measure nesting, not cumulative calls.
+      add_test(NAME RegressionMethodCallDepth
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/method_call_depth.vs)
+      set_tests_properties(RegressionMethodCallDepth PROPERTIES
+               TIMEOUT 10
+               PASS_REGULAR_EXPRESSION "500\ndone")
+
       # Task #9: Imagick per-pixel access, and optional native-method parameters.
       add_test(NAME RegressionImagickPixels
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
