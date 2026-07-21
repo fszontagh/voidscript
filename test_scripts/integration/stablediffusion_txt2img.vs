@@ -24,7 +24,7 @@ auto $paths = $sd->txt2img({
 printnl("generated: ", $paths[0]);
 printnl("file exists: ", file_exists($out));
 
-// progress capture: script can read every sampling tick
+// live per-step progress handler (fires DURING generation)
 auto $prog = $sd->getProgress();
 int $ticks = sizeof($prog);
 printnl("progress ticks: ", $ticks);
