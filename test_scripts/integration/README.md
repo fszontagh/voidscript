@@ -16,3 +16,13 @@ Each asserts the object-identity fix: a second connection is independent of the 
 (disconnecting one leaves the other connected), which a shared-client collision would
 break. They also exercise host:port parsing (verified against non-default ports 13306 /
 21211).
+
+## StableDiffusion (GPU + model + built module)
+
+`stablediffusion_txt2img.vs` needs the StableDiffusion module built
+(BUILD_MODULE_STABLEDIFFUSION=ON, see Modules/StableDiffusion/README.md), a GPU, and an
+SD1.5 checkpoint. Verified against v1-5-pruned-emaonly-fp16.safetensors on an RTX 3060.
+
+```bash
+voidscript "$PWD/test_scripts/integration/stablediffusion_txt2img.vs"
+```

@@ -35,6 +35,10 @@ option(BUILD_MODULE_XML2 "Enable Xml2 module" ON)
 option(BUILD_MODULE_MARIADB "Enable MariaDB module" ON)
 option(BUILD_MODULE_HASH "Enable Hash module (OpenSSL)" ON)
 option(BUILD_MODULE_ARCHIVE "Enable Archive module (libarchive)" ON)
+# Heavy, opt-in: needs a prebuilt stable-diffusion.cpp (SDCPP_ROOT) and CUDA. OFF by
+# default so a normal build does not require them. Declared here so it wins over the
+# ON default that add_dynamic_module() would otherwise set.
+option(BUILD_MODULE_STABLEDIFFUSION "Enable StableDiffusion module (stable-diffusion.cpp + CUDA)" OFF)
 option(BUILD_TESTS "Build the test cases" OFF)
 
 
