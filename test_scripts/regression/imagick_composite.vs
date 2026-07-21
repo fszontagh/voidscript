@@ -43,4 +43,11 @@ $base->composite($ov, 0, 0);
 object $post = $base->getPixel(5, 5);
 printnl($post->red, ",", $post->green, ",", $post->blue); // 255,0,0 - after
 
+// mode() was implemented but its registration was commented out (dead code).
+Imagick $g = new Imagick();
+$g->read($fix);
+$g->mode("GRAY");
+object $gp = $g->getPixel(5, 5);
+printnl($gp->red == $gp->green && $gp->green == $gp->blue);   // true - grayscale
+
 printnl("done");

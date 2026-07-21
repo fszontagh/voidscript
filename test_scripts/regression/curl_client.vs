@@ -34,5 +34,14 @@ CurlClient $c = new CurlClient();
 CurlResponse $r = $c->get($url);
 printnl($r->getBody());                 // {"ok":true}
 
+// Two responses must be independent - they used to collide because every CurlResponse
+// serialises to the same $class_name and the data map was keyed by that.
+file_put_contents($path, "{\"which\":\"first\"}", true);
+CurlResponse $r1 = $c->get($url);
+file_put_contents($path, "{\"which\":\"second\"}", true);
+CurlResponse $r2 = $c->get($url);
+printnl($r1->getBody());                 // {"which":"first"} - not overwritten by r2
+printnl($r2->getBody());                 // {"which":"second"}
+
 file_unlink($path);
 printnl("done");

@@ -465,7 +465,7 @@ if (BUILD_TESTS)
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_composite.vs)
       set_tests_properties(RegressionImagickComposite PROPERTIES
                TIMEOUT 20
-               PASS_REGULAR_EXPRESSION "32,32,128\n8x8\n80,80,128\n255,0,0\ndone")
+               PASS_REGULAR_EXPRESSION "32,32,128\n8x8\n80,80,128\n255,0,0\ntrue\ndone")
 
       # Method-call depth counter must measure nesting, not cumulative calls.
       add_test(NAME RegressionMethodCallDepth
@@ -516,7 +516,7 @@ if (BUILD_TESTS)
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/curl_client.vs)
       set_tests_properties(RegressionCurlClient PROPERTIES
                TIMEOUT 20
-               PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\n\\{\"ok\":true\\}\ndone")
+               PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\n\\{\"ok\":true\\}\n\\{\"which\":\"first\"\\}\n\\{\"which\":\"second\"\\}\ndone")
 
       # Bug #23: `auto` as a general declaration type, inferring from the initialiser.
       add_test(NAME RegressionAutoType

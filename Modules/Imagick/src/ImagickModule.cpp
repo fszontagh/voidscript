@@ -45,13 +45,12 @@ void Modules::ImagickModule::registerFunctions() {
         this->name(), "resize", params, [this](const FunctionArguments & args) { return this->resize(args); },
         Symbols::Variables::Type::NULL_TYPE, "Resize an image");
 
-    //params = {
-    //    { "mode", Symbols::Variables::Type::STRING },
-    //};
-
-    //    REGISTER_METHOD(
-    //        this->name(), "mode",params, [this](const FunctionArguments & args) { return this->mode(args); },
-    //        Symbols::Variables::Type::NULL_TYPE, "Change image mode");
+    params = {
+        { "mode", Symbols::Variables::Type::STRING, "Colorspace: RGB, CMYK or GRAY" },
+    };
+    REGISTER_METHOD(
+        this->name(), "mode", params, [this](const FunctionArguments & args) { return this->mode(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Set the image colorspace (RGB, CMYK, GRAY)");
 
     params = {
         { "radius", Symbols::Variables::Type::DOUBLE, "The blur radius" },

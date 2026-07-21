@@ -12,6 +12,32 @@
 
 namespace Modules {
 
+namespace {
+// Per-object identity. Keying the connection map by args[0].toString() - the object's
+// serialised CONTENTS - collided every instance, since a fresh connection object
+// serialises to just its $class_name, so all of them shared ONE connection. Each object
+// carries a unique __conn_oid__ stamped at construct, and the map is keyed by that.
+static long g_conn_next_oid = 1;
+
+std::string connStampOid(Symbols::ValuePtr obj) {
+    const long id = g_conn_next_oid++;
+    obj->get<Symbols::ObjectMap>()["__conn_oid__"] = Symbols::ValuePtr(static_cast<int>(id));
+    return std::to_string(id);
+}
+
+std::string connOidOf(const Symbols::ValuePtr & obj) {
+    if (obj == Symbols::Variables::Type::CLASS || obj == Symbols::Variables::Type::OBJECT) {
+        const auto & m  = obj->get<Symbols::ObjectMap>();
+        auto         it = m.find("__conn_oid__");
+        if (it != m.end()) {
+            return it->second->toString();
+        }
+    }
+    return obj.toString();
+}
+}  // namespace
+
+
 // Static member definitions
 std::unordered_map<std::string, std::unique_ptr<MemcachedClient>> MemcachedConnectionWrapper::connection_map_;
 
@@ -301,7 +327,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::construct(Symbols::FunctionArgumen
         throw std::runtime_error("MemcachedConnection::construct expects servers string");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connStampOid(args[0]);
     std::string servers = args[1].get<std::string>();
 
     connection_map_[objectId] = std::make_unique<MemcachedClient>();
@@ -314,7 +340,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::construct(Symbols::FunctionArgumen
 }
 
 Symbols::ValuePtr MemcachedConnectionWrapper::disconnect(Symbols::FunctionArguments& args) {
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     auto it = connection_map_.find(objectId);
     if (it != connection_map_.end()) {
         it->second->disconnect();
@@ -323,7 +349,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::disconnect(Symbols::FunctionArgume
 }
 
 Symbols::ValuePtr MemcachedConnectionWrapper::isConnected(Symbols::FunctionArguments& args) {
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     auto it = connection_map_.find(objectId);
     if (it != connection_map_.end()) {
         return Symbols::ValuePtr(it->second->isConnected());
@@ -336,7 +362,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::get(Symbols::FunctionArguments& ar
         throw std::runtime_error("MemcachedConnection::get expects key string");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
 
     MemcachedClient* client = getClient(objectId);
@@ -350,7 +376,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::set(Symbols::FunctionArguments& ar
         throw std::runtime_error("MemcachedConnection::set expects key, value, and optional expiration");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
     std::string value = args[2].get<std::string>();
     time_t expiration = 0;
@@ -370,7 +396,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::add(Symbols::FunctionArguments& ar
         throw std::runtime_error("MemcachedConnection::add expects key, value, and optional expiration");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
     std::string value = args[2].get<std::string>();
     time_t expiration = 0;
@@ -390,7 +416,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::replace(Symbols::FunctionArguments
         throw std::runtime_error("MemcachedConnection::replace expects key, value, and optional expiration");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
     std::string value = args[2].get<std::string>();
     time_t expiration = 0;
@@ -408,7 +434,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::delete_(Symbols::FunctionArguments
         throw std::runtime_error("MemcachedConnection::delete expects key string");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
 
     MemcachedClient* client = getClient(objectId);
@@ -423,7 +449,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::cas(Symbols::FunctionArguments& ar
         throw std::runtime_error("MemcachedConnection::cas expects key, value, expiration, and cas_unique");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
     std::string value = args[2].get<std::string>();
     time_t expiration = args[3].get<int>();
@@ -439,7 +465,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::incr(Symbols::FunctionArguments& a
         throw std::runtime_error("MemcachedConnection::incr expects key and optional offset");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
     uint64_t offset = 1;
 
@@ -457,7 +483,7 @@ Symbols::ValuePtr MemcachedConnectionWrapper::decr(Symbols::FunctionArguments& a
         throw std::runtime_error("MemcachedConnection::decr expects key and optional offset");
     }
 
-    std::string objectId = args[0].toString();
+    std::string objectId = connOidOf(args[0]);
     std::string key = args[1].get<std::string>();
     uint64_t offset = 1;
 
