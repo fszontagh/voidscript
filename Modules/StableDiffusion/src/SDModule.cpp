@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "Interpreter/Interpreter.hpp"
 #include "Symbols/RegistrationMacros.hpp"
 #include "Symbols/SymbolContainer.hpp"
 #include "Symbols/Value.hpp"
@@ -26,10 +27,11 @@ namespace {
 // synchronous (one generate_image at a time), so a single "currently capturing" target
 // is enough. Guarded by a mutex because sd.cpp may log from a worker thread.
 std::mutex  g_cbMutex;
-SDModule *  g_activeModule = nullptr;
-long        g_activeId     = 0;
-bool        g_quiet        = false;
-bool        g_cbInstalled  = false;
+SDModule *  g_activeModule   = nullptr;
+long        g_activeId       = 0;
+bool        g_quiet          = false;
+bool        g_cbInstalled    = false;
+std::string g_progressHandler;  // script function name to call per progress tick, if any
 
 void logTrampoline(sd_log_level_t /*level*/, const char * text, void * /*data*/) {
     if (!text) {
@@ -45,9 +47,27 @@ void logTrampoline(sd_log_level_t /*level*/, const char * text, void * /*data*/)
 }
 
 void progressTrampoline(int step, int steps, float time, void * /*data*/) {
-    std::lock_guard<std::mutex> lock(g_cbMutex);
-    if (g_activeModule) {
-        g_activeModule->appendProgress(step, steps, time);
+    std::string handler;
+    {
+        std::lock_guard<std::mutex> lock(g_cbMutex);
+        if (g_activeModule) {
+            g_activeModule->appendProgress(step, steps, time);
+        }
+        handler = g_progressHandler;
+    }
+    // Invoke the script handler OUTSIDE the lock: it may itself log (-> logTrampoline,
+    // which re-locks g_cbMutex) and std::mutex is not recursive. The callback fires on
+    // the interpreter thread, so callUserFunction is a safe nested call.
+    if (!handler.empty() && Interpreter::Interpreter::hasCurrent()) {
+        Symbols::ObjectMap tick;
+        tick["step"]  = Symbols::ValuePtr(step);
+        tick["total"] = Symbols::ValuePtr(steps);
+        tick["time"]  = Symbols::ValuePtr(static_cast<double>(time));
+        try {
+            Interpreter::Interpreter::callUserFunction(handler, { Symbols::ValuePtr(tick) });
+        } catch (...) {
+            // A handler error must not abort generation.
+        }
     }
 }
 
@@ -224,20 +244,22 @@ void SDModule::appendProgress(int step, int steps, float time) {
     progress_[g_activeId].push_back(ProgressRec{ step, steps, time });
 }
 
-void SDModule::beginCapture(long id) {
+void SDModule::beginCapture(long id, const std::string & progressHandler) {
     std::lock_guard<std::mutex> lock(g_cbMutex);
     if (!g_cbInstalled) {
         sd_set_log_callback(logTrampoline, nullptr);
         sd_set_progress_callback(progressTrampoline, nullptr);
         g_cbInstalled = true;
     }
-    g_activeModule = this;
-    g_activeId     = id;
+    g_activeModule    = this;
+    g_activeId        = id;
+    g_progressHandler = progressHandler;
 }
 
 void SDModule::endCapture() {
     std::lock_guard<std::mutex> lock(g_cbMutex);
     g_activeModule = nullptr;
+    g_progressHandler.clear();
 }
 
 void SDModule::registerFunctions() {
@@ -482,9 +504,11 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         }
     }
 
+    const std::string progressHandler = optStr(o, "progress");
+
     sd_image_t * out     = nullptr;
     int          num_out = 0;
-    beginCapture(id);
+    beginCapture(id, progressHandler);
     const bool ok = generate_image(ctx, &p, &out, &num_out);
     endCapture();
 
@@ -572,10 +596,12 @@ Symbols::ValuePtr SDModule::video(FunctionArguments & args) {
     if (!init_path.empty()) { init = loadImage(init_path); p.init_image = init; }
     if (!end_path.empty())  { end  = loadImage(end_path);  p.end_image  = end; }
 
+    const std::string progressHandler = optStr(o, "progress");
+
     sd_image_t * frames    = nullptr;
     int          numFrames = 0;
     sd_audio_t * audio     = nullptr;
-    beginCapture(id);
+    beginCapture(id, progressHandler);
     const bool ok = generate_video(ctx, &p, &frames, &numFrames, &audio);
     endCapture();
 
@@ -634,7 +660,7 @@ Symbols::ValuePtr SDModule::upscale(FunctionArguments & args) {
     sd_image_t   in      = loadImage(input);
     sd_image_t * out     = nullptr;
     int          num_out = 0;
-    beginCapture(id);
+    beginCapture(id, optStr(o, "progress"));
     const bool ok = ::upscale(up, in, static_cast<uint32_t>(factor), &out, &num_out);
     endCapture();
     stbi_image_free(in.data);

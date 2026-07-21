@@ -121,10 +121,21 @@ printnl("last: ", $prog[$n-1]->step, "/", $prog[$n-1]->total);
 string $log = $sd->getLog();              // captured model/sampling log text
 ```
 
-Capture is retrospective: `generate_image` is a single blocking call, so the script reads
-`getProgress()` / `getLog()` after it returns, not per-step. Live per-step callbacks into
-a script function are not supported (a native module cannot drive the interpreter to run a
-user-defined function). Log lines still stream to stderr live unless `quiet: true`.
+**Live** per-step progress: pass a `progress` option naming a script function. It is
+called during generation, once per sampling tick, with a `{ int step, int total, double
+time }` object - not retrospective.
+
+```voidscript
+function onProgress(object $t) {
+    printnl("step ", $t->step, "/", $t->total);   // printed live, during generation
+}
+$sd->txt2img({ ..., string progress: "onProgress" });
+```
+
+The handler runs on the interpreter thread as a normal nested call, so it can read and
+update enclosing variables. An error thrown by the handler is swallowed and does not
+abort generation. `getProgress()` / `getLog()` remain as a retrospective record. Log
+lines stream to stderr live unless `quiet: true`.
 
 ## Not yet wired
 

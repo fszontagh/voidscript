@@ -70,7 +70,7 @@ class SDModule : public BaseModule {
 
     // Route sd.cpp's global log/progress callbacks to this instance for the duration of
     // a generation, then unset. Generation is synchronous, so only one is ever active.
-    void beginCapture(long id);
+    void beginCapture(long id, const std::string & progressHandler);
     void endCapture();
 };
 
