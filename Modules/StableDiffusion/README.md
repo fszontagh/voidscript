@@ -21,8 +21,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSD_CUDA=ON \
 cmake --build build -j$(nproc)
 ```
 
-Pinned/verified against upstream commit `8a51eb9` (adds Mage-Flow model support). Drop
-`-DSD_CUDA=ON` for CPU-only.
+Pinned/verified against upstream commit `5114672` (Mage-Flow model support; HF-format
+Qwen3-VL vision patch-size detection fix). Drop `-DSD_CUDA=ON` for CPU-only.
 
 ## Building the module
 
