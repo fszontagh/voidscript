@@ -50,6 +50,11 @@ $sd->img2img({ string init_image: "in.png", double strength: 0.6,
                string prompt: "...", string output: "/tmp/i2i.png" });
 // + mask_image => inpaint;  + control_image (with control_net_path loaded) => controlnet
 
+// instruction edit with reference images (Mage-Flow-Edit, Kontext, ...)
+$sd->txt2img({ string prompt: "change the sign text to 'mage.cpp'",
+               ref_images: [ "photo.png" ], double cfg_scale: 4.0,
+               string sampler: "euler", string output: "/tmp/edit.png" });
+
 $sd->upscale({ string esrgan_path: "/path/4x.pth", string input: "in.png",
                string output: "in_4x.png", int scale: 4 });
 
@@ -83,6 +88,10 @@ img2img: `strength`, `mask_image`.
 Guidance/sampling: `img_cfg`, `distilled_guidance`, `eta`, `flow_shift`,
 `shifted_timestep`, `extra_sample_args`.
 ControlNet: `control_image`, `control_strength`.
+Reference/edit images: `ref_images` (array of image paths) plus an optional
+`ref_image_args` preset string. These feed edit/reference-conditioned models
+(e.g. Mage-Flow-Edit `-r`, Kontext, PhotoMaker/PuLID reference sets); each image is
+VAE-encoded and sent to the diffusion transformer. Works for both txt2img and img2img.
 Tiling: `circular_x`, `circular_y`.
 
 Returns an array of output paths (one per `batch_count`).
@@ -140,10 +149,10 @@ lines stream to stderr live unless `quiet: true`.
 
 ## Not yet wired
 
-The flat parameters above cover the common workflows. LoRAs, VAE tiling and video are wired (above). Still not exposed (need array /
-nested-struct plumbing): textual-inversion embeddings arrays, `ref_images`
-(PhotoMaker/PuLID/Kontext reference sets), `custom_sigmas`, the built-in hi-res-fix
-(`hires`), and the decode cache.
+The flat parameters above cover the common workflows. LoRAs, VAE tiling, video and
+`ref_images` (reference/edit conditioning) are wired (above). Still not exposed (need
+array / nested-struct plumbing): textual-inversion embeddings arrays, `custom_sigmas`,
+the built-in hi-res-fix (`hires`), and the decode cache.
 
 ## Test
 

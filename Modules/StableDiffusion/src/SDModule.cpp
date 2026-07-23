@@ -193,6 +193,47 @@ void readLoras(const Symbols::ObjectMap & o, std::list<std::string> & keep, std:
     }
 }
 
+// Read a `ref_images` option into a vector of loaded sd_image_t (reference/edit images,
+// e.g. Mage `-r` edit, Kontext, PhotoMaker/PuLID reference sets). Accepts an array of
+// path strings. Each returned image owns stbi-allocated data that the caller must
+// stbi_image_free after generate_image returns. An optional `ref_image_args` string is
+// copied into `keep` (kept alive for the call) and its c_str() stored via argsOut.
+void readRefImages(const Symbols::ObjectMap & o, std::vector<sd_image_t> & out,
+                   std::list<std::string> & keep, const char ** argsOut) {
+    auto it = o.find("ref_images");
+    if (it != o.end() && !it->second->is_null()) {
+        if (it->second->getType() != Symbols::Variables::Type::OBJECT &&
+            it->second->getType() != Symbols::Variables::Type::CLASS) {
+            throw std::runtime_error("StableDiffusion: option 'ref_images' must be an array of paths");
+        }
+        const Symbols::ObjectMap & arr = it->second->get<Symbols::ObjectMap>();
+        for (size_t i = 0;; ++i) {
+            auto e = arr.find(std::to_string(i));
+            if (e == arr.end()) {
+                break;
+            }
+            if (e->second->getType() != Symbols::Variables::Type::STRING) {
+                throw std::runtime_error("StableDiffusion: 'ref_images' entries must be path strings");
+            }
+            try {
+                out.push_back(loadImage(e->second->get<std::string>()));
+            } catch (...) {
+                for (auto & im : out) {
+                    if (im.data) { stbi_image_free(im.data); }
+                }
+                out.clear();
+                throw;
+            }
+        }
+    }
+    auto a = o.find("ref_image_args");
+    if (a != o.end() && !a->second->is_null() &&
+        a->second->getType() == Symbols::Variables::Type::STRING) {
+        keep.push_back(a->second->get<std::string>());
+        *argsOut = keep.back().c_str();
+    }
+}
+
 // Read a `vae_tiling` option into an sd_tiling_params_t. Accepts a boolean (enable with
 // defaults) or an object { enabled, temporal_tiling, tile_size_x, tile_size_y,
 // target_overlap, rel_size_x, rel_size_y }. VAE tiling keeps the VAE compute buffer
@@ -487,6 +528,15 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         p.control_strength = static_cast<float>(optNum(o, "control_strength", 0.9));
     }
 
+    // Reference/edit images (e.g. Mage `-r` edit). Applies to txt2img and img2img alike,
+    // so it is read unconditionally rather than gated on isImg2Img.
+    std::vector<sd_image_t> refs;
+    readRefImages(o, refs, loraKeep, &p.ref_image_args);
+    if (!refs.empty()) {
+        p.ref_images       = refs.data();
+        p.ref_images_count = static_cast<int>(refs.size());
+    }
+
     sd_image_t init{};
     sd_image_t mask{};
     if (isImg2Img) {
@@ -515,6 +565,9 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
     if (init.data)    { stbi_image_free(init.data); }
     if (mask.data)    { stbi_image_free(mask.data); }
     if (control.data) { stbi_image_free(control.data); }
+    for (auto & im : refs) {
+        if (im.data) { stbi_image_free(im.data); }
+    }
 
     if (!ok || !out || num_out <= 0) {
         if (out) { free_sd_images(out, num_out); }
