@@ -1,10 +1,22 @@
 {
     "name": "voidscript",
-    "displayName": "VoidScript Syntax highlighting & formatter",
-    "description": "Syntax highlighting & formatter for VoidScript language.",
+    "displayName": "VoidScript",
+    "description": "Syntax highlighting, snippets, completion and formatting for the VoidScript language.",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "publisher": "fszontagh",
+    "categories": [
+        "Programming Languages",
+        "Snippets",
+        "Formatters"
+    ],
+    "keywords": [
+        "voidscript",
+        "vs",
+        "syntax",
+        "highlighting",
+        "formatter"
+    ],
     "repository": {
         "type": "git",
         "url": "https://github.com/fszontagh/voidscript.git"
@@ -25,12 +37,12 @@
                     ".vs"
                 ],
                 "aliases": [
-                    "VoidScript"
+                    "VoidScript",
+                    "voidscript"
                 ],
                 "configuration": "./src/grammar/language-configuration.json",
                 "mimetypes": [
-                    "application/x-voidscript",
-                    "application/vpodscript"
+                    "application/x-voidscript"
                 ]
             }
         ],
@@ -40,20 +52,24 @@
                 "scopeName": "source.voidscript",
                 "path": "./src/grammar/voidscript.tmLanguage.json"
             }
+        ],
+        "snippets": [
+            {
+                "language": "voidscript",
+                "path": "./src/snippets/voidscript.json"
+            }
         ]
     },
     "scripts": {
-        "package:build": "./node_modules/typescript/bin/tsc -p tsconfig.json",
-        "package:create": "node ./node_modules/vscode/bin/install",
-        "package:pack": "./node_modules/@vscode/vsce/vsce package --readme-path README.md",
-        "build": "npm run package:build && npm run package:create && npm run package:pack"
+        "compile": "tsc -p tsconfig.json",
+        "watch": "tsc -watch -p tsconfig.json",
+        "vscode:prepublish": "npm run compile",
+        "package": "vsce package --readme-path README.md",
+        "build": "npm run compile && npm run package"
     },
     "devDependencies": {
-        "eslint": "^7.23.0",
-        "typescript": "^4.0.0",
-        "vscode": "^1.1.37"
-    },
-    "dependencies": {
-        "@vscode/vsce": "^3.3.2"
+        "@types/vscode": "^1.61.0",
+        "@vscode/vsce": "^3.3.2",
+        "typescript": "^5.4.0"
     }
 }

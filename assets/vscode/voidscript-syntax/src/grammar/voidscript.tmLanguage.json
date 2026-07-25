@@ -1,120 +1,241 @@
 {
-  "fileTypes": [
-    "voidscript",
-    "vs"
-  ],
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "VoidScript",
   "scopeName": "source.voidscript",
+  "fileTypes": ["voidscript", "vs"],
   "patterns": [
-    {
-      "name": "comment.line.number-sign.voidscript",
-      "match": "#.*"
-    },
-    {
-      "name": "comment.line.double-slash.voidscript",
-      "match": "//.*"
-    },
-    {
-      "name": "keyword.control.voidscript",
-      "match": "\\b(if|else|for|while|switch|case|break|continue|return|throw|typeof)\\b"
-    },
-    {
-      "name": "keyword.other.voidscript",
-      "match": "\\b(function|class|new|private|public|protected)\\b"
-    },
-    {
-      "name": "storage.type.voidscript",
-      "match": "\\b(const|string|int|boolean|bool|double|float|object)\\b"
-    },
-    {
-      "name": "constant.language.voidscript",
-      "match": "\\b(null|true|false)\\b"
-    },
-    {
-      "name": "entity.name.type.class.voidscript",
-      "match": "\\b(class)\\b"
-    },
-    {
-      "name": "entity.name.class.voidscript",
-      "match": "\\bclass\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-      "captures": {
-        "1": {
-          "name": "entity.name.class.voidscript"
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#declarations" },
+    { "include": "#builtin-functions" },
+    { "include": "#builtin-classes" },
+    { "include": "#function-call" },
+    { "include": "#class-name" },
+    { "include": "#object-key" },
+    { "include": "#variables" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.voidscript",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.line.number-sign.voidscript",
+          "match": "#.*$"
         }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.voidscript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.voidscript",
+              "match": "\\\\([\"\\\\/bfnrt$]|u[0-9A-Fa-f]{4})"
+            },
+            {
+              "name": "meta.template.expression.voidscript",
+              "match": "\\$\\{[^}]*\\}",
+              "captures": {
+                "0": { "name": "variable.other.interpolated.voidscript" }
+              }
+            },
+            {
+              "name": "variable.other.interpolated.voidscript",
+              "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*(->[a-zA-Z_][a-zA-Z0-9_]*)*"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.voidscript",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.voidscript",
+              "match": "\\\\(['\\\\])"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.voidscript",
+          "match": "\\b0[xX][0-9A-Fa-f][0-9A-Fa-f_]*\\b"
+        },
+        {
+          "name": "constant.numeric.binary.voidscript",
+          "match": "\\b0[bB][01][01_]*\\b"
+        },
+        {
+          "name": "constant.numeric.octal.voidscript",
+          "match": "\\b0[oO][0-7][0-7_]*\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.voidscript",
+          "match": "\\b[0-9][0-9_]*(\\.[0-9][0-9_]*)?([eE][+-]?[0-9]+)?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.voidscript",
+          "match": "\\b(if|else|for|while|switch|case|default|break|continue|return|try|catch|throw)\\b"
+        },
+        {
+          "name": "keyword.control.import.voidscript",
+          "match": "\\b(include)\\b"
+        },
+        {
+          "name": "keyword.other.voidscript",
+          "match": "\\b(function|class|enum|new|private|public|protected)\\b"
+        },
+        {
+          "name": "storage.modifier.voidscript",
+          "match": "\\b(const)\\b"
+        },
+        {
+          "name": "storage.type.voidscript",
+          "match": "\\b(int|double|float|string|boolean|bool|object|auto|enum)\\b"
+        },
+        {
+          "name": "variable.language.this.voidscript",
+          "match": "\\b(this)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.voidscript",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(class)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.voidscript" },
+            "2": { "name": "entity.name.type.class.voidscript" }
+          }
+        },
+        {
+          "match": "\\b(enum)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.voidscript" },
+            "2": { "name": "entity.name.type.enum.voidscript" }
+          }
+        },
+        {
+          "match": "\\b(new)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.voidscript" },
+            "2": { "name": "entity.name.type.voidscript" }
+          }
+        },
+        {
+          "match": "\\b(function)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.voidscript" },
+            "2": { "name": "entity.name.function.voidscript" }
+          }
+        }
+      ]
+    },
+    "builtin-functions": {
+      "name": "support.function.builtin.voidscript",
+      "match": "\\b(abs|base64_decode|base64_encode|call_user_func|ceil|class_exists|cos|current_unix_timestamp|date|env_all|env_apply|env_get|env_has|env_set|env_unset|error|exit|file_chmod|file_copy|file_exists|file_get_contents|file_mtime|file_put_contents|file_rename|file_rm_rf|file_set_mtime|file_size|file_stat|file_symlink|file_unlink|floor|function_exists|get_class_details|get_function_details|get_function_info|getline|get_method_details|get_method_info|get_module_description|get_module_details|get_module_summary|header|is_null|isset|json_decode|json_encode|list_class_methods|list_module_classes|list_module_functions|list_modules|log|log10|max|method_exists|min|mkdir|module_exists|number_to_string|object_set|path_basename|path_canonical|path_dirname|path_exists|path_extension|path_glob|path_is_dir|path_is_file|path_is_symlink|path_join|path_relative|PI|pow|print|printnl|process_check|process_kill|process_read_stdout_line|process_run|process_spawn|process_wait|process_write_stdin|readchar|readline|rmdir|round|sin|sizeof|sleep|sqrt|string_contains|string_ends_with|string_index_of|string_join|string_length|string_repeat|string_replace|string_reverse|string_split|string_starts_with|string_substr|string_to_lower|string_to_number|string_to_upper|string_trim|tan|throw_error|typeof|usleep|var_dump|archive_create|archive_extract|archive_list|curlDelete|curlGet|curlPost|curlPut|format|format_print|hash_compare|hash_file|hash_string)\\b(?=\\s*\\()"
+    },
+    "builtin-classes": {
+      "name": "support.class.builtin.voidscript",
+      "match": "\\b(CurlClient|CurlResponse|DateTime|MariaDBConnection|MemcachedConnection|MongoDB|XmlDocument|XmlDtd|XmlNode|XmlNodeList|XmlSchema|XmlValidator|XmlXPath|XmlXPathResult|Imagick|Archive|StableDiffusion|PixelArt)\\b"
+    },
+    "function-call": {
+      "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+      "captures": {
+        "1": { "name": "entity.name.function.call.voidscript" }
       }
     },
-    {
+    "class-name": {
       "name": "support.class.voidscript",
       "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
     },
-    {
-      "name": "variable.other.local.voidscript",
-      "match": "(\\$[a-zA-Z_][a-zA-Z0-9_]*|this->[a-zA-Z_][a-zA-Z0-9_]*)"
-    },
-    {
-      "name": "variable.language.this.voidscript",
-      "match": "\\bthis\\b"
-    },
-    {
-      "name": "string.quoted.double.voidscript",
-      "match": "\"([^\"]|\\\\\")*\""
-    },
-    {
-      "name": "constant.numeric.voidscript",
-      "match": "\\b\\d+(?:\\.\\d+)?\\b"
-    },
-    {
-      "name": "keyword.operator.voidscript",
-      "match": "(->|\\+=|-=|\\*=|\\/|%=|&&|\\|\\||==|!=|>=|<=|>|<|\\+|-|\\*|\\/|%|=|!)"
-    },
-    {
-      "name": "entity.name.function.voidscript",
-      "match": "\\b(function|construct)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+    "object-key": {
+      "match": "(?<=[{,])\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=:)",
       "captures": {
-        "2": {
-          "name": "entity.name.function.voidscript"
-        }
+        "1": { "name": "meta.object-literal.key.voidscript" }
       }
     },
-    {
-      "name": "support.function.voidscript",
-      "match": "\\b(printnl|println)\\b"
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.language.this.voidscript",
+          "match": "\\$this\\b"
+        },
+        {
+          "name": "variable.other.voidscript",
+          "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
+        }
+      ]
     },
-    {
-      "name": "meta.function.parameters.voidscript",
-      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\s+\\$[a-zA-Z_][a-zA-Z0-9_]*\\b"
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.accessor.voidscript",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.assignment.compound.voidscript",
+          "match": "(\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|<<=|>>=)"
+        },
+        {
+          "name": "keyword.operator.comparison.voidscript",
+          "match": "(==|!=|>=|<=|<|>)"
+        },
+        {
+          "name": "keyword.operator.logical.voidscript",
+          "match": "(&&|\\|\\||!)"
+        },
+        {
+          "name": "keyword.operator.bitwise.voidscript",
+          "match": "(<<|>>|&|\\||\\^|~)"
+        },
+        {
+          "name": "keyword.operator.ternary.voidscript",
+          "match": "(\\?|:)"
+        },
+        {
+          "name": "keyword.operator.arithmetic.voidscript",
+          "match": "(\\+\\+|--|\\+|-|\\*|/|%)"
+        },
+        {
+          "name": "keyword.operator.assignment.voidscript",
+          "match": "="
+        }
+      ]
     },
-    {
-      "name": "meta.function.return-type.voidscript",
-      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\s+\\{\\s*\\b"
-    },
-    {
-      "name": "variable.other.voidscript",
-      "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
-    },
-    {
-      "name": "entity.name.function.call.voidscript",
-      "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()"
-    },
-    {
-      "name": "punctuation.section.block.begin.voidscript",
-      "match": "\\{"
-    },
-    {
-      "name": "punctuation.section.block.end.voidscript",
-      "match": "\\}"
-    },
-    {
-      "name": "punctuation.separator.key-value.voidscript",
-      "match": ":"
-    },
-    {
-      "name": "punctuation.terminator.statement.voidscript",
-      "match": ";"
-    },
-    {
-      "name": "meta.object-literal.key.voidscript",
-      "match": "(?<=\\{|,)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*:"
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.terminator.statement.voidscript", "match": ";" },
+        { "name": "punctuation.separator.comma.voidscript", "match": "," },
+        { "name": "punctuation.section.block.begin.voidscript", "match": "\\{" },
+        { "name": "punctuation.section.block.end.voidscript", "match": "\\}" }
+      ]
     }
-  ],
-  "repository": {}
+  }
 }

@@ -1,0 +1,133 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "function ${1:name}(${2:int \\$arg}) ${3:int} {",
+      "\t$0",
+      "\treturn ${4};",
+      "}"
+    ],
+    "description": "Function with a return type (type goes AFTER the parameter list)"
+  },
+  "Void function": {
+    "prefix": "fnvoid",
+    "body": [
+      "function ${1:name}(${2:string \\$msg}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Void function (omit the return type)"
+  },
+  "Class": {
+    "prefix": "class",
+    "body": [
+      "class ${1:Name} {",
+      "\tprivate:",
+      "\t\t${2:string} \\$${3:field} = ${4:\"\"};",
+      "\tpublic:",
+      "\t\tfunction construct(${2:string} \\$${3:field}) {",
+      "\t\t\t\\$this->${3:field} = \\$${3:field};",
+      "\t\t}",
+      "\t\tfunction get${5:Field}() ${2:string} { return \\$this->${3:field}; }",
+      "}"
+    ],
+    "description": "Class with a constructor and a getter"
+  },
+  "For loop": {
+    "prefix": "for",
+    "body": [
+      "for (int \\$${1:i} = 0; \\$${1:i} < ${2:10}; \\$${1:i}++) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Counting for loop"
+  },
+  "For-each (values)": {
+    "prefix": "foreach",
+    "body": [
+      "for (${1:string} \\$${2:v} : \\$${3:arr}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Iterate an array's values"
+  },
+  "For-each (key, value)": {
+    "prefix": "foreachkv",
+    "body": [
+      "for (string \\$${1:k}, auto \\$${2:v} : \\$${3:obj}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Iterate an object's keys and values (the only place `auto` is legal)"
+  },
+  "While loop": {
+    "prefix": "while",
+    "body": [
+      "while (${1:\\$go}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "While loop"
+  },
+  "If": {
+    "prefix": "if",
+    "body": [
+      "if (${1:condition}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "If block"
+  },
+  "If / else": {
+    "prefix": "ifelse",
+    "body": [
+      "if (${1:condition}) {",
+      "\t$2",
+      "} else {",
+      "\t$0",
+      "}"
+    ],
+    "description": "If / else block"
+  },
+  "Switch": {
+    "prefix": "switch",
+    "body": [
+      "switch (${1:\\$x}) {",
+      "\tcase ${2:1}: $3 break;",
+      "\tdefault: $0",
+      "}"
+    ],
+    "description": "Switch statement (integers, strings or enums)"
+  },
+  "Try / catch": {
+    "prefix": "trycatch",
+    "body": [
+      "try {",
+      "\t$1",
+      "} catch (string \\$${2:e}) {",
+      "\tprintnl(\"error: \\$${2:e}\");$0",
+      "}"
+    ],
+    "description": "Try / catch (catches built-in runtime errors too)"
+  },
+  "Enum": {
+    "prefix": "enum",
+    "body": ["enum ${1:Name} { ${2:A}, ${3:B}, ${4:C} }"],
+    "description": "Enum declaration"
+  },
+  "Object literal": {
+    "prefix": "obj",
+    "body": ["object \\$${1:o} = { ${2:string} ${3:key}: ${4:\"value\"} };"],
+    "description": "Typed object literal"
+  },
+  "Print line": {
+    "prefix": "printnl",
+    "body": ["printnl(${1:\"\"});$0"],
+    "description": "Print a line (comma-separated args)"
+  },
+  "Include": {
+    "prefix": "include",
+    "body": ["include \"${1:helper.vs}\";$0"],
+    "description": "Include a sibling script (resolved against the script's directory)"
+  }
+}
