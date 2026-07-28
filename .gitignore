@@ -28,6 +28,18 @@ build
 .aider*
 .kilocode
 
+# AI / LLM assistant instruction docs - not part of the project
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.cursorrules
+.cursor/
+.windsurfrules
+.clinerules
+.continue/
+.opencode/
+.github/copilot-instructions.md
+
 # Generated documentation directories
 markdown_docs/
 docs/
