@@ -515,6 +515,24 @@ if (BUILD_TESTS)
                FAIL_REGULAR_EXPRESSION "NOT REACHED"
                PASS_REGULAR_EXPRESSION "16x16\n32,48,128\n255,0,0\n10,20,30,128\n255,0,0\nout-of-range rejected\ndone")
 
+      # Missing-features items 2/3/5/6: Imagick canvas creation, extent, evaluate,
+      # compositeMultiply, addNoise and stripImage.
+      add_test(NAME RegressionImagickCanvas
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_canvas.vs)
+      set_tests_properties(RegressionImagickCanvas PROPERTIES
+               TIMEOUT 20
+               PASS_REGULAR_EXPRESSION "64x48\n64\n20x20\n128\nwritten=true\ndone")
+
+      # Missing-features items 1/4: Math random generation (rand_int/double/normal/seed)
+      # and exp()/E().
+      add_test(NAME RegressionMathRandom
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/math_random.vs)
+      set_tests_properties(RegressionMathRandom PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "exp0=1.000000\nEint=2\nreproducible=true\ninrange=true\nunit=true\nnormal_ok=true\ndone")
+
       # Task #7: the String module beyond length/replace/substr.
       add_test(NAME RegressionStringFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

@@ -5,6 +5,10 @@
 #include "Symbols/RegistrationMacros.hpp"
 #include "Symbols/Value.hpp"
 
+// Bring MagickCore's Quantum type into scope so the QuantumRange macro (which casts to a
+// bare `Quantum`) expands under the Magick++ C++ namespacing.
+using MagickCore::Quantum;
+
 void Modules::ImagickModule::registerFunctions() {
     std::vector<Symbols::FunctionParameterInfo> params = {
         { "filename", Symbols::Variables::Type::STRING, "The image file to manipulate" },
@@ -102,6 +106,44 @@ void Modules::ImagickModule::registerFunctions() {
     REGISTER_METHOD(
         this->name(), "composite", params, [this](const FunctionArguments & args) { return this->composite(args); },
         Symbols::Variables::Type::NULL_TYPE, "Overlay another image at (x, y) using the Over operator");
+
+    params = { { "width",    Symbols::Variables::Type::INTEGER, "Canvas width in pixels" },
+               { "height",   Symbols::Variables::Type::INTEGER, "Canvas height in pixels" },
+               { "colorHex", Symbols::Variables::Type::STRING,  "Fill color, e.g. \"#000000\"" } };
+    REGISTER_METHOD(
+        this->name(), "newImage", params, [this](const FunctionArguments & args) { return this->newImage(args); },
+        Symbols::Variables::Type::CLASS, "Create a new solid-color canvas of the given size");
+
+    params = { { "width",    Symbols::Variables::Type::INTEGER, "Target width" },
+               { "height",   Symbols::Variables::Type::INTEGER, "Target height" },
+               { "xOffset",  Symbols::Variables::Type::INTEGER, "X offset of the current image within the new extent" },
+               { "yOffset",  Symbols::Variables::Type::INTEGER, "Y offset of the current image within the new extent" },
+               { "colorHex", Symbols::Variables::Type::STRING,  "Background fill for padded area (optional)", true } };
+    REGISTER_METHOD(
+        this->name(), "extent", params, [this](const FunctionArguments & args) { return this->extent(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Pad or crop the image to an exact size, filling new area with a color");
+
+    params = { { "type",     Symbols::Variables::Type::STRING, "gaussian|uniform|impulse|laplacian|poisson|multiplicative|random" },
+               { "strength", Symbols::Variables::Type::DOUBLE, "Noise attenuation factor (1.0 = default)" } };
+    REGISTER_METHOD(
+        this->name(), "addNoise", params, [this](const FunctionArguments & args) { return this->addNoise(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Add noise to the whole image in one native pass");
+
+    params = { { "op",    Symbols::Variables::Type::STRING, "multiply|add|subtract|divide|set|min|max" },
+               { "value", Symbols::Variables::Type::DOUBLE, "Right-hand value, 0-1 (e.g. 0.7 to darken)" } };
+    REGISTER_METHOD(
+        this->name(), "evaluate", params, [this](const FunctionArguments & args) { return this->evaluate(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Apply an arithmetic operator to every pixel's color channels");
+
+    params = { { "mask", Symbols::Variables::Type::CLASS, "Imagick mask image to multiply with" } };
+    REGISTER_METHOD(
+        this->name(), "compositeMultiply", params,
+        [this](const FunctionArguments & args) { return this->compositeMultiply(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Multiply this image by a mask image (native, whole-image)");
+
+    REGISTER_METHOD(
+        this->name(), "stripImage", {}, [this](const FunctionArguments & args) { return this->stripImage(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Remove all profiles and comments (EXIF, ICC, ...) from the image");
 }
 
 Symbols::ValuePtr Modules::ImagickModule::construct(FunctionArguments & args) {
@@ -419,5 +461,186 @@ Symbols::ValuePtr Modules::ImagickModule::composite(Symbols::FunctionArguments &
     target.modifyImage();
     target.composite(source, x, y, Magick::OverCompositeOp);
 
+    return Symbols::ValuePtr::null();
+}
+
+// newImage(width, height, colorHex) -> create a solid-color canvas from nothing.
+// Stamps a fresh handle on the object, mirroring read().
+Symbols::ValuePtr Modules::ImagickModule::newImage(Symbols::FunctionArguments & args) {
+    if (args.size() != 4) {
+        throw std::runtime_error("Imagick::newImage expects (int width, int height, string colorHex)");
+    }
+    if (args[0] != Symbols::Variables::Type::CLASS && args[0] != Symbols::Variables::Type::OBJECT) {
+        throw std::runtime_error("Imagick::newImage must be called on an Imagick instance");
+    }
+    if (args[1] != Symbols::Variables::Type::INTEGER || args[2] != Symbols::Variables::Type::INTEGER) {
+        throw std::runtime_error("Imagick::newImage expects integer width and height");
+    }
+    const int width  = args[1];
+    const int height = args[2];
+    if (width <= 0 || height <= 0) {
+        throw std::runtime_error("Imagick::newImage: width and height must be positive");
+    }
+    const std::string colorHex = args[3];
+
+    try {
+        Magick::Image image(Magick::Geometry(static_cast<size_t>(width), static_cast<size_t>(height)),
+                            Magick::Color(colorHex));
+        image.backgroundColor(Magick::Color(colorHex));
+
+        int handle      = next_image_id++;
+        images_[handle] = image;
+
+        Symbols::ValuePtr self                            = args[0];
+        self->get<Symbols::ObjectMap>()["__image_id__"]   = Symbols::ValuePtr(handle);
+        return self;
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::newImage failed: ") + e.what());
+    }
+}
+
+// extent(width, height, xOff, yOff [, colorHex]) -> pad or crop to an exact size,
+// filling any new area with the background color (or colorHex if given).
+Symbols::ValuePtr Modules::ImagickModule::extent(Symbols::FunctionArguments & args) {
+    if (args.size() < 5 || args.size() > 6) {
+        throw std::runtime_error("Imagick::extent expects (int width, int height, int xOff, int yOff [, string colorHex])");
+    }
+    for (size_t i = 1; i <= 4; ++i) {
+        if (args[i] != Symbols::Variables::Type::INTEGER) {
+            throw std::runtime_error("Imagick::extent expects integer width, height, xOff and yOff");
+        }
+    }
+    Magick::Image & image = imageFor(args, "extent");
+
+    const int width  = args[1];
+    const int height = args[2];
+    const int xOff   = args[3];
+    const int yOff   = args[4];
+    if (width <= 0 || height <= 0) {
+        throw std::runtime_error("Imagick::extent: width and height must be positive");
+    }
+
+    try {
+        image.modifyImage();
+        Magick::Geometry geom(static_cast<size_t>(width), static_cast<size_t>(height),
+                              static_cast<ssize_t>(xOff), static_cast<ssize_t>(yOff));
+        if (args.size() == 6) {
+            const std::string colorHex = args[5];
+            image.extent(geom, Magick::Color(colorHex));
+        } else {
+            image.extent(geom, image.backgroundColor());
+        }
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::extent failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+// addNoise(type, strength) -> add noise across the whole image in one native pass,
+// avoiding a per-pixel scripted loop.
+Symbols::ValuePtr Modules::ImagickModule::addNoise(Symbols::FunctionArguments & args) {
+    if (args.size() != 3) {
+        throw std::runtime_error("Imagick::addNoise expects (string type, double strength)");
+    }
+    Magick::Image & image = imageFor(args, "addNoise");
+    const std::string type = args[1];
+    const double strength  = (args[2] == Symbols::Variables::Type::INTEGER)
+                                 ? static_cast<double>(args[2].get<int>())
+                                 : args[2].get<double>();
+
+    Magick::NoiseType noise;
+    if (type == "gaussian")              noise = Magick::GaussianNoise;
+    else if (type == "uniform")          noise = Magick::UniformNoise;
+    else if (type == "impulse")          noise = Magick::ImpulseNoise;
+    else if (type == "laplacian")        noise = Magick::LaplacianNoise;
+    else if (type == "poisson")          noise = Magick::PoissonNoise;
+    else if (type == "multiplicative")   noise = Magick::MultiplicativeGaussianNoise;
+    else if (type == "random")           noise = MagickCore::RandomNoise;
+    else {
+        throw std::runtime_error("Imagick::addNoise: unknown type '" + type +
+                                 "' (gaussian|uniform|impulse|laplacian|poisson|multiplicative|random)");
+    }
+
+    try {
+        image.modifyImage();
+        image.addNoise(noise, strength);
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::addNoise failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+// evaluate(op, value) -> apply an arithmetic operator to every pixel's color channels
+// in one native pass (e.g. "multiply", 0.7 to darken).
+Symbols::ValuePtr Modules::ImagickModule::evaluate(Symbols::FunctionArguments & args) {
+    if (args.size() != 3) {
+        throw std::runtime_error("Imagick::evaluate expects (string op, double value)");
+    }
+    Magick::Image & image = imageFor(args, "evaluate");
+    const std::string op = args[1];
+    const double value   = (args[2] == Symbols::Variables::Type::INTEGER)
+                               ? static_cast<double>(args[2].get<int>())
+                               : args[2].get<double>();
+
+    Magick::MagickEvaluateOperator oper;
+    if (op == "multiply")      oper = Magick::MultiplyEvaluateOperator;
+    else if (op == "add")      oper = Magick::AddEvaluateOperator;
+    else if (op == "subtract") oper = Magick::SubtractEvaluateOperator;
+    else if (op == "divide")   oper = Magick::DivideEvaluateOperator;
+    else if (op == "set")      oper = Magick::SetEvaluateOperator;
+    else if (op == "min")      oper = Magick::MinEvaluateOperator;
+    else if (op == "max")      oper = Magick::MaxEvaluateOperator;
+    else {
+        throw std::runtime_error("Imagick::evaluate: unknown op '" + op +
+                                 "' (multiply|add|subtract|divide|set|min|max)");
+    }
+
+    // Operator-dependent value semantics, matching ImageMagick's -evaluate:
+    //  - multiply / divide take a raw factor (0.7 darkens to 70%), used as-is;
+    //  - add / subtract / set / min / max take an absolute level, so a normalized 0-1
+    //    value is scaled up to the quantum range.
+    const bool   isFactor = (oper == Magick::MultiplyEvaluateOperator ||
+                             oper == Magick::DivideEvaluateOperator);
+    const double rvalue   = isFactor ? value : value * static_cast<double>(QuantumRange);
+
+    try {
+        image.modifyImage();
+        image.evaluate(Magick::CompositeChannels, oper, rvalue);
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::evaluate failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+// compositeMultiply(mask) -> multiply this image by a mask image (native, whole-image),
+// the fast path for a Gaussian-mask vignette / darken.
+Symbols::ValuePtr Modules::ImagickModule::compositeMultiply(Symbols::FunctionArguments & args) {
+    if (args.size() != 2) {
+        throw std::runtime_error("Imagick::compositeMultiply expects (Imagick mask)");
+    }
+    Magick::Image & target = imageFor(args, "compositeMultiply");
+    Magick::Image & mask   = imageFor(args, "compositeMultiply", 1);
+
+    try {
+        target.modifyImage();
+        target.composite(mask, 0, 0, Magick::MultiplyCompositeOp);
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::compositeMultiply failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+// stripImage() -> remove all profiles and comments (EXIF, ICC, ...).
+Symbols::ValuePtr Modules::ImagickModule::stripImage(Symbols::FunctionArguments & args) {
+    if (args.size() != 1) {
+        throw std::runtime_error("Imagick::stripImage takes no arguments");
+    }
+    Magick::Image & image = imageFor(args, "stripImage");
+    try {
+        image.modifyImage();
+        image.strip();
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::stripImage failed: ") + e.what());
+    }
     return Symbols::ValuePtr::null();
 }

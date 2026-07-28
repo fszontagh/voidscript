@@ -43,6 +43,12 @@ class ImagickModule : public BaseModule {
     Magick::Image &                        imageFor(FunctionArguments & args, const char * method,
                                                             size_t argIndex = 0);
     Symbols::ValuePtr                      composite(FunctionArguments & args);
+    Symbols::ValuePtr                      newImage(FunctionArguments & args);
+    Symbols::ValuePtr                      extent(FunctionArguments & args);
+    Symbols::ValuePtr                      addNoise(FunctionArguments & args);
+    Symbols::ValuePtr                      evaluate(FunctionArguments & args);
+    Symbols::ValuePtr                      compositeMultiply(FunctionArguments & args);
+    Symbols::ValuePtr                      stripImage(FunctionArguments & args);
 };
 
 }  // namespace Modules

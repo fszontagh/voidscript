@@ -2,6 +2,7 @@
 #define MODULES_MATHMODULE_HPP
 
 #include <cmath>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -31,6 +32,12 @@ namespace Modules {
  * - log10(number) -> base-10 logarithm
  * - min(a, b) -> minimum of two numbers
  * - max(a, b) -> maximum of two numbers
+ * - exp(number) -> e raised to the given power
+ * - E() -> Euler's number e
+ * - rand_int(min, max) -> inclusive uniform random integer
+ * - rand_double() -> uniform random double in [0, 1)
+ * - rand_normal(mean, stddev) -> Gaussian (normal) random double
+ * - rand_seed(seed) -> seed the random generator for reproducibility
  */
 class MathModule : public BaseModule {
   public:
@@ -217,9 +224,100 @@ class MathModule : public BaseModule {
                               double b = convertToDouble(args[1], "max");
                               return std::max(a, b);
                           });
+
+        // exp function (e^x)
+        REGISTER_FUNCTION("exp", Symbols::Variables::Type::DOUBLE, number_param,
+                          "Returns e raised to the power of the given number",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 1) {
+                                  throw Exception(name() + "::exp expects one argument");
+                              }
+                              double value = convertToDouble(args[0], "exp");
+                              return std::exp(value);
+                          });
+
+        // E constant function (mirrors PI)
+        REGISTER_FUNCTION("E", Symbols::Variables::Type::DOUBLE, no_params,
+                          "Euler's number e (2.71828...)",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (!args.empty()) {
+                                  throw Exception(name() + "::E expects no arguments");
+                              }
+                              return M_E;
+                          });
+
+        // rand_int(min, max) - inclusive uniform random integer
+        std::vector<Symbols::FunctionParameterInfo> rand_int_params = {
+            { "min", Symbols::Variables::Type::INTEGER, "Inclusive lower bound", false, false },
+            { "max", Symbols::Variables::Type::INTEGER, "Inclusive upper bound", false, false }
+        };
+        REGISTER_FUNCTION("rand_int", Symbols::Variables::Type::INTEGER, rand_int_params,
+                          "Returns a uniformly random integer in [min, max] (both inclusive)",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 2) {
+                                  throw Exception(name() + "::rand_int expects two arguments");
+                              }
+                              long long lo = static_cast<long long>(convertToDouble(args[0], "rand_int"));
+                              long long hi = static_cast<long long>(convertToDouble(args[1], "rand_int"));
+                              if (lo > hi) {
+                                  throw Exception(name() + "::rand_int: min must be <= max");
+                              }
+                              std::uniform_int_distribution<long long> dist(lo, hi);
+                              return static_cast<int>(dist(rng_));
+                          });
+
+        // rand_double() - uniform random double in [0, 1)
+        REGISTER_FUNCTION("rand_double", Symbols::Variables::Type::DOUBLE, no_params,
+                          "Returns a uniformly random double in [0, 1)",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (!args.empty()) {
+                                  throw Exception(name() + "::rand_double expects no arguments");
+                              }
+                              std::uniform_real_distribution<double> dist(0.0, 1.0);
+                              return dist(rng_);
+                          });
+
+        // rand_normal(mean, stddev) - Gaussian random double
+        std::vector<Symbols::FunctionParameterInfo> rand_normal_params = {
+            { "mean",   Symbols::Variables::Type::DOUBLE, "Distribution mean", false, false },
+            { "stddev", Symbols::Variables::Type::DOUBLE, "Standard deviation", false, false }
+        };
+        REGISTER_FUNCTION("rand_normal", Symbols::Variables::Type::DOUBLE, rand_normal_params,
+                          "Returns a Gaussian (normal) random double with the given mean and stddev",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 2) {
+                                  throw Exception(name() + "::rand_normal expects two arguments");
+                              }
+                              double mean   = convertToDouble(args[0], "rand_normal");
+                              double stddev = convertToDouble(args[1], "rand_normal");
+                              if (stddev < 0) {
+                                  throw Exception(name() + "::rand_normal: stddev must be >= 0");
+                              }
+                              std::normal_distribution<double> dist(mean, stddev);
+                              return dist(rng_);
+                          });
+
+        // rand_seed(seed) - seed the generator for reproducible sequences
+        std::vector<Symbols::FunctionParameterInfo> rand_seed_params = {
+            { "seed", Symbols::Variables::Type::INTEGER, "Seed value", false, false }
+        };
+        REGISTER_FUNCTION("rand_seed", Symbols::Variables::Type::NULL_TYPE, rand_seed_params,
+                          "Seeds the random generator so subsequent rand_* calls are reproducible",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 1) {
+                                  throw Exception(name() + "::rand_seed expects one argument");
+                              }
+                              long long seed = static_cast<long long>(convertToDouble(args[0], "rand_seed"));
+                              rng_.seed(static_cast<std::mt19937_64::result_type>(seed));
+                              return Symbols::ValuePtr::null();
+                          });
     }
 
   private:
+    // Shared random generator. Seeded non-deterministically at construction; rand_seed()
+    // makes a run reproducible. Script execution is single-threaded, so no lock is needed.
+    std::mt19937_64 rng_{ std::random_device{}() };
+
     /**
      * @brief Convert a ValuePtr to double, handling different numeric types
      * @param value The value to convert
