@@ -18,7 +18,7 @@ Ranked by how many scripts each unblocks.
 | 5 | evaluate / mask multiply | DONE - `Imagick::evaluate` / `Imagick::compositeMultiply` |
 | 6 | Strip metadata | DONE - `Imagick::stripImage` |
 | 7 | ML person segmentation | OUT OF SCOPE - needs a model-inference module; external mask + `composite`/`setPixel` alpha already work |
-| 8 | StableDiffusion ControlNet | ALREADY SUPPORTED - `control_net_path` (loadModel) + `control_image` / `control_strength` (txt2img/img2img) |
+| 8 | StableDiffusion ControlNet | DONE - `control_net_path` (loadModel) + `control_image` / `control_strength` (txt2img/img2img), plus runtime hot-swap `loadControlNet` / `unloadControlNet` / `hasControlNet` (no checkpoint reload) and IP-Adapter (`ip_adapter_path` + `ip_adapter_image` / `ip_adapter_strength`) |
 
 Regression tests: `test_scripts/regression/math_random.vs`,
 `test_scripts/regression/imagick_canvas.vs`.

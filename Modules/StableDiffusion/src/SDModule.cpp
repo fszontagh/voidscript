@@ -336,6 +336,21 @@ void SDModule::registerFunctions() {
     REGISTER_METHOD(this->name(), "upscale", opts,
                     [this](FunctionArguments & args) { return this->upscale(args); },
                     Symbols::Variables::Type::STRING, "ESRGAN upscale; returns output path");
+
+    std::vector<Symbols::FunctionParameterInfo> path_param = {
+        { "path", Symbols::Variables::Type::STRING, "ControlNet model file" }
+    };
+    REGISTER_METHOD(this->name(), "loadControlNet", path_param,
+                    [this](FunctionArguments & args) { return this->loadControlNet(args); },
+                    Symbols::Variables::Type::BOOLEAN,
+                    "Hot-swap the ControlNet model without reloading the checkpoint");
+    REGISTER_METHOD(this->name(), "unloadControlNet", {},
+                    [this](FunctionArguments & args) { return this->unloadControlNet(args); },
+                    Symbols::Variables::Type::BOOLEAN, "Unload the current ControlNet model");
+    REGISTER_METHOD(this->name(), "hasControlNet", {},
+                    [this](FunctionArguments & args) { return this->hasControlNet(args); },
+                    Symbols::Variables::Type::BOOLEAN, "Whether a ControlNet model is currently loaded");
+
     REGISTER_METHOD(this->name(), "getLog", {},
                     [this](FunctionArguments & args) { return this->getLog(args); },
                     Symbols::Variables::Type::STRING, "Captured log text since the last clearLog()");
@@ -400,6 +415,7 @@ Symbols::ValuePtr SDModule::loadModel(FunctionArguments & args) {
     S(&p.vae_path, "vae_path");
     S(&p.taesd_path, "taesd_path");
     S(&p.control_net_path, "control_net_path");
+    S(&p.ip_adapter_path, "ip_adapter_path");
     S(&p.motion_module_path, "motion_module_path");
     S(&p.photo_maker_path, "photo_maker_path");
     S(&p.pulid_weights_path, "pulid_weights_path");
@@ -528,6 +544,14 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
         p.control_strength = static_cast<float>(optNum(o, "control_strength", 0.9));
     }
 
+    sd_image_t ipAdapter{};
+    const std::string ip_path = optStr(o, "ip_adapter_image");
+    if (!ip_path.empty()) {
+        ipAdapter             = loadImage(ip_path);
+        p.ip_adapter_image    = ipAdapter;
+        p.ip_adapter_strength = static_cast<float>(optNum(o, "ip_adapter_strength", 1.0));
+    }
+
     // Reference/edit images (e.g. Mage `-r` edit). Applies to txt2img and img2img alike,
     // so it is read unconditionally rather than gated on isImg2Img.
     std::vector<sd_image_t> refs;
@@ -562,9 +586,10 @@ Symbols::ValuePtr SDModule::generate(FunctionArguments & args, const char * meth
     const bool ok = generate_image(ctx, &p, &out, &num_out);
     endCapture();
 
-    if (init.data)    { stbi_image_free(init.data); }
-    if (mask.data)    { stbi_image_free(mask.data); }
-    if (control.data) { stbi_image_free(control.data); }
+    if (init.data)      { stbi_image_free(init.data); }
+    if (mask.data)      { stbi_image_free(mask.data); }
+    if (control.data)   { stbi_image_free(control.data); }
+    if (ipAdapter.data) { stbi_image_free(ipAdapter.data); }
     for (auto & im : refs) {
         if (im.data) { stbi_image_free(im.data); }
     }
@@ -731,6 +756,34 @@ Symbols::ValuePtr SDModule::upscale(FunctionArguments & args) {
     }
     free_sd_images(out, num_out);
     return Symbols::ValuePtr(output);
+}
+
+// Hot-swap the ControlNet model on an already-loaded context - no checkpoint reload.
+// sd.cpp keeps the diffusion/VAE/text-encoder weights and only (re)loads the control net.
+Symbols::ValuePtr SDModule::loadControlNet(FunctionArguments & args) {
+    if (args.size() != 2 || args[1] != Symbols::Variables::Type::STRING) {
+        throw std::runtime_error("StableDiffusion::loadControlNet expects (string path)");
+    }
+    sd_ctx_t *        ctx  = contextFor(args, "loadControlNet");
+    const std::string path = args[1]->get<std::string>();
+    if (path.empty()) {
+        throw std::runtime_error("StableDiffusion::loadControlNet: 'path' is required");
+    }
+    const long id = Symbols::ValuePtr::instanceId(args[0]);
+    beginCapture(id, "");
+    const bool ok = sd_ctx_load_control_net(ctx, path.c_str());
+    endCapture();
+    return Symbols::ValuePtr(ok);
+}
+
+Symbols::ValuePtr SDModule::unloadControlNet(FunctionArguments & args) {
+    sd_ctx_t * ctx = contextFor(args, "unloadControlNet");
+    return Symbols::ValuePtr(sd_ctx_unload_control_net(ctx));
+}
+
+Symbols::ValuePtr SDModule::hasControlNet(FunctionArguments & args) {
+    sd_ctx_t * ctx = contextFor(args, "hasControlNet");
+    return Symbols::ValuePtr(sd_ctx_has_control_net(ctx));
 }
 
 Symbols::ValuePtr SDModule::getLog(FunctionArguments & args) {

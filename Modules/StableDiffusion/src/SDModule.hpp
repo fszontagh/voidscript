@@ -61,6 +61,9 @@ class SDModule : public BaseModule {
     Symbols::ValuePtr img2img(FunctionArguments & args);
     Symbols::ValuePtr video(FunctionArguments & args);
     Symbols::ValuePtr upscale(FunctionArguments & args);
+    Symbols::ValuePtr loadControlNet(FunctionArguments & args);
+    Symbols::ValuePtr unloadControlNet(FunctionArguments & args);
+    Symbols::ValuePtr hasControlNet(FunctionArguments & args);
     Symbols::ValuePtr getLog(FunctionArguments & args);
     Symbols::ValuePtr getProgress(FunctionArguments & args);
     Symbols::ValuePtr clearLog(FunctionArguments & args);

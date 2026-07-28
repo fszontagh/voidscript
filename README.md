@@ -15,8 +15,15 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
   - [JSON encode/decode](https://github.com/fszontagh/voidscript/blob/main/docs/JsonModule.md) (`json_encode()`, `json_decode()`)
   - [Variable helpers](https://github.com/fszontagh/voidscript/blob/main/docs/VariableHelpersModule.md) (`typeof()` etc.)
   - [Module helpers](https://github.com/fszontagh/voidscript/blob/main/docs/ModuleHelperModule.md) (`module_list()`, `module_exists()`, `module_info()`)
+  - Math: `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `exp`, `log`, `log10`, `sin`/`cos`/`tan`, `min`, `max`, `PI()`, `E()`, and random generation `rand_int`/`rand_double`/`rand_normal`/`rand_seed`
+  - Path, Env, Process (`process_run()`), Conversion, DateTime helpers (`current_unix_timestamp()`, `date()`)
 - HTTP header management (FastCGI only): `header()`
-- Dynamic Plugin module support (e.g., [CurlModule](https://github.com/fszontagh/voidscript/tree/main/Modules/CurlModule) for HTTP requests)
+- Dynamic plugin modules (opt-in at build time):
+  - [Curl](https://github.com/fszontagh/voidscript/tree/main/Modules/Curl) - HTTP (all verbs) and the `CurlClient` class
+  - [Imagick](https://github.com/fszontagh/voidscript/tree/main/Modules/Imagick) - image processing via ImageMagick: read/write/resize/crop/rotate/flip/blur/composite, per-pixel `getPixel`/`setPixel`, canvas creation (`newImage`/`extent`), `addNoise`, `evaluate`, `compositeMultiply`, `stripImage`
+  - [StableDiffusion](https://github.com/fszontagh/voidscript/tree/main/Modules/StableDiffusion) - stable-diffusion.cpp: txt2img/img2img/upscale/video, LoRAs, ControlNet (incl. runtime hot-swap) and IP-Adapter, reference/edit images, live progress callbacks
+  - [PixelArt](https://github.com/fszontagh/voidscript/tree/main/Modules/PixelArt) - turn AI "pixel-art-looking" images into real pixel art (sdpixel2realpixelart)
+  - Hash, Format, Archive, Xml2, and the [MariaDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MariaDb) / [MongoDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MongoDb) / Memcached database clients
 - Embeddable library (`libvoidscript`)
 - Zero runtime dependencies (except for the optional modules)
 - Syntax highlighter and formatter for [vscode / codium](https://github.com/fszontagh/voidscript/blob/main/assets/vscode/voidscript-syntax/README.md) and [vim](https://github.com/fszontagh/voidscript/blob/main/assets/vim/README.md)

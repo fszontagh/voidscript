@@ -21,8 +21,9 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSD_CUDA=ON \
 cmake --build build -j$(nproc)
 ```
 
-Pinned/verified against upstream commit `5114672` (Mage-Flow model support; HF-format
-Qwen3-VL vision patch-size detection fix). Drop `-DSD_CUDA=ON` for CPU-only.
+Pinned/verified against upstream commit `2251699` (Mage-Flow; HF-format Qwen3-VL patch-size
+fix; ControlNet hot-swap; IP-Adapter; reference-image dangling-pointer fix). Drop
+`-DSD_CUDA=ON` for CPU-only.
 
 ## Building the module
 
@@ -68,9 +69,9 @@ Each instance holds its own `sd_ctx_t*`, keyed by the framework instance id, so 
 
 Model sources (one required): `model_path` (a full checkpoint) **or** `diffusion_model_path`.
 Extra weights: `vae_path`, `clip_l_path`, `clip_g_path`, `clip_vision_path`, `t5xxl_path`,
-`llm_path`, `high_noise_diffusion_model_path`, `control_net_path`, `motion_module_path`,
-`photo_maker_path`, `pulid_weights_path`, `embeddings_connectors_path`, `taesd_path`,
-`tensor_type_rules`.
+`llm_path`, `high_noise_diffusion_model_path`, `control_net_path`, `ip_adapter_path`,
+`motion_module_path`, `photo_maker_path`, `pulid_weights_path`, `embeddings_connectors_path`,
+`taesd_path`, `tensor_type_rules`.
 Enums (strings): `wtype` (e.g. `q8_0`, `f16`), `rng_type`, `sampler_rng_type`,
 `prediction`, `lora_apply_mode`.
 Scalars/flags: `n_threads`, `enable_mmap`, `flash_attn`, `diffusion_flash_attn`,
@@ -87,7 +88,9 @@ Common: `negative_prompt`, `width`, `height`, `steps`, `cfg_scale`, `seed` (-1 =
 img2img: `strength`, `mask_image`.
 Guidance/sampling: `img_cfg`, `distilled_guidance`, `eta`, `flow_shift`,
 `shifted_timestep`, `extra_sample_args`.
-ControlNet: `control_image`, `control_strength`.
+ControlNet: `control_image`, `control_strength` (needs a ControlNet model loaded - either
+`control_net_path` at `loadModel`, or hot-swapped at runtime, see below).
+IP-Adapter: `ip_adapter_image`, `ip_adapter_strength` (needs `ip_adapter_path` at `loadModel`).
 Reference/edit images: `ref_images` (array of image paths) plus an optional
 `ref_image_args` preset string. These feed edit/reference-conditioned models
 (e.g. Mage-Flow-Edit `-r`, Kontext, PhotoMaker/PuLID reference sets); each image is
@@ -95,6 +98,28 @@ VAE-encoded and sent to the diffusion transformer. Works for both txt2img and im
 Tiling: `circular_x`, `circular_y`.
 
 Returns an array of output paths (one per `batch_count`).
+
+### ControlNet hot-swap (no checkpoint reload)
+
+A ControlNet model can be attached at `loadModel` time (`control_net_path`) or swapped in
+and out at runtime on an already-loaded context - the diffusion/VAE/text-encoder weights
+stay resident, so only the (small) control net is (re)loaded:
+
+```voidscript
+$sd->loadModel({ string model_path: "/path/sd15.safetensors" });
+$sd->loadControlNet("/path/control_openpose.safetensors");   // true on success
+printnl($sd->hasControlNet());                               // true
+
+$sd->img2img({ string init_image: "in.png", string control_image: "pose.png",
+               double control_strength: 1.0, string prompt: "...",
+               string output: "/tmp/out.png" });
+
+$sd->loadControlNet("/path/control_canny.safetensors");      // swap, still no reload
+$sd->unloadControlNet();                                     // detach; hasControlNet() -> false
+```
+
+`loadControlNet(path)` / `unloadControlNet()` return a boolean; `hasControlNet()` reports
+whether one is currently attached. Do not call these while a generation is in flight.
 
 ### video (video-capable models only)
 
