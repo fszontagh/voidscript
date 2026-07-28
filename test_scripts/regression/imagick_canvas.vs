@@ -35,4 +35,18 @@ $c->stripImage();
 $c->write("/tmp/vs_imagick_canvas.png");
 printnl("written=", file_exists("/tmp/vs_imagick_canvas.png"));   // true
 
+// native gradients (masks) - radial center is brighter than its edge, linear bottom is
+// brighter than its top. This is the fast path for a vignette (radial mask + multiply).
+Imagick $rg = new Imagick();
+$rg->radialGradient(32, 32, "#ffffff", "#000000");
+object $rc = $rg->getPixel(16, 16);
+object $re = $rg->getPixel(0, 0);
+printnl("radial=", $rc->red > $re->red);   // true
+
+Imagick $lg = new Imagick();
+$lg->gradient(4, 32, "#000000", "#ffffff");
+object $lt = $lg->getPixel(2, 0);
+object $lb = $lg->getPixel(2, 31);
+printnl("linear=", $lb->red > $lt->red);   // true
+
 printnl("done");

@@ -44,6 +44,12 @@ class ImagickModule : public BaseModule {
                                                             size_t argIndex = 0);
     Symbols::ValuePtr                      composite(FunctionArguments & args);
     Symbols::ValuePtr                      newImage(FunctionArguments & args);
+    Symbols::ValuePtr                      gradient(FunctionArguments & args);
+    Symbols::ValuePtr                      radialGradient(FunctionArguments & args);
+    // Shared body for gradient()/radialGradient(): render a native gradient pseudo-image
+    // (`pseudo` is "gradient" or "radial-gradient") and stamp a fresh handle.
+    Symbols::ValuePtr                      makeGradient(FunctionArguments & args, const char * method,
+                                                        const char * pseudo);
     Symbols::ValuePtr                      extent(FunctionArguments & args);
     Symbols::ValuePtr                      addNoise(FunctionArguments & args);
     Symbols::ValuePtr                      evaluate(FunctionArguments & args);

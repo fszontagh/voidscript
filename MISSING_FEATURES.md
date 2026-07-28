@@ -15,13 +15,30 @@ Ranked by how many scripts each unblocks.
 | 2 | Blank/solid canvas + extent | DONE - `Imagick::newImage` / `Imagick::extent` |
 | 3 | Native noise | DONE - `Imagick::addNoise` |
 | 4 | `exp()` + transcendentals | DONE - `exp` and `E` added (sin/cos/tan/log/log10/PI already existed) |
-| 5 | evaluate / mask multiply | DONE - `Imagick::evaluate` / `Imagick::compositeMultiply` |
+| 5 | evaluate / mask multiply / vignette | DONE - `Imagick::evaluate` / `Imagick::compositeMultiply`, plus native `Imagick::gradient` / `Imagick::radialGradient` (a `radialGradient` white->black mask + `compositeMultiply` builds a vignette natively, no per-pixel loop) |
 | 6 | Strip metadata | DONE - `Imagick::stripImage` |
 | 7 | ML person segmentation | OUT OF SCOPE - needs a model-inference module; external mask + `composite`/`setPixel` alpha already work |
 | 8 | StableDiffusion ControlNet | DONE - `control_net_path` (loadModel) + `control_image` / `control_strength` (txt2img/img2img), plus runtime hot-swap `loadControlNet` / `unloadControlNet` / `hasControlNet` (no checkpoint reload) and IP-Adapter (`ip_adapter_path` + `ip_adapter_image` / `ip_adapter_strength`) |
 
 Regression tests: `test_scripts/regression/math_random.vs`,
 `test_scripts/regression/imagick_canvas.vs`.
+
+### Verification notes (from porting the Dolphin scripts, 2026-07-28)
+Checked against the interpreter, not the docs:
+- `rand_int` / `rand_double` / `rand_normal`, `exp`, `Imagick::newImage` / `addNoise`
+  / `evaluate` / `compositeMultiply` / `stripImage` all work. ✅
+- `E` is a **function like `PI`**, so call it with parens: `E()` returns 2.718..., while
+  bare `E` (or bare `PI`) errors with "Identifier not found". The earlier "E is NOT
+  present" note was a missing-parens usage error; `E()` works. `exp(1.0)` is equivalent.
+- **`Imagick::addNoise` strength is an ImageMagick *attenuate* factor, not a Gaussian
+  stddev.** `12.0` obliterates the image (mean abs diff ~82/255). Calibrated: attenuate
+  `0.35` ≈ the old Python `film 12` grain. `imageNoise.vs` maps `film -> film*0.35/12`.
+- ~~`newImage` accepts solid colors only, so the radial vignette mask cannot be
+  generated~~ **RESOLVED**: `Imagick::radialGradient(w, h, inner, outer)` (and
+  `Imagick::gradient` for linear) now render the mask natively. `newImage` stays
+  solid-only by design; use `radialGradient` for gradients. The vignette in
+  `imageEffect.py` is now portable: `radialGradient("#ffffff","#000000")` +
+  `compositeMultiply` (+ `evaluate` / `addNoise`). Item 5 is fully closed.
 
 Original entries below, kept for the rationale and API notes.
 

@@ -114,6 +114,24 @@ void Modules::ImagickModule::registerFunctions() {
         this->name(), "newImage", params, [this](const FunctionArguments & args) { return this->newImage(args); },
         Symbols::Variables::Type::CLASS, "Create a new solid-color canvas of the given size");
 
+    params = { { "width",      Symbols::Variables::Type::INTEGER, "Canvas width in pixels" },
+               { "height",     Symbols::Variables::Type::INTEGER, "Canvas height in pixels" },
+               { "startColor", Symbols::Variables::Type::STRING,  "Top color, e.g. \"#ffffff\"" },
+               { "endColor",   Symbols::Variables::Type::STRING,  "Bottom color, e.g. \"#000000\"" } };
+    REGISTER_METHOD(
+        this->name(), "gradient", params, [this](const FunctionArguments & args) { return this->gradient(args); },
+        Symbols::Variables::Type::CLASS, "Create a native linear (top-to-bottom) gradient canvas");
+
+    params = { { "width",       Symbols::Variables::Type::INTEGER, "Canvas width in pixels" },
+               { "height",      Symbols::Variables::Type::INTEGER, "Canvas height in pixels" },
+               { "innerColor",  Symbols::Variables::Type::STRING,  "Center color, e.g. \"#ffffff\"" },
+               { "outerColor",  Symbols::Variables::Type::STRING,  "Edge color, e.g. \"#000000\"" } };
+    REGISTER_METHOD(
+        this->name(), "radialGradient", params,
+        [this](const FunctionArguments & args) { return this->radialGradient(args); },
+        Symbols::Variables::Type::CLASS,
+        "Create a native radial (center-to-edge) gradient canvas - e.g. a vignette mask");
+
     params = { { "width",    Symbols::Variables::Type::INTEGER, "Target width" },
                { "height",   Symbols::Variables::Type::INTEGER, "Target height" },
                { "xOffset",  Symbols::Variables::Type::INTEGER, "X offset of the current image within the new extent" },
@@ -497,6 +515,57 @@ Symbols::ValuePtr Modules::ImagickModule::newImage(Symbols::FunctionArguments & 
     } catch (const Magick::Exception & e) {
         throw std::runtime_error(std::string("Imagick::newImage failed: ") + e.what());
     }
+}
+
+// Shared body for gradient()/radialGradient(): ImageMagick renders "gradient:" and
+// "radial-gradient:" pseudo-images natively, so a smooth mask (e.g. a vignette) is one
+// call instead of a per-pixel loop. `pseudo` is "gradient" or "radial-gradient".
+Symbols::ValuePtr Modules::ImagickModule::makeGradient(Symbols::FunctionArguments & args, const char * method,
+                                                       const char * pseudo) {
+    if (args.size() != 5) {
+        throw std::runtime_error(std::string("Imagick::") + method +
+                                 " expects (int width, int height, string startColor, string endColor)");
+    }
+    if (args[0] != Symbols::Variables::Type::CLASS && args[0] != Symbols::Variables::Type::OBJECT) {
+        throw std::runtime_error(std::string("Imagick::") + method + " must be called on an Imagick instance");
+    }
+    if (args[1] != Symbols::Variables::Type::INTEGER || args[2] != Symbols::Variables::Type::INTEGER) {
+        throw std::runtime_error(std::string("Imagick::") + method + " expects integer width and height");
+    }
+    const int width  = args[1];
+    const int height = args[2];
+    if (width <= 0 || height <= 0) {
+        throw std::runtime_error(std::string("Imagick::") + method + ": width and height must be positive");
+    }
+    const std::string startColor = args[3];
+    const std::string endColor   = args[4];
+
+    try {
+        Magick::Image image;
+        image.size(Magick::Geometry(static_cast<size_t>(width), static_cast<size_t>(height)));
+        image.read(std::string(pseudo) + ":" + startColor + "-" + endColor);
+
+        int handle      = next_image_id++;
+        images_[handle] = image;
+
+        Symbols::ValuePtr self                          = args[0];
+        self->get<Symbols::ObjectMap>()["__image_id__"] = Symbols::ValuePtr(handle);
+        return self;
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::") + method + " failed: " + e.what());
+    }
+}
+
+// gradient(width, height, startColor, endColor) -> native top-to-bottom linear gradient.
+Symbols::ValuePtr Modules::ImagickModule::gradient(Symbols::FunctionArguments & args) {
+    return makeGradient(args, "gradient", "gradient");
+}
+
+// radialGradient(width, height, innerColor, outerColor) -> native center-to-edge radial
+// gradient; radialGradient(w, h, "#ffffff", "#000000") is a ready-made vignette mask to
+// compositeMultiply() onto an image.
+Symbols::ValuePtr Modules::ImagickModule::radialGradient(Symbols::FunctionArguments & args) {
+    return makeGradient(args, "radialGradient", "radial-gradient");
 }
 
 // extent(width, height, xOff, yOff [, colorHex]) -> pad or crop to an exact size,

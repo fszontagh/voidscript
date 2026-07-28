@@ -522,7 +522,7 @@ if (BUILD_TESTS)
                        ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_canvas.vs)
       set_tests_properties(RegressionImagickCanvas PROPERTIES
                TIMEOUT 20
-               PASS_REGULAR_EXPRESSION "64x48\n64\n20x20\n128\nwritten=true\ndone")
+               PASS_REGULAR_EXPRESSION "64x48\n64\n20x20\n128\nwritten=true\nradial=true\nlinear=true\ndone")
 
       # Missing-features items 1/4: Math random generation (rand_int/double/normal/seed)
       # and exp()/E().

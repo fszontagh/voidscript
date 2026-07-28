@@ -20,7 +20,7 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
 - HTTP header management (FastCGI only): `header()`
 - Dynamic plugin modules (opt-in at build time):
   - [Curl](https://github.com/fszontagh/voidscript/tree/main/Modules/Curl) - HTTP (all verbs) and the `CurlClient` class
-  - [Imagick](https://github.com/fszontagh/voidscript/tree/main/Modules/Imagick) - image processing via ImageMagick: read/write/resize/crop/rotate/flip/blur/composite, per-pixel `getPixel`/`setPixel`, canvas creation (`newImage`/`extent`), `addNoise`, `evaluate`, `compositeMultiply`, `stripImage`
+  - [Imagick](https://github.com/fszontagh/voidscript/tree/main/Modules/Imagick) - image processing via ImageMagick: read/write/resize/crop/rotate/flip/blur/composite, per-pixel `getPixel`/`setPixel`, canvas creation (`newImage`/`extent`), native gradients (`gradient`/`radialGradient`, e.g. a vignette mask), `addNoise`, `evaluate`, `compositeMultiply`, `stripImage`
   - [StableDiffusion](https://github.com/fszontagh/voidscript/tree/main/Modules/StableDiffusion) - stable-diffusion.cpp: txt2img/img2img/upscale/video, LoRAs, ControlNet (incl. runtime hot-swap) and IP-Adapter, reference/edit images, live progress callbacks
   - [PixelArt](https://github.com/fszontagh/voidscript/tree/main/Modules/PixelArt) - turn AI "pixel-art-looking" images into real pixel art (sdpixel2realpixelart)
   - Hash, Format, Archive, Xml2, and the [MariaDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MariaDb) / [MongoDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MongoDb) / Memcached database clients
