@@ -582,6 +582,14 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "3\nAlice\\|New York\nBob, Jr\\.\\|Quote\"here\"\nBob, Jr\\.\\|Quote\"here\"\nb\ndone")
 
+      # Roadmap Tier 2: SQLite embedded DB (in-memory, so it runs unattended).
+      add_test(NAME RegressionSqliteCrud
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/sqlite_crud.vs)
+      set_tests_properties(RegressionSqliteCrud PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "true\n3\n2\nAlice 30\nCara 40\n1\n\\{\"score\":null\\}\n33\nfalse\ndone")
+
       # Task #7: the String module beyond length/replace/substr.
       add_test(NAME RegressionStringFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

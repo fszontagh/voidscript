@@ -26,6 +26,7 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
   - [Imagick](https://github.com/fszontagh/voidscript/tree/main/Modules/Imagick) - image processing via ImageMagick: read/write/resize/crop/rotate/flip/blur/composite, per-pixel `getPixel`/`setPixel`, canvas creation (`newImage`/`extent`), native gradients (`gradient`/`radialGradient`, e.g. a vignette mask), `addNoise`, `evaluate`, `compositeMultiply`, `stripImage`
   - [StableDiffusion](https://github.com/fszontagh/voidscript/tree/main/Modules/StableDiffusion) - stable-diffusion.cpp: txt2img/img2img/upscale/video, LoRAs, ControlNet (incl. runtime hot-swap) and IP-Adapter, reference/edit images, live progress callbacks
   - [PixelArt](https://github.com/fszontagh/voidscript/tree/main/Modules/PixelArt) - turn AI "pixel-art-looking" images into real pixel art (sdpixel2realpixelart)
+  - [SQLite](https://github.com/fszontagh/voidscript/tree/main/Modules/SQLite) - zero-config embedded SQL (no server), prepared statements: `open`/`exec`/`query`/`lastInsertId`/`changes`
   - Hash (`hash_string`, `hash_file`, `hmac`, `random_bytes`, `hash_compare` - OpenSSL), Format, Archive, Xml2, and the [MariaDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MariaDb) / [MongoDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MongoDb) / Memcached database clients
 - Embeddable library (`libvoidscript`)
 - Zero runtime dependencies (except for the optional modules)
