@@ -20,6 +20,7 @@
 #include "Modules/BuiltIn/MathModule.hpp"
 #include "Modules/BuiltIn/RegexModule.hpp"
 #include "Modules/BuiltIn/EncodingModule.hpp"
+#include "Modules/BuiltIn/CsvModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
 #include "Modules/BuiltIn/PathModule.hpp"
 #include "Modules/BuiltIn/PrintModule.hpp"
@@ -255,6 +256,11 @@ class VoidScript {
         auto encodingModule = std::make_unique<Modules::EncodingModule>();
         encodingModule->setModuleName("Encoding");
         symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(encodingModule)));
+
+        // CSV parse/encode
+        auto csvModule = std::make_unique<Modules::CsvModule>();
+        csvModule->setModuleName("Csv");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(csvModule)));
         
         // module helper functions (module_list, module_info, etc.)
         auto moduleHelperModule = std::make_unique<Modules::ModuleHelperModule>();

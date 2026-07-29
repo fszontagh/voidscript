@@ -566,6 +566,22 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "a%20b%26c%3Dd%2Fe\na b&c=d f\n4142\nAB\n&lt;a&gt;&#39;&amp;&#39;&lt;/a&gt;\n<a>&\"'\n65 B\ndone")
 
+      # Roadmap Tier 2: crypto extras (hmac, random_bytes) via the Hash module (OpenSSL).
+      add_test(NAME RegressionCryptoFunctions
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/crypto_functions.vs)
+      set_tests_properties(RegressionCryptoFunctions PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8\n16\n16\ntrue\ndone")
+
+      # Roadmap Tier 2: CSV parse/encode with RFC 4180 quoting.
+      add_test(NAME RegressionCsvFunctions
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/csv_functions.vs)
+      set_tests_properties(RegressionCsvFunctions PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "3\nAlice\\|New York\nBob, Jr\\.\\|Quote\"here\"\nBob, Jr\\.\\|Quote\"here\"\nb\ndone")
+
       # Task #7: the String module beyond length/replace/substr.
       add_test(NAME RegressionStringFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

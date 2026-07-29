@@ -2,6 +2,8 @@
 #include "HashModule.hpp"
 
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
 
 #include <algorithm>
 #include <cctype>
@@ -125,6 +127,30 @@ bool constantTimeEqual(const std::string & a, const std::string & b) {
     return diff == 0;
 }
 
+// Keyed HMAC over `msg`, returned as a hex digest (reuses lookupAlgo/toHex).
+std::string hmacHex(const std::string & algorithm, const std::string & key, const std::string & msg) {
+    const EVP_MD * md  = lookupAlgo(algorithm);
+    unsigned char  out[EVP_MAX_MD_SIZE];
+    unsigned int   len = 0;
+    if (HMAC(md, key.data(), static_cast<int>(key.size()),
+             reinterpret_cast<const unsigned char *>(msg.data()), msg.size(), out, &len) == nullptr) {
+        throw std::runtime_error("hmac: computation failed");
+    }
+    return toHex(out, len);
+}
+
+// n cryptographically-secure random bytes (raw; hex_encode() for a hex token).
+std::string randomBytes(int n) {
+    if (n < 0 || n > (1 << 20)) {
+        throw std::runtime_error("random_bytes: count must be 0-1048576");
+    }
+    std::string buf(static_cast<size_t>(n), '\0');
+    if (n > 0 && RAND_bytes(reinterpret_cast<unsigned char *>(&buf[0]), n) != 1) {
+        throw std::runtime_error("random_bytes: RAND_bytes failed");
+    }
+    return buf;
+}
+
 }  // namespace
 
 void HashModule::registerFunctions() {
@@ -175,6 +201,37 @@ void HashModule::registerFunctions() {
                           }
                           return Symbols::ValuePtr(constantTimeEqual(args[0]->get<std::string>(),
                                                                      args[1]->get<std::string>()));
+                      });
+
+    std::vector<Symbols::FunctionParameterInfo> hmac_params = {
+        { "algorithm", Symbols::Variables::Type::STRING, "Hash algorithm name (e.g. \"sha256\")", false, false },
+        { "key",       Symbols::Variables::Type::STRING, "Secret key",                             false, false },
+        { "data",      Symbols::Variables::Type::STRING, "Message to authenticate",                false, false }
+    };
+    REGISTER_FUNCTION("hmac", Symbols::Variables::Type::STRING, hmac_params,
+                      "Keyed HMAC of the data under the named algorithm; returns a hex digest",
+                      [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                          if (args.size() != 3 ||
+                              args[0] != Symbols::Variables::Type::STRING ||
+                              args[1] != Symbols::Variables::Type::STRING ||
+                              args[2] != Symbols::Variables::Type::STRING) {
+                              throw std::runtime_error("hmac expects (string algorithm, string key, string data)");
+                          }
+                          return Symbols::ValuePtr(hmacHex(args[0]->get<std::string>(),
+                                                           args[1]->get<std::string>(),
+                                                           args[2]->get<std::string>()));
+                      });
+
+    std::vector<Symbols::FunctionParameterInfo> rand_params = {
+        { "count", Symbols::Variables::Type::INTEGER, "Number of random bytes", false, false }
+    };
+    REGISTER_FUNCTION("random_bytes", Symbols::Variables::Type::STRING, rand_params,
+                      "Return count cryptographically-secure random bytes (use hex_encode() for a token)",
+                      [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                          if (args.size() != 1 || args[0] != Symbols::Variables::Type::INTEGER) {
+                              throw std::runtime_error("random_bytes expects (int count)");
+                          }
+                          return Symbols::ValuePtr(randomBytes(args[0]->get<int>()));
                       });
 }
 
