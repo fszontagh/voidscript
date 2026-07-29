@@ -41,13 +41,15 @@ void Modules::ImagickModule::registerFunctions() {
         Symbols::Variables::Type::NULL_TYPE, "Extracts a region of the image");
 
     params = {
-        { "width",  Symbols::Variables::Type::INTEGER, "The new width of the image" },
-        { "height", Symbols::Variables::Type::INTEGER, "The new height of the image" }
+        { "width",   Symbols::Variables::Type::INTEGER, "New width, or a geometry string like \"512x768\" / \"512x768!\"" },
+        { "height",  Symbols::Variables::Type::INTEGER, "New height (omit only for the geometry-string form)", true },
+        { "bestFit", Symbols::Variables::Type::BOOLEAN, "Preserve aspect ratio (fit inside); default false = exact", true }
     };
 
     REGISTER_METHOD(
         this->name(), "resize", params, [this](const FunctionArguments & args) { return this->resize(args); },
-        Symbols::Variables::Type::NULL_TYPE, "Resize an image");
+        Symbols::Variables::Type::NULL_TYPE,
+        "Resize to exactly width x height (pass bestFit=true to preserve aspect ratio)");
 
     params = {
         { "mode", Symbols::Variables::Type::STRING, "Colorspace: RGB, CMYK or GRAY" },
@@ -253,25 +255,31 @@ Symbols::ValuePtr Modules::ImagickModule::resize(Symbols::FunctionArguments & ar
     Magick::Image & image = imageFor(args, "resize");
 
     if (args[1] == Symbols::Variables::Type::STRING) {
+        // String form keeps full ImageMagick geometry semantics: "512x768" fits inside
+        // (aspect preserved), "512x768!" forces the exact size, plus >, <, ^ etc.
         const std::string size = args[1];
         image.resize(size);
         return Symbols::ValuePtr::null();
     }
 
-    int yOffset = 0;
-    int xOffset = 0;
     if (args.size() < 3) {
         throw std::invalid_argument("Imagick::resize: Missing arguments");
-    }
-    if (args.size() == 5) {
-        xOffset = args[3];
-        yOffset = args[4];
     }
 
     const int width  = args[1];
     const int height = args[2];
 
-    image.resize({ static_cast<size_t>(width), static_cast<size_t>(height), xOffset, yOffset });
+    // The two-int form resizes to EXACTLY width x height by default (as PHP's Imagick
+    // does), instead of silently shrinking to fit the source aspect ratio. Pass a
+    // trailing boolean true to opt back into aspect-preserving "best fit".
+    bool bestFit = false;
+    if (args.size() >= 4 && args[3] == Symbols::Variables::Type::BOOLEAN) {
+        bestFit = args[3]->get<bool>();
+    }
+
+    Magick::Geometry geometry(static_cast<size_t>(width), static_cast<size_t>(height));
+    geometry.aspect(!bestFit);   // aspect(true) == the '!' flag: ignore the source ratio
+    image.resize(geometry);
     return Symbols::ValuePtr::null();
 }
 

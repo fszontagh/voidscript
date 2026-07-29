@@ -33,12 +33,26 @@ Checked against the interpreter, not the docs:
 - **`Imagick::addNoise` strength is an ImageMagick *attenuate* factor, not a Gaussian
   stddev.** `12.0` obliterates the image (mean abs diff ~82/255). Calibrated: attenuate
   `0.35` ≈ the old Python `film 12` grain. `imageNoise.vs` maps `film -> film*0.35/12`.
+- ~~`Imagick::resize(w, h)` preserved the source aspect ratio (fit-inside), so an
+  off-aspect request came back 1-2px short (a mask upscaled to an image left an edge
+  row uncovered)~~ **FIXED**: the two-int form now resizes to EXACTLY `w x h` (PHP-style).
+  `resize(w, h, true)` opts back into aspect-preserving fit-inside; the string form keeps
+  ImageMagick geometry (`"512x768"` fits inside, `"512x768!"` exact). Regression:
+  `imagick_resize_exact.vs`.
 - ~~`newImage` accepts solid colors only, so the radial vignette mask cannot be
   generated~~ **RESOLVED**: `Imagick::radialGradient(w, h, inner, outer)` (and
   `Imagick::gradient` for linear) now render the mask natively. `newImage` stays
   solid-only by design; use `radialGradient` for gradients. The vignette in
   `imageEffect.py` is now portable: `radialGradient("#ffffff","#000000")` +
   `compositeMultiply` (+ `evaluate` / `addNoise`). Item 5 is fully closed.
+  - **Falloff caveat:** `radialGradient` is *linear* in radius and clamps at the
+    inscribed circle, so it runs ~0.05-0.08 too dark in the midtones vs the original's
+    wide Gaussian and cannot match it exactly. For a pixel-exact vignette, `imageEffect.vs`
+    instead builds the true Gaussian `(1-vs)+vs*exp(...)` with `exp` + `setPixel` on a
+    small (<=96px) aspect-matched canvas and upscales it - identical to a full-res
+    Gaussian, matches Python to ~1 gray level, ~0.8s. A native gamma/pow on `evaluate`
+    (currently only multiply/add/subtract/divide/set/min/max) would let `radialGradient`
+    be reshaped without the per-pixel build.
 
 Original entries below, kept for the rationale and API notes.
 

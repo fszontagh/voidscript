@@ -524,6 +524,15 @@ if (BUILD_TESTS)
                TIMEOUT 20
                PASS_REGULAR_EXPRESSION "64x48\n64\n20x20\n128\nwritten=true\nradial=true\nlinear=true\ndone")
 
+      # Regression: resize(w,h) preserved aspect ratio (fit-inside) so an off-aspect
+      # request came back 1-2px short; the two-int form must be exact by default.
+      add_test(NAME RegressionImagickResizeExact
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_resize_exact.vs)
+      set_tests_properties(RegressionImagickResizeExact PROPERTIES
+               TIMEOUT 20
+               PASS_REGULAR_EXPRESSION "512x769\n300x300\n512x768\n512x769\n512x768\ndone")
+
       # Missing-features items 1/4: Math random generation (rand_int/double/normal/seed)
       # and exp()/E().
       add_test(NAME RegressionMathRandom
