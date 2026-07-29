@@ -27,10 +27,14 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
+        # NB: Ubuntu 24.04 ships ImageMagick 6 as libmagick++-dev, whose Magick++ lacks
+        # alpha()/evaluate()/2-arg addNoise() that the Imagick module needs. We build
+        # ImageMagick 7 from source below instead, so do not install the distro package.
         sudo apt-get install -y build-essential cmake git pkg-config curl \
-            libcurl4-openssl-dev libfmt-dev libmagick++-dev libmariadb-dev libfcgi-dev \
+            libcurl4-openssl-dev libfmt-dev libmariadb-dev libfcgi-dev \
             libxml2-dev libmemcached-dev libarchive-dev libssl-dev \
-            libmongoc-dev libbson-dev libsasl2-dev
+            libmongoc-dev libbson-dev libsasl2-dev \
+            libpng-dev libjpeg-dev libtiff-dev libwebp-dev libltdl-dev
 
     # MongoDB does not ship apt packages for the modern mongocxx (3.x/4.x) C++
     # driver, and Ubuntu 24.04 dropped `libmongocxx-dev` from its universe repo.
@@ -64,6 +68,39 @@ jobs:
       run: |
         echo "PKG_CONFIG_PATH=/opt/mongocxx/lib/pkgconfig" >> $GITHUB_ENV
         echo "/opt/mongocxx/lib" | sudo tee /etc/ld.so.conf.d/mongocxx.conf
+        sudo ldconfig
+
+    # Ubuntu 24.04 only packages ImageMagick 6, but the Imagick module uses Magick++
+    # APIs that exist only in ImageMagick 7 (alpha(), evaluate(), 2-arg addNoise()).
+    # Build IM7 from source, Q16 non-HDRI to match the module's compile definitions
+    # (-DMAGICKCORE_QUANTUM_DEPTH=16 -DMAGICKCORE_HDRI_ENABLE=0), and cache the install.
+    - name: Cache ImageMagick 7 install
+      id: cache-imagemagick
+      uses: actions/cache@v4
+      with:
+        path: /opt/imagemagick
+        key: imagemagick-7.1.2-29-q16-nohdri-${{ matrix.os }}
+
+    - name: Build ImageMagick 7 from source
+      if: steps.cache-imagemagick.outputs.cache-hit != 'true'
+      run: |
+        curl -fsSL -o /tmp/imagemagick.tar.gz \
+          https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.2-29.tar.gz
+        tar -xzf /tmp/imagemagick.tar.gz -C /tmp
+        cd /tmp/ImageMagick-7.1.2-29
+        ./configure --prefix=/opt/imagemagick \
+          --with-quantum-depth=16 --disable-hdri \
+          --with-magick-plus-plus=yes \
+          --without-x --disable-openmp
+        make -j"$(nproc)"
+        make install
+
+    - name: Register ImageMagick 7 with the toolchain
+      run: |
+        echo "/opt/imagemagick/bin" >> $GITHUB_PATH
+        echo "PKG_CONFIG_PATH=/opt/imagemagick/lib/pkgconfig:${PKG_CONFIG_PATH}" >> $GITHUB_ENV
+        echo "CMAKE_PREFIX_PATH=/opt/imagemagick:${CMAKE_PREFIX_PATH}" >> $GITHUB_ENV
+        echo "/opt/imagemagick/lib" | sudo tee /etc/ld.so.conf.d/imagemagick.conf
         sudo ldconfig
 
     - name: Configure CMake
