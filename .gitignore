@@ -28,6 +28,9 @@ build
 .aider*
 .kilocode
 
+# Working planning docs - not shipped
+IMPLEMENTATION_ROADMAP.md
+
 # AI / LLM assistant instruction docs - not part of the project
 CLAUDE.md
 AGENTS.md

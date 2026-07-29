@@ -542,6 +542,30 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "exp0=1.000000\nEint=2\nreproducible=true\ninrange=true\nunit=true\nnormal_ok=true\ndone")
 
+      # Roadmap Tier 1: Array utilities (map/filter/reduce/sort/keys/values/slice/merge/...).
+      add_test(NAME RegressionArrayFunctions
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/array_functions.vs)
+      set_tests_properties(RegressionArrayFunctions PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "\\[6,2,4,20,10\\]\n\\[2,10\\]\n21\n\\[1,2,3,5,10\\]\n\\[10,5,3,2,1\\]\n\\[5,10,2,1,3\\]\n\\[1,2\\]\n\\[10,5\\]\n\\[1,2,3,4\\]\n\\[1,2,3\\]\ntrue false\ndone")
+
+      # Roadmap Tier 1: regular expressions (match/search/replace/split).
+      add_test(NAME RegressionRegexFunctions
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/regex_functions.vs)
+      set_tests_properties(RegressionRegexFunctions PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "true\nfalse\n\\[\"foo@bar\",\"foo\",\"bar\"\\]\nh\\*ll\\* w\\*rld\n\\[\"a\",\"b\",\"c\",\"d\"\\]\ntrue\ndone")
+
+      # Roadmap Tier 1: encoding helpers (url/hex/html + ord/chr).
+      add_test(NAME RegressionEncodingFunctions
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/encoding_functions.vs)
+      set_tests_properties(RegressionEncodingFunctions PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "a%20b%26c%3Dd%2Fe\na b&c=d f\n4142\nAB\n&lt;a&gt;&#39;&amp;&#39;&lt;/a&gt;\n<a>&\"'\n65 B\ndone")
+
       # Task #7: the String module beyond length/replace/substr.
       add_test(NAME RegressionStringFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

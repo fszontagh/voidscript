@@ -18,6 +18,8 @@
 #include "Modules/BuiltIn/FileModule.hpp"
 #include "Modules/BuiltIn/JsonModule.hpp"
 #include "Modules/BuiltIn/MathModule.hpp"
+#include "Modules/BuiltIn/RegexModule.hpp"
+#include "Modules/BuiltIn/EncodingModule.hpp"
 #include "Modules/BuiltIn/ModuleHelperModule.hpp"
 #include "Modules/BuiltIn/PathModule.hpp"
 #include "Modules/BuiltIn/PrintModule.hpp"
@@ -243,6 +245,16 @@ class VoidScript {
         auto mathModule = std::make_unique<Modules::MathModule>();
         mathModule->setModuleName("Math");
         symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(mathModule)));
+
+        // regular expressions (regex_match, regex_replace, ...)
+        auto regexModule = std::make_unique<Modules::RegexModule>();
+        regexModule->setModuleName("Regex");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(regexModule)));
+
+        // encoding helpers (url_encode, hex_encode, html_escape, ord/chr)
+        auto encodingModule = std::make_unique<Modules::EncodingModule>();
+        encodingModule->setModuleName("Encoding");
+        symbolContainer->registerModule(Modules::make_base_module_ptr(std::move(encodingModule)));
         
         // module helper functions (module_list, module_info, etc.)
         auto moduleHelperModule = std::make_unique<Modules::ModuleHelperModule>();

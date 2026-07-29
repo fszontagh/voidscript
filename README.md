@@ -10,7 +10,9 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
 - #### Built-in standard library modules:
   - Print: `print()`, `printnl()`, `error()`, `throw_error()`
   - [String utilities](https://github.com/fszontagh/voidscript/blob/main/docs/StringModule.md) (`string_length()`, `string_substr()`, etc.)
-  - [Array utilities](https://github.com/fszontagh/voidscript/blob/main/docs/ArrayModule.md) (`sizeof()`, iteration helpers)
+  - [Array utilities](https://github.com/fszontagh/voidscript/blob/main/docs/ArrayModule.md) (`sizeof`, `array_map`/`array_filter`/`array_reduce`, `array_sort`/`array_usort`, `array_keys`/`array_values`, `array_reverse`/`array_slice`/`array_merge`/`array_unique`/`array_flip`, `in_array`)
+  - Regex (`regex_match`, `regex_search` with capture groups, `regex_replace`, `regex_split`)
+  - Encoding (`url_encode`/`url_decode`, `hex_encode`/`hex_decode`, `html_escape`/`html_unescape`, `ord`/`chr`)
   - [File I/O](https://github.com/fszontagh/voidscript/blob/main/docs/FileModule.md) (`file_get_contents()`, `file_put_contents()` etc.)
   - [JSON encode/decode](https://github.com/fszontagh/voidscript/blob/main/docs/JsonModule.md) (`json_encode()`, `json_decode()`)
   - [Variable helpers](https://github.com/fszontagh/voidscript/blob/main/docs/VariableHelpersModule.md) (`typeof()` etc.)
