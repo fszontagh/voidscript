@@ -624,6 +624,14 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "36\n4\n1\nlocalhost:5432\n5432\ndone")
 
+      # Roadmap Tier 3: gzip compression (Compress module, zlib).
+      add_test(NAME RegressionCompressFunctions
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/compress_functions.vs)
+      set_tests_properties(RegressionCompressFunctions PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ndone")
+
       # Roadmap Tier 2: SQLite embedded DB (in-memory, so it runs unattended).
       add_test(NAME RegressionSqliteCrud
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
