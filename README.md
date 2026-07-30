@@ -21,6 +21,7 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
   - Math: `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `exp`, `log`, `log10`, `sin`/`cos`/`tan`, `atan2`, `hypot`, `sign`, `clamp`, `gcd`/`lcm`, `deg2rad`/`rad2deg`, `min`, `max`, `PI()`, `E()`, and random generation `rand_int`/`rand_double`/`rand_normal`/`rand_seed`
   - Path, Env, Process (`process_run()`), Conversion
   - DateTime (`current_unix_timestamp`, `date([fmt[,ts]])`, `date_parse`, and a `DateTime` class: getters, in-place `add*`/calendar arithmetic, `format`, `diff`)
+  - Sockets: `TcpClient` class (`connect`/`send`/`recv`/`recvLine`/`close`) - talk to protocols curl can't
 - HTTP header management (FastCGI only): `header()`
 - Dynamic plugin modules (opt-in at build time):
   - [Curl](https://github.com/fszontagh/voidscript/tree/main/Modules/Curl) - HTTP (all verbs) and the `CurlClient` class
