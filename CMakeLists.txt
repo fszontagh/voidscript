@@ -462,6 +462,16 @@ if (BUILD_TESTS)
                TIMEOUT 10
                PASS_REGULAR_EXPRESSION "true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ndone")
 
+      # Roadmap Tier 2: DateTime overhaul - strftime format, in-place calendar arithmetic,
+      # diff, date()/date_parse(). Pinned to TZ=UTC for a deterministic result.
+      add_test(NAME RegressionDateTimeClass
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/datetime_class.vs)
+      set_tests_properties(RegressionDateTimeClass PROPERTIES
+               TIMEOUT 10
+               ENVIRONMENT "TZ=UTC"
+               PASS_REGULAR_EXPRESSION "2021-03-15 12:30:45\n2021-3-15\n1615811445\n2021-03-25\n2021-04-25\n2023\n7200\n86900 500\n2021/03/15 12:30:45\n1615811445\ndone")
+
       # Imagick composite, plus the crop/blur/rotate/flip revival and the per-instance
       # handle fix (two images from the same file must be independent).
       add_test(NAME RegressionImagickComposite

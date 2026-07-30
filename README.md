@@ -19,7 +19,8 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
   - [Variable helpers](https://github.com/fszontagh/voidscript/blob/main/docs/VariableHelpersModule.md) (`typeof()` etc.)
   - [Module helpers](https://github.com/fszontagh/voidscript/blob/main/docs/ModuleHelperModule.md) (`module_list()`, `module_exists()`, `module_info()`)
   - Math: `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `exp`, `log`, `log10`, `sin`/`cos`/`tan`, `min`, `max`, `PI()`, `E()`, and random generation `rand_int`/`rand_double`/`rand_normal`/`rand_seed`
-  - Path, Env, Process (`process_run()`), Conversion, DateTime helpers (`current_unix_timestamp()`, `date()`)
+  - Path, Env, Process (`process_run()`), Conversion
+  - DateTime (`current_unix_timestamp`, `date([fmt[,ts]])`, `date_parse`, and a `DateTime` class: getters, in-place `add*`/calendar arithmetic, `format`, `diff`)
 - HTTP header management (FastCGI only): `header()`
 - Dynamic plugin modules (opt-in at build time):
   - [Curl](https://github.com/fszontagh/voidscript/tree/main/Modules/Curl) - HTTP (all verbs) and the `CurlClient` class
