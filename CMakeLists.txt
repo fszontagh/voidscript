@@ -592,6 +592,30 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "3\nAlice\\|New York\nBob, Jr\\.\\|Quote\"here\"\nBob, Jr\\.\\|Quote\"here\"\nb\ndone")
 
+      # Roadmap Tier 3: Math extras (hypot/sign/clamp/gcd/lcm/deg2rad/rad2deg).
+      add_test(NAME RegressionMathExtras
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/math_extras.vs)
+      set_tests_properties(RegressionMathExtras PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "5.000000\n-1 0 1\n10.000000\n0.000000\n12 12\n3.141593\n180.000000\ndone")
+
+      # Roadmap Tier 3: String extras (string_pad/ucfirst/lcfirst/title).
+      add_test(NAME RegressionStringExtras
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/string_extras.vs)
+      set_tests_properties(RegressionStringExtras PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "007\nhi\\.\\.\\.\n--hi--\ntoolong\nHello\nhELLO\nHello World-Foo Bar\ndone")
+
+      # Roadmap Tier 3: uuid_v4 and INI parse/encode.
+      add_test(NAME RegressionEncodingExtras
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/encoding_extras.vs)
+      set_tests_properties(RegressionEncodingExtras PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "36\n4\n1\nlocalhost:5432\n5432\ndone")
+
       # Roadmap Tier 2: SQLite embedded DB (in-memory, so it runs unattended).
       add_test(NAME RegressionSqliteCrud
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

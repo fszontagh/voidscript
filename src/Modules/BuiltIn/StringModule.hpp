@@ -333,6 +333,83 @@ class StringModule : public BaseModule {
                               int         length = args[2];
                               return str.substr(start, length);
                           });
+
+        using T = Symbols::Variables::Type;
+        std::vector<Symbols::FunctionParameterInfo> s_param = { { "string", T::STRING, "The string" } };
+        std::vector<Symbols::FunctionParameterInfo> pad_params = {
+            { "string", T::STRING, "The string" },
+            { "length", T::INTEGER, "Target length" },
+            { "pad", T::STRING, "Pad string (default \" \")", true },
+            { "side", T::STRING, "left|right|both (default right)", true }
+        };
+        REGISTER_FUNCTION("string_pad", T::STRING, pad_params,
+                          "Pad a string to a length with a pad string on the left, right or both sides",
+                          [this](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() < 2 || args[0] != T::STRING || args[1] != T::INTEGER) {
+                                  throw Exception(name() + "::string_pad expects (string, int length [, string pad [, string side]])");
+                              }
+                              std::string str = args[0]->get<std::string>();
+                              int         len = args[1]->get<int>();
+                              std::string pad = (args.size() >= 3 && args[2] == T::STRING) ? args[2]->get<std::string>() : " ";
+                              std::string side = (args.size() >= 4 && args[3] == T::STRING) ? args[3]->get<std::string>() : "right";
+                              if (pad.empty() || static_cast<int>(str.size()) >= len) {
+                                  return str;
+                              }
+                              const auto make = [&](int n) {
+                                  std::string out;
+                                  while (static_cast<int>(out.size()) < n) { out += pad; }
+                                  return out.substr(0, n);
+                              };
+                              int total = len - static_cast<int>(str.size());
+                              if (side == "left") {
+                                  return make(total) + str;
+                              }
+                              if (side == "both") {
+                                  int left = total / 2;
+                                  return make(left) + str + make(total - left);
+                              }
+                              return str + make(total);
+                          });
+
+        REGISTER_FUNCTION("string_ucfirst", T::STRING, s_param, "Uppercase the first character",
+                          [this](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() != 1 || args[0] != T::STRING) {
+                                  throw Exception(name() + "::string_ucfirst expects one string");
+                              }
+                              std::string s = args[0]->get<std::string>();
+                              if (!s.empty()) { s[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(s[0]))); }
+                              return s;
+                          });
+
+        REGISTER_FUNCTION("string_lcfirst", T::STRING, s_param, "Lowercase the first character",
+                          [this](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() != 1 || args[0] != T::STRING) {
+                                  throw Exception(name() + "::string_lcfirst expects one string");
+                              }
+                              std::string s = args[0]->get<std::string>();
+                              if (!s.empty()) { s[0] = static_cast<char>(std::tolower(static_cast<unsigned char>(s[0]))); }
+                              return s;
+                          });
+
+        REGISTER_FUNCTION("string_title", T::STRING, s_param,
+                          "Title-case: uppercase the first letter of each word",
+                          [this](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                              if (args.size() != 1 || args[0] != T::STRING) {
+                                  throw Exception(name() + "::string_title expects one string");
+                              }
+                              std::string s = args[0]->get<std::string>();
+                              bool start = true;
+                              for (char & c : s) {
+                                  if (std::isalnum(static_cast<unsigned char>(c))) {
+                                      c = start ? static_cast<char>(std::toupper(static_cast<unsigned char>(c)))
+                                                : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                                      start = false;
+                                  } else {
+                                      start = true;
+                                  }
+                              }
+                              return s;
+                          });
     }
 };
 

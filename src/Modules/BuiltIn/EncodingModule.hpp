@@ -4,6 +4,8 @@
 
 #include <cctype>
 #include <cstdint>
+#include <random>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -28,7 +30,7 @@ class EncodingModule : public BaseModule {
   public:
     EncodingModule() {
         setModuleName("Encoding");
-        setDescription("URL, hex and HTML encoding/decoding helpers plus ord()/chr()");
+        setDescription("URL, hex and HTML encoding/decoding, ord()/chr(), uuid_v4() and INI parse/encode");
         setBuiltIn(true);
     }
 
@@ -53,6 +55,16 @@ class EncodingModule : public BaseModule {
                           Modules::EncodingModule::Ord);
         REGISTER_FUNCTION("chr", T::STRING, i, "One-character string for a byte value (0-255)",
                           Modules::EncodingModule::Chr);
+
+        std::vector<Symbols::FunctionParameterInfo> none = {};
+        std::vector<Symbols::FunctionParameterInfo> obj  = { { "config", T::OBJECT, "Sections/keys object" } };
+        REGISTER_FUNCTION("uuid_v4", T::STRING, none, "Generate a random (version 4) UUID string",
+                          Modules::EncodingModule::UuidV4);
+        REGISTER_FUNCTION("ini_parse", T::OBJECT, s,
+                          "Parse INI text into an object: global keys at the top, [sections] as nested objects",
+                          Modules::EncodingModule::IniParse);
+        REGISTER_FUNCTION("ini_encode", T::STRING, obj, "Encode an object (nested = sections) back into INI text",
+                          Modules::EncodingModule::IniEncode);
     }
 
   private:
@@ -183,6 +195,111 @@ class EncodingModule : public BaseModule {
             throw std::runtime_error("chr: code must be 0-255");
         }
         return Symbols::ValuePtr(std::string(1, static_cast<char>(code)));
+    }
+
+    static Symbols::ValuePtr UuidV4(Symbols::FunctionArguments & args) {
+        if (!args.empty()) {
+            throw std::runtime_error("uuid_v4 takes no arguments");
+        }
+        std::random_device                        rd;
+        std::uniform_int_distribution<int>        byte(0, 255);
+        unsigned char                             b[16];
+        for (unsigned char & x : b) {
+            x = static_cast<unsigned char>(byte(rd));
+        }
+        b[6] = static_cast<unsigned char>((b[6] & 0x0F) | 0x40);  // version 4
+        b[8] = static_cast<unsigned char>((b[8] & 0x3F) | 0x80);  // variant 10xx
+        static const char hex[] = "0123456789abcdef";
+        std::string       out;
+        for (int i = 0; i < 16; ++i) {
+            if (i == 4 || i == 6 || i == 8 || i == 10) {
+                out.push_back('-');
+            }
+            out.push_back(hex[b[i] >> 4]);
+            out.push_back(hex[b[i] & 0x0F]);
+        }
+        return Symbols::ValuePtr(out);
+    }
+
+    static std::string trim(const std::string & s) {
+        size_t a = s.find_first_not_of(" \t\r\n");
+        if (a == std::string::npos) {
+            return "";
+        }
+        size_t b = s.find_last_not_of(" \t\r\n");
+        return s.substr(a, b - a + 1);
+    }
+
+    static Symbols::ValuePtr IniParse(Symbols::FunctionArguments & args) {
+        if (args.size() != 1 || args[0]->getType() != Symbols::Variables::Type::STRING) {
+            throw std::runtime_error("ini_parse expects one string argument");
+        }
+        Symbols::ObjectMap top;                        // global keys live here
+        Symbols::ObjectMap section;                    // current [section]
+        std::string        sectionName;
+        bool               inSection = false;
+
+        const auto flush = [&]() {
+            if (inSection) {
+                top[sectionName] = Symbols::ValuePtr(section);
+                section          = Symbols::ObjectMap{};
+            }
+        };
+
+        std::istringstream iss(args[0]->get<std::string>());
+        std::string        line;
+        while (std::getline(iss, line)) {
+            std::string t = trim(line);
+            if (t.empty() || t[0] == ';' || t[0] == '#') {
+                continue;
+            }
+            if (t.front() == '[' && t.back() == ']') {
+                flush();
+                sectionName = trim(t.substr(1, t.size() - 2));
+                inSection   = true;
+                continue;
+            }
+            const size_t eq = t.find('=');
+            if (eq == std::string::npos) {
+                continue;
+            }
+            std::string key = trim(t.substr(0, eq));
+            std::string val = trim(t.substr(eq + 1));
+            if (val.size() >= 2 && ((val.front() == '"' && val.back() == '"') ||
+                                    (val.front() == '\'' && val.back() == '\''))) {
+                val = val.substr(1, val.size() - 2);
+            }
+            if (inSection) {
+                section[key] = Symbols::ValuePtr(val);
+            } else {
+                top[key] = Symbols::ValuePtr(val);
+            }
+        }
+        flush();
+        return Symbols::ValuePtr(top);
+    }
+
+    static Symbols::ValuePtr IniEncode(Symbols::FunctionArguments & args) {
+        if (args.size() != 1 || (args[0]->getType() != Symbols::Variables::Type::OBJECT &&
+                                 args[0]->getType() != Symbols::Variables::Type::CLASS)) {
+            throw std::runtime_error("ini_encode expects one object argument");
+        }
+        const Symbols::ObjectMap & map = args[0]->get<Symbols::ObjectMap>();
+        std::string                globals;
+        std::string                sections;
+        for (const auto & kv : map) {
+            if (kv.second->getType() == Symbols::Variables::Type::OBJECT ||
+                kv.second->getType() == Symbols::Variables::Type::CLASS) {
+                sections += "[" + kv.first + "]\n";
+                for (const auto & sk : kv.second->get<Symbols::ObjectMap>()) {
+                    sections += sk.first + "=" + sk.second->toString() + "\n";
+                }
+                sections += "\n";
+            } else {
+                globals += kv.first + "=" + kv.second->toString() + "\n";
+            }
+        }
+        return Symbols::ValuePtr(globals + (globals.empty() ? "" : "\n") + sections);
     }
 };
 

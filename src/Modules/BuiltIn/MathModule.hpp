@@ -311,6 +311,115 @@ class MathModule : public BaseModule {
                               rng_.seed(static_cast<std::mt19937_64::result_type>(seed));
                               return Symbols::ValuePtr::null();
                           });
+
+        // atan2(y, x)
+        REGISTER_FUNCTION("atan2", Symbols::Variables::Type::DOUBLE, two_number_params,
+                          "Arc tangent of y/x using the signs of both to pick the quadrant",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 2) {
+                                  throw Exception(name() + "::atan2 expects two arguments");
+                              }
+                              return std::atan2(convertToDouble(args[0], "atan2"), convertToDouble(args[1], "atan2"));
+                          });
+
+        // hypot(x, y)
+        REGISTER_FUNCTION("hypot", Symbols::Variables::Type::DOUBLE, two_number_params,
+                          "Euclidean distance sqrt(x*x + y*y) without overflow",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 2) {
+                                  throw Exception(name() + "::hypot expects two arguments");
+                              }
+                              return std::hypot(convertToDouble(args[0], "hypot"), convertToDouble(args[1], "hypot"));
+                          });
+
+        // sign(x) -> -1, 0 or 1
+        REGISTER_FUNCTION("sign", Symbols::Variables::Type::INTEGER, number_param,
+                          "Sign of a number: -1, 0 or 1",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 1) {
+                                  throw Exception(name() + "::sign expects one argument");
+                              }
+                              double v = convertToDouble(args[0], "sign");
+                              return (v > 0) - (v < 0);
+                          });
+
+        // clamp(x, lo, hi)
+        std::vector<Symbols::FunctionParameterInfo> clamp_params = {
+            { "value", Symbols::Variables::Type::DOUBLE, "The value",       false, false },
+            { "lo",    Symbols::Variables::Type::DOUBLE, "Lower bound",     false, false },
+            { "hi",    Symbols::Variables::Type::DOUBLE, "Upper bound",     false, false }
+        };
+        REGISTER_FUNCTION("clamp", Symbols::Variables::Type::DOUBLE, clamp_params,
+                          "Constrain a value to the inclusive range [lo, hi]",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 3) {
+                                  throw Exception(name() + "::clamp expects three arguments");
+                              }
+                              double v  = convertToDouble(args[0], "clamp");
+                              double lo = convertToDouble(args[1], "clamp");
+                              double hi = convertToDouble(args[2], "clamp");
+                              if (lo > hi) {
+                                  throw Exception(name() + "::clamp: lo must be <= hi");
+                              }
+                              return std::min(std::max(v, lo), hi);
+                          });
+
+        // gcd(a, b) - integers
+        REGISTER_FUNCTION("gcd", Symbols::Variables::Type::INTEGER, two_number_params,
+                          "Greatest common divisor of two integers",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 2) {
+                                  throw Exception(name() + "::gcd expects two arguments");
+                              }
+                              long long a = std::llabs(static_cast<long long>(convertToDouble(args[0], "gcd")));
+                              long long b = std::llabs(static_cast<long long>(convertToDouble(args[1], "gcd")));
+                              while (b != 0) {
+                                  long long t = b;
+                                  b = a % b;
+                                  a = t;
+                              }
+                              return static_cast<int>(a);
+                          });
+
+        // lcm(a, b) - integers
+        REGISTER_FUNCTION("lcm", Symbols::Variables::Type::INTEGER, two_number_params,
+                          "Least common multiple of two integers",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 2) {
+                                  throw Exception(name() + "::lcm expects two arguments");
+                              }
+                              long long a = std::llabs(static_cast<long long>(convertToDouble(args[0], "lcm")));
+                              long long b = std::llabs(static_cast<long long>(convertToDouble(args[1], "lcm")));
+                              if (a == 0 || b == 0) {
+                                  return 0;
+                              }
+                              long long g = a;
+                              long long h = b;
+                              while (h != 0) {
+                                  long long t = h;
+                                  h = g % h;
+                                  g = t;
+                              }
+                              return static_cast<int>((a / g) * b);
+                          });
+
+        // deg2rad / rad2deg
+        REGISTER_FUNCTION("deg2rad", Symbols::Variables::Type::DOUBLE, number_param,
+                          "Convert degrees to radians",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 1) {
+                                  throw Exception(name() + "::deg2rad expects one argument");
+                              }
+                              return convertToDouble(args[0], "deg2rad") * M_PI / 180.0;
+                          });
+        REGISTER_FUNCTION("rad2deg", Symbols::Variables::Type::DOUBLE, number_param,
+                          "Convert radians to degrees",
+                          [this](Symbols::FunctionArguments& args) -> Symbols::ValuePtr {
+                              if (args.size() != 1) {
+                                  throw Exception(name() + "::rad2deg expects one argument");
+                              }
+                              return convertToDouble(args[0], "rad2deg") * 180.0 / M_PI;
+                          });
     }
 
   private:

@@ -9,16 +9,16 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
 - Template parsing: embed `<?void ... ?>` tags inside HTML
 - #### Built-in standard library modules:
   - Print: `print()`, `printnl()`, `error()`, `throw_error()`
-  - [String utilities](https://github.com/fszontagh/voidscript/blob/main/docs/StringModule.md) (`string_length()`, `string_substr()`, etc.)
+  - [String utilities](https://github.com/fszontagh/voidscript/blob/main/docs/StringModule.md) (`string_length`, `string_substr`, `string_replace`/`split`/`join`/`trim`, `string_pad`, `string_ucfirst`/`lcfirst`/`title`, `string_contains`/`starts_with`/`ends_with`, ...)
   - [Array utilities](https://github.com/fszontagh/voidscript/blob/main/docs/ArrayModule.md) (`sizeof`, `array_map`/`array_filter`/`array_reduce`, `array_sort`/`array_usort`, `array_keys`/`array_values`, `array_reverse`/`array_slice`/`array_merge`/`array_unique`/`array_flip`, `in_array`)
   - Regex (`regex_match`, `regex_search` with capture groups, `regex_replace`, `regex_split`)
-  - Encoding (`url_encode`/`url_decode`, `hex_encode`/`hex_decode`, `html_escape`/`html_unescape`, `ord`/`chr`)
+  - Encoding (`url_encode`/`url_decode`, `hex_encode`/`hex_decode`, `html_escape`/`html_unescape`, `ord`/`chr`, `uuid_v4`, `ini_parse`/`ini_encode`)
   - CSV (`csv_parse`, `csv_encode` with RFC 4180 quoting)
   - [File I/O](https://github.com/fszontagh/voidscript/blob/main/docs/FileModule.md) (`file_get_contents()`, `file_put_contents()` etc.)
   - [JSON encode/decode](https://github.com/fszontagh/voidscript/blob/main/docs/JsonModule.md) (`json_encode()`, `json_decode()`)
   - [Variable helpers](https://github.com/fszontagh/voidscript/blob/main/docs/VariableHelpersModule.md) (`typeof()` etc.)
   - [Module helpers](https://github.com/fszontagh/voidscript/blob/main/docs/ModuleHelperModule.md) (`module_list()`, `module_exists()`, `module_info()`)
-  - Math: `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `exp`, `log`, `log10`, `sin`/`cos`/`tan`, `min`, `max`, `PI()`, `E()`, and random generation `rand_int`/`rand_double`/`rand_normal`/`rand_seed`
+  - Math: `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `exp`, `log`, `log10`, `sin`/`cos`/`tan`, `atan2`, `hypot`, `sign`, `clamp`, `gcd`/`lcm`, `deg2rad`/`rad2deg`, `min`, `max`, `PI()`, `E()`, and random generation `rand_int`/`rand_double`/`rand_normal`/`rand_seed`
   - Path, Env, Process (`process_run()`), Conversion
   - DateTime (`current_unix_timestamp`, `date([fmt[,ts]])`, `date_parse`, and a `DateTime` class: getters, in-place `add*`/calendar arithmetic, `format`, `diff`)
 - HTTP header management (FastCGI only): `header()`
