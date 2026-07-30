@@ -151,6 +151,143 @@ std::string randomBytes(int n) {
     return buf;
 }
 
+// --- base32 (RFC 4648) ---------------------------------------------------------------
+
+std::string base32Encode(const std::string & in) {
+    static const char * alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    std::string         out;
+    int                 bits = 0;
+    unsigned long       val  = 0;
+    for (unsigned char c : in) {
+        val = (val << 8) | c;
+        bits += 8;
+        while (bits >= 5) {
+            out.push_back(alphabet[(val >> (bits - 5)) & 0x1F]);
+            bits -= 5;
+        }
+    }
+    if (bits > 0) {
+        out.push_back(alphabet[(val << (5 - bits)) & 0x1F]);
+    }
+    while (out.size() % 8 != 0) {
+        out.push_back('=');
+    }
+    return out;
+}
+
+std::string base32Decode(const std::string & in) {
+    int           bits = 0;
+    unsigned long val  = 0;
+    std::string   out;
+    for (char ch : in) {
+        if (ch == '=' || std::isspace(static_cast<unsigned char>(ch))) {
+            continue;
+        }
+        int d;
+        if (ch >= 'A' && ch <= 'Z') {
+            d = ch - 'A';
+        } else if (ch >= 'a' && ch <= 'z') {
+            d = ch - 'a';
+        } else if (ch >= '2' && ch <= '7') {
+            d = ch - '2' + 26;
+        } else {
+            throw std::runtime_error("base32_decode: invalid character");
+        }
+        val = (val << 5) | static_cast<unsigned long>(d);
+        bits += 5;
+        if (bits >= 8) {
+            out.push_back(static_cast<char>((val >> (bits - 8)) & 0xFF));
+            bits -= 8;
+        }
+    }
+    return out;
+}
+
+// --- AES-256-GCM ---------------------------------------------------------------------
+// The passphrase is turned into a 32-byte key with SHA-256. The output blob is
+// iv(12) || tag(16) || ciphertext (raw bytes; hex_encode() for storage/transport).
+
+std::string deriveKey32(const std::string & key) {
+    unsigned char md[32];
+    unsigned int  len = 0;
+    if (EVP_Digest(key.data(), key.size(), md, &len, EVP_sha256(), nullptr) != 1) {
+        throw std::runtime_error("aes: key derivation failed");
+    }
+    return std::string(reinterpret_cast<char *>(md), 32);
+}
+
+std::string aesEncrypt(const std::string & key, const std::string & plain) {
+    const std::string k = deriveKey32(key);
+    unsigned char     iv[12];
+    if (RAND_bytes(iv, sizeof(iv)) != 1) {
+        throw std::runtime_error("aes_encrypt: RAND_bytes failed");
+    }
+    EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        throw std::runtime_error("aes_encrypt: context alloc failed");
+    }
+    std::string out(plain.size(), '\0');
+    unsigned char tag[16];
+    int           outlen = 0;
+    int           total  = 0;
+    bool          ok =
+        EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1 &&
+        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 12, nullptr) == 1 &&
+        EVP_EncryptInit_ex(ctx, nullptr, nullptr, reinterpret_cast<const unsigned char *>(k.data()), iv) == 1 &&
+        EVP_EncryptUpdate(ctx, plain.empty() ? nullptr : reinterpret_cast<unsigned char *>(&out[0]), &outlen,
+                          reinterpret_cast<const unsigned char *>(plain.data()),
+                          static_cast<int>(plain.size())) == 1;
+    total = outlen;
+    ok    = ok && EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(&out[0]) + total, &outlen) == 1;
+    total += outlen;
+    ok = ok && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag) == 1;
+    EVP_CIPHER_CTX_free(ctx);
+    if (!ok) {
+        throw std::runtime_error("aes_encrypt: encryption failed");
+    }
+    out.resize(total);
+    std::string blob;
+    blob.append(reinterpret_cast<char *>(iv), 12);
+    blob.append(reinterpret_cast<char *>(tag), 16);
+    blob.append(out);
+    return blob;
+}
+
+std::string aesDecrypt(const std::string & key, const std::string & blob) {
+    if (blob.size() < 28) {
+        throw std::runtime_error("aes_decrypt: input too short (need iv+tag+ciphertext)");
+    }
+    const std::string    k   = deriveKey32(key);
+    const unsigned char * iv  = reinterpret_cast<const unsigned char *>(blob.data());
+    const unsigned char * tag = iv + 12;
+    const char *          ct  = blob.data() + 28;
+    const int             ctlen = static_cast<int>(blob.size()) - 28;
+
+    EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        throw std::runtime_error("aes_decrypt: context alloc failed");
+    }
+    std::string out(static_cast<size_t>(ctlen), '\0');
+    int         outlen = 0;
+    int         total  = 0;
+    bool        ok =
+        EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1 &&
+        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 12, nullptr) == 1 &&
+        EVP_DecryptInit_ex(ctx, nullptr, nullptr, reinterpret_cast<const unsigned char *>(k.data()), iv) == 1 &&
+        EVP_DecryptUpdate(ctx, ctlen == 0 ? nullptr : reinterpret_cast<unsigned char *>(&out[0]), &outlen,
+                          reinterpret_cast<const unsigned char *>(ct), ctlen) == 1 &&
+        EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, const_cast<unsigned char *>(tag)) == 1;
+    total       = outlen;
+    const int rc = ok ? EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(&out[0]) + total, &outlen) : 0;
+    EVP_CIPHER_CTX_free(ctx);
+    if (!ok || rc <= 0) {
+        throw std::runtime_error("aes_decrypt: authentication failed (wrong key or corrupted data)");
+    }
+    total += outlen;
+    out.resize(total);
+    return out;
+}
+
 }  // namespace
 
 void HashModule::registerFunctions() {
@@ -232,6 +369,49 @@ void HashModule::registerFunctions() {
                               throw std::runtime_error("random_bytes expects (int count)");
                           }
                           return Symbols::ValuePtr(randomBytes(args[0]->get<int>()));
+                      });
+
+    std::vector<Symbols::FunctionParameterInfo> one_string = {
+        { "value", Symbols::Variables::Type::STRING, "Input string", false, false }
+    };
+    REGISTER_FUNCTION("base32_encode", Symbols::Variables::Type::STRING, one_string,
+                      "Base32-encode a string (RFC 4648, e.g. for TOTP secrets)",
+                      [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                          if (args.size() != 1 || args[0] != Symbols::Variables::Type::STRING) {
+                              throw std::runtime_error("base32_encode expects one string");
+                          }
+                          return Symbols::ValuePtr(base32Encode(args[0]->get<std::string>()));
+                      });
+    REGISTER_FUNCTION("base32_decode", Symbols::Variables::Type::STRING, one_string,
+                      "Decode a Base32 string back to bytes",
+                      [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                          if (args.size() != 1 || args[0] != Symbols::Variables::Type::STRING) {
+                              throw std::runtime_error("base32_decode expects one string");
+                          }
+                          return Symbols::ValuePtr(base32Decode(args[0]->get<std::string>()));
+                      });
+
+    std::vector<Symbols::FunctionParameterInfo> aes_params = {
+        { "key",  Symbols::Variables::Type::STRING, "Passphrase (hashed to a 256-bit key)", false, false },
+        { "data", Symbols::Variables::Type::STRING, "Plaintext / ciphertext blob",          false, false }
+    };
+    REGISTER_FUNCTION("aes_encrypt", Symbols::Variables::Type::STRING, aes_params,
+                      "AES-256-GCM encrypt; returns iv+tag+ciphertext bytes (hex_encode() to store)",
+                      [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                          if (args.size() != 2 || args[0] != Symbols::Variables::Type::STRING ||
+                              args[1] != Symbols::Variables::Type::STRING) {
+                              throw std::runtime_error("aes_encrypt expects (string key, string plaintext)");
+                          }
+                          return Symbols::ValuePtr(aesEncrypt(args[0]->get<std::string>(), args[1]->get<std::string>()));
+                      });
+    REGISTER_FUNCTION("aes_decrypt", Symbols::Variables::Type::STRING, aes_params,
+                      "AES-256-GCM decrypt an iv+tag+ciphertext blob; throws if authentication fails",
+                      [](Symbols::FunctionArguments & args) -> Symbols::ValuePtr {
+                          if (args.size() != 2 || args[0] != Symbols::Variables::Type::STRING ||
+                              args[1] != Symbols::Variables::Type::STRING) {
+                              throw std::runtime_error("aes_decrypt expects (string key, string blob)");
+                          }
+                          return Symbols::ValuePtr(aesDecrypt(args[0]->get<std::string>(), args[1]->get<std::string>()));
                       });
 }
 

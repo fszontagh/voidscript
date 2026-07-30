@@ -584,6 +584,14 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8\n16\n16\ntrue\ndone")
 
+      # Roadmap: base32 and AES-256-GCM (Hash module, OpenSSL).
+      add_test(NAME RegressionCryptoExtras
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/crypto_extras.vs)
+      set_tests_properties(RegressionCryptoExtras PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "MZXW6YTBOI======\nfoobar\nhello world\ntrue\ntrue\ndone")
+
       # Roadmap Tier 2: CSV parse/encode with RFC 4180 quoting.
       add_test(NAME RegressionCsvFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
