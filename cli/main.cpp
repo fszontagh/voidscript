@@ -55,8 +55,18 @@ int main(int argc, char * argv[]) {
     bool                     suppressTagsOutside = false;
     // Collect script parameters (arguments after script filename)
     std::vector<std::string> scriptArgs;
+    bool                     passThrough = false;  // everything after "--" goes to the script
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
+        if (passThrough) {
+            scriptArgs.emplace_back(a);
+            continue;
+        }
+        if (a == "--") {
+            // Standard separator: hand all remaining args (even --flags) to the script.
+            passThrough = true;
+            continue;
+        }
         if (a == "--help") {
             std::cout << usage << "\n";
             for (const auto & [key, value] : params) {
@@ -180,9 +190,16 @@ int main(int argc, char * argv[]) {
             // Read script from stdin
             file = a;
         } else if (a.starts_with("-")) {
-            std::cerr << "Error: Unknown option '" << a << "'\n";
-            std::cerr << usage << "\n";
-            return 1;
+            // Before the script is known, an unknown -flag is an interpreter-option typo.
+            // Once the script (file or -c) is set, pass -flags through to the script so it
+            // can implement its own CLI (they land in $argv).
+            if (!file.empty() || isCommandMode) {
+                scriptArgs.emplace_back(a);
+            } else {
+                std::cerr << "Error: Unknown option '" << a << "'\n";
+                std::cerr << usage << "\n";
+                return 1;
+            }
         } else if (file.empty() && !isCommandMode) {
             // First non-option argument is the script file (only if not in command mode)
             file = a;
