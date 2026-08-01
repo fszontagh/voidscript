@@ -56,6 +56,8 @@ class ImagickModule : public BaseModule {
     Symbols::ValuePtr                      compositeMultiply(FunctionArguments & args);
     Symbols::ValuePtr                      compositeOp(FunctionArguments & args);
     Symbols::ValuePtr                      distort(FunctionArguments & args);
+    Symbols::ValuePtr                      extractChannel(FunctionArguments & args);
+    Symbols::ValuePtr                      combineChannels(FunctionArguments & args);
     Symbols::ValuePtr                      stripImage(FunctionArguments & args);
 };
 

@@ -646,6 +646,13 @@ if (BUILD_TESTS)
       set_tests_properties(RegressionImagickCompositeOps PROPERTIES
                TIMEOUT 15 PASS_REGULAR_EXPRESSION "96\n48\ntrue\ndone")
 
+      # Imagick per-channel split/recombine (extractChannel / combineChannels).
+      add_test(NAME RegressionImagickChannels
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_channels.vs)
+      set_tests_properties(RegressionImagickChannels PROPERTIES
+               TIMEOUT 15 PASS_REGULAR_EXPRESSION "32,32,32\n32,96,160\ndone")
+
       # CLI: unknown flags after the script (and everything after "--") reach $argv.
       add_test(NAME RegressionCliArgs
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

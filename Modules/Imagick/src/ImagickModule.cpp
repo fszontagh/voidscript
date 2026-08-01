@@ -146,10 +146,12 @@ void Modules::ImagickModule::registerFunctions() {
         Symbols::Variables::Type::NULL_TYPE, "Pad or crop the image to an exact size, filling new area with a color");
 
     params = { { "type",     Symbols::Variables::Type::STRING, "gaussian|uniform|impulse|laplacian|poisson|multiplicative|random" },
-               { "strength", Symbols::Variables::Type::DOUBLE, "Noise attenuation factor (1.0 = default)" } };
+               { "strength", Symbols::Variables::Type::DOUBLE, "Attenuate factor; higher = MORE noise for gaussian/multiplicative" } };
     REGISTER_METHOD(
         this->name(), "addNoise", params, [this](const FunctionArguments & args) { return this->addNoise(args); },
-        Symbols::Variables::Type::NULL_TYPE, "Add noise to the whole image in one native pass");
+        Symbols::Variables::Type::NULL_TYPE,
+        "Add noise natively. Use 'gaussian' or 'multiplicative' for calibrated grain; "
+        "'poisson' ignores strength in a usable way (its attenuate is inverse/uncalibratable in ImageMagick)");
 
     params = { { "op",    Symbols::Variables::Type::STRING, "multiply|add|subtract|divide|set|min|max" },
                { "value", Symbols::Variables::Type::DOUBLE, "Right-hand value, 0-1 (e.g. 0.7 to darken)" } };
@@ -182,6 +184,22 @@ void Modules::ImagickModule::registerFunctions() {
     REGISTER_METHOD(
         this->name(), "distort", params, [this](const FunctionArguments & args) { return this->distort(args); },
         Symbols::Variables::Type::NULL_TYPE, "Geometric distortion (barrel/perspective/SRT/...)");
+
+    params = { { "channel", Symbols::Variables::Type::STRING, "red|green|blue|alpha" } };
+    REGISTER_METHOD(
+        this->name(), "extractChannel", params,
+        [this](const FunctionArguments & args) { return this->extractChannel(args); },
+        Symbols::Variables::Type::NULL_TYPE,
+        "Reduce this image in place to one channel as grayscale (for per-channel warps)");
+
+    params = { { "red",   Symbols::Variables::Type::CLASS, "Grayscale image for the red channel" },
+               { "green", Symbols::Variables::Type::CLASS, "Grayscale image for the green channel" },
+               { "blue",  Symbols::Variables::Type::CLASS, "Grayscale image for the blue channel" } };
+    REGISTER_METHOD(
+        this->name(), "combineChannels", params,
+        [this](const FunctionArguments & args) { return this->combineChannels(args); },
+        Symbols::Variables::Type::NULL_TYPE,
+        "Set this image's R/G/B from three grayscale channel images (e.g. chromatic aberration)");
 }
 
 Symbols::ValuePtr Modules::ImagickModule::construct(FunctionArguments & args) {
@@ -820,6 +838,56 @@ Symbols::ValuePtr Modules::ImagickModule::distort(Symbols::FunctionArguments & a
         image.distort(dm, coeffs.size(), coeffs.data(), bestfit);
     } catch (const Magick::Exception & e) {
         throw std::runtime_error(std::string("Imagick::distort failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+namespace {
+Magick::ChannelType channelFromName(const std::string & name, const char * method) {
+    if (name == "red")   return Magick::RedChannel;
+    if (name == "green") return Magick::GreenChannel;
+    if (name == "blue")  return Magick::BlueChannel;
+    if (name == "alpha") return Magick::AlphaChannel;
+    throw std::runtime_error(std::string("Imagick::") + method + ": unknown channel '" + name +
+                             "' (red|green|blue|alpha)");
+}
+}  // namespace
+
+// extractChannel(name) -> reduce this image in place to one channel as a grayscale image.
+// Read the source into several instances and extract R/G/B into each to warp them apart
+// (lateral chromatic aberration), then combineChannels() them back.
+Symbols::ValuePtr Modules::ImagickModule::extractChannel(Symbols::FunctionArguments & args) {
+    if (args.size() != 2 || args[1] != Symbols::Variables::Type::STRING) {
+        throw std::runtime_error("Imagick::extractChannel expects (string channel)");
+    }
+    Magick::Image &     image = imageFor(args, "extractChannel");
+    Magick::ChannelType ch    = channelFromName(args[1], "extractChannel");
+    try {
+        image.modifyImage();
+        image = image.separate(ch);  // new grayscale image of just that channel
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::extractChannel failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+// combineChannels(rImg, gImg, bImg) -> set this image's R/G/B from three grayscale images
+// (typically produced by extractChannel and independently transformed).
+Symbols::ValuePtr Modules::ImagickModule::combineChannels(Symbols::FunctionArguments & args) {
+    if (args.size() != 4) {
+        throw std::runtime_error("Imagick::combineChannels expects (Imagick red, Imagick green, Imagick blue)");
+    }
+    Magick::Image & target = imageFor(args, "combineChannels");
+    Magick::Image & r      = imageFor(args, "combineChannels", 1);
+    Magick::Image & g      = imageFor(args, "combineChannels", 2);
+    Magick::Image & b      = imageFor(args, "combineChannels", 3);
+    try {
+        target.modifyImage();
+        target.composite(r, 0, 0, Magick::CopyRedCompositeOp);
+        target.composite(g, 0, 0, Magick::CopyGreenCompositeOp);
+        target.composite(b, 0, 0, Magick::CopyBlueCompositeOp);
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::combineChannels failed: ") + e.what());
     }
     return Symbols::ValuePtr::null();
 }
