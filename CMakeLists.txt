@@ -624,6 +624,14 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "36\n4\n1\nlocalhost:5432\n5432\ndone")
 
+      # EXIF read/edit (Exif module, exiv2). Operates on a /tmp copy of the fixture.
+      add_test(NAME RegressionExifReadEdit
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/exif_readedit.vs)
+      set_tests_properties(RegressionExifReadEdit PROPERTIES
+               TIMEOUT 15
+               PASS_REGULAR_EXPRESSION "true\n0\n2\nAlice\ntrue\ntrue\ntrue\nAlice\ndone")
+
       # Roadmap Tier 3: gzip compression (Compress module, zlib).
       add_test(NAME RegressionCompressFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript
