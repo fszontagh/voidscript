@@ -83,7 +83,7 @@ Symbols::ValuePtr ExifModule::read(FunctionArguments & args) {
         throw std::runtime_error("Exif::read: file does not exist: " + path);
     }
     try {
-        Exiv2::Image::UniquePtr image = Exiv2::ImageFactory::open(path);
+        std::unique_ptr<Exiv2::Image> image = Exiv2::ImageFactory::open(path);
         image->readMetadata();
         Entry e;
         e.image       = std::move(image);
@@ -178,7 +178,7 @@ Symbols::ValuePtr ExifModule::saveAs(FunctionArguments & args) {
     const std::string dest = args[1]->get<std::string>();
     try {
         std::filesystem::copy_file(e.path, dest, std::filesystem::copy_options::overwrite_existing);
-        Exiv2::Image::UniquePtr out = Exiv2::ImageFactory::open(dest);
+        std::unique_ptr<Exiv2::Image> out = Exiv2::ImageFactory::open(dest);
         out->readMetadata();
         out->setExifData(e.image->exifData());
         out->writeMetadata();

@@ -3,6 +3,7 @@
 
 #include <exiv2/exiv2.hpp>
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -26,8 +27,11 @@ class ExifModule : public BaseModule {
 
   private:
     struct Entry {
-        Exiv2::Image::UniquePtr image;
-        std::string             path;
+        // Concrete std::unique_ptr rather than Exiv2::Image::UniquePtr: the alias name
+        // varies across exiv2 versions (AutoPtr in 0.27, UniquePtr in newer 0.28), but
+        // both are std::unique_ptr<Image>, which is what ImageFactory::open() returns.
+        std::unique_ptr<Exiv2::Image> image;
+        std::string                   path;
     };
     std::unordered_map<long, Entry> entries_;
 
