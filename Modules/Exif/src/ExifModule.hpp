@@ -43,6 +43,10 @@ class ExifModule : public BaseModule {
     Symbols::ValuePtr set(FunctionArguments & args);
     Symbols::ValuePtr remove(FunctionArguments & args);
     Symbols::ValuePtr clear(FunctionArguments & args);
+    Symbols::ValuePtr clearAll(FunctionArguments & args);
+    Symbols::ValuePtr clearXmp(FunctionArguments & args);
+    Symbols::ValuePtr clearIptc(FunctionArguments & args);
+    Symbols::ValuePtr clearComment(FunctionArguments & args);
     Symbols::ValuePtr count(FunctionArguments & args);
     Symbols::ValuePtr save(FunctionArguments & args);
     Symbols::ValuePtr saveAs(FunctionArguments & args);

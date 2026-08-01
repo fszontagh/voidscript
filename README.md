@@ -25,11 +25,11 @@ VoidScript is a lightweight, embeddable scripting language designed for simplici
 - HTTP header management (FastCGI only): `header()`
 - Dynamic plugin modules (opt-in at build time):
   - [Curl](https://github.com/fszontagh/voidscript/tree/main/Modules/Curl) - HTTP (all verbs) and the `CurlClient` class
-  - [Imagick](https://github.com/fszontagh/voidscript/tree/main/Modules/Imagick) - image processing via ImageMagick: read/write/resize/crop/rotate/flip/blur/composite, per-pixel `getPixel`/`setPixel`, canvas creation (`newImage`/`extent`), native gradients (`gradient`/`radialGradient`, e.g. a vignette mask), `addNoise`, `evaluate`, `compositeMultiply`, `stripImage`
+  - [Imagick](https://github.com/fszontagh/voidscript/tree/main/Modules/Imagick) - image processing via ImageMagick: read/write/resize/crop/rotate/flip/blur/composite, per-pixel `getPixel`/`setPixel`, canvas creation (`newImage`/`extent`), native gradients (`gradient`/`radialGradient`, e.g. a vignette mask), `addNoise`, `evaluate`, `compositeMultiply`, `compositeOp` (add/subtract/screen/...), `distort` (barrel/perspective/...), `write(path[,quality])`, `stripImage`
   - [StableDiffusion](https://github.com/fszontagh/voidscript/tree/main/Modules/StableDiffusion) - stable-diffusion.cpp: txt2img/img2img/upscale/video, LoRAs, ControlNet (incl. runtime hot-swap) and IP-Adapter, reference/edit images, live progress callbacks
   - [PixelArt](https://github.com/fszontagh/voidscript/tree/main/Modules/PixelArt) - turn AI "pixel-art-looking" images into real pixel art (sdpixel2realpixelart)
   - [SQLite](https://github.com/fszontagh/voidscript/tree/main/Modules/SQLite) - zero-config embedded SQL (no server), prepared statements: `open`/`exec`/`query`/`lastInsertId`/`changes`
-  - [Exif](https://github.com/fszontagh/voidscript/tree/main/Modules/Exif) - read AND edit image EXIF metadata (`read`/`getAll`/`get`/`set`/`remove`/`save`/`saveAs` - exiv2)
+  - [Exif](https://github.com/fszontagh/voidscript/tree/main/Modules/Exif) - read AND edit image EXIF metadata (`read`/`getAll`/`get`/`set`/`remove`/`clear`/`clearAll`/`save`/`saveAs` - exiv2)
   - Hash (`hash_string`, `hash_file`, `hmac`, `random_bytes`, `base32_*`, `aes_encrypt`/`aes_decrypt`, `hash_compare` - OpenSSL), Compress (`gzencode`/`gzdecode` - zlib), Redis (`connect`/`set`/`get`/`del`/`incr`/`expire`/`command` - RESP, no hiredis), Format, Archive, Xml2, and the [MariaDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MariaDb) / [MongoDB](https://github.com/fszontagh/voidscript/tree/main/Modules/MongoDb) / Memcached database clients
 - Embeddable library (`libvoidscript`)
 - Zero runtime dependencies (except for the optional modules)

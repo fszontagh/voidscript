@@ -29,7 +29,9 @@ $e->saveAs("photo_tagged.jpg");                  // or copy + write to a new fil
 - `set(key, value)` - add or overwrite a tag (kept in memory until `save`). Values are set
   as text; best suited to the string tags (Artist, Copyright, ImageDescription, Make,
   Model, Software, DateTime, UserComment, ...).
-- `remove(key)` -> bool - erase a tag; `clear()` erases all.
+- `remove(key)` -> bool - erase one tag.
+- `clear()` - erase all EXIF tags. `clearAll()` wipes ALL metadata (EXIF + XMP + IPTC +
+  comment) for a full sanitise; `clearXmp()`, `clearIptc()`, `clearComment()` target one kind.
 - `count()` -> int - tags currently held.
 - `save()` - write the EXIF changes back to the file in place.
 - `saveAs(path)` - copy the source image to `path` and write the current EXIF there.

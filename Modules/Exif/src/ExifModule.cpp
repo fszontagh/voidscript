@@ -43,6 +43,18 @@ void ExifModule::registerFunctions() {
     REGISTER_METHOD(this->name(), "clear", {},
                     [this](FunctionArguments & args) { return this->clear(args); },
                     T::NULL_TYPE, "Remove all EXIF tags");
+    REGISTER_METHOD(this->name(), "clearAll", {},
+                    [this](FunctionArguments & args) { return this->clearAll(args); },
+                    T::NULL_TYPE, "Remove ALL metadata (EXIF, XMP, IPTC, comment) - full sanitise");
+    REGISTER_METHOD(this->name(), "clearXmp", {},
+                    [this](FunctionArguments & args) { return this->clearXmp(args); },
+                    T::NULL_TYPE, "Remove all XMP metadata");
+    REGISTER_METHOD(this->name(), "clearIptc", {},
+                    [this](FunctionArguments & args) { return this->clearIptc(args); },
+                    T::NULL_TYPE, "Remove all IPTC metadata");
+    REGISTER_METHOD(this->name(), "clearComment", {},
+                    [this](FunctionArguments & args) { return this->clearComment(args); },
+                    T::NULL_TYPE, "Remove the JPEG comment");
     REGISTER_METHOD(this->name(), "count", {},
                     [this](FunctionArguments & args) { return this->count(args); },
                     T::INTEGER, "Number of EXIF tags currently held");
@@ -152,6 +164,30 @@ Symbols::ValuePtr ExifModule::remove(FunctionArguments & args) {
 Symbols::ValuePtr ExifModule::clear(FunctionArguments & args) {
     Entry & e = entryFor(args, "clear");
     e.image->exifData().clear();
+    return Symbols::ValuePtr::null();
+}
+
+Symbols::ValuePtr ExifModule::clearAll(FunctionArguments & args) {
+    Entry & e = entryFor(args, "clearAll");
+    e.image->clearMetadata();  // EXIF + IPTC + XMP + comment
+    return Symbols::ValuePtr::null();
+}
+
+Symbols::ValuePtr ExifModule::clearXmp(FunctionArguments & args) {
+    Entry & e = entryFor(args, "clearXmp");
+    e.image->clearXmpData();
+    return Symbols::ValuePtr::null();
+}
+
+Symbols::ValuePtr ExifModule::clearIptc(FunctionArguments & args) {
+    Entry & e = entryFor(args, "clearIptc");
+    e.image->clearIptcData();
+    return Symbols::ValuePtr::null();
+}
+
+Symbols::ValuePtr ExifModule::clearComment(FunctionArguments & args) {
+    Entry & e = entryFor(args, "clearComment");
+    e.image->clearComment();
     return Symbols::ValuePtr::null();
 }
 

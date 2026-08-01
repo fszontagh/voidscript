@@ -54,6 +54,8 @@ class ImagickModule : public BaseModule {
     Symbols::ValuePtr                      addNoise(FunctionArguments & args);
     Symbols::ValuePtr                      evaluate(FunctionArguments & args);
     Symbols::ValuePtr                      compositeMultiply(FunctionArguments & args);
+    Symbols::ValuePtr                      compositeOp(FunctionArguments & args);
+    Symbols::ValuePtr                      distort(FunctionArguments & args);
     Symbols::ValuePtr                      stripImage(FunctionArguments & args);
 };
 

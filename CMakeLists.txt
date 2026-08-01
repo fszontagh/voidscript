@@ -632,6 +632,27 @@ if (BUILD_TESTS)
                TIMEOUT 15
                PASS_REGULAR_EXPRESSION "true\n0\n2\nAlice\ntrue\ntrue\ntrue\nAlice\ndone")
 
+      # Exif full-metadata clear (clearAll).
+      add_test(NAME RegressionExifClear
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/exif_clear.vs)
+      set_tests_properties(RegressionExifClear PROPERTIES
+               TIMEOUT 15 PASS_REGULAR_EXPRESSION "2\n0\ndone")
+
+      # Imagick compositeOp (image-image arithmetic), distort, and write() quality.
+      add_test(NAME RegressionImagickCompositeOps
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/imagick_composite_ops.vs)
+      set_tests_properties(RegressionImagickCompositeOps PROPERTIES
+               TIMEOUT 15 PASS_REGULAR_EXPRESSION "96\n48\ntrue\ndone")
+
+      # CLI: unknown flags after the script (and everything after "--") reach $argv.
+      add_test(NAME RegressionCliArgs
+               COMMAND ${CMAKE_BINARY_DIR}/voidscript
+                       ${CMAKE_SOURCE_DIR}/test_scripts/regression/cli_args.vs alpha --flag -- --after)
+      set_tests_properties(RegressionCliArgs PROPERTIES
+               TIMEOUT 10 PASS_REGULAR_EXPRESSION "4\nalpha\n--flag\n--after\ndone")
+
       # Roadmap Tier 3: gzip compression (Compress module, zlib).
       add_test(NAME RegressionCompressFunctions
                COMMAND ${CMAKE_BINARY_DIR}/voidscript

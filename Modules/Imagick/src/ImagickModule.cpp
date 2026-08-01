@@ -25,9 +25,11 @@ void Modules::ImagickModule::registerFunctions() {
         this->name(), "read", params, [this](const FunctionArguments & args) { return this->read(args); },
         Symbols::Variables::Type::CLASS, "Read an image file");
 
+    params = { { "filename", Symbols::Variables::Type::STRING, "Output file" },
+               { "quality", Symbols::Variables::Type::INTEGER, "JPEG/compression quality 1-100 (optional)", true } };
     REGISTER_METHOD(
         this->name(), "write", params, [this](const FunctionArguments & args) { return this->write(args); },
-        Symbols::Variables::Type::NULL_TYPE, "Save the image");
+        Symbols::Variables::Type::NULL_TYPE, "Save the image (optional quality for JPEG/WebP/etc.)");
 
     params = {
         { "width",   Symbols::Variables::Type::INTEGER, "The width of the crop"                                    },
@@ -164,6 +166,22 @@ void Modules::ImagickModule::registerFunctions() {
     REGISTER_METHOD(
         this->name(), "stripImage", {}, [this](const FunctionArguments & args) { return this->stripImage(args); },
         Symbols::Variables::Type::NULL_TYPE, "Remove all profiles and comments (EXIF, ICC, ...) from the image");
+
+    params = { { "source", Symbols::Variables::Type::CLASS,   "Imagick image to composite" },
+               { "op",     Symbols::Variables::Type::STRING,  "over|multiply|screen|add|subtract|difference|darken|lighten|overlay" },
+               { "x",      Symbols::Variables::Type::INTEGER, "X offset (default 0)", true },
+               { "y",      Symbols::Variables::Type::INTEGER, "Y offset (default 0)", true } };
+    REGISTER_METHOD(
+        this->name(), "compositeOp", params, [this](const FunctionArguments & args) { return this->compositeOp(args); },
+        Symbols::Variables::Type::NULL_TYPE,
+        "Composite another image using a named operator (image-image arithmetic: add/subtract/...)");
+
+    params = { { "method",  Symbols::Variables::Type::STRING, "barrel|perspective|srt|affine|arc|bilinear|polar|depolar" },
+               { "args",    Symbols::Variables::Type::OBJECT, "Array of double coefficients for the method" },
+               { "bestfit", Symbols::Variables::Type::BOOLEAN, "Resize the canvas to fit the result (default false)", true } };
+    REGISTER_METHOD(
+        this->name(), "distort", params, [this](const FunctionArguments & args) { return this->distort(args); },
+        Symbols::Variables::Type::NULL_TYPE, "Geometric distortion (barrel/perspective/SRT/...)");
 }
 
 Symbols::ValuePtr Modules::ImagickModule::construct(FunctionArguments & args) {
@@ -284,11 +302,21 @@ Symbols::ValuePtr Modules::ImagickModule::resize(Symbols::FunctionArguments & ar
 }
 
 Symbols::ValuePtr Modules::ImagickModule::write(Symbols::FunctionArguments & args) {
-    if (args.size() != 2) {
-        throw std::invalid_argument("Imagick::write missing argument: (string $filename)");
+    if (args.size() < 2 || args.size() > 3) {
+        throw std::invalid_argument("Imagick::write expects (string filename [, int quality])");
     }
-    Magick::Image & image = imageFor(args, "write");
+    Magick::Image &   image    = imageFor(args, "write");
     const std::string filename = args[1];
+    if (args.size() == 3) {
+        if (args[2] != Symbols::Variables::Type::INTEGER) {
+            throw std::runtime_error("Imagick::write: quality must be an integer 1-100");
+        }
+        const int q = args[2];
+        if (q < 1 || q > 100) {
+            throw std::runtime_error("Imagick::write: quality must be 1-100");
+        }
+        image.quality(static_cast<size_t>(q));
+    }
     image.write(filename);
 
     return Symbols::ValuePtr::null();
@@ -703,6 +731,95 @@ Symbols::ValuePtr Modules::ImagickModule::compositeMultiply(Symbols::FunctionArg
         target.composite(mask, 0, 0, Magick::MultiplyCompositeOp);
     } catch (const Magick::Exception & e) {
         throw std::runtime_error(std::string("Imagick::compositeMultiply failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+// compositeOp(source, op [, x, y]) -> composite another image with a named operator.
+// Covers image-image arithmetic (e.g. "subtract" for unsharp = image - blurred).
+Symbols::ValuePtr Modules::ImagickModule::compositeOp(Symbols::FunctionArguments & args) {
+    if (args.size() < 3 || args[2] != Symbols::Variables::Type::STRING) {
+        throw std::runtime_error("Imagick::compositeOp expects (Imagick source, string op [, int x, int y])");
+    }
+    Magick::Image &   target = imageFor(args, "compositeOp");
+    Magick::Image &   source = imageFor(args, "compositeOp", 1);
+    const std::string op     = args[2];
+    const int         x      = (args.size() >= 4 && args[3] == Symbols::Variables::Type::INTEGER) ? args[3]->get<int>() : 0;
+    const int         y      = (args.size() >= 5 && args[4] == Symbols::Variables::Type::INTEGER) ? args[4]->get<int>() : 0;
+
+    Magick::CompositeOperator co;
+    if (op == "over")            co = Magick::OverCompositeOp;
+    else if (op == "multiply")   co = Magick::MultiplyCompositeOp;
+    else if (op == "screen")     co = Magick::ScreenCompositeOp;
+    else if (op == "add" || op == "plus")        co = Magick::PlusCompositeOp;
+    else if (op == "subtract" || op == "minus")  co = Magick::MinusSrcCompositeOp;
+    else if (op == "difference") co = Magick::DifferenceCompositeOp;
+    else if (op == "darken")     co = Magick::DarkenCompositeOp;
+    else if (op == "lighten")    co = Magick::LightenCompositeOp;
+    else if (op == "overlay")    co = Magick::OverlayCompositeOp;
+    else {
+        throw std::runtime_error("Imagick::compositeOp: unknown op '" + op +
+                                 "' (over|multiply|screen|add|subtract|difference|darken|lighten|overlay)");
+    }
+
+    try {
+        target.modifyImage();
+        target.composite(source, x, y, co);
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::compositeOp failed: ") + e.what());
+    }
+    return Symbols::ValuePtr::null();
+}
+
+// distort(method, args [, bestfit]) -> geometric distortion (barrel, perspective, ...).
+Symbols::ValuePtr Modules::ImagickModule::distort(Symbols::FunctionArguments & args) {
+    if (args.size() < 3 || args[1] != Symbols::Variables::Type::STRING ||
+        (args[2] != Symbols::Variables::Type::OBJECT && args[2] != Symbols::Variables::Type::CLASS)) {
+        throw std::runtime_error("Imagick::distort expects (string method, array args [, boolean bestfit])");
+    }
+    Magick::Image &   image  = imageFor(args, "distort");
+    const std::string method = args[1];
+    const bool        bestfit = (args.size() >= 4 && args[3] == Symbols::Variables::Type::BOOLEAN) ? args[3]->get<bool>() : false;
+
+    Magick::DistortMethod dm;
+    if (method == "barrel")             dm = Magick::BarrelDistortion;
+    else if (method == "perspective")   dm = Magick::PerspectiveDistortion;
+    else if (method == "srt")           dm = Magick::ScaleRotateTranslateDistortion;
+    else if (method == "affine")        dm = Magick::AffineDistortion;
+    else if (method == "arc")           dm = Magick::ArcDistortion;
+    else if (method == "bilinear")      dm = Magick::BilinearForwardDistortion;
+    else if (method == "polar")         dm = Magick::PolarDistortion;
+    else if (method == "depolar")       dm = Magick::DePolarDistortion;
+    else {
+        throw std::runtime_error("Imagick::distort: unknown method '" + method +
+                                 "' (barrel|perspective|srt|affine|arc|bilinear|polar|depolar)");
+    }
+
+    // Read the coefficient array (in index order) into a double vector.
+    std::vector<double>        coeffs;
+    const Symbols::ObjectMap & m = args[2]->get<Symbols::ObjectMap>();
+    for (size_t i = 0;; ++i) {
+        auto it = m.find(std::to_string(i));
+        if (it == m.end()) {
+            break;
+        }
+        switch (it->second->getType()) {
+            case Symbols::Variables::Type::INTEGER: coeffs.push_back(static_cast<double>(it->second->get<int>())); break;
+            case Symbols::Variables::Type::FLOAT:   coeffs.push_back(static_cast<double>(it->second->get<float>())); break;
+            case Symbols::Variables::Type::DOUBLE:  coeffs.push_back(it->second->get<double>()); break;
+            default:
+                throw std::runtime_error("Imagick::distort: args must be numbers");
+        }
+    }
+    if (coeffs.empty()) {
+        throw std::runtime_error("Imagick::distort: args array is empty");
+    }
+
+    try {
+        image.modifyImage();
+        image.distort(dm, coeffs.size(), coeffs.data(), bestfit);
+    } catch (const Magick::Exception & e) {
+        throw std::runtime_error(std::string("Imagick::distort failed: ") + e.what());
     }
     return Symbols::ValuePtr::null();
 }
